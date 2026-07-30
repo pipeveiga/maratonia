@@ -2,10 +2,14 @@
 
 App para Apple Watch que reproduce tus MP3 durante una carrera y te interrumpe
 a determinados minutos con avisos de voz ("tomá agua", "comé un gel", "date vuelta"),
-funcionando en segundo plano mientras Runna trackea la carrera al frente.
+funcionando **en segundo plano** mientras Runna trackea la carrera al frente.
+Los canales de aviso son tres: voz, háptico y notificación local (visible
+encima de Runna).
 
 **Sin HealthKit, sin workout session, sin GPS.** Es solo una app de audio
-(background mode `audio`), así que convive con cualquier tracker.
+(background mode `audio`), así que convive con cualquier tracker. Nada depende
+de que la pantalla de la app sea visible ni de pantalla siempre encendida
+(SE 2 no la tiene).
 
 ---
 
@@ -15,7 +19,7 @@ funcionando en segundo plano mientras Runna trackea la carrera al frente.
 - [ ] **Fase 2** — App iOS: importar MP3s, armar avisos, cronograma, persistencia
 - [ ] **Fase 3** — WatchConnectivity: plan y archivos al reloj
 - [ ] **Fase 4** — Reproducción en el reloj: cola, loop, controles, Now Playing
-- [ ] **Fase 5** — Avisos: voz, ducking, háptico, notificaciones, pausa
+- [ ] **Fase 5** — Avisos: voz, ducking, háptico, notificaciones locales, pausa que congela el cronograma
 - [ ] **Fase 6** — Pulido
 
 ---
@@ -84,6 +88,46 @@ git clone -b claude/running-audio-watchos-app-hz36lk https://github.com/pipeveig
 ### Si algo falla
 
 Pegame el error tal cual (texto completo) y lo arreglo.
+
+---
+
+## Git en tu Mac (alquilada en la nube)
+
+El repo ya vive en GitHub (`pipeveiga/maraton`), así que el trabajo **ya
+sobrevive** a que se resetee la máquina: lo que está pusheado no se pierde.
+Al clonar con el comando del paso 1, el remoto queda conectado solo — no hay
+que configurar nada más.
+
+Comandos útiles desde la carpeta `maraton` en Terminal:
+
+```
+git pull                  # traer lo último (cada vez que yo te avise que pusheé una fase)
+git status                # ver si tocaste algo localmente
+git push                  # subir cambios tuyos (si los hubiera)
+```
+
+Si alguna vez la Mac se resetea, simplemente volvés a clonar (paso 1) y seguís.
+Si por algún motivo el remoto no estuviera conectado:
+
+```
+git remote add origin https://github.com/pipeveiga/maraton.git
+git push -u origin claude/running-audio-watchos-app-hz36lk
+```
+
+Cada fase queda como un commit con mensaje descriptivo, así se puede volver a
+una fase que funcionaba sin leer código.
+
+---
+
+## Checklist de pruebas (en reloj físico)
+
+- [ ] El audio no se corta con la muñeca baja o la pantalla apagada
+- [ ] El aviso se entiende por encima de la música
+- [ ] **La app sigue sonando y avisando con Runna al frente, no solo con la app en pantalla** (la prueba que importa)
+- [ ] Las notificaciones locales aparecen encima de Runna
+- [ ] Pausar y reanudar deja los avisos alineados con el tiempo real de carrera
+- [ ] Todo funciona con el iPhone apagado y lejos, con auriculares Bluetooth emparejados directo al reloj
+- [ ] Batería: una tirada de 4–5 horas con GPS de Runna + audio Bluetooth en simultáneo, antes de una carrera de verdad
 
 ---
 
