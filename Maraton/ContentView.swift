@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var store = PlanStore()
+    @ObservedObject private var conectividad = Conectividad.compartida
     @State private var mostrandoImportador = false
     @State private var fijoEnEdicion: AvisoFijo?
     @State private var repetidoEnEdicion: AvisoRepetido?
@@ -209,18 +210,61 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Envío al reloj (Fase 3)
+    // MARK: - Envío al reloj
 
     private var seccionEnvio: some View {
         Section {
+            if !conectividad.relojEmparejado {
+                Label("No hay un Apple Watch emparejado con este iPhone.",
+                      systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+            } else if !conectividad.appInstaladaEnReloj {
+                Label("Instalá Maratón en el reloj (app Watch del iPhone → Maratón → Instalar) para poder enviar.",
+                      systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
+            }
+
             Button {
-                // Fase 3: WatchConnectivity
+                conectividad.enviar(plan: store.plan, urlDePista: store.urlDePista)
             } label: {
                 Label("Enviar al reloj", systemImage: "applewatch.radiowaves.left.and.right")
             }
-            .disabled(true)
+
+            if conectividad.planEncolado {
+                Label("Plan encolado: llega al reloj apenas esté disponible.",
+                      systemImage: "checkmark.circle")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let error = conectividad.mensajeError {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+
+            ForEach(store.plan.pistas, id: \.self) { nombre in
+                HStack {
+                    Text(nombre)
+                        .lineLimit(1)
+                    Spacer()
+                    if conectividad.archivosEnReloj.contains(nombre) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    } else if let progreso = conectividad.progresoEnvios[nombre] {
+                        ProgressView(value: progreso)
+                            .frame(width: 70)
+                    } else {
+                        Image(systemName: "circle.dashed")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .font(.callout)
+            }
+        } header: {
+            Text("Enviar al reloj")
         } footer: {
-            Text("Disponible en la Fase 3. La transferencia es lenta: conviene hacerla con el reloj en el cargador y con WiFi.")
+            Text("⚠️ La transferencia de MP3 es lenta: hacela con el reloj en el cargador y con WiFi. ✓ verde = ya está en el reloj (no se reenvía).")
         }
     }
 }

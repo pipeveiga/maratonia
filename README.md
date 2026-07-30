@@ -4,11 +4,11 @@ App de audio para Apple Watch: reproduce tus MP3 durante una carrera larga y te
 interrumpe a determinados minutos con avisos de voz ("tomá agua", "comé un gel").
 Convive con Runna en segundo plano: **no** usa HealthKit, GPS ni workout sessions.
 
-## Estado: Fase 2
+## Estado: Fase 3
 
 - ✅ Fase 1 — Proyecto Xcode con dos targets, modelo compartido, background `audio`
 - ✅ Fase 2 — App iOS: importar MP3s, armar avisos, vista previa del cronograma, persistencia
-- ⬜ Fase 3 — WatchConnectivity (plan + archivos al reloj)
+- ✅ Fase 3 — WatchConnectivity: plan + archivos al reloj, con progreso y confirmación
 - ⬜ Fase 4 — Reproducción en el reloj (cola, loop, Now Playing)
 - ⬜ Fase 5 — Avisos (voz, ducking, háptico, notificaciones, pausa)
 - ⬜ Fase 6 — Pulido
@@ -23,6 +23,8 @@ Convive con Runna en segundo plano: **no** usa HealthKit, GPS ni workout session
 | `Maraton/ContentView.swift` | Pantalla única de la app iOS: pistas (importar/reordenar/borrar), avisos fijos y repetidos, vista previa del cronograma y botón de envío (deshabilitado hasta Fase 3). |
 | `Maraton/PlanStore.swift` | Estado central de la app iOS: guarda el plan como JSON en Documents ante cada cambio, copia los MP3 importados a Documents/Pistas y calcula duraciones. |
 | `Maraton/AvisoEditores.swift` | Las dos pantallas (sheets) para crear/editar avisos fijos y repetidos, con validación. |
+| `Maraton/Conectividad.swift` | Lado iPhone de WatchConnectivity: envía el plan (`transferUserInfo`) y los MP3 (`transferFile`), muestra progreso y no reenvía lo que el reloj ya confirmó tener. |
+| `Maraton Watch App/ConectividadWatch.swift` | Lado reloj: recibe plan y archivos (moviéndolos a Documents al instante), los persiste, y le reporta al iPhone qué archivos tiene. |
 | `Maraton Watch App/MaratonWatchApp.swift` | Punto de entrada de la app watchOS. |
 | `Maraton Watch App/ContentView.swift` | Pantalla watch de Fase 1: placeholder de verificación. |
 
