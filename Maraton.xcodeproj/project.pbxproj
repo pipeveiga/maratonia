@@ -1,0 +1,505 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A0A0A0A0A0A0A0A0A0A00001 /* Modelos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A0A0A0A0A0A0A0A0A00012 /* Modelos.swift */; };
+		A0A0A0A0A0A0A0A0A0A00002 /* MaratonApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A0A0A0A0A0A0A0A0A00013 /* MaratonApp.swift */; };
+		A0A0A0A0A0A0A0A0A0A00003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A0A0A0A0A0A0A0A0A00014 /* ContentView.swift */; };
+		A0A0A0A0A0A0A0A0A0A00004 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A0A0A0A0A0A0A0A0A0A00015 /* Assets.xcassets */; };
+		A0A0A0A0A0A0A0A0A0A00005 /* Modelos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A0A0A0A0A0A0A0A0A00012 /* Modelos.swift */; };
+		A0A0A0A0A0A0A0A0A0A00006 /* MaratonWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A0A0A0A0A0A0A0A0A00016 /* MaratonWatchApp.swift */; };
+		A0A0A0A0A0A0A0A0A0A00007 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0A0A0A0A0A0A0A0A0A00017 /* ContentView.swift */; };
+		A0A0A0A0A0A0A0A0A0A00008 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A0A0A0A0A0A0A0A0A0A00018 /* Assets.xcassets */; };
+		A0A0A0A0A0A0A0A0A0A00009 /* Maraton Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = A0A0A0A0A0A0A0A0A0A00011 /* Maraton Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A0A0A0A0A0A0A0A0A0A00035 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A0A0A0A0A0A0A0A0A0A00036 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A0A0A0A0A0A0A0A0A0A00033;
+			remoteInfo = "Maraton Watch App";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A0A0A0A0A0A0A0A0A0A00031 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				A0A0A0A0A0A0A0A0A0A00009 /* Maraton Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		A0A0A0A0A0A0A0A0A0A00010 /* Maraton.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Maraton.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A0A0A0A0A0A0A0A0A0A00011 /* Maraton Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maraton Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A0A0A0A0A0A0A0A0A0A00012 /* Modelos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Modelos.swift; sourceTree = "<group>"; };
+		A0A0A0A0A0A0A0A0A0A00013 /* MaratonApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaratonApp.swift; sourceTree = "<group>"; };
+		A0A0A0A0A0A0A0A0A0A00014 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A0A0A0A0A0A0A0A0A0A00015 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A0A0A0A0A0A0A0A0A0A00016 /* MaratonWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaratonWatchApp.swift; sourceTree = "<group>"; };
+		A0A0A0A0A0A0A0A0A0A00017 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A0A0A0A0A0A0A0A0A0A00018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A0A0A0A0A0A0A0A0A0A00019 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A0A0A0A0A0A0A0A0A0A00025 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A0A0A0A0A0A0A0A0A0A00026 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A0A0A0A0A0A0A0A0A0A00020 = {
+			isa = PBXGroup;
+			children = (
+				A0A0A0A0A0A0A0A0A0A00022 /* Shared */,
+				A0A0A0A0A0A0A0A0A0A00023 /* Maraton */,
+				A0A0A0A0A0A0A0A0A0A00024 /* Maraton Watch App */,
+				A0A0A0A0A0A0A0A0A0A00021 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A0A0A0A0A0A0A0A0A0A00021 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A0A0A0A0A0A0A0A0A0A00010 /* Maraton.app */,
+				A0A0A0A0A0A0A0A0A0A00011 /* Maraton Watch App.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A0A0A0A0A0A0A0A0A0A00022 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				A0A0A0A0A0A0A0A0A0A00012 /* Modelos.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		A0A0A0A0A0A0A0A0A0A00023 /* Maraton */ = {
+			isa = PBXGroup;
+			children = (
+				A0A0A0A0A0A0A0A0A0A00013 /* MaratonApp.swift */,
+				A0A0A0A0A0A0A0A0A0A00014 /* ContentView.swift */,
+				A0A0A0A0A0A0A0A0A0A00015 /* Assets.xcassets */,
+			);
+			path = Maraton;
+			sourceTree = "<group>";
+		};
+		A0A0A0A0A0A0A0A0A0A00024 /* Maraton Watch App */ = {
+			isa = PBXGroup;
+			children = (
+				A0A0A0A0A0A0A0A0A0A00016 /* MaratonWatchApp.swift */,
+				A0A0A0A0A0A0A0A0A0A00017 /* ContentView.swift */,
+				A0A0A0A0A0A0A0A0A0A00018 /* Assets.xcassets */,
+				A0A0A0A0A0A0A0A0A0A00019 /* Info.plist */,
+			);
+			path = "Maraton Watch App";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A0A0A0A0A0A0A0A0A0A00032 /* Maraton */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A0A0A0A0A0A0A0A0A0A00044 /* Build configuration list for PBXNativeTarget "Maraton" */;
+			buildPhases = (
+				A0A0A0A0A0A0A0A0A0A00027 /* Sources */,
+				A0A0A0A0A0A0A0A0A0A00025 /* Frameworks */,
+				A0A0A0A0A0A0A0A0A0A00029 /* Resources */,
+				A0A0A0A0A0A0A0A0A0A00031 /* Embed Watch Content */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A0A0A0A0A0A0A0A0A0A00034 /* PBXTargetDependency */,
+			);
+			name = Maraton;
+			productName = Maraton;
+			productReference = A0A0A0A0A0A0A0A0A0A00010 /* Maraton.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A0A0A0A0A0A0A0A0A0A00033 /* Maraton Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A0A0A0A0A0A0A0A0A0A00045 /* Build configuration list for PBXNativeTarget "Maraton Watch App" */;
+			buildPhases = (
+				A0A0A0A0A0A0A0A0A0A00028 /* Sources */,
+				A0A0A0A0A0A0A0A0A0A00026 /* Frameworks */,
+				A0A0A0A0A0A0A0A0A0A00030 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Maraton Watch App";
+			productName = "Maraton Watch App";
+			productReference = A0A0A0A0A0A0A0A0A0A00011 /* Maraton Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A0A0A0A0A0A0A0A0A0A00036 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = A0A0A0A0A0A0A0A0A0A00043 /* Build configuration list for PBXProject "Maraton" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A0A0A0A0A0A0A0A0A0A00020;
+			productRefGroup = A0A0A0A0A0A0A0A0A0A00021 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A0A0A0A0A0A0A0A0A0A00032 /* Maraton */,
+				A0A0A0A0A0A0A0A0A0A00033 /* Maraton Watch App */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A0A0A0A0A0A0A0A0A0A00029 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A0A0A0A0A0A0A0A0A0A00004 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A0A0A0A0A0A0A0A0A0A00030 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A0A0A0A0A0A0A0A0A0A00008 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A0A0A0A0A0A0A0A0A0A00027 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A0A0A0A0A0A0A0A0A0A00002 /* MaratonApp.swift in Sources */,
+				A0A0A0A0A0A0A0A0A0A00003 /* ContentView.swift in Sources */,
+				A0A0A0A0A0A0A0A0A0A00001 /* Modelos.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A0A0A0A0A0A0A0A0A0A00028 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A0A0A0A0A0A0A0A0A0A00006 /* MaratonWatchApp.swift in Sources */,
+				A0A0A0A0A0A0A0A0A0A00007 /* ContentView.swift in Sources */,
+				A0A0A0A0A0A0A0A0A0A00005 /* Modelos.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A0A0A0A0A0A0A0A0A0A00034 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A0A0A0A0A0A0A0A0A0A00033 /* Maraton Watch App */;
+			targetProxy = A0A0A0A0A0A0A0A0A0A00035 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		A0A0A0A0A0A0A0A0A0A00037 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A0A0A0A0A0A0A0A0A0A00038 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A0A0A0A0A0A0A0A0A0A00039 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pipeveiga.maraton;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A0A0A0A0A0A0A0A0A0A00040 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pipeveiga.maraton;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		A0A0A0A0A0A0A0A0A0A00041 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Maraton Watch App/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pipeveiga.maraton.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		A0A0A0A0A0A0A0A0A0A00042 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Maraton Watch App/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pipeveiga.maraton.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A0A0A0A0A0A0A0A0A0A00043 /* Build configuration list for PBXProject "Maraton" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A0A0A0A0A0A0A0A0A0A00037 /* Debug */,
+				A0A0A0A0A0A0A0A0A0A00038 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A0A0A0A0A0A0A0A0A0A00044 /* Build configuration list for PBXNativeTarget "Maraton" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A0A0A0A0A0A0A0A0A0A00039 /* Debug */,
+				A0A0A0A0A0A0A0A0A0A00040 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A0A0A0A0A0A0A0A0A0A00045 /* Build configuration list for PBXNativeTarget "Maraton Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A0A0A0A0A0A0A0A0A0A00041 /* Debug */,
+				A0A0A0A0A0A0A0A0A0A00042 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A0A0A0A0A0A0A0A0A0A00036 /* Project object */;
+}
