@@ -1,44 +1,226 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
-// Pantalla principal de la app iOS. En la Fase 1 solo muestra un plan
-// de ejemplo y su cronograma expandido, para verificar que el modelo
-// compartido compila y calcula bien. En la Fase 2 se reemplaza por la
-// pantalla real de armado del plan.
+// Pantalla única de la app iOS (Fase 2): pistas, avisos fijos, avisos
+// repetidos, vista previa del cronograma y persistencia automática.
+// El botón "Enviar al reloj" queda deshabilitado hasta la Fase 3.
 
 struct ContentView: View {
-    private let planDeEjemplo = Plan(
-        nombre: "Plan de prueba",
-        pistas: [],
-        avisosFijos: [
-            AvisoFijo(minuto: 90, texto: "Date vuelta y volvé"),
-        ],
-        avisosRepetidos: [
-            AvisoRepetido(cadaMinutos: 20, desdeMinuto: 20, hastaMinuto: nil, texto: "Tomá agua"),
-            AvisoRepetido(cadaMinutos: 45, desdeMinuto: 45, hastaMinuto: 135, texto: "Comé un gel"),
-        ]
-    )
+    @StateObject private var store = PlanStore()
+    @State private var mostrandoImportador = false
+    @State private var fijoEnEdicion: AvisoFijo?
+    @State private var repetidoEnEdicion: AvisoRepetido?
+
+    /// Horizonte de la vista previa del cronograma (solo afecta la vista,
+    /// no el plan). Se recuerda entre aperturas de la app.
+    @AppStorage("horizonteCronograma") private var horizonteMinutos = 120
 
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    Label("Fase 1: proyecto y modelo de datos", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                seccionPistas
+                seccionAvisosFijos
+                seccionAvisosRepetidos
+                seccionCronograma
+                seccionEnvio
+            }
+            .navigationTitle("Maratón")
+            .toolbar { EditButton() }
+            .fileImporter(
+                isPresented: $mostrandoImportador,
+                allowedContentTypes: [.mp3, .audio],
+                allowsMultipleSelection: true
+            ) { resultado in
+                if case .success(let urls) = resultado {
+                    store.importar(urls: urls)
                 }
+            }
+            .sheet(item: $fijoEnEdicion) { aviso in
+                AvisoFijoEditor(aviso: aviso) { actualizado in
+                    if let indice = store.plan.avisosFijos.firstIndex(where: { $0.id == actualizado.id }) {
+                        store.plan.avisosFijos[indice] = actualizado
+                    } else {
+                        store.plan.avisosFijos.append(actualizado)
+                    }
+                }
+            }
+            .sheet(item: $repetidoEnEdicion) { aviso in
+                AvisoRepetidoEditor(aviso: aviso) { actualizado in
+                    if let indice = store.plan.avisosRepetidos.firstIndex(where: { $0.id == actualizado.id }) {
+                        store.plan.avisosRepetidos[indice] = actualizado
+                    } else {
+                        store.plan.avisosRepetidos.append(actualizado)
+                    }
+                }
+            }
+        }
+    }
 
-                Section("Cronograma de ejemplo (2 h de carrera)") {
-                    ForEach(planDeEjemplo.cronograma(duracionMaximaMinutos: 120)) { aviso in
-                        HStack {
-                            Text("min \(aviso.minuto)")
-                                .monospacedDigit()
+    // MARK: - Pistas
+
+    private var seccionPistas: some View {
+        Section {
+            TextField("Nombre del plan", text: $store.plan.nombre)
+                .font(.headline)
+
+            if store.plan.pistas.isEmpty {
+                Text("Todavía no hay pistas. Importá tus MP3 para armar la cola.")
+                    .foregroundStyle(.secondary)
+            }
+
+            ForEach(store.plan.pistas, id: \.self) { nombre in
+                HStack {
+                    Image(systemName: "music.note")
+                        .foregroundStyle(.tint)
+                    VStack(alignment: .leading) {
+                        Text(nombre)
+                            .lineLimit(1)
+                        if let duracion = store.duraciones[nombre] {
+                            Text(formatearDuracion(duracion))
+                                .font(.caption)
                                 .foregroundStyle(.secondary)
-                                .frame(width: 70, alignment: .leading)
-                            Text(aviso.texto)
+                        } else {
+                            Text("Archivo no encontrado")
+                                .font(.caption)
+                                .foregroundStyle(.red)
                         }
                     }
                 }
             }
-            .navigationTitle("Maratón")
+            .onDelete { store.borrarPistas(en: $0) }
+            .onMove { store.moverPistas(de: $0, a: $1) }
+
+            Button {
+                mostrandoImportador = true
+            } label: {
+                Label("Importar MP3", systemImage: "plus.circle.fill")
+            }
+        } header: {
+            Text("Pistas")
+        } footer: {
+            if !store.plan.pistas.isEmpty {
+                Text("Duración total: \(formatearDuracion(store.duracionTotal)) · Mantené apretado y arrastrá para reordenar (o usá Edit).")
+            }
+        }
+    }
+
+    // MARK: - Avisos fijos
+
+    private var seccionAvisosFijos: some View {
+        Section("Avisos fijos") {
+            ForEach(store.plan.avisosFijos.sorted { $0.minuto < $1.minuto }) { aviso in
+                Button {
+                    fijoEnEdicion = aviso
+                } label: {
+                    HStack {
+                        Text("min \(aviso.minuto)")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 70, alignment: .leading)
+                        Text(aviso.texto)
+                            .foregroundStyle(.primary)
+                    }
+                }
+                .swipeActions {
+                    Button(role: .destructive) {
+                        store.plan.avisosFijos.removeAll { $0.id == aviso.id }
+                    } label: {
+                        Label("Borrar", systemImage: "trash")
+                    }
+                }
+            }
+
+            Button {
+                fijoEnEdicion = AvisoFijo(minuto: 30, texto: "")
+            } label: {
+                Label("Agregar aviso fijo", systemImage: "plus.circle.fill")
+            }
+        }
+    }
+
+    // MARK: - Avisos repetidos
+
+    private var seccionAvisosRepetidos: some View {
+        Section("Avisos repetidos") {
+            ForEach(store.plan.avisosRepetidos) { aviso in
+                Button {
+                    repetidoEnEdicion = aviso
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(aviso.texto)
+                            .foregroundStyle(.primary)
+                        Text(descripcion(de: aviso))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .swipeActions {
+                    Button(role: .destructive) {
+                        store.plan.avisosRepetidos.removeAll { $0.id == aviso.id }
+                    } label: {
+                        Label("Borrar", systemImage: "trash")
+                    }
+                }
+            }
+
+            Button {
+                repetidoEnEdicion = AvisoRepetido(cadaMinutos: 20, desdeMinuto: 20, hastaMinuto: nil, texto: "")
+            } label: {
+                Label("Agregar aviso repetido", systemImage: "plus.circle.fill")
+            }
+        }
+    }
+
+    private func descripcion(de aviso: AvisoRepetido) -> String {
+        var texto = "Cada \(aviso.cadaMinutos) min, desde el min \(aviso.desdeMinuto)"
+        if let hasta = aviso.hastaMinuto {
+            texto += " hasta el min \(hasta)"
+        } else {
+            texto += ", sin límite"
+        }
+        return texto
+    }
+
+    // MARK: - Cronograma
+
+    private var seccionCronograma: some View {
+        Section {
+            Stepper("Ver hasta el min \(horizonteMinutos)", value: $horizonteMinutos, in: 30...360, step: 15)
+
+            let avisos = store.plan.cronograma(duracionMaximaMinutos: horizonteMinutos)
+            if avisos.isEmpty {
+                Text("Sin avisos por ahora. Agregá alguno arriba y acá vas a ver el plan expandido.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(avisos) { aviso in
+                    HStack {
+                        Text("min \(aviso.minuto)")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .frame(width: 70, alignment: .leading)
+                        Text(aviso.texto)
+                    }
+                }
+            }
+        } header: {
+            Text("Cronograma completo")
+        } footer: {
+            Text("Todos los avisos que van a sonar, en orden. El horizonte es solo para esta vista previa.")
+        }
+    }
+
+    // MARK: - Envío al reloj (Fase 3)
+
+    private var seccionEnvio: some View {
+        Section {
+            Button {
+                // Fase 3: WatchConnectivity
+            } label: {
+                Label("Enviar al reloj", systemImage: "applewatch.radiowaves.left.and.right")
+            }
+            .disabled(true)
+        } footer: {
+            Text("Disponible en la Fase 3. La transferencia es lenta: conviene hacerla con el reloj en el cargador y con WiFi.")
         }
     }
 }

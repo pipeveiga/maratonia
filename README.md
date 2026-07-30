@@ -4,12 +4,10 @@ App de audio para Apple Watch: reproduce tus MP3 durante una carrera larga y te
 interrumpe a determinados minutos con avisos de voz ("tomá agua", "comé un gel").
 Convive con Runna en segundo plano: **no** usa HealthKit, GPS ni workout sessions.
 
-## Estado: Fase 1
+## Estado: Fase 2
 
-- ✅ Proyecto Xcode con dos targets (iOS + watchOS)
-- ✅ Modelo de datos compartido (`Shared/Plan.swift`)
-- ✅ Background mode `audio` configurado en el target del reloj
-- ⬜ Fase 2 — App iOS: importar MP3s, armar avisos, vista previa, persistencia
+- ✅ Fase 1 — Proyecto Xcode con dos targets, modelo compartido, background `audio`
+- ✅ Fase 2 — App iOS: importar MP3s, armar avisos, vista previa del cronograma, persistencia
 - ⬜ Fase 3 — WatchConnectivity (plan + archivos al reloj)
 - ⬜ Fase 4 — Reproducción en el reloj (cola, loop, Now Playing)
 - ⬜ Fase 5 — Avisos (voz, ducking, háptico, notificaciones, pausa)
@@ -22,7 +20,9 @@ Convive con Runna en segundo plano: **no** usa HealthKit, GPS ni workout session
 | `Maraton.xcodeproj` | El proyecto Xcode: define los dos targets y su configuración. Se abre con doble click. |
 | `Shared/Plan.swift` | Modelo de datos compartido: `Plan`, `AvisoFijo`, `AvisoRepetido`, y la función `cronograma()` que expande el plan a la lista de avisos concretos. Compila en los dos targets. |
 | `Maraton/MaratonApp.swift` | Punto de entrada de la app iOS. |
-| `Maraton/ContentView.swift` | Pantalla iOS de Fase 1: muestra un cronograma de ejemplo para verificar el modelo. Se reemplaza en Fase 2. |
+| `Maraton/ContentView.swift` | Pantalla única de la app iOS: pistas (importar/reordenar/borrar), avisos fijos y repetidos, vista previa del cronograma y botón de envío (deshabilitado hasta Fase 3). |
+| `Maraton/PlanStore.swift` | Estado central de la app iOS: guarda el plan como JSON en Documents ante cada cambio, copia los MP3 importados a Documents/Pistas y calcula duraciones. |
+| `Maraton/AvisoEditores.swift` | Las dos pantallas (sheets) para crear/editar avisos fijos y repetidos, con validación. |
 | `Maraton Watch App/MaratonWatchApp.swift` | Punto de entrada de la app watchOS. |
 | `Maraton Watch App/ContentView.swift` | Pantalla watch de Fase 1: placeholder de verificación. |
 
@@ -60,6 +60,18 @@ Necesitás un Mac con **Xcode 15 o más nuevo** (App Store → buscar "Xcode").
 
 Si algo de esto falla, copiá el error tal cual (el texto rojo del panel de la
 izquierda o del centro) y pegámelo.
+
+## Cómo probar la Fase 2 (en el simulador de iPhone)
+
+1. Scheme **Maraton** + un iPhone → ▶.
+2. Para tener un MP3 dentro del simulador: abrí **Safari del iPhone simulado**,
+   buscá cualquier MP3 de prueba (por ej. en archive.org) y descargalo.
+   Queda en la app **Archivos** del simulador, carpeta Descargas.
+3. En Maratón: **Importar MP3** → navegá a Descargas → elegí el archivo.
+   Tiene que aparecer en la lista con su duración.
+4. Agregá avisos fijos y repetidos, mirá el cronograma expandido abajo.
+5. **Cerrá la app del todo y volvé a abrirla**: el plan y las pistas tienen
+   que seguir ahí (persistencia).
 
 ## Cuándo probar en hardware real
 
