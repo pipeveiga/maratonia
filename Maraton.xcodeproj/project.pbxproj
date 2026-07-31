@@ -22,6 +22,7 @@
 		A1000000000000000000003B /* ConectividadWatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002A /* ConectividadWatch.swift */; };
 		A1000000000000000000003C /* Reproductor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002B /* Reproductor.swift */; };
 		A1000000000000000000003D /* Avisador.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002C /* Avisador.swift */; };
+		A1000000000000000000003E /* Entrenamiento.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002D /* Entrenamiento.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,6 +65,9 @@
 		A1000000000000000000002A /* ConectividadWatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConectividadWatch.swift; sourceTree = "<group>"; };
 		A1000000000000000000002B /* Reproductor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reproductor.swift; sourceTree = "<group>"; };
 		A1000000000000000000002C /* Avisador.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Avisador.swift; sourceTree = "<group>"; };
+		A1000000000000000000002D /* Entrenamiento.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Entrenamiento.swift; sourceTree = "<group>"; };
+		A1000000000000000000002E /* Maraton.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Maraton.entitlements; sourceTree = "<group>"; };
+		A1000000000000000000002F /* MaratonWatchApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MaratonWatchApp.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +115,7 @@
 				A10000000000000000000027 /* PlanStore.swift */,
 				A10000000000000000000028 /* AvisoEditores.swift */,
 				A10000000000000000000029 /* Conectividad.swift */,
+				A1000000000000000000002E /* Maraton.entitlements */,
 				A10000000000000000000022 /* Assets.xcassets */,
 			);
 			path = Maraton;
@@ -124,6 +129,8 @@
 				A1000000000000000000002A /* ConectividadWatch.swift */,
 				A1000000000000000000002B /* Reproductor.swift */,
 				A1000000000000000000002C /* Avisador.swift */,
+				A1000000000000000000002D /* Entrenamiento.swift */,
+				A1000000000000000000002F /* MaratonWatchApp.entitlements */,
 				A10000000000000000000025 /* Assets.xcassets */,
 			);
 			path = "Maraton Watch App";
@@ -256,6 +263,7 @@
 				A1000000000000000000003B /* ConectividadWatch.swift in Sources */,
 				A1000000000000000000003C /* Reproductor.swift in Sources */,
 				A1000000000000000000003D /* Avisador.swift in Sources */,
+				A1000000000000000000003E /* Entrenamiento.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -390,11 +398,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				CODE_SIGN_ENTITLEMENTS = Maraton/Maraton.entitlements;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Para mostrar tu frecuencia cardíaca y registrar la carrera.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Para guardar tu carrera como entrenamiento en Salud.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -420,11 +431,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				CODE_SIGN_ENTITLEMENTS = Maraton/Maraton.entitlements;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Para mostrar tu frecuencia cardíaca y registrar la carrera.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Para guardar tu carrera como entrenamiento en Salud.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -451,13 +465,16 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				CODE_SIGN_ENTITLEMENTS = "Maraton Watch App/MaratonWatchApp.entitlements";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Para mostrar tu frecuencia cardíaca y registrar la carrera.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Para guardar tu carrera como entrenamiento en Salud.";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.pipeveiga.maraton;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -482,13 +499,16 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				CODE_SIGN_ENTITLEMENTS = "Maraton Watch App/MaratonWatchApp.entitlements";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Para mostrar tu frecuencia cardíaca y registrar la carrera.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Para guardar tu carrera como entrenamiento en Salud.";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.pipeveiga.maraton;
 				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = YES;
 				LD_RUNPATH_SEARCH_PATHS = (

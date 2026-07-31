@@ -9,6 +9,11 @@ struct ContentView: View {
     @ObservedObject private var conectividad = ConectividadWatch.compartida
     @ObservedObject private var reproductor = Reproductor.compartido
 
+    /// true = al dar Play también arranca una sesión de entrenamiento
+    /// (FC, distancia, se guarda en Salud). false = solo audio, para
+    /// convivir con Runna u otro tracker.
+    @AppStorage("modoEntrenamiento") private var modoEntrenamiento = true
+
     var body: some View {
         if reproductor.estado == .detenido {
             lobby
@@ -50,7 +55,7 @@ struct ContentView: View {
         }
 
         Button {
-            reproductor.iniciar(plan: plan, urlDe: conectividad.urlDePista)
+            arrancar(plan)
         } label: {
             Label("Play", systemImage: "play.fill")
                 .font(.title3)
@@ -59,6 +64,19 @@ struct ContentView: View {
         .buttonStyle(.borderedProminent)
         .tint(.green)
         .disabled(listas == 0)
+
+        Toggle(isOn: $modoEntrenamiento) {
+            Label("Registrar carrera", systemImage: "heart.fill")
+                .font(.footnote)
+        }
+        .tint(.red)
+
+        Text(modoEntrenamiento
+             ? "Con FC y guardado en Salud. No uses Runna a la vez."
+             : "Solo audio: compatible con Runna u otro tracker.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
 
         if let error = reproductor.mensajeError {
             Text(error)
@@ -70,6 +88,17 @@ struct ContentView: View {
         Text("\(plan.cronograma(duracionMaximaMinutos: 360).count) avisos en el cronograma")
             .font(.footnote)
             .foregroundStyle(.secondary)
+    }
+
+    private func arrancar(_ plan: Plan) {
+        if modoEntrenamiento {
+            Entrenamiento.compartido.pedirPermisos {
+                Entrenamiento.compartido.iniciar()
+                reproductor.iniciar(plan: plan, urlDe: conectividad.urlDePista)
+            }
+        } else {
+            reproductor.iniciar(plan: plan, urlDe: conectividad.urlDePista)
+        }
     }
 
     private var vistaSinPlan: some View {
@@ -92,6 +121,7 @@ struct ContentView: View {
 struct PantallaReproduccion: View {
     @ObservedObject private var reproductor = Reproductor.compartido
     @ObservedObject private var avisador = Avisador.compartido
+    @ObservedObject private var entrenamiento = Entrenamiento.compartido
     @State private var confirmandoTerminar = false
 
     var body: some View {
@@ -105,6 +135,25 @@ struct PantallaReproduccion: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+
+            if entrenamiento.activo {
+                HStack(spacing: 12) {
+                    Label("\(Int(entrenamiento.frecuenciaCardiaca))",
+                          systemImage: "heart.fill")
+                        .foregroundStyle(.red)
+                    Label(String(format: "%.2f km", entrenamiento.distanciaMetros / 1000),
+                          systemImage: "figure.run")
+                }
+                .font(.footnote)
+                .monospacedDigit()
+            }
+
+            if let errorEntrenamiento = entrenamiento.mensajeError {
+                Text(errorEntrenamiento)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+            }
 
             if let proximo = avisador.proximoAviso {
                 let faltan = max(0, proximo.minuto - Int(reproductor.tiempoTranscurrido / 60))
@@ -158,6 +207,7 @@ struct PantallaReproduccion: View {
             .confirmationDialog("¿Terminar la sesión?", isPresented: $confirmandoTerminar) {
                 Button("Terminar", role: .destructive) {
                     reproductor.detener()
+                    Entrenamiento.compartido.finalizar()
                 }
                 Button("Seguir", role: .cancel) {}
             }
