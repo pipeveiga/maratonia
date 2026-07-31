@@ -76,6 +76,9 @@ final class Reproductor: NSObject, ObservableObject {
                     return
                 }
                 self.configurarComandosRemotos()
+                Avisador.compartido.iniciar(plan: plan) { [weak self] volumen, fade in
+                    self?.player?.setVolume(volumen, fadeDuration: fade)
+                }
                 self.fechaReanudacion = Date()
                 self.estado = .reproduciendo
                 self.reproducirPistaActual()
@@ -101,6 +104,7 @@ final class Reproductor: NSObject, ObservableObject {
         fechaReanudacion = nil
         estado = .pausado
         tiempoTranscurrido = transcurridoActual
+        Avisador.compartido.pausar()
         actualizarNowPlaying()
     }
 
@@ -109,6 +113,7 @@ final class Reproductor: NSObject, ObservableObject {
         player?.play()
         fechaReanudacion = Date()
         estado = .reproduciendo
+        Avisador.compartido.reanudar(transcurrido: transcurridoActual)
         actualizarNowPlaying()
     }
 
@@ -118,6 +123,7 @@ final class Reproductor: NSObject, ObservableObject {
     }
 
     func detener() {
+        Avisador.compartido.detener()
         player?.stop()
         player = nil
         timerUI?.invalidate()
@@ -139,6 +145,8 @@ final class Reproductor: NSObject, ObservableObject {
         do {
             let nuevo = try AVAudioPlayer(contentsOf: urlDe(nombre))
             nuevo.delegate = self
+            // Si justo hay una voz sonando, la pista nueva arranca ya duckeada.
+            nuevo.volume = Avisador.compartido.estaHablando ? 0.15 : 1.0
             nuevo.play()
             if estado == .pausado {
                 nuevo.pause()
@@ -173,6 +181,9 @@ final class Reproductor: NSObject, ObservableObject {
             guard let self else { return }
             DispatchQueue.main.async {
                 self.tiempoTranscurrido = self.transcurridoActual
+                if self.estado == .reproduciendo {
+                    Avisador.compartido.chequear(transcurrido: self.transcurridoActual)
+                }
             }
         }
     }

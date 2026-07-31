@@ -6,6 +6,12 @@ import SwiftUI
 
 @main
 struct MaratonWatchApp: App {
+    init() {
+        // Primera apertura: pedir permiso para las notificaciones locales
+        // de los avisos (el canal visible encima de Runna).
+        Avisador.pedirPermisoNotificaciones()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

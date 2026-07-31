@@ -21,6 +21,7 @@
 		A1000000000000000000003A /* Conectividad.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000029 /* Conectividad.swift */; };
 		A1000000000000000000003B /* ConectividadWatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002A /* ConectividadWatch.swift */; };
 		A1000000000000000000003C /* Reproductor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002B /* Reproductor.swift */; };
+		A1000000000000000000003D /* Avisador.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002C /* Avisador.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -62,6 +63,7 @@
 		A10000000000000000000029 /* Conectividad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conectividad.swift; sourceTree = "<group>"; };
 		A1000000000000000000002A /* ConectividadWatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConectividadWatch.swift; sourceTree = "<group>"; };
 		A1000000000000000000002B /* Reproductor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reproductor.swift; sourceTree = "<group>"; };
+		A1000000000000000000002C /* Avisador.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Avisador.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +123,7 @@
 				A10000000000000000000024 /* ContentView.swift */,
 				A1000000000000000000002A /* ConectividadWatch.swift */,
 				A1000000000000000000002B /* Reproductor.swift */,
+				A1000000000000000000002C /* Avisador.swift */,
 				A10000000000000000000025 /* Assets.xcassets */,
 			);
 			path = "Maraton Watch App";
@@ -252,6 +255,7 @@
 				A10000000000000000000037 /* Plan.swift in Sources */,
 				A1000000000000000000003B /* ConectividadWatch.swift in Sources */,
 				A1000000000000000000003C /* Reproductor.swift in Sources */,
+				A1000000000000000000003D /* Avisador.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

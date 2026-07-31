@@ -229,6 +229,9 @@ struct ContentView: View {
             } label: {
                 Label("Enviar al reloj", systemImage: "applewatch.radiowaves.left.and.right")
             }
+            .disabled(store.plan.pistas.isEmpty
+                      && store.plan.avisosFijos.isEmpty
+                      && store.plan.avisosRepetidos.isEmpty)
 
             if conectividad.planEncolado {
                 Label("Plan encolado: llega al reloj apenas esté disponible.",

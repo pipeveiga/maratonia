@@ -91,6 +91,7 @@ struct ContentView: View {
 
 struct PantallaReproduccion: View {
     @ObservedObject private var reproductor = Reproductor.compartido
+    @ObservedObject private var avisador = Avisador.compartido
     @State private var confirmandoTerminar = false
 
     var body: some View {
@@ -103,6 +104,18 @@ struct PantallaReproduccion: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+
+            if let proximo = avisador.proximoAviso {
+                let faltan = max(0, proximo.minuto - Int(reproductor.tiempoTranscurrido / 60))
+                Text("Próximo: «\(proximo.texto)» en \(faltan) min")
+                    .font(.footnote)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            } else {
+                Text("No quedan avisos")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
 
             if reproductor.estado == .pausado {
                 Text("En pausa — el tiempo está congelado")
