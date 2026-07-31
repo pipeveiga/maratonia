@@ -76,9 +76,7 @@ final class Reproductor: NSObject, ObservableObject {
                     return
                 }
                 self.configurarComandosRemotos()
-                Avisador.compartido.iniciar(plan: plan) { [weak self] volumen, fade in
-                    self?.player?.setVolume(volumen, fadeDuration: fade)
-                }
+                Avisador.compartido.iniciar(plan: plan)
                 self.fechaReanudacion = Date()
                 self.estado = .reproduciendo
                 self.reproducirPistaActual()
@@ -122,6 +120,19 @@ final class Reproductor: NSObject, ObservableObject {
         avanzarPista()
     }
 
+    /// Frena SOLO la música mientras habla el asistente. No toca el estado
+    /// de la sesión: el cronómetro, los avisos y el tracking siguen.
+    func silenciarParaVoz() {
+        guard estado == .reproduciendo else { return }
+        player?.pause()
+    }
+
+    /// La contraparte: al terminar la voz, la música sigue de donde quedó.
+    func reanudarTrasVoz() {
+        guard estado == .reproduciendo else { return }
+        player?.play()
+    }
+
     func detener() {
         Avisador.compartido.detener()
         player?.stop()
@@ -145,10 +156,10 @@ final class Reproductor: NSObject, ObservableObject {
         do {
             let nuevo = try AVAudioPlayer(contentsOf: urlDe(nombre))
             nuevo.delegate = self
-            // Si justo hay una voz sonando, la pista nueva arranca ya duckeada.
-            nuevo.volume = Avisador.compartido.estaHablando ? 0.15 : 1.0
             nuevo.play()
-            if estado == .pausado {
+            // En pausa, o con el asistente hablando, la pista queda lista
+            // pero frenada; arranca al reanudar / al terminar la voz.
+            if estado == .pausado || Avisador.compartido.estaHablando {
                 nuevo.pause()
             }
             player = nuevo

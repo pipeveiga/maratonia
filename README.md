@@ -1,23 +1,30 @@
-# Maratón — audio + avisos para correr (iOS + watchOS)
+# Maratón — audio + avisos + entrenador para correr (iOS + watchOS)
 
-App de audio para Apple Watch: reproduce tus MP3 durante una carrera larga y te
-interrumpe a determinados minutos con avisos de voz ("tomá agua", "comé un gel").
-Convive con Runna en segundo plano: **no** usa HealthKit, GPS ni workout sessions.
+App para Apple Watch: reproduce tus MP3 durante la carrera, te interrumpe con
+avisos de voz ("tomá agua", "comé un gel"), y opcionalmente registra la carrera
+como entrenamiento (FC, distancia, ritmo) con un entrenador de voz que sigue tu
+plan por tramos. El iPhone se usa solo antes de salir: cargar música y armar el plan.
 
-## Estado: Fase 3
+Dos modos en el reloj (switch "Registrar carrera"):
+- **Encendido**: la app es el tracker — HKWorkoutSession, FC en vivo, ritmo,
+  tramos con corrección de voz, y la carrera se guarda en Salud/Fitness.
+- **Apagado**: solo audio + avisos por tiempo, compatible con Runna u otro
+  tracker (una sola workout session por vez en watchOS).
+
+## Estado
 
 - ✅ Fase 1 — Proyecto Xcode con dos targets, modelo compartido, background `audio`
 - ✅ Fase 2 — App iOS: importar MP3s, armar avisos, vista previa del cronograma, persistencia
 - ✅ Fase 3 — WatchConnectivity: plan + archivos al reloj, con progreso y confirmación
 - ✅ Fase 4 — Reproducción en el reloj: cola con loop, pausa/siguiente, Now Playing, tiempo congelado en pausa
-- ✅ Fase 5 — Avisos: voz es-AR con ducking manual, háptico, notificaciones locales reprogramadas en pausa/reanudar, cada aviso suena una sola vez
-- ✅ Fase 6 — Pulido: pistas ilegibles se saltan, archivos faltantes visibles en ambas puntas, estados vacíos, envío deshabilitado sin contenido
-- ✅ Fase 7 — Sesión de entrenamiento opcional: HKWorkoutSession + FC y distancia en vivo, guardado en Salud; switch "Registrar carrera" (apagado = solo audio, compatible con Runna)
-- ✅ Fase 8 — Ritmo (pace) suavizado ~45 s a partir de la distancia del workout (el sistema fusiona GPS solo en carreras outdoor)
-- ✅ Fase 9 — Plan por tramos con rangos de ritmo + importador JSON pensado para ChatGPT
-- ✅ Fase 10 — Entrenador de voz: anuncia cada tramo y corrige "apurá/aflojá" (máx. 1 vez/min, con margen y sin opinar en pausa)
+- ✅ Fase 5 — Avisos: voz es-AR (la música se frena mientras habla y sigue después), háptico, notificaciones locales reprogramadas en pausa/reanudar, cada aviso una sola vez
+- ✅ Fase 6 — Pulido: pistas ilegibles se saltan, faltantes visibles, estados vacíos
+- ✅ Fase 7 — Entrenamiento opcional: HKWorkoutSession + FC/distancia en vivo, guardado en Salud
+- ✅ Fase 8 — Ritmo (pace) suavizado ~45 s desde la distancia del workout
+- ✅ Fase 9 — Plan por tramos con rangos de ritmo + importador JSON (formato ChatGPT)
+- ✅ Fase 10 — Entrenador de voz: anuncia tramos y corrige "apurá/aflojá" con filtros anti-molestia
 
-### Formato JSON de tramos (para pedirle a ChatGPT)
+## Formato JSON de tramos (para pedirle a ChatGPT)
 
 ```json
 {"tramos":[
@@ -27,92 +34,55 @@ Convive con Runna en segundo plano: **no** usa HealthKit, GPS ni workout session
 ]}
 ```
 
-`ritmoMin` = límite rápido, `ritmoMax` = límite lento (min:seg por km); ambos opcionales.
-Se pega en la app iOS: sección "Tramos" → «Pegar plan de tramos (JSON)».
-- ⬜ Fase 4 — Reproducción en el reloj (cola, loop, Now Playing)
-- ⬜ Fase 5 — Avisos (voz, ducking, háptico, notificaciones, pausa)
-- ⬜ Fase 6 — Pulido
+`ritmoMin` = límite rápido, `ritmoMax` = límite lento (min:seg por km); ambos
+opcionales (sin ninguno = ritmo libre). Se pega en la app iOS: sección
+"Tramos" → «Pegar plan de tramos (JSON)».
+
+Prompt sugerido para guardar en ChatGPT: *"Cuando te pida el plan para mi app
+del reloj, devolvémelo SOLO en ese formato JSON, sin texto extra."*
 
 ## Estructura del proyecto
 
 | Archivo | Qué hace |
 |---|---|
-| `Maraton.xcodeproj` | El proyecto Xcode: define los dos targets y su configuración. Se abre con doble click. |
-| `Shared/Plan.swift` | Modelo de datos compartido: `Plan`, `AvisoFijo`, `AvisoRepetido`, y la función `cronograma()` que expande el plan a la lista de avisos concretos. Compila en los dos targets. |
+| `Maraton.xcodeproj` | El proyecto Xcode: dos targets y su configuración. |
+| `Shared/Plan.swift` | Modelo compartido: `Plan`, `AvisoFijo`, `AvisoRepetido`, `Tramo`, expansión del cronograma y formato de ritmos. Compila en ambos targets. |
 | `Maraton/MaratonApp.swift` | Punto de entrada de la app iOS. |
-| `Maraton/ContentView.swift` | Pantalla única de la app iOS: pistas (importar/reordenar/borrar), avisos fijos y repetidos, vista previa del cronograma y botón de envío (deshabilitado hasta Fase 3). |
-| `Maraton/PlanStore.swift` | Estado central de la app iOS: guarda el plan como JSON en Documents ante cada cambio, copia los MP3 importados a Documents/Pistas y calcula duraciones. |
-| `Maraton/AvisoEditores.swift` | Las dos pantallas (sheets) para crear/editar avisos fijos y repetidos, con validación. |
-| `Maraton/Conectividad.swift` | Lado iPhone de WatchConnectivity: envía el plan (`transferUserInfo`) y los MP3 (`transferFile`), muestra progreso y no reenvía lo que el reloj ya confirmó tener. |
-| `Maraton Watch App/ConectividadWatch.swift` | Lado reloj: recibe plan y archivos (moviéndolos a Documents al instante), los persiste, y le reporta al iPhone qué archivos tiene. |
-| `Maraton Watch App/Reproductor.swift` | El reproductor: AVAudioSession `.playback`/longForm, cola de AVAudioPlayer encadenada con loop, comandos remotos + Now Playing, tiempo de sesión basado en el reloj del sistema (la pausa lo congela). |
-| `Maraton Watch App/Avisador.swift` | Los avisos: chequeo por segundo contra el cronograma, voz en español (es-AR→es-MX→es-ES) con ducking manual del propio player, háptico, notificaciones locales (canceladas en pausa y reprogramadas al reanudar), cola secuencial si coinciden en el mismo minuto. |
-| `Maraton Watch App/Entrenamiento.swift` | La sesión de entrenamiento (HKWorkoutSession + HKLiveWorkoutBuilder): FC, distancia y calorías en vivo, ritmo suavizado (ventana ~45 s); al terminar guarda la carrera en Salud. Solo con el switch "Registrar carrera" activado. |
-| `Maraton Watch App/EntrenadorRitmo.swift` | El entrenador: sigue los tramos por distancia acumulada, anuncia cada cambio de tramo y corrige el ritmo por voz con filtros anti-molestia. |
+| `Maraton/ContentView.swift` | Pantalla única iOS: pistas, avisos, tramos, vista previa del cronograma y envío al reloj con progreso. |
+| `Maraton/PlanStore.swift` | Estado central iOS: plan persistido como JSON en Documents, MP3s copiados a Documents/Pistas, duraciones. |
+| `Maraton/AvisoEditores.swift` | Sheets de alta/edición de avisos fijos y repetidos, con validación. |
 | `Maraton/TramosImport.swift` | Parser + pantalla para pegar el plan de tramos en JSON (formato ChatGPT). |
-| `*/[...].entitlements` | Permisos de HealthKit para cada target (los exige la firma de la app). |
-| `Maraton Watch App/MaratonWatchApp.swift` | Punto de entrada de la app watchOS. |
-| `Maraton Watch App/ContentView.swift` | Pantalla watch de Fase 1: placeholder de verificación. |
+| `Maraton/Conectividad.swift` | Lado iPhone de WatchConnectivity: plan por `transferUserInfo`, MP3s por `transferFile`, progreso, no reenvía lo confirmado. |
+| `Maraton Watch App/MaratonWatchApp.swift` | Punto de entrada watchOS; pide permiso de notificaciones al abrir. |
+| `Maraton Watch App/ContentView.swift` | Lobby (plan, pistas listas, switch de modo, Play) y pantalla de reproducción (cronómetro, FC, km, ritmo, tramo, controles). |
+| `Maraton Watch App/ConectividadWatch.swift` | Lado reloj: recibe y persiste plan y archivos (moviéndolos al instante), reporta inventario al iPhone. |
+| `Maraton Watch App/Reproductor.swift` | Reproductor: sesión `.playback`/longForm, cola con loop, Now Playing + comandos remotos, cronómetro por reloj de sistema (pausa congela), frena/reanuda la música para la voz. |
+| `Maraton Watch App/Avisador.swift` | Avisos: chequeo por segundo, voz es-AR→es-MX→es-ES, háptico, notificaciones locales reprogramables, cola secuencial; canal `anunciar()` para el entrenador. |
+| `Maraton Watch App/Entrenamiento.swift` | HKWorkoutSession + builder: FC, distancia, calorías, ritmo suavizado; guarda la carrera en Salud al terminar. |
+| `Maraton Watch App/EntrenadorRitmo.swift` | Entrenador: sigue tramos por distancia, anuncia cambios y corrige el ritmo con filtros (45 s de gracia, 1 corrección/min, margen 5 seg/km, mudo en pausa). |
+| `*/[...].entitlements` | Permisos de HealthKit por target (los exige la firma). |
 
-## Cómo abrirlo y correrlo (primera vez)
+## Ciclo de desarrollo
 
-Necesitás un Mac con **Xcode 15 o más nuevo** (App Store → buscar "Xcode").
+1. Los cambios llegan por git a la rama `claude/running-audio-watchos-app-ltyxwy`.
+2. En el Mac (remoto): Pull → Xcode → destino **Any iOS Device (arm64)** →
+   **Product → Archive** → **Distribute App** (TestFlight). El build number va
+   incrementado en cada tanda.
+3. iPhone: actualizar desde TestFlight. Reloj: app Watch → verificar que se
+   actualice (si no, desinstalar y reinstalar en el reloj).
 
-1. **Cloná el repo** (o bajate el ZIP desde GitHub) y hacé doble click en
-   `Maraton.xcodeproj`.
+## Probar en hardware real
 
-2. **Firma (signing)** — solo hace falta para correr en dispositivos físicos,
-   pero conviene dejarlo listo ya:
-   - En la barra lateral izquierda, click en el primer ítem (ícono azul, "Maraton").
-   - En la columna del medio, bajo **TARGETS**, click en **Maraton**.
-   - Arriba, pestaña **Signing & Capabilities**.
-   - En **Team**, elegí tu Apple ID. Si no aparece: Xcode → Settings → Accounts →
-     botón "+" → agregá tu Apple ID, y volvé acá.
-   - Repetí lo mismo para el target **Maraton Watch App**.
-   - Si Xcode se queja de que el bundle identifier ya está en uso, cambiá
-     `com.pipeveiga.maraton` por otro (ej. `com.pipeveiga.maraton2`) en **ambos**
-     targets — en el watch tiene que quedar el mismo prefijo + `.watchkitapp`.
+Todo lo importante (audio en background, WatchConnectivity, FC, ritmo,
+Bluetooth) solo se verifica en el reloj físico vía TestFlight. El simulador
+sirve apenas para UI.
 
-3. **Correr la app iOS en el simulador:**
-   - Arriba en el medio hay un selector que dice `Maraton > ...`. Click en la
-     parte izquierda (el *scheme*) y elegí **Maraton**. Click en la parte derecha
-     y elegí un iPhone (ej. "iPhone 16").
-   - Botón ▶ (arriba a la izquierda) o `Cmd + R`.
-   - Tiene que abrir el simulador y mostrar "Fase 1: proyecto y modelo de datos"
-     con un cronograma de ejemplo.
+## Decisiones de arquitectura
 
-4. **Correr la app watch en el simulador:**
-   - Mismo selector: scheme **Maraton Watch App**, destino un Apple Watch
-     (ej. "Apple Watch SE (44mm)").
-   - ▶ o `Cmd + R`. Tiene que mostrar "Fase 1 OK".
-
-Si algo de esto falla, copiá el error tal cual (el texto rojo del panel de la
-izquierda o del centro) y pegámelo.
-
-## Cómo probar la Fase 2 (en el simulador de iPhone)
-
-1. Scheme **Maraton** + un iPhone → ▶.
-2. Para tener un MP3 dentro del simulador: abrí **Safari del iPhone simulado**,
-   buscá cualquier MP3 de prueba (por ej. en archive.org) y descargalo.
-   Queda en la app **Archivos** del simulador, carpeta Descargas.
-3. En Maratón: **Importar MP3** → navegá a Descargas → elegí el archivo.
-   Tiene que aparecer en la lista con su duración.
-4. Agregá avisos fijos y repetidos, mirá el cronograma expandido abajo.
-5. **Cerrá la app del todo y volvé a abrirla**: el plan y las pistas tienen
-   que seguir ahí (persistencia).
-
-## Cuándo probar en hardware real
-
-- **Fases 1 y 2**: simulador alcanza.
-- **Fase 3 en adelante: reloj y iPhone físicos.** `transferFile` /
-  `transferUserInfo` de WatchConnectivity no funcionan de forma confiable entre
-  simuladores, y todo lo de audio en background (muñeca baja, Runna al frente,
-  auriculares Bluetooth) solo se puede verificar en el reloj de verdad.
-
-## Decisiones de arquitectura (fijas)
-
-- Sin `HKWorkoutSession`, sin HealthKit, sin GPS: Runna es el tracker.
-- Background mode del watch: solo `audio` (`UIBackgroundModes = audio`).
-- `WKRunsIndependentlyOfCompanionApp = YES`: el reloj funciona sin el iPhone.
-- Avisos por tiempo transcurrido, nunca por distancia.
-- Deployment: iOS 17 / watchOS 10.
+- El reloj funciona autónomo (`WKRunsIndependentlyOfCompanionApp`), sin iPhone.
+- Background mode del watch: `audio`. La sesión workout (modo entrenamiento)
+  mantiene la app viva además del audio.
+- Avisos "de cuidado" (agua/gel) por tiempo transcurrido; tramos y entrenador
+  por distancia del workout. La pausa congela cronómetro y cronograma.
+- Mientras el asistente habla, la música se pausa (no ducking) y sigue después.
+- En modo solo-audio no se abre workout session: convive con Runna.

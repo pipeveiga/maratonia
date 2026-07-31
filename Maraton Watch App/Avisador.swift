@@ -10,8 +10,8 @@ import WatchKit
 // El chequeo lo dispara el Reproductor una vez por segundo con el tiempo
 // real de carrera (que se congela en pausa). Cada aviso suena una sola
 // vez; si dos caen en el mismo minuto, se hablan uno después del otro.
-// El ducking es manual: se baja el volumen del propio AVAudioPlayer
-// (nada de .duckOthers, que afecta a OTRAS apps, no a la propia).
+// Mientras el asistente habla, la música se FRENA (no se baja) y sigue
+// de donde quedó al terminar — sin tocar el estado de la sesión.
 
 final class Avisador: NSObject, ObservableObject {
     static let compartido = Avisador()
@@ -26,9 +26,7 @@ final class Avisador: NSObject, ObservableObject {
     private var disparados: Set<Int> = []
     private var colaPorHablar: [String] = []
     private let sintetizador = AVSpeechSynthesizer()
-    private var ajustarVolumen: ((Float, TimeInterval) -> Void)?
 
-    private static let volumenBajo: Float = 0.15
     private static let horizonteMinutos = 12 * 60
 
     override private init() {
@@ -50,12 +48,11 @@ final class Avisador: NSObject, ObservableObject {
 
     // MARK: - Ciclo de la sesión (lo llama el Reproductor)
 
-    func iniciar(plan: Plan, ajustarVolumen: @escaping (Float, TimeInterval) -> Void) {
+    func iniciar(plan: Plan) {
         cronograma = plan.cronograma(duracionMaximaMinutos: Self.horizonteMinutos)
         disparados = []
         colaPorHablar = []
         estaHablando = false
-        self.ajustarVolumen = ajustarVolumen
         actualizarProximo()
         programarNotificaciones(desde: 0)
     }
@@ -77,7 +74,6 @@ final class Avisador: NSObject, ObservableObject {
         colaPorHablar = []
         estaHablando = false
         proximoAviso = nil
-        ajustarVolumen = nil
         cronograma = []
         disparados = []
     }
@@ -122,19 +118,19 @@ final class Avisador: NSObject, ObservableObject {
     private func hablarSiguiente() {
         guard !colaPorHablar.isEmpty else { return }
         estaHablando = true
-        ajustarVolumen?(Self.volumenBajo, 0.3)
+        Reproductor.compartido.silenciarParaVoz()
         let utterance = AVSpeechUtterance(string: colaPorHablar.removeFirst())
         utterance.voice = Self.vozEspanol
-        utterance.preUtteranceDelay = 0.4  // deja asentar el fade antes de hablar
+        utterance.preUtteranceDelay = 0.3  // pequeño respiro tras frenar la música
         sintetizador.speak(utterance)
     }
 
     private func terminoDeHablar() {
         if !colaPorHablar.isEmpty {
-            hablarSiguiente()  // el volumen ya está bajo; encadena el siguiente
+            hablarSiguiente()  // la música ya está frenada; encadena el siguiente
         } else {
             estaHablando = false
-            ajustarVolumen?(1.0, 0.8)
+            Reproductor.compartido.reanudarTrasVoz()
         }
     }
 
