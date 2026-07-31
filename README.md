@@ -23,6 +23,7 @@ Dos modos en el reloj (switch "Registrar carrera"):
 - ✅ Fase 8 — Ritmo (pace) suavizado ~45 s desde la distancia del workout
 - ✅ Fase 9 — Plan por tramos con rangos de ritmo + importador JSON (formato ChatGPT)
 - ✅ Fase 10 — Entrenador de voz: anuncia tramos y corrige "apurá/aflojá" con filtros anti-molestia
+- ✅ Fase 11 — Pausa total (también congela el workout de Salud) + ruta GPS: el recorrido queda dibujado en el mapa de Fitness
 
 ## Formato JSON de tramos (para pedirle a ChatGPT)
 
@@ -58,7 +59,7 @@ del reloj, devolvémelo SOLO en ese formato JSON, sin texto extra."*
 | `Maraton Watch App/ConectividadWatch.swift` | Lado reloj: recibe y persiste plan y archivos (moviéndolos al instante), reporta inventario al iPhone. |
 | `Maraton Watch App/Reproductor.swift` | Reproductor: sesión `.playback`/longForm, cola con loop, Now Playing + comandos remotos, cronómetro por reloj de sistema (pausa congela), frena/reanuda la música para la voz. |
 | `Maraton Watch App/Avisador.swift` | Avisos: chequeo por segundo, voz es-AR→es-MX→es-ES, háptico, notificaciones locales reprogramables, cola secuencial; canal `anunciar()` para el entrenador. |
-| `Maraton Watch App/Entrenamiento.swift` | HKWorkoutSession + builder: FC, distancia, calorías, ritmo suavizado; guarda la carrera en Salud al terminar. |
+| `Maraton Watch App/Entrenamiento.swift` | HKWorkoutSession + builder: FC, distancia, calorías, ritmo suavizado; ruta GPS (CLLocationManager + HKWorkoutRouteBuilder, puntos con precisión ≤50 m); pausa/reanuda el workout junto con la música; guarda carrera + mapa en Salud. |
 | `Maraton Watch App/EntrenadorRitmo.swift` | Entrenador: sigue tramos por distancia, anuncia cambios y corrige el ritmo con filtros (45 s de gracia, 1 corrección/min, margen 5 seg/km, mudo en pausa). |
 | `*/[...].entitlements` | Permisos de HealthKit por target (los exige la firma). |
 
@@ -83,6 +84,7 @@ sirve apenas para UI.
 - Background mode del watch: `audio`. La sesión workout (modo entrenamiento)
   mantiene la app viva además del audio.
 - Avisos "de cuidado" (agua/gel) por tiempo transcurrido; tramos y entrenador
-  por distancia del workout. La pausa congela cronómetro y cronograma.
+  por distancia del workout. La pausa congela TODO: cronómetro, cronograma de
+  avisos, registro del workout (tiempo de Salud) y GPS.
 - Mientras el asistente habla, la música se pausa (no ducking) y sigue después.
 - En modo solo-audio no se abre workout session: convive con Runna.

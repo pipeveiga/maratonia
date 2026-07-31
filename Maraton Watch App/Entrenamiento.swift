@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import CoreLocation
 
 // La sesión de entrenamiento del reloj (HKWorkoutSession + builder).
 // Al iniciarla, el reloj entra en modo workout: sensores activos, FC en
@@ -14,6 +15,7 @@ final class Entrenamiento: NSObject, ObservableObject {
     static let compartido = Entrenamiento()
 
     @Published var activo = false
+    @Published var pausado = false
     @Published var frecuenciaCardiaca: Double = 0   // pulsaciones por minuto
     @Published var distanciaMetros: Double = 0
     @Published var caloriasActivas: Double = 0
@@ -29,11 +31,22 @@ final class Entrenamiento: NSObject, ObservableObject {
     private var sesion: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
 
+    // Ruta GPS: las ubicaciones buenas se acumulan en el routeBuilder y al
+    // finalizar se atan al workout, para ver el recorrido en el mapa.
+    private let ubicaciones = CLLocationManager()
+    private var routeBuilder: HKWorkoutRouteBuilder?
+
     // Muestras (fecha, metros) del último minuto para suavizar el ritmo:
     // el pace crudo del GPS/sensores salta demasiado para corregir en voz.
     private var muestras: [(fecha: Date, metros: Double)] = []
     private var timerMuestras: Timer?
-    private var inicioSesion: Date?
+
+    override private init() {
+        super.init()
+        ubicaciones.delegate = self
+        ubicaciones.desiredAccuracy = kCLLocationAccuracyBest
+        ubicaciones.activityType = .fitness
+    }
 
     func pedirPermisos(alTerminar: @escaping () -> Void) {
         guard HKHealthStore.isHealthDataAvailable() else {
@@ -41,12 +54,16 @@ final class Entrenamiento: NSObject, ObservableObject {
             alTerminar()
             return
         }
-        let paraCompartir: Set<HKSampleType> = [HKQuantityType.workoutType()]
+        let paraCompartir: Set<HKSampleType> = [
+            HKQuantityType.workoutType(),
+            HKSeriesType.workoutRoute(),
+        ]
         let paraLeer: Set<HKObjectType> = [
             HKQuantityType(.heartRate),
             HKQuantityType(.activeEnergyBurned),
             HKQuantityType(.distanceWalkingRunning),
         ]
+        ubicaciones.requestWhenInUseAuthorization()
         healthStore.requestAuthorization(toShare: paraCompartir, read: paraLeer) { _, _ in
             DispatchQueue.main.async {
                 alTerminar()
@@ -69,19 +86,22 @@ final class Entrenamiento: NSObject, ObservableObject {
             nuevoBuilder.delegate = self
             sesion = nuevaSesion
             builder = nuevoBuilder
+            routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: nil)
 
             let inicio = Date()
             nuevaSesion.startActivity(with: inicio)
             nuevoBuilder.beginCollection(withStart: inicio) { _, _ in }
+            ubicaciones.allowsBackgroundLocationUpdates = true
+            ubicaciones.startUpdatingLocation()
             frecuenciaCardiaca = 0
             distanciaMetros = 0
             caloriasActivas = 0
             ritmoActualSegKm = nil
             ritmoPromedioSegKm = nil
             muestras = []
-            inicioSesion = inicio
             mensajeError = nil
             activo = true
+            pausado = false
 
             timerMuestras?.invalidate()
             timerMuestras = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -96,18 +116,38 @@ final class Entrenamiento: NSObject, ObservableObject {
         }
     }
 
+    /// Pausa REAL del entrenamiento: congela el registro (tiempo del
+    /// workout), apaga el GPS y resetea el suavizado de ritmo.
+    func pausar() {
+        guard activo, !pausado else { return }
+        pausado = true
+        sesion?.pause()
+        ubicaciones.stopUpdatingLocation()
+        muestras = []
+        ritmoActualSegKm = nil
+    }
+
+    func reanudar() {
+        guard activo, pausado else { return }
+        pausado = false
+        sesion?.resume()
+        ubicaciones.startUpdatingLocation()
+        muestras = []  // arranca limpio: sin ritmo hasta juntar datos nuevos
+    }
+
     /// Termina la sesión y guarda el workout en Salud. La limpieza final
     /// ocurre en el delegate, cuando la sesión pasa a .ended.
     func finalizar() {
         timerMuestras?.invalidate()
         timerMuestras = nil
+        ubicaciones.stopUpdatingLocation()
         sesion?.end()
     }
 
     /// Una vez por segundo: agrega la muestra, recalcula el ritmo
     /// suavizado y el promedio, y le pasa el estado al entrenador de ritmo.
     private func registrarMuestra() {
-        guard activo else { return }
+        guard activo, !pausado else { return }
         let ahora = Date()
         muestras.append((ahora, distanciaMetros))
         muestras.removeAll { ahora.timeIntervalSince($0.fecha) > 60 }
@@ -121,8 +161,9 @@ final class Entrenamiento: NSObject, ObservableObject {
             }
         }
 
-        if let inicio = inicioSesion, distanciaMetros > 50 {
-            ritmoPromedioSegKm = Int(ahora.timeIntervalSince(inicio) / distanciaMetros * 1000)
+        // El promedio usa el tiempo del builder, que descuenta las pausas.
+        if let builder, distanciaMetros > 50 {
+            ritmoPromedioSegKm = Int(builder.elapsedTime / distanciaMetros * 1000)
         }
 
         EntrenadorRitmo.compartido.chequear(
@@ -165,11 +206,17 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
                         date: Date) {
         guard toState == .ended else { return }
         builder?.endCollection(withEnd: date) { [weak self] _, _ in
-            self?.builder?.finishWorkout { _, _ in
+            self?.builder?.finishWorkout { workout, _ in
+                // Atar la ruta GPS al workout guardado, para el mapa.
+                if let workout, let rutas = self?.routeBuilder {
+                    rutas.finishRoute(with: workout, metadata: nil) { _, _ in }
+                }
                 DispatchQueue.main.async {
                     self?.activo = false
+                    self?.pausado = false
                     self?.sesion = nil
                     self?.builder = nil
+                    self?.routeBuilder = nil
                 }
             }
         }
@@ -179,11 +226,29 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
         DispatchQueue.main.async {
             self.mensajeError = "Entrenamiento: \(error.localizedDescription)"
             self.activo = false
+            self.pausado = false
             self.sesion = nil
             self.builder = nil
+            self.routeBuilder = nil
+            self.ubicaciones.stopUpdatingLocation()
             self.timerMuestras?.invalidate()
             self.timerMuestras = nil
         }
+    }
+}
+
+extension Entrenamiento: CLLocationManagerDelegate {
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard activo, !pausado, let routeBuilder else { return }
+        // Solo puntos con precisión decente; los malos ensucian el mapa.
+        let buenas = locations.filter { $0.horizontalAccuracy > 0 && $0.horizontalAccuracy <= 50 }
+        guard !buenas.isEmpty else { return }
+        routeBuilder.insertRouteData(buenas) { _, _ in }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        // Sin GPS momentáneo (túnel, arranque): no es fatal, la ruta sigue
+        // con los puntos que haya.
     }
 }
 

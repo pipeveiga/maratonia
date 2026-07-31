@@ -103,6 +103,7 @@ final class Reproductor: NSObject, ObservableObject {
         estado = .pausado
         tiempoTranscurrido = transcurridoActual
         Avisador.compartido.pausar()
+        Entrenamiento.compartido.pausar()  // congela también el workout
         actualizarNowPlaying()
     }
 
@@ -112,6 +113,7 @@ final class Reproductor: NSObject, ObservableObject {
         fechaReanudacion = Date()
         estado = .reproduciendo
         Avisador.compartido.reanudar(transcurrido: transcurridoActual)
+        Entrenamiento.compartido.reanudar()
         actualizarNowPlaying()
     }
 
