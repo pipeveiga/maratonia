@@ -1,13 +1,23 @@
 import SwiftUI
 
-// Pantalla principal del reloj (Fase 3): muestra el plan recibido, cuántas
-// pistas están listas y cuáles faltan. El botón de Play se habilita en la
-// Fase 4, cuando exista el reproductor.
+// Pantalla principal del reloj. Si no hay sesión en curso muestra el
+// "lobby" (plan recibido, pistas listas, botón grande de Play); con la
+// sesión andando muestra la pantalla de reproducción. Esta última es
+// deliberadamente simple: durante la carrera Runna está al frente.
 
 struct ContentView: View {
     @ObservedObject private var conectividad = ConectividadWatch.compartida
+    @ObservedObject private var reproductor = Reproductor.compartido
 
     var body: some View {
+        if reproductor.estado == .detenido {
+            lobby
+        } else {
+            PantallaReproduccion()
+        }
+    }
+
+    private var lobby: some View {
         ScrollView {
             VStack(spacing: 10) {
                 if let plan = conectividad.plan {
@@ -40,18 +50,22 @@ struct ContentView: View {
         }
 
         Button {
-            // Fase 4: acá arranca la reproducción.
+            reproductor.iniciar(plan: plan, urlDe: conectividad.urlDePista)
         } label: {
             Label("Play", systemImage: "play.fill")
                 .font(.title3)
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
-        .disabled(true)
+        .tint(.green)
+        .disabled(listas == 0)
 
-        Text("El Play se habilita en la Fase 4")
-            .font(.footnote)
-            .foregroundStyle(.secondary)
+        if let error = reproductor.mensajeError {
+            Text(error)
+                .font(.footnote)
+                .foregroundStyle(.red)
+                .multilineTextAlignment(.center)
+        }
 
         Text("\(plan.cronograma(duracionMaximaMinutos: 360).count) avisos en el cronograma")
             .font(.footnote)
@@ -72,6 +86,61 @@ struct ContentView: View {
                 .multilineTextAlignment(.center)
         }
         .padding(.top, 10)
+    }
+}
+
+struct PantallaReproduccion: View {
+    @ObservedObject private var reproductor = Reproductor.compartido
+    @State private var confirmandoTerminar = false
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(formatearTiempo(reproductor.tiempoTranscurrido))
+                .font(.system(size: 38, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+
+            Text(nombreLegible(reproductor.nombrePistaActual))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            if reproductor.estado == .pausado {
+                Text("En pausa — el tiempo está congelado")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .multilineTextAlignment(.center)
+            }
+
+            HStack(spacing: 12) {
+                Button {
+                    reproductor.alternarPlayPausa()
+                } label: {
+                    Image(systemName: reproductor.estado == .reproduciendo ? "pause.fill" : "play.fill")
+                        .font(.title3)
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    reproductor.siguiente()
+                } label: {
+                    Image(systemName: "forward.fill")
+                        .font(.title3)
+                }
+                .buttonStyle(.bordered)
+            }
+
+            Button("Terminar", role: .destructive) {
+                confirmandoTerminar = true
+            }
+            .font(.footnote)
+            .confirmationDialog("¿Terminar la sesión?", isPresented: $confirmandoTerminar) {
+                Button("Terminar", role: .destructive) {
+                    reproductor.detener()
+                }
+                Button("Seguir", role: .cancel) {}
+            }
+        }
+        .padding(.horizontal, 4)
     }
 }
 

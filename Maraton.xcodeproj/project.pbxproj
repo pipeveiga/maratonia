@@ -20,6 +20,7 @@
 		A10000000000000000000039 /* AvisoEditores.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000028 /* AvisoEditores.swift */; };
 		A1000000000000000000003A /* Conectividad.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000029 /* Conectividad.swift */; };
 		A1000000000000000000003B /* ConectividadWatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002A /* ConectividadWatch.swift */; };
+		A1000000000000000000003C /* Reproductor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002B /* Reproductor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -60,6 +61,7 @@
 		A10000000000000000000028 /* AvisoEditores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvisoEditores.swift; sourceTree = "<group>"; };
 		A10000000000000000000029 /* Conectividad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Conectividad.swift; sourceTree = "<group>"; };
 		A1000000000000000000002A /* ConectividadWatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConectividadWatch.swift; sourceTree = "<group>"; };
+		A1000000000000000000002B /* Reproductor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reproductor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -118,6 +120,7 @@
 				A10000000000000000000023 /* MaratonWatchApp.swift */,
 				A10000000000000000000024 /* ContentView.swift */,
 				A1000000000000000000002A /* ConectividadWatch.swift */,
+				A1000000000000000000002B /* Reproductor.swift */,
 				A10000000000000000000025 /* Assets.xcassets */,
 			);
 			path = "Maraton Watch App";
@@ -248,6 +251,7 @@
 				A10000000000000000000034 /* ContentView.swift in Sources */,
 				A10000000000000000000037 /* Plan.swift in Sources */,
 				A1000000000000000000003B /* ConectividadWatch.swift in Sources */,
+				A1000000000000000000003C /* Reproductor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -382,7 +386,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
@@ -412,7 +416,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
@@ -443,7 +447,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
@@ -474,7 +478,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
