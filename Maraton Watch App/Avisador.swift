@@ -101,6 +101,16 @@ final class Avisador: NSObject, ObservableObject {
         }
     }
 
+    /// Dispara la secuencia completa de un aviso ya mismo (háptico + duck +
+    /// voz + volver el volumen). Para diagnosticar sin esperar al cronograma.
+    func probar() {
+        WKInterfaceDevice.current().play(.notification)
+        colaPorHablar.append("Probando avisos: uno, dos, tres.")
+        if !estaHablando {
+            hablarSiguiente()
+        }
+    }
+
     // MARK: - Voz y ducking
 
     private func hablarSiguiente() {

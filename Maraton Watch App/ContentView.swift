@@ -142,6 +142,14 @@ struct PantallaReproduccion: View {
                 .buttonStyle(.bordered)
             }
 
+            Button {
+                avisador.probar()
+            } label: {
+                Label("Probar aviso", systemImage: "speaker.wave.2.fill")
+                    .font(.footnote)
+            }
+            .buttonStyle(.bordered)
+
             Button("Terminar", role: .destructive) {
                 confirmandoTerminar = true
             }
