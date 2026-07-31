@@ -19,9 +19,21 @@ final class Entrenamiento: NSObject, ObservableObject {
     @Published var caloriasActivas: Double = 0
     @Published var mensajeError: String?
 
+    /// Ritmo actual en seg/km, suavizado sobre los últimos ~45 s.
+    /// nil = todavía no hay datos o estás prácticamente parado.
+    @Published var ritmoActualSegKm: Int?
+    /// Ritmo promedio de toda la sesión, en seg/km.
+    @Published var ritmoPromedioSegKm: Int?
+
     private let healthStore = HKHealthStore()
     private var sesion: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
+
+    // Muestras (fecha, metros) del último minuto para suavizar el ritmo:
+    // el pace crudo del GPS/sensores salta demasiado para corregir en voz.
+    private var muestras: [(fecha: Date, metros: Double)] = []
+    private var timerMuestras: Timer?
+    private var inicioSesion: Date?
 
     func pedirPermisos(alTerminar: @escaping () -> Void) {
         guard HKHealthStore.isHealthDataAvailable() else {
@@ -64,8 +76,19 @@ final class Entrenamiento: NSObject, ObservableObject {
             frecuenciaCardiaca = 0
             distanciaMetros = 0
             caloriasActivas = 0
+            ritmoActualSegKm = nil
+            ritmoPromedioSegKm = nil
+            muestras = []
+            inicioSesion = inicio
             mensajeError = nil
             activo = true
+
+            timerMuestras?.invalidate()
+            timerMuestras = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+                DispatchQueue.main.async {
+                    self?.registrarMuestra()
+                }
+            }
         } catch {
             mensajeError = "No pude iniciar el entrenamiento: \(error.localizedDescription)"
             sesion = nil
@@ -76,7 +99,35 @@ final class Entrenamiento: NSObject, ObservableObject {
     /// Termina la sesión y guarda el workout en Salud. La limpieza final
     /// ocurre en el delegate, cuando la sesión pasa a .ended.
     func finalizar() {
+        timerMuestras?.invalidate()
+        timerMuestras = nil
         sesion?.end()
+    }
+
+    /// Una vez por segundo: agrega la muestra, recalcula el ritmo
+    /// suavizado y el promedio, y le pasa el estado al entrenador de ritmo.
+    private func registrarMuestra() {
+        guard activo else { return }
+        let ahora = Date()
+        muestras.append((ahora, distanciaMetros))
+        muestras.removeAll { ahora.timeIntervalSince($0.fecha) > 60 }
+
+        // Ritmo actual: contra la muestra más vieja dentro de ~45 s.
+        if let referencia = muestras.first(where: { ahora.timeIntervalSince($0.fecha) <= 45 }) {
+            let segundos = ahora.timeIntervalSince(referencia.fecha)
+            let metros = distanciaMetros - referencia.metros
+            if segundos >= 20 {
+                ritmoActualSegKm = metros >= 15 ? Int(segundos / metros * 1000) : nil
+            }
+        }
+
+        if let inicio = inicioSesion, distanciaMetros > 50 {
+            ritmoPromedioSegKm = Int(ahora.timeIntervalSince(inicio) / distanciaMetros * 1000)
+        }
+
+        EntrenadorRitmo.compartido.chequear(
+            distanciaMetros: distanciaMetros,
+            ritmoActualSegKm: ritmoActualSegKm)
     }
 
     private func actualizarEstadisticas(con tipos: Set<HKSampleType>) {
@@ -130,6 +181,8 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
             self.activo = false
             self.sesion = nil
             self.builder = nil
+            self.timerMuestras?.invalidate()
+            self.timerMuestras = nil
         }
     }
 }

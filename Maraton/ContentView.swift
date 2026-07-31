@@ -11,6 +11,7 @@ struct ContentView: View {
     @State private var mostrandoImportador = false
     @State private var fijoEnEdicion: AvisoFijo?
     @State private var repetidoEnEdicion: AvisoRepetido?
+    @State private var mostrandoImportadorTramos = false
 
     /// Horizonte de la vista previa del cronograma (solo afecta la vista,
     /// no el plan). Se recuerda entre aperturas de la app.
@@ -22,6 +23,7 @@ struct ContentView: View {
                 seccionPistas
                 seccionAvisosFijos
                 seccionAvisosRepetidos
+                seccionTramos
                 seccionCronograma
                 seccionEnvio
             }
@@ -43,6 +45,11 @@ struct ContentView: View {
                     } else {
                         store.plan.avisosFijos.append(actualizado)
                     }
+                }
+            }
+            .sheet(isPresented: $mostrandoImportadorTramos) {
+                ImportadorTramos { tramos in
+                    store.plan.tramos = tramos
                 }
             }
             .sheet(item: $repetidoEnEdicion) { aviso in
@@ -180,6 +187,38 @@ struct ContentView: View {
             texto += ", sin límite"
         }
         return texto
+    }
+
+    // MARK: - Tramos con ritmo objetivo
+
+    private var seccionTramos: some View {
+        Section {
+            ForEach(store.plan.tramosActivos) { tramo in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(tramo.nombre)
+                    Text(tramo.descripcion)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .swipeActions {
+                    Button(role: .destructive) {
+                        store.plan.tramos?.removeAll { $0.id == tramo.id }
+                    } label: {
+                        Label("Borrar", systemImage: "trash")
+                    }
+                }
+            }
+
+            Button {
+                mostrandoImportadorTramos = true
+            } label: {
+                Label("Pegar plan de tramos (JSON)", systemImage: "doc.on.clipboard")
+            }
+        } header: {
+            Text("Tramos con ritmo objetivo")
+        } footer: {
+            Text("El reloj anuncia cada tramo y te avisa por voz si vas más rápido o más lento que el rango. Necesita «Registrar carrera» activado en el reloj.")
+        }
     }
 
     // MARK: - Cronograma

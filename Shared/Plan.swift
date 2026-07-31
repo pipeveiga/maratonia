@@ -10,7 +10,51 @@ struct Plan: Codable, Equatable {
     var avisosFijos: [AvisoFijo]
     var avisosRepetidos: [AvisoRepetido]
 
+    /// Tramos con ritmo objetivo (opcional para que los planes guardados
+    /// con versiones viejas sigan cargando sin problema).
+    var tramos: [Tramo]? = nil
+
+    var tramosActivos: [Tramo] { tramos ?? [] }
+
     static let vacio = Plan(nombre: "Mi plan", pistas: [], avisosFijos: [], avisosRepetidos: [])
+}
+
+/// Un tramo del plan de entrenamiento: una distancia con un rango de
+/// ritmo objetivo (en segundos por km). ritmoMinSegKm es el límite
+/// rápido (ej. 230 = 3:50/km) y ritmoMaxSegKm el lento (250 = 4:10/km).
+/// Ambos nil = tramo a ritmo libre.
+struct Tramo: Codable, Equatable, Identifiable, Hashable {
+    var id = UUID()
+    var nombre: String
+    var kilometros: Double
+    var ritmoMinSegKm: Int?
+    var ritmoMaxSegKm: Int?
+
+    var descripcion: String {
+        let distancia = kilometros == kilometros.rounded()
+            ? "\(Int(kilometros)) km"
+            : String(format: "%.1f km", kilometros)
+        switch (ritmoMinSegKm, ritmoMaxSegKm) {
+        case let (rapido?, lento?):
+            return "\(distancia) a \(formatearRitmo(rapido))–\(formatearRitmo(lento)) /km"
+        case let (nil, lento?):
+            return "\(distancia) a \(formatearRitmo(lento)) /km o mejor"
+        case let (rapido?, nil):
+            return "\(distancia) sin pasar de \(formatearRitmo(rapido)) /km"
+        default:
+            return "\(distancia) libre"
+        }
+    }
+}
+
+/// 230 -> "3:50"
+func formatearRitmo(_ segundosPorKm: Int) -> String {
+    "\(segundosPorKm / 60):" + String(format: "%02d", segundosPorKm % 60)
+}
+
+/// 230 -> "3 50", para que la voz lo lea natural.
+func ritmoParaHablar(_ segundosPorKm: Int) -> String {
+    "\(segundosPorKm / 60) \(String(format: "%02d", segundosPorKm % 60))"
 }
 
 struct AvisoFijo: Codable, Equatable, Identifiable, Hashable {

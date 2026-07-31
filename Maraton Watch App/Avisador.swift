@@ -101,14 +101,20 @@ final class Avisador: NSObject, ObservableObject {
         }
     }
 
-    /// Dispara la secuencia completa de un aviso ya mismo (háptico + duck +
-    /// voz + volver el volumen). Para diagnosticar sin esperar al cronograma.
-    func probar() {
+    /// Canal general para hablar con la secuencia completa de un aviso
+    /// (háptico + ducking + voz + restaurar volumen). Lo usan el botón de
+    /// prueba y el entrenador de ritmo.
+    func anunciar(_ texto: String) {
         WKInterfaceDevice.current().play(.notification)
-        colaPorHablar.append("Probando avisos: uno, dos, tres.")
+        colaPorHablar.append(texto)
         if !estaHablando {
             hablarSiguiente()
         }
+    }
+
+    /// Aviso de prueba inmediato, para diagnosticar sin esperar al cronograma.
+    func probar() {
+        anunciar("Probando avisos: uno, dos, tres.")
     }
 
     // MARK: - Voz y ducking

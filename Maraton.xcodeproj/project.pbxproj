@@ -23,6 +23,8 @@
 		A1000000000000000000003C /* Reproductor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002B /* Reproductor.swift */; };
 		A1000000000000000000003D /* Avisador.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002C /* Avisador.swift */; };
 		A1000000000000000000003E /* Entrenamiento.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000002D /* Entrenamiento.swift */; };
+		A10000000000000000000042 /* TramosImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000040 /* TramosImport.swift */; };
+		A10000000000000000000043 /* EntrenadorRitmo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000041 /* EntrenadorRitmo.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,6 +70,8 @@
 		A1000000000000000000002D /* Entrenamiento.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Entrenamiento.swift; sourceTree = "<group>"; };
 		A1000000000000000000002E /* Maraton.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Maraton.entitlements; sourceTree = "<group>"; };
 		A1000000000000000000002F /* MaratonWatchApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MaratonWatchApp.entitlements; sourceTree = "<group>"; };
+		A10000000000000000000040 /* TramosImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TramosImport.swift; sourceTree = "<group>"; };
+		A10000000000000000000041 /* EntrenadorRitmo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntrenadorRitmo.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -115,6 +119,7 @@
 				A10000000000000000000027 /* PlanStore.swift */,
 				A10000000000000000000028 /* AvisoEditores.swift */,
 				A10000000000000000000029 /* Conectividad.swift */,
+				A10000000000000000000040 /* TramosImport.swift */,
 				A1000000000000000000002E /* Maraton.entitlements */,
 				A10000000000000000000022 /* Assets.xcassets */,
 			);
@@ -130,6 +135,7 @@
 				A1000000000000000000002B /* Reproductor.swift */,
 				A1000000000000000000002C /* Avisador.swift */,
 				A1000000000000000000002D /* Entrenamiento.swift */,
+				A10000000000000000000041 /* EntrenadorRitmo.swift */,
 				A1000000000000000000002F /* MaratonWatchApp.entitlements */,
 				A10000000000000000000025 /* Assets.xcassets */,
 			);
@@ -250,6 +256,7 @@
 				A10000000000000000000038 /* PlanStore.swift in Sources */,
 				A10000000000000000000039 /* AvisoEditores.swift in Sources */,
 				A1000000000000000000003A /* Conectividad.swift in Sources */,
+				A10000000000000000000042 /* TramosImport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -264,6 +271,7 @@
 				A1000000000000000000003C /* Reproductor.swift in Sources */,
 				A1000000000000000000003D /* Avisador.swift in Sources */,
 				A1000000000000000000003E /* Entrenamiento.swift in Sources */,
+				A10000000000000000000043 /* EntrenadorRitmo.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -398,7 +406,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
@@ -431,7 +439,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
@@ -465,7 +473,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
@@ -499,7 +507,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";

@@ -13,9 +13,22 @@ Convive con Runna en segundo plano: **no** usa HealthKit, GPS ni workout session
 - ✅ Fase 5 — Avisos: voz es-AR con ducking manual, háptico, notificaciones locales reprogramadas en pausa/reanudar, cada aviso suena una sola vez
 - ✅ Fase 6 — Pulido: pistas ilegibles se saltan, archivos faltantes visibles en ambas puntas, estados vacíos, envío deshabilitado sin contenido
 - ✅ Fase 7 — Sesión de entrenamiento opcional: HKWorkoutSession + FC y distancia en vivo, guardado en Salud; switch "Registrar carrera" (apagado = solo audio, compatible con Runna)
-- ⬜ Fase 8 — GPS y ritmo (pace) suavizado
-- ⬜ Fase 9 — Plan por tramos con rangos de ritmo (formato JSON para ChatGPT)
-- ⬜ Fase 10 — Avisos de ritmo por voz ("apurá/aflojá") y avisos por distancia
+- ✅ Fase 8 — Ritmo (pace) suavizado ~45 s a partir de la distancia del workout (el sistema fusiona GPS solo en carreras outdoor)
+- ✅ Fase 9 — Plan por tramos con rangos de ritmo + importador JSON pensado para ChatGPT
+- ✅ Fase 10 — Entrenador de voz: anuncia cada tramo y corrige "apurá/aflojá" (máx. 1 vez/min, con margen y sin opinar en pausa)
+
+### Formato JSON de tramos (para pedirle a ChatGPT)
+
+```json
+{"tramos":[
+  {"nombre":"Calentamiento","km":2},
+  {"nombre":"Bloque","km":3,"ritmoMin":"3:50","ritmoMax":"4:10"},
+  {"nombre":"Vuelta a la calma","km":1.5,"ritmoMax":"6:00"}
+]}
+```
+
+`ritmoMin` = límite rápido, `ritmoMax` = límite lento (min:seg por km); ambos opcionales.
+Se pega en la app iOS: sección "Tramos" → «Pegar plan de tramos (JSON)».
 - ⬜ Fase 4 — Reproducción en el reloj (cola, loop, Now Playing)
 - ⬜ Fase 5 — Avisos (voz, ducking, háptico, notificaciones, pausa)
 - ⬜ Fase 6 — Pulido
@@ -34,7 +47,9 @@ Convive con Runna en segundo plano: **no** usa HealthKit, GPS ni workout session
 | `Maraton Watch App/ConectividadWatch.swift` | Lado reloj: recibe plan y archivos (moviéndolos a Documents al instante), los persiste, y le reporta al iPhone qué archivos tiene. |
 | `Maraton Watch App/Reproductor.swift` | El reproductor: AVAudioSession `.playback`/longForm, cola de AVAudioPlayer encadenada con loop, comandos remotos + Now Playing, tiempo de sesión basado en el reloj del sistema (la pausa lo congela). |
 | `Maraton Watch App/Avisador.swift` | Los avisos: chequeo por segundo contra el cronograma, voz en español (es-AR→es-MX→es-ES) con ducking manual del propio player, háptico, notificaciones locales (canceladas en pausa y reprogramadas al reanudar), cola secuencial si coinciden en el mismo minuto. |
-| `Maraton Watch App/Entrenamiento.swift` | La sesión de entrenamiento (HKWorkoutSession + HKLiveWorkoutBuilder): FC, distancia y calorías en vivo; al terminar guarda la carrera en Salud. Solo se usa con el switch "Registrar carrera" activado. |
+| `Maraton Watch App/Entrenamiento.swift` | La sesión de entrenamiento (HKWorkoutSession + HKLiveWorkoutBuilder): FC, distancia y calorías en vivo, ritmo suavizado (ventana ~45 s); al terminar guarda la carrera en Salud. Solo con el switch "Registrar carrera" activado. |
+| `Maraton Watch App/EntrenadorRitmo.swift` | El entrenador: sigue los tramos por distancia acumulada, anuncia cada cambio de tramo y corrige el ritmo por voz con filtros anti-molestia. |
+| `Maraton/TramosImport.swift` | Parser + pantalla para pegar el plan de tramos en JSON (formato ChatGPT). |
 | `*/[...].entitlements` | Permisos de HealthKit para cada target (los exige la firma de la app). |
 | `Maraton Watch App/MaratonWatchApp.swift` | Punto de entrada de la app watchOS. |
 | `Maraton Watch App/ContentView.swift` | Pantalla watch de Fase 1: placeholder de verificación. |

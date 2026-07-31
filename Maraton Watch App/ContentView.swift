@@ -88,12 +88,19 @@ struct ContentView: View {
         Text("\(plan.cronograma(duracionMaximaMinutos: 360).count) avisos en el cronograma")
             .font(.footnote)
             .foregroundStyle(.secondary)
+
+        if !plan.tramosActivos.isEmpty {
+            Text("\(plan.tramosActivos.count) tramos con ritmo objetivo")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private func arrancar(_ plan: Plan) {
         if modoEntrenamiento {
             Entrenamiento.compartido.pedirPermisos {
                 Entrenamiento.compartido.iniciar()
+                EntrenadorRitmo.compartido.iniciar(plan: plan)
                 reproductor.iniciar(plan: plan, urlDe: conectividad.urlDePista)
             }
         } else {
@@ -122,6 +129,7 @@ struct PantallaReproduccion: View {
     @ObservedObject private var reproductor = Reproductor.compartido
     @ObservedObject private var avisador = Avisador.compartido
     @ObservedObject private var entrenamiento = Entrenamiento.compartido
+    @ObservedObject private var entrenador = EntrenadorRitmo.compartido
     @State private var confirmandoTerminar = false
 
     var body: some View {
@@ -146,6 +154,20 @@ struct PantallaReproduccion: View {
                 }
                 .font(.footnote)
                 .monospacedDigit()
+
+                if let ritmo = entrenamiento.ritmoActualSegKm {
+                    Text("Ritmo \(formatearRitmo(ritmo)) /km")
+                        .font(.footnote)
+                        .monospacedDigit()
+                }
+
+                if let tramo = entrenador.tramoActual {
+                    Text("\(tramo.nombre): \(tramo.descripcion)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                }
             }
 
             if let errorEntrenamiento = entrenamiento.mensajeError {
@@ -207,6 +229,7 @@ struct PantallaReproduccion: View {
             .confirmationDialog("¿Terminar la sesión?", isPresented: $confirmandoTerminar) {
                 Button("Terminar", role: .destructive) {
                     reproductor.detener()
+                    EntrenadorRitmo.compartido.detener()
                     Entrenamiento.compartido.finalizar()
                 }
                 Button("Seguir", role: .cancel) {}
