@@ -7,7 +7,6 @@ import SwiftUI
 // El plan se guarda como JSON en Documents/plan.json y las pistas en
 // Documents/Pistas/. Al abrir la app se recupera todo.
 
-@MainActor
 final class PlanStore: ObservableObject {
 
     @Published var plan: Plan {

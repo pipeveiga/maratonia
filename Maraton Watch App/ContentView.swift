@@ -95,8 +95,9 @@ struct PantallaReproduccion: View {
     @State private var confirmandoTerminar = false
 
     var body: some View {
-        VStack(spacing: 8) {
-            Text(formatearTiempo(reproductor.tiempoTranscurrido))
+        ScrollView {
+            VStack(spacing: 8) {
+                Text(formatearTiempo(reproductor.tiempoTranscurrido))
                 .font(.system(size: 38, weight: .semibold, design: .rounded))
                 .monospacedDigit()
 
@@ -160,8 +161,9 @@ struct PantallaReproduccion: View {
                 }
                 Button("Seguir", role: .cancel) {}
             }
+            }
+            .padding(.horizontal, 4)
         }
-        .padding(.horizontal, 4)
     }
 }
 
