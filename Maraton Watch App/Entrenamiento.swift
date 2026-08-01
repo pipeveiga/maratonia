@@ -35,6 +35,7 @@ final class Entrenamiento: NSObject, ObservableObject {
     // finalizar se atan al workout, para ver el recorrido en el mapa.
     private let ubicaciones = CLLocationManager()
     private var routeBuilder: HKWorkoutRouteBuilder?
+    private var usaGPS = false
 
     // Muestras (fecha, metros) del último minuto para suavizar el ritmo:
     // el pace crudo del GPS/sensores salta demasiado para corregir en voz.
@@ -48,31 +49,45 @@ final class Entrenamiento: NSObject, ObservableObject {
         ubicaciones.activityType = .fitness
     }
 
-    func pedirPermisos(alTerminar: @escaping () -> Void) {
+    /// ¿El Info.plist declara el modo "location" en segundo plano?
+    /// Activar `allowsBackgroundLocationUpdates` sin ese modo declarado
+    /// termina la app al instante, así que nunca se pone a ciegas.
+    private static var permiteUbicacionEnFondo: Bool {
+        let info = Bundle.main.infoDictionary
+        let wk = info?["WKBackgroundModes"] as? [String] ?? []
+        let ui = info?["UIBackgroundModes"] as? [String] ?? []
+        return wk.contains("location") || ui.contains("location")
+    }
+
+    func pedirPermisos(conGPS: Bool, alTerminar: @escaping () -> Void) {
         guard HKHealthStore.isHealthDataAvailable() else {
-            mensajeError = "HealthKit no está disponible en este dispositivo."
-            alTerminar()
+            mensajeError = "Salud no está disponible en este reloj."
             return
         }
-        let paraCompartir: Set<HKSampleType> = [
-            HKQuantityType.workoutType(),
-            HKSeriesType.workoutRoute(),
-        ]
+        var paraCompartir: Set<HKSampleType> = [HKQuantityType.workoutType()]
+        if conGPS {
+            paraCompartir.insert(HKSeriesType.workoutRoute())
+            ubicaciones.requestWhenInUseAuthorization()
+        }
         let paraLeer: Set<HKObjectType> = [
             HKQuantityType(.heartRate),
             HKQuantityType(.activeEnergyBurned),
             HKQuantityType(.distanceWalkingRunning),
         ]
-        ubicaciones.requestWhenInUseAuthorization()
-        healthStore.requestAuthorization(toShare: paraCompartir, read: paraLeer) { _, _ in
+        healthStore.requestAuthorization(toShare: paraCompartir, read: paraLeer) { [weak self] ok, error in
             DispatchQueue.main.async {
+                guard ok else {
+                    self?.mensajeError = "Sin permisos de Salud: \(error?.localizedDescription ?? "los rechazaste")"
+                    return
+                }
                 alTerminar()
             }
         }
     }
 
-    func iniciar() {
+    func iniciar(conGPS: Bool) {
         guard sesion == nil else { return }
+        usaGPS = conGPS
         let configuracion = HKWorkoutConfiguration()
         configuracion.activityType = .running
         configuracion.locationType = .outdoor
@@ -86,13 +101,18 @@ final class Entrenamiento: NSObject, ObservableObject {
             nuevoBuilder.delegate = self
             sesion = nuevaSesion
             builder = nuevoBuilder
-            routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: nil)
 
             let inicio = Date()
             nuevaSesion.startActivity(with: inicio)
             nuevoBuilder.beginCollection(withStart: inicio) { _, _ in }
-            ubicaciones.allowsBackgroundLocationUpdates = true
-            ubicaciones.startUpdatingLocation()
+
+            if conGPS {
+                routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: nil)
+                // Solo si el modo está declarado: ponerlo sin declararlo
+                // termina la app en el acto.
+                ubicaciones.allowsBackgroundLocationUpdates = Self.permiteUbicacionEnFondo
+                ubicaciones.startUpdatingLocation()
+            }
             frecuenciaCardiaca = 0
             distanciaMetros = 0
             caloriasActivas = 0
@@ -122,7 +142,7 @@ final class Entrenamiento: NSObject, ObservableObject {
         guard activo, !pausado else { return }
         pausado = true
         sesion?.pause()
-        ubicaciones.stopUpdatingLocation()
+        if usaGPS { ubicaciones.stopUpdatingLocation() }
         muestras = []
         ritmoActualSegKm = nil
     }
@@ -131,7 +151,7 @@ final class Entrenamiento: NSObject, ObservableObject {
         guard activo, pausado else { return }
         pausado = false
         sesion?.resume()
-        ubicaciones.startUpdatingLocation()
+        if usaGPS { ubicaciones.startUpdatingLocation() }
         muestras = []  // arranca limpio: sin ritmo hasta juntar datos nuevos
     }
 
@@ -168,7 +188,8 @@ final class Entrenamiento: NSObject, ObservableObject {
 
         EntrenadorRitmo.compartido.chequear(
             distanciaMetros: distanciaMetros,
-            ritmoActualSegKm: ritmoActualSegKm)
+            ritmoActualSegKm: ritmoActualSegKm,
+            tiempoActivo: builder?.elapsedTime ?? 0)
     }
 
     private func actualizarEstadisticas(con tipos: Set<HKSampleType>) {

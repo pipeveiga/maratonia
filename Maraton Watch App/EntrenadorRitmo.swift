@@ -22,24 +22,36 @@ final class EntrenadorRitmo: ObservableObject {
     private var fechaUltimaCorreccion: Date?
     private let margenSegKm = 5
 
+    // Splits: anuncio de cada kilómetro cumplido con el parcial.
+    private var ultimoKmAnunciado = 0
+    private var tiempoAlUltimoKm: TimeInterval = 0
+
     func iniciar(plan: Plan) {
         tramos = plan.tramosActivos
         indice = 0
         fechaInicioTramo = nil
         fechaUltimaCorreccion = nil
         tramoActual = tramos.first
+        ultimoKmAnunciado = 0
+        tiempoAlUltimoKm = 0
     }
 
     func detener() {
         tramos = []
         tramoActual = nil
         fechaInicioTramo = nil
+        ultimoKmAnunciado = 0
+        tiempoAlUltimoKm = 0
     }
 
-    /// Lo llama Entrenamiento una vez por segundo.
-    func chequear(distanciaMetros: Double, ritmoActualSegKm: Int?) {
-        guard !tramos.isEmpty, indice < tramos.count else { return }
+    /// Lo llama Entrenamiento una vez por segundo. tiempoActivo es el del
+    /// builder (descuenta pausas).
+    func chequear(distanciaMetros: Double, ritmoActualSegKm: Int?, tiempoActivo: TimeInterval) {
         guard Reproductor.compartido.estado == .reproduciendo else { return }
+
+        anunciarSplitSiCorresponde(distanciaMetros: distanciaMetros, tiempoActivo: tiempoActivo)
+
+        guard !tramos.isEmpty, indice < tramos.count else { return }
 
         // El anuncio del primer tramo sale acá (con la música ya sonando)
         // y no en iniciar(), donde el audio todavía se está activando.
@@ -79,6 +91,23 @@ final class EntrenadorRitmo: ObservableObject {
             Avisador.compartido.anunciar(
                 "Vas a \(ritmoParaHablar(ritmo)). Objetivo \(ritmoParaHablar(lento)). Apurá un poco.")
         }
+    }
+
+    /// "Kilómetro 5: 4 12 el último." — una vez por km cumplido, con el
+    /// parcial de ese kilómetro (tiempo activo, sin contar pausas).
+    private func anunciarSplitSiCorresponde(distanciaMetros: Double, tiempoActivo: TimeInterval) {
+        let km = Int(distanciaMetros / 1000)
+        guard km > ultimoKmAnunciado, tiempoActivo > 0 else { return }
+        let parcial = tiempoActivo - tiempoAlUltimoKm
+        let kmsCubiertos = km - ultimoKmAnunciado  // por si se saltó un chequeo
+        ultimoKmAnunciado = km
+        tiempoAlUltimoKm = tiempoActivo
+        guard kmsCubiertos == 1, parcial > 60, parcial < 30 * 60 else {
+            Avisador.compartido.anunciar("Kilómetro \(km).")
+            return
+        }
+        Avisador.compartido.anunciar(
+            "Kilómetro \(km): \(ritmoParaHablar(Int(parcial))) el último.")
     }
 
     private func anuncio(de tramo: Tramo, numero: Int) -> String {

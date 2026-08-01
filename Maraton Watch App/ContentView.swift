@@ -8,11 +8,16 @@ import SwiftUI
 struct ContentView: View {
     @ObservedObject private var conectividad = ConectividadWatch.compartida
     @ObservedObject private var reproductor = Reproductor.compartido
+    @ObservedObject private var entrenamiento = Entrenamiento.compartido
 
     /// true = al dar Play también arranca una sesión de entrenamiento
     /// (FC, distancia, se guarda en Salud). false = solo audio, para
     /// convivir con Runna u otro tracker.
     @AppStorage("modoEntrenamiento") private var modoEntrenamiento = true
+
+    /// Ruta GPS para el mapa. Separado del resto porque es lo que más
+    /// batería consume y lo primero que conviene apagar si algo falla.
+    @AppStorage("rutaGPS") private var rutaGPS = true
 
     var body: some View {
         if reproductor.estado == .detenido {
@@ -35,13 +40,24 @@ struct ContentView: View {
         }
     }
 
+    // El lobby va partido en tres bloques chicos a propósito: SwiftUI
+    // admite como máximo 10 vistas por bloque y de una sola pieza quedaba
+    // al borde de ese límite.
+
     @ViewBuilder
     private func vistaPlan(_ plan: Plan) -> some View {
-        Text(plan.nombre)
-            .font(.headline)
+        cabecera(plan)
+        controles(plan)
+        resumen(plan)
+    }
 
+    @ViewBuilder
+    private func cabecera(_ plan: Plan) -> some View {
         let faltantes = conectividad.pistasFaltantes
         let listas = plan.pistas.count - faltantes.count
+
+        Text(plan.nombre)
+            .font(.headline)
 
         Text("\(listas) de \(plan.pistas.count) pistas listas")
             .font(.footnote)
@@ -64,12 +80,22 @@ struct ContentView: View {
         .buttonStyle(.borderedProminent)
         .tint(.green)
         .disabled(listas == 0)
+    }
 
+    @ViewBuilder
+    private func controles(_ plan: Plan) -> some View {
         Toggle(isOn: $modoEntrenamiento) {
             Label("Registrar carrera", systemImage: "heart.fill")
                 .font(.footnote)
         }
         .tint(.red)
+
+        if modoEntrenamiento {
+            Toggle(isOn: $rutaGPS) {
+                Label("Ruta GPS", systemImage: "map.fill")
+                    .font(.footnote)
+            }
+        }
 
         Text(modoEntrenamiento
              ? "Con FC y guardado en Salud. No uses Runna a la vez."
@@ -77,11 +103,21 @@ struct ContentView: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
+    }
 
+    @ViewBuilder
+    private func resumen(_ plan: Plan) -> some View {
         if let error = reproductor.mensajeError {
             Text(error)
                 .font(.footnote)
                 .foregroundStyle(.red)
+                .multilineTextAlignment(.center)
+        }
+
+        if let error = entrenamiento.mensajeError {
+            Text(error)
+                .font(.footnote)
+                .foregroundStyle(.orange)
                 .multilineTextAlignment(.center)
         }
 
@@ -96,15 +132,16 @@ struct ContentView: View {
         }
     }
 
+    /// La música y los avisos arrancan siempre primero: son el corazón de
+    /// la app y no deben depender de que Salud o el GPS estén disponibles.
+    /// El entrenamiento se suma después y, si falla, queda el error a la
+    /// vista sin cortar la sesión.
     private func arrancar(_ plan: Plan) {
-        if modoEntrenamiento {
-            Entrenamiento.compartido.pedirPermisos {
-                Entrenamiento.compartido.iniciar()
-                EntrenadorRitmo.compartido.iniciar(plan: plan)
-                reproductor.iniciar(plan: plan, urlDe: conectividad.urlDePista)
-            }
-        } else {
-            reproductor.iniciar(plan: plan, urlDe: conectividad.urlDePista)
+        reproductor.iniciar(plan: plan, urlDe: conectividad.urlDePista)
+        guard modoEntrenamiento else { return }
+        EntrenadorRitmo.compartido.iniciar(plan: plan)
+        Entrenamiento.compartido.pedirPermisos(conGPS: rutaGPS) {
+            Entrenamiento.compartido.iniciar(conGPS: rutaGPS)
         }
     }
 
