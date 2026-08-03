@@ -34,10 +34,16 @@ struct ContentView: View {
 
     var body: some View {
         if let numero = cuentaRegresiva {
-            Text("\(numero)")
-                .font(.system(size: 80, weight: .bold, design: .rounded))
-                .foregroundStyle(.green)
-                .monospacedDigit()
+            ZStack {
+                LinearGradient(colors: [.green.opacity(0.4), .clear],
+                               startPoint: .top, endPoint: .bottom)
+                    .ignoresSafeArea()
+                Text("\(numero)")
+                    .font(.system(size: 80, weight: .bold, design: .rounded))
+                    .foregroundStyle(.green)
+                    .monospacedDigit()
+                    .contentTransition(.numericText(countsDown: true))
+            }
         } else if reproductor.estado == .detenido {
             lobby
         } else {
@@ -48,6 +54,10 @@ struct ContentView: View {
     private var lobby: some View {
         ScrollView {
             VStack(spacing: 10) {
+                Label("Maratón", systemImage: "figure.run")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.green)
+
                 if let resumen = entrenamiento.resumen {
                     vistaResumen(resumen)
                 }
@@ -438,6 +448,7 @@ struct PantallaReproduccion: View {
             Text(entrenamiento.ritmoActualSegKm.map(formatearRitmo) ?? "–:––")
                 .font(.system(size: 44, weight: .bold, design: .rounded))
                 .monospacedDigit()
+                .foregroundStyle(colorDeRitmo)
             Text("/km")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -458,6 +469,19 @@ struct PantallaReproduccion: View {
         .font(.footnote)
         .monospacedDigit()
         .foregroundStyle(.secondary)
+    }
+
+    /// Semáforo del ritmo: verde si vas dentro del rango del tramo,
+    /// naranja si estás afuera, blanco si el tramo es libre o no hay tramo.
+    private var colorDeRitmo: Color {
+        guard let ritmo = entrenamiento.ritmoActualSegKm,
+              let tramo = entrenador.tramoActual,
+              tramo.ritmoMinSegKm != nil || tramo.ritmoMaxSegKm != nil else {
+            return .primary
+        }
+        if let rapido = tramo.ritmoMinSegKm, ritmo < rapido - 5 { return .orange }
+        if let lento = tramo.ritmoMaxSegKm, ritmo > lento + 5 { return .orange }
+        return .green
     }
 
     /// Pastilla de zona de FC (Z1 suave … Z5 máximo), por % de tu FC máxima.

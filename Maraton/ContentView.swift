@@ -105,7 +105,8 @@ struct ContentView: View {
                 Label("Importar MP3", systemImage: "plus.circle.fill")
             }
         } header: {
-            Text("Pistas")
+            Label("Pistas", systemImage: "music.note.list")
+                .foregroundStyle(.blue)
         } footer: {
             if !store.plan.pistas.isEmpty {
                 Text("Duración total: \(formatearDuracion(store.duracionTotal)) · Mantené apretado y arrastrá para reordenar (o usá Edit).")
@@ -116,7 +117,7 @@ struct ContentView: View {
     // MARK: - Avisos fijos
 
     private var seccionAvisosFijos: some View {
-        Section("Avisos fijos") {
+        Section {
             ForEach(store.plan.avisosFijos.sorted { $0.minuto < $1.minuto }) { aviso in
                 Button {
                     fijoEnEdicion = aviso
@@ -144,13 +145,16 @@ struct ContentView: View {
             } label: {
                 Label("Agregar aviso fijo", systemImage: "plus.circle.fill")
             }
+        } header: {
+            Label("Avisos fijos", systemImage: "bell.fill")
+                .foregroundStyle(.orange)
         }
     }
 
     // MARK: - Avisos repetidos
 
     private var seccionAvisosRepetidos: some View {
-        Section("Avisos repetidos") {
+        Section {
             ForEach(store.plan.avisosRepetidos) { aviso in
                 Button {
                     repetidoEnEdicion = aviso
@@ -177,6 +181,9 @@ struct ContentView: View {
             } label: {
                 Label("Agregar aviso repetido", systemImage: "plus.circle.fill")
             }
+        } header: {
+            Label("Avisos repetidos", systemImage: "repeat")
+                .foregroundStyle(.purple)
         }
     }
 
@@ -216,7 +223,8 @@ struct ContentView: View {
                 Label("Pegar plan de tramos (JSON)", systemImage: "doc.on.clipboard")
             }
         } header: {
-            Text("Tramos con ritmo objetivo")
+            Label("Tramos con ritmo objetivo", systemImage: "speedometer")
+                .foregroundStyle(.green)
         } footer: {
             Text("El reloj anuncia cada tramo y te avisa por voz si vas más rápido o más lento que el rango. Necesita «Registrar carrera» activado en el reloj.")
         }
@@ -258,7 +266,8 @@ struct ContentView: View {
                 }
             }
         } header: {
-            Text("Cronograma completo")
+            Label("Cronograma completo", systemImage: "clock.fill")
+                .foregroundStyle(.teal)
         } footer: {
             Text("Todos los avisos que van a sonar, en orden. El horizonte es solo para esta vista previa.")
         }
@@ -319,7 +328,8 @@ struct ContentView: View {
                 .font(.callout)
             }
         } header: {
-            Text("Enviar al reloj")
+            Label("Enviar al reloj", systemImage: "applewatch.radiowaves.left.and.right")
+                .foregroundStyle(.indigo)
         } footer: {
             Text("⚠️ La transferencia de MP3 es lenta: hacela con el reloj en el cargador y con WiFi. ✓ verde = ya está en el reloj (no se reenvía).")
         }
