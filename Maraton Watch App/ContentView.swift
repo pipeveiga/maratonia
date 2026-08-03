@@ -176,7 +176,74 @@ struct PantallaReproduccion: View {
     @AppStorage("fcMaxima") private var fcMaxima = 190
     @State private var confirmandoTerminar = false
 
+    /// Tres páginas deslizables, como la app Entrenamiento de Apple:
+    /// ← Sesión (pausar todo / terminar) · Métricas · Música (solo música) →
+    @State private var pagina = 1
+
     var body: some View {
+        TabView(selection: $pagina) {
+            paginaSesion.tag(0)
+            paginaMetricas.tag(1)
+            paginaMusica.tag(2)
+        }
+        .tabViewStyle(.page)
+    }
+
+    // MARK: - Página izquierda: la sesión entera
+
+    private var paginaSesion: some View {
+        ScrollView {
+            VStack(spacing: 10) {
+                Text("Sesión")
+                    .font(.headline)
+
+                Button {
+                    reproductor.alternarPlayPausa()
+                } label: {
+                    Label(reproductor.estado == .reproduciendo ? "Pausar todo" : "Reanudar",
+                          systemImage: reproductor.estado == .reproduciendo ? "pause.fill" : "play.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(reproductor.estado == .reproduciendo ? .orange : .green)
+
+                Button {
+                    avisador.probar()
+                } label: {
+                    Label("Probar aviso", systemImage: "speaker.wave.2.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    confirmandoTerminar = true
+                } label: {
+                    Label("Terminar", systemImage: "stop.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+                .confirmationDialog("¿Terminar la sesión?", isPresented: $confirmandoTerminar) {
+                    Button("Terminar", role: .destructive) {
+                        reproductor.detener()
+                        EntrenadorRitmo.compartido.detener()
+                        Entrenamiento.compartido.finalizar()
+                    }
+                    Button("Seguir", role: .cancel) {}
+                }
+
+                Text("Pausar todo congela música, avisos y entrenamiento.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+
+    // MARK: - Página central: métricas
+
+    private var paginaMetricas: some View {
         ScrollView {
             VStack(spacing: 6) {
                 if entrenamiento.activo {
@@ -185,7 +252,47 @@ struct PantallaReproduccion: View {
                     cronometroGrande
                 }
                 infoSecundaria
-                botones
+            }
+            .padding(.horizontal, 4)
+        }
+    }
+
+    // MARK: - Página derecha: solo la música
+
+    private var paginaMusica: some View {
+        ScrollView {
+            VStack(spacing: 10) {
+                Text("Música")
+                    .font(.headline)
+
+                Text(nombreLegible(reproductor.nombrePistaActual))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+
+                Button {
+                    reproductor.alternarSoloMusica()
+                } label: {
+                    Label(reproductor.musicaSilenciada ? "Reanudar música" : "Pausar música",
+                          systemImage: reproductor.musicaSilenciada ? "speaker.fill" : "speaker.slash.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(reproductor.musicaSilenciada ? .green : .blue)
+
+                Button {
+                    reproductor.siguiente()
+                } label: {
+                    Label("Siguiente pista", systemImage: "forward.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+
+                Text("Frena solo la música: el entrenamiento y los avisos siguen.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 4)
         }
@@ -291,47 +398,6 @@ struct PantallaReproduccion: View {
         }
     }
 
-    @ViewBuilder
-    private var botones: some View {
-        HStack(spacing: 12) {
-            Button {
-                reproductor.alternarPlayPausa()
-            } label: {
-                Image(systemName: reproductor.estado == .reproduciendo ? "pause.fill" : "play.fill")
-                    .font(.title3)
-            }
-            .buttonStyle(.bordered)
-
-            Button {
-                reproductor.siguiente()
-            } label: {
-                Image(systemName: "forward.fill")
-                    .font(.title3)
-            }
-            .buttonStyle(.bordered)
-        }
-
-        Button {
-            avisador.probar()
-        } label: {
-            Label("Probar aviso", systemImage: "speaker.wave.2.fill")
-                .font(.footnote)
-        }
-        .buttonStyle(.bordered)
-
-        Button("Terminar", role: .destructive) {
-            confirmandoTerminar = true
-        }
-        .font(.footnote)
-        .confirmationDialog("¿Terminar la sesión?", isPresented: $confirmandoTerminar) {
-            Button("Terminar", role: .destructive) {
-                reproductor.detener()
-                EntrenadorRitmo.compartido.detener()
-                Entrenamiento.compartido.finalizar()
-            }
-            Button("Seguir", role: .cancel) {}
-        }
-    }
 }
 
 #Preview {

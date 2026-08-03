@@ -24,6 +24,10 @@ final class Reproductor: NSObject, ObservableObject {
     @Published var tiempoTranscurrido: TimeInterval = 0
     @Published var mensajeError: String?
 
+    /// Pausa manual de SOLO la música (página Música): el cronómetro,
+    /// los avisos y el entrenamiento siguen corriendo normalmente.
+    @Published var musicaSilenciada = false
+
     private var pistas: [String] = []
     private var urlDe: ((String) -> URL)?
     private var indice = 0
@@ -109,7 +113,9 @@ final class Reproductor: NSObject, ObservableObject {
 
     func reanudar() {
         guard estado == .pausado else { return }
-        player?.play()
+        if !musicaSilenciada {
+            player?.play()
+        }
         fechaReanudacion = Date()
         estado = .reproduciendo
         Avisador.compartido.reanudar(transcurrido: transcurridoActual)
@@ -129,10 +135,27 @@ final class Reproductor: NSObject, ObservableObject {
         player?.pause()
     }
 
-    /// La contraparte: al terminar la voz, la música sigue de donde quedó.
+    /// La contraparte: al terminar la voz, la música sigue de donde quedó
+    /// (salvo que vos la hayas silenciado a mano desde la página Música).
     func reanudarTrasVoz() {
-        guard estado == .reproduciendo else { return }
+        guard estado == .reproduciendo, !musicaSilenciada else { return }
         player?.play()
+    }
+
+    /// Botón de la página Música: pausa/reanuda la música sola, sin tocar
+    /// cronómetro, avisos ni entrenamiento.
+    func alternarSoloMusica() {
+        guard estado != .detenido else { return }
+        if musicaSilenciada {
+            musicaSilenciada = false
+            if estado == .reproduciendo && !Avisador.compartido.estaHablando {
+                player?.play()
+            }
+        } else {
+            musicaSilenciada = true
+            player?.pause()
+        }
+        actualizarNowPlaying()
     }
 
     func detener() {
@@ -145,6 +168,7 @@ final class Reproductor: NSObject, ObservableObject {
         acumuladoPrevio = 0
         tiempoTranscurrido = 0
         nombrePistaActual = ""
+        musicaSilenciada = false
         estado = .detenido
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
@@ -159,9 +183,9 @@ final class Reproductor: NSObject, ObservableObject {
             let nuevo = try AVAudioPlayer(contentsOf: urlDe(nombre))
             nuevo.delegate = self
             nuevo.play()
-            // En pausa, o con el asistente hablando, la pista queda lista
-            // pero frenada; arranca al reanudar / al terminar la voz.
-            if estado == .pausado || Avisador.compartido.estaHablando {
+            // En pausa, con el asistente hablando, o con la música
+            // silenciada a mano, la pista queda lista pero frenada.
+            if estado == .pausado || Avisador.compartido.estaHablando || musicaSilenciada {
                 nuevo.pause()
             }
             player = nuevo
