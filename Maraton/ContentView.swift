@@ -20,6 +20,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             List {
+                seccionResumenPlan
                 seccionPistas
                 seccionAvisosFijos
                 seccionAvisosRepetidos
@@ -65,34 +66,67 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Resumen del plan (cabecera)
+
+    private var seccionResumenPlan: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 12) {
+                TextField("Nombre del plan", text: $store.plan.nombre)
+                    .font(.title3.bold())
+                HStack(spacing: 0) {
+                    estadistica("music.note", "\(store.plan.pistas.count)", "pistas")
+                    estadistica("clock.fill", formatearDuracion(store.duracionTotal), "música")
+                    estadistica("bell.fill", "\(store.plan.cronograma(duracionMaximaMinutos: horizonteMinutos).count)", "avisos")
+                    estadistica("speedometer", "\(store.plan.tramosActivos.count)", "tramos")
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    /// Mini-estadística de la cabecera: ícono + valor + nombre.
+    private func estadistica(_ icono: String, _ valor: String, _ nombre: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: icono)
+                    .font(.caption2)
+                    .foregroundStyle(.tint)
+                Text(valor)
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            Text(nombre)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     // MARK: - Pistas
 
     private var seccionPistas: some View {
         Section {
-            TextField("Nombre del plan", text: $store.plan.nombre)
-                .font(.headline)
-
             if store.plan.pistas.isEmpty {
                 Text("Todavía no hay pistas. Importá tus MP3 para armar la cola.")
                     .foregroundStyle(.secondary)
             }
 
             ForEach(store.plan.pistas, id: \.self) { nombre in
-                HStack {
-                    Image(systemName: "music.note")
-                        .foregroundStyle(.tint)
-                    VStack(alignment: .leading) {
-                        Text(nombre)
-                            .lineLimit(1)
-                        if let duracion = store.duraciones[nombre] {
-                            Text(formatearDuracion(duracion))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text("Archivo no encontrado")
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                        }
+                HStack(spacing: 10) {
+                    IconoAjuste(sistema: "music.note", color: .blue)
+                    Text(nombreSinExtension(nombre))
+                        .lineLimit(1)
+                    Spacer()
+                    if let duracion = store.duraciones[nombre] {
+                        Text(formatearDuracion(duracion))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    } else {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
                     }
                 }
             }
@@ -105,8 +139,7 @@ struct ContentView: View {
                 Label("Importar MP3", systemImage: "plus.circle.fill")
             }
         } header: {
-            Label("Pistas", systemImage: "music.note.list")
-                .foregroundStyle(.blue)
+            Text("Pistas")
         } footer: {
             if !store.plan.pistas.isEmpty {
                 Text("Duración total: \(formatearDuracion(store.duracionTotal)) · Mantené apretado y arrastrá para reordenar (o usá Edit).")
@@ -122,11 +155,8 @@ struct ContentView: View {
                 Button {
                     fijoEnEdicion = aviso
                 } label: {
-                    HStack {
-                        Text("min \(aviso.minuto)")
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                            .frame(width: 70, alignment: .leading)
+                    HStack(spacing: 10) {
+                        InsigniaMinuto(minuto: aviso.minuto)
                         Text(aviso.texto)
                             .foregroundStyle(.primary)
                     }
@@ -146,8 +176,7 @@ struct ContentView: View {
                 Label("Agregar aviso fijo", systemImage: "plus.circle.fill")
             }
         } header: {
-            Label("Avisos fijos", systemImage: "bell.fill")
-                .foregroundStyle(.orange)
+            Text("Avisos fijos")
         }
     }
 
@@ -159,12 +188,15 @@ struct ContentView: View {
                 Button {
                     repetidoEnEdicion = aviso
                 } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(aviso.texto)
-                            .foregroundStyle(.primary)
-                        Text(descripcion(de: aviso))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 10) {
+                        IconoAjuste(sistema: "repeat", color: .purple)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(aviso.texto)
+                                .foregroundStyle(.primary)
+                            Text(descripcion(de: aviso))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .swipeActions {
@@ -182,8 +214,7 @@ struct ContentView: View {
                 Label("Agregar aviso repetido", systemImage: "plus.circle.fill")
             }
         } header: {
-            Label("Avisos repetidos", systemImage: "repeat")
-                .foregroundStyle(.purple)
+            Text("Avisos repetidos")
         }
     }
 
@@ -202,11 +233,14 @@ struct ContentView: View {
     private var seccionTramos: some View {
         Section {
             ForEach(store.plan.tramosActivos) { tramo in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(tramo.nombre)
-                    Text(tramo.descripcion)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 10) {
+                    IconoAjuste(sistema: "speedometer", color: .green)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(tramo.nombre)
+                        Text(tramo.descripcion)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .swipeActions {
                     Button(role: .destructive) {
@@ -223,8 +257,7 @@ struct ContentView: View {
                 Label("Pegar plan de tramos (JSON)", systemImage: "doc.on.clipboard")
             }
         } header: {
-            Label("Tramos con ritmo objetivo", systemImage: "speedometer")
-                .foregroundStyle(.green)
+            Text("Tramos con ritmo objetivo")
         } footer: {
             Text("El reloj anuncia cada tramo y te avisa por voz si vas más rápido o más lento que el rango. Necesita «Registrar carrera» activado en el reloj.")
         }
@@ -237,7 +270,10 @@ struct ContentView: View {
             NavigationLink {
                 CarrerasView()
             } label: {
-                Label("Mis carreras", systemImage: "map.fill")
+                HStack(spacing: 10) {
+                    IconoAjuste(sistema: "map.fill", color: .teal)
+                    Text("Mis carreras")
+                }
             }
         } footer: {
             Text("Historial con recorrido en el mapa, ritmo y FC de las carreras registradas con el reloj.")
@@ -256,18 +292,14 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(avisos) { aviso in
-                    HStack {
-                        Text("min \(aviso.minuto)")
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                            .frame(width: 70, alignment: .leading)
+                    HStack(spacing: 10) {
+                        InsigniaMinuto(minuto: aviso.minuto)
                         Text(aviso.texto)
                     }
                 }
             }
         } header: {
-            Label("Cronograma completo", systemImage: "clock.fill")
-                .foregroundStyle(.teal)
+            Text("Cronograma completo")
         } footer: {
             Text("Todos los avisos que van a sonar, en orden. El horizonte es solo para esta vista previa.")
         }
@@ -328,8 +360,7 @@ struct ContentView: View {
                 .font(.callout)
             }
         } header: {
-            Label("Enviar al reloj", systemImage: "applewatch.radiowaves.left.and.right")
-                .foregroundStyle(.indigo)
+            Text("Enviar al reloj")
         } footer: {
             Text("⚠️ La transferencia de MP3 es lenta: hacela con el reloj en el cargador y con WiFi. ✓ verde = ya está en el reloj (no se reenvía).")
         }

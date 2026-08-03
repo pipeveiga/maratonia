@@ -177,8 +177,8 @@ struct ContentView: View {
         }
     }
 
-    @ViewBuilder
     private func controles(_ plan: Plan) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
         Toggle(isOn: $musicaExterna) {
             Label("Música de otra app", systemImage: "music.note.list")
                 .font(.footnote)
@@ -210,6 +210,10 @@ struct ContentView: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
+        }
+        .padding(10)
+        .background(Color.white.opacity(0.06),
+                    in: RoundedRectangle(cornerRadius: Diseno.radioTarjeta))
     }
 
     private var textoDeModo: String {
@@ -442,33 +446,74 @@ struct PantallaReproduccion: View {
 
     // MARK: - Modo entrenamiento: ritmo, distancia y zona al frente
 
-    @ViewBuilder
     private var metricasDeCarrera: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 3) {
-            Text(entrenamiento.ritmoActualSegKm.map(formatearRitmo) ?? "–:––")
-                .font(.system(size: 44, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(colorDeRitmo)
-            Text("/km")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
+        VStack(spacing: 8) {
+            // El ritmo es el héroe: número gigante con semáforo de color.
+            VStack(spacing: 0) {
+                Text(entrenamiento.ritmoActualSegKm.map(formatearRitmo) ?? "–:––")
+                    .font(.system(size: 44, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(colorDeRitmo)
+                Text("RITMO /KM")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .tracking(1.2)
+            }
 
-        HStack(spacing: 8) {
-            Text(String(format: "%.2f km", entrenamiento.distanciaMetros / 1000))
+            Grid(horizontalSpacing: 6, verticalSpacing: 6) {
+                GridRow {
+                    celdaMetrica("DISTANCIA",
+                                 String(format: "%.2f", entrenamiento.distanciaMetros / 1000),
+                                 color: .primary)
+                    celdaZona
+                }
+                GridRow {
+                    celdaMetrica("TIEMPO",
+                                 formatearTiempo(reproductor.tiempoTranscurrido),
+                                 color: .primary)
+                    celdaMetrica("PULSO",
+                                 "\(Int(entrenamiento.frecuenciaCardiaca))",
+                                 color: .red)
+                }
+            }
+        }
+    }
+
+    private func celdaMetrica(_ titulo: String, _ valor: String, color: Color) -> some View {
+        VStack(spacing: 1) {
+            Text(valor)
                 .font(.system(.title3, design: .rounded).weight(.semibold))
                 .monospacedDigit()
-            etiquetaZona
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(titulo)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(.secondary)
+                .tracking(0.8)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 6)
+        .background(Color.white.opacity(0.08),
+                    in: RoundedRectangle(cornerRadius: 10))
+    }
 
-        HStack(spacing: 10) {
-            Label(formatearTiempo(reproductor.tiempoTranscurrido), systemImage: "stopwatch")
-            Label("\(Int(entrenamiento.frecuenciaCardiaca))", systemImage: "heart.fill")
-                .foregroundStyle(.red)
+    private var celdaZona: some View {
+        let (nombre, color) = Self.zona(
+            fc: Int(entrenamiento.frecuenciaCardiaca), fcMaxima: fcMaxima)
+        return VStack(spacing: 1) {
+            Text(nombre)
+                .font(.system(.title3, design: .rounded).weight(.bold))
+                .foregroundStyle(color)
+            Text("ZONA")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(.secondary)
+                .tracking(0.8)
         }
-        .font(.footnote)
-        .monospacedDigit()
-        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 6)
+        .background(color.opacity(0.18),
+                    in: RoundedRectangle(cornerRadius: 10))
     }
 
     /// Semáforo del ritmo: verde si vas dentro del rango del tramo,
@@ -482,18 +527,6 @@ struct PantallaReproduccion: View {
         if let rapido = tramo.ritmoMinSegKm, ritmo < rapido - 5 { return .orange }
         if let lento = tramo.ritmoMaxSegKm, ritmo > lento + 5 { return .orange }
         return .green
-    }
-
-    /// Pastilla de zona de FC (Z1 suave … Z5 máximo), por % de tu FC máxima.
-    private var etiquetaZona: some View {
-        let (nombre, color) = Self.zona(
-            fc: Int(entrenamiento.frecuenciaCardiaca), fcMaxima: fcMaxima)
-        return Text(nombre)
-            .font(.footnote.weight(.bold))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
-            .background(color.opacity(0.25), in: Capsule())
-            .foregroundStyle(color)
     }
 
     static func zona(fc: Int, fcMaxima: Int) -> (String, Color) {

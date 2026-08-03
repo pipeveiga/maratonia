@@ -26,6 +26,8 @@
 		A10000000000000000000042 /* TramosImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000040 /* TramosImport.swift */; };
 		A10000000000000000000043 /* EntrenadorRitmo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000041 /* EntrenadorRitmo.swift */; };
 		A10000000000000000000045 /* Carreras.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000044 /* Carreras.swift */; };
+		A10000000000000000000047 /* Diseno.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000046 /* Diseno.swift */; };
+		A10000000000000000000048 /* Diseno.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000046 /* Diseno.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -74,6 +76,7 @@
 		A10000000000000000000040 /* TramosImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TramosImport.swift; sourceTree = "<group>"; };
 		A10000000000000000000041 /* EntrenadorRitmo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntrenadorRitmo.swift; sourceTree = "<group>"; };
 		A10000000000000000000044 /* Carreras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Carreras.swift; sourceTree = "<group>"; };
+		A10000000000000000000046 /* Diseno.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diseno.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -149,6 +152,7 @@
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000026 /* Plan.swift */,
+				A10000000000000000000046 /* Diseno.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -261,6 +265,7 @@
 				A1000000000000000000003A /* Conectividad.swift in Sources */,
 				A10000000000000000000042 /* TramosImport.swift in Sources */,
 				A10000000000000000000045 /* Carreras.swift in Sources */,
+				A10000000000000000000047 /* Diseno.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -276,6 +281,7 @@
 				A1000000000000000000003D /* Avisador.swift in Sources */,
 				A1000000000000000000003E /* Entrenamiento.swift in Sources */,
 				A10000000000000000000043 /* EntrenadorRitmo.swift in Sources */,
+				A10000000000000000000048 /* Diseno.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -410,7 +416,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
@@ -444,7 +450,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
@@ -479,7 +485,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
@@ -515,7 +521,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
