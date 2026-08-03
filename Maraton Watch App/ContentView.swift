@@ -19,6 +19,9 @@ struct ContentView: View {
     /// batería consume y lo primero que conviene apagar si algo falla.
     @AppStorage("rutaGPS") private var rutaGPS = true
 
+    /// FC máxima para calcular las zonas (Z1–Z5). Ajustable en el lobby.
+    @AppStorage("fcMaxima") private var fcMaxima = 190
+
     var body: some View {
         if reproductor.estado == .detenido {
             lobby
@@ -95,6 +98,9 @@ struct ContentView: View {
                 Label("Ruta GPS", systemImage: "map.fill")
                     .font(.footnote)
             }
+
+            Stepper("FC máx: \(fcMaxima)", value: $fcMaxima, in: 120...220, step: 5)
+                .font(.footnote)
         }
 
         Text(modoEntrenamiento
@@ -167,112 +173,163 @@ struct PantallaReproduccion: View {
     @ObservedObject private var avisador = Avisador.compartido
     @ObservedObject private var entrenamiento = Entrenamiento.compartido
     @ObservedObject private var entrenador = EntrenadorRitmo.compartido
+    @AppStorage("fcMaxima") private var fcMaxima = 190
     @State private var confirmandoTerminar = false
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 8) {
-                Text(formatearTiempo(reproductor.tiempoTranscurrido))
-                .font(.system(size: 38, weight: .semibold, design: .rounded))
-                .monospacedDigit()
+            VStack(spacing: 6) {
+                if entrenamiento.activo {
+                    metricasDeCarrera
+                } else {
+                    cronometroGrande
+                }
+                infoSecundaria
+                botones
+            }
+            .padding(.horizontal, 4)
+        }
+    }
 
-            Text(nombreLegible(reproductor.nombrePistaActual))
+    // MARK: - Modo entrenamiento: ritmo, distancia y zona al frente
+
+    @ViewBuilder
+    private var metricasDeCarrera: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
+            Text(entrenamiento.ritmoActualSegKm.map(formatearRitmo) ?? "–:––")
+                .font(.system(size: 44, weight: .bold, design: .rounded))
+                .monospacedDigit()
+            Text("/km")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
+        }
 
-            if entrenamiento.activo {
-                HStack(spacing: 12) {
-                    Label("\(Int(entrenamiento.frecuenciaCardiaca))",
-                          systemImage: "heart.fill")
-                        .foregroundStyle(.red)
-                    Label(String(format: "%.2f km", entrenamiento.distanciaMetros / 1000),
-                          systemImage: "figure.run")
-                }
-                .font(.footnote)
+        HStack(spacing: 8) {
+            Text(String(format: "%.2f km", entrenamiento.distanciaMetros / 1000))
+                .font(.system(.title3, design: .rounded).weight(.semibold))
                 .monospacedDigit()
+            etiquetaZona
+        }
 
-                if let ritmo = entrenamiento.ritmoActualSegKm {
-                    Text("Ritmo \(formatearRitmo(ritmo)) /km")
-                        .font(.footnote)
-                        .monospacedDigit()
-                }
+        HStack(spacing: 10) {
+            Label(formatearTiempo(reproductor.tiempoTranscurrido), systemImage: "stopwatch")
+            Label("\(Int(entrenamiento.frecuenciaCardiaca))", systemImage: "heart.fill")
+                .foregroundStyle(.red)
+        }
+        .font(.footnote)
+        .monospacedDigit()
+        .foregroundStyle(.secondary)
+    }
 
-                if let tramo = entrenador.tramoActual {
-                    Text("\(tramo.nombre): \(tramo.descripcion)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                }
-            }
+    /// Pastilla de zona de FC (Z1 suave … Z5 máximo), por % de tu FC máxima.
+    private var etiquetaZona: some View {
+        let (nombre, color) = Self.zona(
+            fc: Int(entrenamiento.frecuenciaCardiaca), fcMaxima: fcMaxima)
+        return Text(nombre)
+            .font(.footnote.weight(.bold))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.25), in: Capsule())
+            .foregroundStyle(color)
+    }
 
-            if let errorEntrenamiento = entrenamiento.mensajeError {
-                Text(errorEntrenamiento)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
-            }
+    static func zona(fc: Int, fcMaxima: Int) -> (String, Color) {
+        guard fc > 0, fcMaxima > 0 else { return ("––", .gray) }
+        switch Double(fc) / Double(fcMaxima) {
+        case ..<0.6: return ("Z1", .blue)
+        case ..<0.7: return ("Z2", .green)
+        case ..<0.8: return ("Z3", .yellow)
+        case ..<0.9: return ("Z4", .orange)
+        default: return ("Z5", .red)
+        }
+    }
 
-            if let proximo = avisador.proximoAviso {
-                let faltan = max(0, proximo.minuto - Int(reproductor.tiempoTranscurrido / 60))
-                Text("Próximo: «\(proximo.texto)» en \(faltan) min")
-                    .font(.footnote)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-            } else {
-                Text("No quedan avisos")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+    // MARK: - Modo solo audio: el cronómetro sigue de protagonista
 
-            if reproductor.estado == .pausado {
-                Text("En pausa — el tiempo está congelado")
-                    .font(.footnote)
-                    .foregroundStyle(.orange)
-                    .multilineTextAlignment(.center)
-            }
+    private var cronometroGrande: some View {
+        Text(formatearTiempo(reproductor.tiempoTranscurrido))
+            .font(.system(size: 40, weight: .semibold, design: .rounded))
+            .monospacedDigit()
+    }
 
-            HStack(spacing: 12) {
-                Button {
-                    reproductor.alternarPlayPausa()
-                } label: {
-                    Image(systemName: reproductor.estado == .reproduciendo ? "pause.fill" : "play.fill")
-                        .font(.title3)
-                }
-                .buttonStyle(.bordered)
+    // MARK: - Secundario y controles
 
-                Button {
-                    reproductor.siguiente()
-                } label: {
-                    Image(systemName: "forward.fill")
-                        .font(.title3)
-                }
-                .buttonStyle(.bordered)
-            }
+    @ViewBuilder
+    private var infoSecundaria: some View {
+        Text(nombreLegible(reproductor.nombrePistaActual))
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
 
+        if let tramo = entrenador.tramoActual {
+            Text("\(tramo.nombre): \(tramo.descripcion)")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+        }
+
+        if let proximo = avisador.proximoAviso {
+            let faltan = max(0, proximo.minuto - Int(reproductor.tiempoTranscurrido / 60))
+            Text("Próximo: «\(proximo.texto)» en \(faltan) min")
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+        }
+
+        if reproductor.estado == .pausado {
+            Text("En pausa — todo congelado")
+                .font(.footnote)
+                .foregroundStyle(.orange)
+        }
+
+        if let error = entrenamiento.mensajeError {
+            Text(error)
+                .font(.footnote)
+                .foregroundStyle(.red)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    @ViewBuilder
+    private var botones: some View {
+        HStack(spacing: 12) {
             Button {
-                avisador.probar()
+                reproductor.alternarPlayPausa()
             } label: {
-                Label("Probar aviso", systemImage: "speaker.wave.2.fill")
-                    .font(.footnote)
+                Image(systemName: reproductor.estado == .reproduciendo ? "pause.fill" : "play.fill")
+                    .font(.title3)
             }
             .buttonStyle(.bordered)
 
+            Button {
+                reproductor.siguiente()
+            } label: {
+                Image(systemName: "forward.fill")
+                    .font(.title3)
+            }
+            .buttonStyle(.bordered)
+        }
+
+        Button {
+            avisador.probar()
+        } label: {
+            Label("Probar aviso", systemImage: "speaker.wave.2.fill")
+                .font(.footnote)
+        }
+        .buttonStyle(.bordered)
+
+        Button("Terminar", role: .destructive) {
+            confirmandoTerminar = true
+        }
+        .font(.footnote)
+        .confirmationDialog("¿Terminar la sesión?", isPresented: $confirmandoTerminar) {
             Button("Terminar", role: .destructive) {
-                confirmandoTerminar = true
+                reproductor.detener()
+                EntrenadorRitmo.compartido.detener()
+                Entrenamiento.compartido.finalizar()
             }
-            .font(.footnote)
-            .confirmationDialog("¿Terminar la sesión?", isPresented: $confirmandoTerminar) {
-                Button("Terminar", role: .destructive) {
-                    reproductor.detener()
-                    EntrenadorRitmo.compartido.detener()
-                    Entrenamiento.compartido.finalizar()
-                }
-                Button("Seguir", role: .cancel) {}
-            }
-            }
-            .padding(.horizontal, 4)
+            Button("Seguir", role: .cancel) {}
         }
     }
 }
