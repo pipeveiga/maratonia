@@ -26,6 +26,23 @@ enum ErrorImportacionTramos: LocalizedError {
     }
 }
 
+/// El teclado del iPhone convierte las comillas rectas en tipográficas
+/// ("…" en vez de "), y ChatGPT a veces envuelve el JSON en ```json.
+/// Las dos cosas rompen el parser, así que se limpian antes de decodificar.
+func limpiarJSONPegado(_ texto: String) -> String {
+    var limpio = texto
+    for comilla in ["\u{201C}", "\u{201D}", "\u{201E}", "\u{00AB}", "\u{00BB}"] {
+        limpio = limpio.replacingOccurrences(of: comilla, with: "\"")
+    }
+    for apostrofo in ["\u{2018}", "\u{2019}"] {
+        limpio = limpio.replacingOccurrences(of: apostrofo, with: "'")
+    }
+    limpio = limpio
+        .replacingOccurrences(of: "```json", with: "")
+        .replacingOccurrences(of: "```", with: "")
+    return limpio.trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
 func parsearTramos(desde texto: String) throws -> [Tramo] {
     struct TramoJSON: Codable {
         var nombre: String?
@@ -37,7 +54,7 @@ func parsearTramos(desde texto: String) throws -> [Tramo] {
         var tramos: [TramoJSON]
     }
 
-    guard let datos = texto.data(using: .utf8),
+    guard let datos = limpiarJSONPegado(texto).data(using: .utf8),
           let plan = try? JSONDecoder().decode(PlanJSON.self, from: datos) else {
         throw ErrorImportacionTramos.jsonInvalido
     }
