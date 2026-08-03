@@ -200,6 +200,7 @@ struct PantallaReproduccion: View {
     @ObservedObject private var entrenador = EntrenadorRitmo.compartido
     @AppStorage("fcMaxima") private var fcMaxima = 190
     @State private var confirmandoTerminar = false
+    @State private var confirmandoCancelar = false
 
     /// Tres páginas deslizables, como la app Entrenamiento de Apple:
     /// ← Sesión (pausar todo / terminar) · Métricas · Música (solo música) →
@@ -243,18 +244,38 @@ struct PantallaReproduccion: View {
                 Button {
                     confirmandoTerminar = true
                 } label: {
-                    Label("Terminar", systemImage: "stop.fill")
+                    Label("Terminar y guardar", systemImage: "stop.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.red)
                 .confirmationDialog("¿Terminar la sesión?", isPresented: $confirmandoTerminar) {
-                    Button("Terminar", role: .destructive) {
+                    Button("Terminar y guardar", role: .destructive) {
                         reproductor.detener()
                         EntrenadorRitmo.compartido.detener()
                         Entrenamiento.compartido.finalizar()
                     }
                     Button("Seguir", role: .cancel) {}
+                } message: {
+                    Text("La carrera se guarda en Salud.")
+                }
+
+                Button {
+                    confirmandoCancelar = true
+                } label: {
+                    Label("Cancelar sesión", systemImage: "xmark")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .confirmationDialog("¿Cancelar la sesión?", isPresented: $confirmandoCancelar) {
+                    Button("Descartar todo", role: .destructive) {
+                        reproductor.detener()
+                        EntrenadorRitmo.compartido.detener()
+                        Entrenamiento.compartido.cancelar()
+                    }
+                    Button("Seguir", role: .cancel) {}
+                } message: {
+                    Text("El entrenamiento NO se guarda en Salud. No se puede deshacer.")
                 }
 
                 Text("Pausar todo congela música, avisos y entrenamiento.")

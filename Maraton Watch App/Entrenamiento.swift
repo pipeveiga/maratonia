@@ -36,6 +36,7 @@ final class Entrenamiento: NSObject, ObservableObject {
     private let ubicaciones = CLLocationManager()
     private var routeBuilder: HKWorkoutRouteBuilder?
     private var usaGPS = false
+    private var descartarAlTerminar = false
 
     // Muestras (fecha, metros) del último minuto para suavizar el ritmo:
     // el pace crudo del GPS/sensores salta demasiado para corregir en voz.
@@ -88,6 +89,7 @@ final class Entrenamiento: NSObject, ObservableObject {
     func iniciar(conGPS: Bool) {
         guard sesion == nil else { return }
         usaGPS = conGPS
+        descartarAlTerminar = false
         let configuracion = HKWorkoutConfiguration()
         configuracion.activityType = .running
         configuracion.locationType = .outdoor
@@ -164,6 +166,13 @@ final class Entrenamiento: NSObject, ObservableObject {
         sesion?.end()
     }
 
+    /// Cancela la sesión DESCARTANDO todo: el entrenamiento no se guarda
+    /// en Salud y la ruta se tira. Para arranques por error o de prueba.
+    func cancelar() {
+        descartarAlTerminar = true
+        finalizar()
+    }
+
     /// Una vez por segundo: agrega la muestra, recalcula el ritmo
     /// suavizado y el promedio, y le pasa el estado al entrenador de ritmo.
     private func registrarMuestra() {
@@ -226,6 +235,17 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
                         from fromState: HKWorkoutSessionState,
                         date: Date) {
         guard toState == .ended else { return }
+
+        if descartarAlTerminar {
+            // Cancelación: se tira todo, nada llega a Salud.
+            builder?.discardWorkout()
+            routeBuilder?.discard()
+            DispatchQueue.main.async {
+                self.limpiarTrasFinal()
+            }
+            return
+        }
+
         builder?.endCollection(withEnd: date) { [weak self] _, _ in
             self?.builder?.finishWorkout { workout, _ in
                 // Atar la ruta GPS al workout guardado, para el mapa.
@@ -233,14 +253,19 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
                     rutas.finishRoute(with: workout, metadata: nil) { _, _ in }
                 }
                 DispatchQueue.main.async {
-                    self?.activo = false
-                    self?.pausado = false
-                    self?.sesion = nil
-                    self?.builder = nil
-                    self?.routeBuilder = nil
+                    self?.limpiarTrasFinal()
                 }
             }
         }
+    }
+
+    private func limpiarTrasFinal() {
+        activo = false
+        pausado = false
+        sesion = nil
+        builder = nil
+        routeBuilder = nil
+        descartarAlTerminar = false
     }
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
