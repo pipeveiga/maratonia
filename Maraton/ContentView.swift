@@ -26,6 +26,7 @@ struct ContentView: View {
                 seccionTramos
                 seccionCronograma
                 seccionEnvio
+                seccionCarreras
             }
             .navigationTitle("Maratón")
             .toolbar { EditButton() }
@@ -218,6 +219,20 @@ struct ContentView: View {
             Text("Tramos con ritmo objetivo")
         } footer: {
             Text("El reloj anuncia cada tramo y te avisa por voz si vas más rápido o más lento que el rango. Necesita «Registrar carrera» activado en el reloj.")
+        }
+    }
+
+    // MARK: - Historial de carreras
+
+    private var seccionCarreras: some View {
+        Section {
+            NavigationLink {
+                CarrerasView()
+            } label: {
+                Label("Mis carreras", systemImage: "map.fill")
+            }
+        } footer: {
+            Text("Historial con recorrido en el mapa, ritmo y FC de las carreras registradas con el reloj.")
         }
     }
 

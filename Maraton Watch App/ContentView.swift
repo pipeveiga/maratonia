@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 
 // Pantalla principal del reloj. Si no hay sesión en curso muestra el
 // "lobby" (plan recibido, pistas listas, botón grande de Play); con la
@@ -28,8 +29,16 @@ struct ContentView: View {
     /// mantiene viva la app en segundo plano.
     @AppStorage("musicaExterna") private var musicaExterna = false
 
+    @State private var cuentaRegresiva: Int?
+    @State private var planPendiente: Plan?
+
     var body: some View {
-        if reproductor.estado == .detenido {
+        if let numero = cuentaRegresiva {
+            Text("\(numero)")
+                .font(.system(size: 80, weight: .bold, design: .rounded))
+                .foregroundStyle(.green)
+                .monospacedDigit()
+        } else if reproductor.estado == .detenido {
             lobby
         } else {
             PantallaReproduccion()
@@ -39,6 +48,9 @@ struct ContentView: View {
     private var lobby: some View {
         ScrollView {
             VStack(spacing: 10) {
+                if let resumen = entrenamiento.resumen {
+                    vistaResumen(resumen)
+                }
                 if let plan = conectividad.plan {
                     vistaPlan(plan)
                 } else {
@@ -47,6 +59,43 @@ struct ContentView: View {
             }
             .padding(.horizontal, 4)
         }
+    }
+
+    /// Tarjeta con los números de la carrera recién guardada.
+    private func vistaResumen(_ resumen: ResumenCarrera) -> some View {
+        VStack(spacing: 3) {
+            Text("¡Carrera guardada!")
+                .font(.headline)
+            Text(formatearTiempo(resumen.duracion))
+                .font(.title3)
+                .monospacedDigit()
+            Text(String(format: "%.2f km", resumen.distanciaMetros / 1000))
+                .monospacedDigit()
+            if let ritmo = resumen.ritmoPromedioSegKm {
+                Text("Ritmo \(formatearRitmo(ritmo)) /km")
+                    .font(.footnote)
+            }
+            HStack(spacing: 10) {
+                if let fc = resumen.fcPromedio {
+                    Label("\(fc)", systemImage: "heart.fill")
+                        .foregroundStyle(.red)
+                }
+                Label("\(Int(resumen.calorias)) kcal", systemImage: "flame.fill")
+                    .foregroundStyle(.orange)
+            }
+            .font(.footnote)
+            Text("Mapa y detalles: «Mis carreras» en el iPhone.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("Listo") {
+                entrenamiento.resumen = nil
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity)
+        .background(Color.green.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
     }
 
     // El lobby va partido en tres bloques chicos a propósito: SwiftUI
@@ -80,7 +129,7 @@ struct ContentView: View {
         }
 
         Button {
-            arrancar(plan)
+            comenzarCuentaRegresiva(plan)
         } label: {
             Label("Play", systemImage: "play.fill")
                 .font(.title3)
@@ -89,6 +138,33 @@ struct ContentView: View {
         .buttonStyle(.borderedProminent)
         .tint(.green)
         .disabled(!musicaExterna && listas == 0)
+    }
+
+    // MARK: - Cuenta regresiva 3-2-1
+
+    private func comenzarCuentaRegresiva(_ plan: Plan) {
+        planPendiente = plan
+        cuentaRegresiva = 3
+        WKInterfaceDevice.current().play(.start)
+        programarTick()
+    }
+
+    private func programarTick() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            guard let actual = cuentaRegresiva else { return }
+            if actual > 1 {
+                cuentaRegresiva = actual - 1
+                WKInterfaceDevice.current().play(.click)
+                programarTick()
+            } else {
+                cuentaRegresiva = nil
+                WKInterfaceDevice.current().play(.success)
+                if let plan = planPendiente {
+                    arrancar(plan)
+                }
+                planPendiente = nil
+            }
+        }
     }
 
     @ViewBuilder

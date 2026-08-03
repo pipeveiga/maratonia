@@ -62,6 +62,18 @@ final class ConectividadWatch: NSObject, ObservableObject {
         try? WCSession.default.updateApplicationContext(
             ["archivos": Array(archivosLocales)])
     }
+
+    /// Borra del reloj los MP3 que ya no figuran en el plan: si no, el
+    /// reloj acumula archivos viejos para siempre y se queda sin espacio.
+    private func limpiarPistasHuerfanas() {
+        guard let plan else { return }
+        let vigentes = Set(plan.pistas)
+        for nombre in archivosLocales where !vigentes.contains(nombre) {
+            try? FileManager.default.removeItem(at: urlDePista(nombre))
+        }
+        refrescarArchivosLocales()
+        avisarArchivosAlTelefono()
+    }
 }
 
 extension ConectividadWatch: WCSessionDelegate {
@@ -81,6 +93,7 @@ extension ConectividadWatch: WCSessionDelegate {
         try? datos.write(to: Self.urlPlan, options: .atomic)
         DispatchQueue.main.async {
             self.plan = nuevo
+            self.limpiarPistasHuerfanas()
         }
     }
 

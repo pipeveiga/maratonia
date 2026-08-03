@@ -11,11 +11,24 @@ import CoreLocation
 // app de tracking) a la vez — watchOS permite una sola sesión. Para
 // correr con Runna, usar el modo "solo audio" (el switch del lobby).
 
+/// Los números finales de una carrera guardada, para la tarjetita del lobby.
+struct ResumenCarrera {
+    var duracion: TimeInterval
+    var distanciaMetros: Double
+    var ritmoPromedioSegKm: Int?
+    var fcPromedio: Int?
+    var calorias: Double
+}
+
 final class Entrenamiento: NSObject, ObservableObject {
     static let compartido = Entrenamiento()
 
     @Published var activo = false
     @Published var pausado = false
+
+    /// Resumen de la última carrera guardada, para mostrar al volver al
+    /// lobby. Se limpia con el botón "Listo" o al arrancar otra sesión.
+    @Published var resumen: ResumenCarrera?
     @Published var frecuenciaCardiaca: Double = 0   // pulsaciones por minuto
     @Published var distanciaMetros: Double = 0
     @Published var caloriasActivas: Double = 0
@@ -90,6 +103,7 @@ final class Entrenamiento: NSObject, ObservableObject {
         guard sesion == nil else { return }
         usaGPS = conGPS
         descartarAlTerminar = false
+        resumen = nil
         let configuracion = HKWorkoutConfiguration()
         configuracion.activityType = .running
         configuracion.locationType = .outdoor
@@ -163,6 +177,19 @@ final class Entrenamiento: NSObject, ObservableObject {
         timerMuestras?.invalidate()
         timerMuestras = nil
         ubicaciones.stopUpdatingLocation()
+        if activo, !descartarAlTerminar {
+            let ppm = HKUnit.count().unitDivided(by: .minute())
+            let fcPromedio = builder?
+                .statistics(for: HKQuantityType(.heartRate))?
+                .averageQuantity()?
+                .doubleValue(for: ppm)
+            resumen = ResumenCarrera(
+                duracion: builder?.elapsedTime ?? 0,
+                distanciaMetros: distanciaMetros,
+                ritmoPromedioSegKm: ritmoPromedioSegKm,
+                fcPromedio: fcPromedio.map { Int($0) },
+                calorias: caloriasActivas)
+        }
         sesion?.end()
     }
 
