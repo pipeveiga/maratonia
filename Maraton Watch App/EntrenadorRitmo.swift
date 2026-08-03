@@ -11,10 +11,25 @@ import Foundation
 // - con la música en pausa (semáforo) no opina
 // - margen de 5 seg/km antes de considerar que estás afuera del rango
 
+/// Un kilómetro cumplido con su tiempo parcial, para la tabla de la UI.
+struct ParcialKm: Identifiable {
+    let id = UUID()
+    let km: Int
+    let segundos: Int
+}
+
 final class EntrenadorRitmo: ObservableObject {
     static let compartido = EntrenadorRitmo()
 
     @Published var tramoActual: Tramo?
+
+    /// El plan completo y por cuál tramo vas, para el panel "PLAN" de la
+    /// pantalla de métricas (deslizando hacia abajo).
+    @Published var tramosDelPlan: [Tramo] = []
+    @Published var indiceActual = 0
+
+    /// Parciales por kilómetro ya anunciados, para la tabla "PARCIALES".
+    @Published var parciales: [ParcialKm] = []
 
     private var tramos: [Tramo] = []
     private var indice = 0
@@ -34,6 +49,9 @@ final class EntrenadorRitmo: ObservableObject {
         tramoActual = tramos.first
         ultimoKmAnunciado = 0
         tiempoAlUltimoKm = 0
+        tramosDelPlan = tramos
+        indiceActual = 0
+        parciales = []
     }
 
     func detener() {
@@ -42,6 +60,9 @@ final class EntrenadorRitmo: ObservableObject {
         fechaInicioTramo = nil
         ultimoKmAnunciado = 0
         tiempoAlUltimoKm = 0
+        tramosDelPlan = []
+        indiceActual = 0
+        parciales = []
     }
 
     /// Lo llama Entrenamiento una vez por segundo. tiempoActivo es el del
@@ -65,6 +86,7 @@ final class EntrenadorRitmo: ObservableObject {
         let finTramoMetros = tramos.prefix(indice + 1).reduce(0) { $0 + $1.kilometros * 1000 }
         if distanciaMetros >= finTramoMetros {
             indice += 1
+            indiceActual = indice
             if indice < tramos.count {
                 tramoActual = tramos[indice]
                 fechaInicioTramo = Date()
@@ -106,6 +128,7 @@ final class EntrenadorRitmo: ObservableObject {
             Avisador.compartido.anunciar("Kilómetro \(km).")
             return
         }
+        parciales.append(ParcialKm(km: km, segundos: Int(parcial)))
         Avisador.compartido.anunciar(
             "Kilómetro \(km): \(ritmoParaHablar(Int(parcial))) el último.")
     }

@@ -388,8 +388,89 @@ struct PantallaReproduccion: View {
                     cronometroGrande
                 }
                 infoSecundaria
+                panelPlan
+                panelParciales
             }
             .padding(.horizontal, 4)
+        }
+    }
+
+    // MARK: - Paneles al deslizar hacia abajo
+
+    /// El plan completo con progreso: ✓ tramos cumplidos, ▶ el actual
+    /// (con los km que llevás dentro de él), y los pendientes.
+    @ViewBuilder
+    private var panelPlan: some View {
+        if !entrenador.tramosDelPlan.isEmpty {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("PLAN")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .tracking(1)
+                ForEach(Array(entrenador.tramosDelPlan.enumerated()), id: \.element.id) { indice, tramo in
+                    filaTramo(indice: indice, tramo: tramo)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(8)
+            .background(Color.white.opacity(0.06),
+                        in: RoundedRectangle(cornerRadius: Diseno.radioTarjeta))
+        }
+    }
+
+    private func filaTramo(indice: Int, tramo: Tramo) -> some View {
+        let esActual = indice == entrenador.indiceActual && entrenador.tramoActual != nil
+        return HStack(spacing: 6) {
+            Image(systemName: indice < entrenador.indiceActual
+                  ? "checkmark.circle.fill"
+                  : (esActual ? "arrowtriangle.right.circle.fill" : "circle"))
+                .font(.system(size: 12))
+                .foregroundStyle(indice < entrenador.indiceActual
+                                 ? Color.green
+                                 : (esActual ? Color.accentColor : Color.secondary))
+            VStack(alignment: .leading, spacing: 0) {
+                Text(tramo.nombre)
+                    .font(.footnote.weight(esActual ? .semibold : .regular))
+                    .lineLimit(1)
+                Text(esActual ? progresoDelTramo(indice, tramo) : tramo.descripcion)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    /// "1.24 / 3.0 km" del tramo en curso.
+    private func progresoDelTramo(_ indice: Int, _ tramo: Tramo) -> String {
+        let inicioMetros = entrenador.tramosDelPlan.prefix(indice)
+            .reduce(0.0) { $0 + $1.kilometros * 1000 }
+        let recorrido = max(0, entrenamiento.distanciaMetros - inicioMetros) / 1000
+        return String(format: "%.2f / %.1f km", recorrido, tramo.kilometros)
+    }
+
+    @ViewBuilder
+    private var panelParciales: some View {
+        if !entrenador.parciales.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("PARCIALES")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .tracking(1)
+                ForEach(entrenador.parciales) { parcial in
+                    HStack {
+                        Text("Km \(parcial.km)")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(formatearRitmo(parcial.segundos))
+                            .monospacedDigit()
+                    }
+                    .font(.footnote)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(8)
+            .background(Color.white.opacity(0.06),
+                        in: RoundedRectangle(cornerRadius: Diseno.radioTarjeta))
         }
     }
 
