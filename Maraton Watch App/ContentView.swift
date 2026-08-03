@@ -22,6 +22,12 @@ struct ContentView: View {
     /// FC máxima para calcular las zonas (Z1–Z5). Ajustable en el lobby.
     @AppStorage("fcMaxima") private var fcMaxima = 190
 
+    /// true = la música la pone otra app (Spotify del reloj); Maratón
+    /// solo corre cronómetro, avisos y entrenamiento. Requiere
+    /// "Registrar carrera": sin música propia, el workout es lo que
+    /// mantiene viva la app en segundo plano.
+    @AppStorage("musicaExterna") private var musicaExterna = false
+
     var body: some View {
         if reproductor.estado == .detenido {
             lobby
@@ -82,16 +88,27 @@ struct ContentView: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(.green)
-        .disabled(listas == 0)
+        .disabled(!musicaExterna && listas == 0)
     }
 
     @ViewBuilder
     private func controles(_ plan: Plan) -> some View {
+        Toggle(isOn: $musicaExterna) {
+            Label("Música de otra app", systemImage: "music.note.list")
+                .font(.footnote)
+        }
+        .onChange(of: musicaExterna) {
+            if musicaExterna {
+                modoEntrenamiento = true
+            }
+        }
+
         Toggle(isOn: $modoEntrenamiento) {
             Label("Registrar carrera", systemImage: "heart.fill")
                 .font(.footnote)
         }
         .tint(.red)
+        .disabled(musicaExterna)
 
         if modoEntrenamiento {
             Toggle(isOn: $rutaGPS) {
@@ -103,12 +120,19 @@ struct ContentView: View {
                 .font(.footnote)
         }
 
-        Text(modoEntrenamiento
-             ? "Con FC y guardado en Salud. No uses Runna a la vez."
-             : "Solo audio: compatible con Runna u otro tracker.")
+        Text(textoDeModo)
             .font(.footnote)
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
+    }
+
+    private var textoDeModo: String {
+        if musicaExterna {
+            return "Ponés la música con Spotify u otra app; Maratón corre avisos y entrenamiento, y la voz le baja el volumen al hablar."
+        }
+        return modoEntrenamiento
+            ? "Con FC y guardado en Salud. No uses Runna a la vez."
+            : "Solo audio: compatible con Runna u otro tracker."
     }
 
     @ViewBuilder
@@ -143,7 +167,8 @@ struct ContentView: View {
     /// El entrenamiento se suma después y, si falla, queda el error a la
     /// vista sin cortar la sesión.
     private func arrancar(_ plan: Plan) {
-        reproductor.iniciar(plan: plan, urlDe: conectividad.urlDePista)
+        reproductor.iniciar(plan: plan, urlDe: conectividad.urlDePista,
+                            musicaExterna: musicaExterna)
         guard modoEntrenamiento else { return }
         EntrenadorRitmo.compartido.iniciar(plan: plan)
         Entrenamiento.compartido.pedirPermisos(conGPS: rutaGPS) {
@@ -265,34 +290,44 @@ struct PantallaReproduccion: View {
                 Text("Música")
                     .font(.headline)
 
-                Text(nombreLegible(reproductor.nombrePistaActual))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
+                if reproductor.modoMusicaExterna {
+                    Image(systemName: "music.note.list")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                    Text("La música la maneja otra app (Spotify). Usá sus controles o el Now Playing del reloj.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                } else {
+                    Text(nombreLegible(reproductor.nombrePistaActual))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
 
-                Button {
-                    reproductor.alternarSoloMusica()
-                } label: {
-                    Label(reproductor.musicaSilenciada ? "Reanudar música" : "Pausar música",
-                          systemImage: reproductor.musicaSilenciada ? "speaker.fill" : "speaker.slash.fill")
-                        .frame(maxWidth: .infinity)
+                    Button {
+                        reproductor.alternarSoloMusica()
+                    } label: {
+                        Label(reproductor.musicaSilenciada ? "Reanudar música" : "Pausar música",
+                              systemImage: reproductor.musicaSilenciada ? "speaker.fill" : "speaker.slash.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(reproductor.musicaSilenciada ? .green : .blue)
+
+                    Button {
+                        reproductor.siguiente()
+                    } label: {
+                        Label("Siguiente pista", systemImage: "forward.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Text("Frena solo la música: el entrenamiento y los avisos siguen.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(reproductor.musicaSilenciada ? .green : .blue)
-
-                Button {
-                    reproductor.siguiente()
-                } label: {
-                    Label("Siguiente pista", systemImage: "forward.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-
-                Text("Frena solo la música: el entrenamiento y los avisos siguen.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 4)
         }
@@ -363,10 +398,12 @@ struct PantallaReproduccion: View {
 
     @ViewBuilder
     private var infoSecundaria: some View {
-        Text(nombreLegible(reproductor.nombrePistaActual))
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
+        if !reproductor.nombrePistaActual.isEmpty {
+            Text(nombreLegible(reproductor.nombrePistaActual))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
 
         if let tramo = entrenador.tramoActual {
             Text("\(tramo.nombre): \(tramo.descripcion)")

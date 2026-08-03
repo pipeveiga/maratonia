@@ -28,6 +28,11 @@ final class Reproductor: NSObject, ObservableObject {
     /// los avisos y el entrenamiento siguen corriendo normalmente.
     @Published var musicaSilenciada = false
 
+    /// true = la música la pone otra app (Spotify): acá no se reproduce
+    /// nada propio, no se toca Now Playing, y la voz de los avisos
+    /// duckea el audio ajeno en vez de frenar un reproductor propio.
+    @Published private(set) var modoMusicaExterna = false
+
     private var pistas: [String] = []
     private var urlDe: ((String) -> URL)?
     private var indice = 0
@@ -46,7 +51,25 @@ final class Reproductor: NSObject, ObservableObject {
 
     // MARK: - Control
 
-    func iniciar(plan: Plan, urlDe: @escaping (String) -> URL) {
+    func iniciar(plan: Plan, urlDe: @escaping (String) -> URL, musicaExterna: Bool = false) {
+        if musicaExterna {
+            // Sesión sin música propia: cronómetro + avisos nomás. La app
+            // se mantiene viva en background gracias al workout activo.
+            modoMusicaExterna = true
+            pistas = []
+            self.urlDe = nil
+            nombrePistaActual = ""
+            acumuladoPrevio = 0
+            mensajeError = nil
+            musicaSilenciada = false
+            Avisador.compartido.iniciar(plan: plan)
+            fechaReanudacion = Date()
+            estado = .reproduciendo
+            iniciarTimerUI()
+            return
+        }
+
+        modoMusicaExterna = false
         let disponibles = plan.pistas.filter {
             FileManager.default.fileExists(atPath: urlDe($0).path)
         }
@@ -170,8 +193,11 @@ final class Reproductor: NSObject, ObservableObject {
         nombrePistaActual = ""
         musicaSilenciada = false
         estado = .detenido
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        if !modoMusicaExterna {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
+        modoMusicaExterna = false
     }
 
     // MARK: - Cola
@@ -206,6 +232,7 @@ final class Reproductor: NSObject, ObservableObject {
     }
 
     private func avanzarPista() {
+        guard !pistas.isEmpty else { return }  // modo música externa: no hay cola propia
         indice = (indice + 1) % pistas.count  // al terminar la última, vuelve a la primera
         reproducirPistaActual()
     }
@@ -251,6 +278,8 @@ final class Reproductor: NSObject, ObservableObject {
     }
 
     private func actualizarNowPlaying() {
+        // Con música externa, Now Playing es de Spotify: ni tocarlo.
+        guard !modoMusicaExterna else { return }
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: nombreLegible(nombrePistaActual),
             MPMediaItemPropertyArtist: "Maratón",

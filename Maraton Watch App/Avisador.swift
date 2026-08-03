@@ -118,7 +118,15 @@ final class Avisador: NSObject, ObservableObject {
     private func hablarSiguiente() {
         guard !colaPorHablar.isEmpty else { return }
         estaHablando = true
-        Reproductor.compartido.silenciarParaVoz()
+        if Reproductor.compartido.modoMusicaExterna {
+            // La música es de otra app (Spotify): activamos una sesión que
+            // le baja el volumen (.duckOthers) mientras dura la voz.
+            let sesion = AVAudioSession.sharedInstance()
+            try? sesion.setCategory(.playback, mode: .voicePrompt, options: [.duckOthers])
+            try? sesion.setActive(true)
+        } else {
+            Reproductor.compartido.silenciarParaVoz()
+        }
         let utterance = AVSpeechUtterance(string: colaPorHablar.removeFirst())
         utterance.voice = Self.vozEspanol
         utterance.preUtteranceDelay = 0.3  // pequeño respiro tras frenar la música
@@ -130,7 +138,13 @@ final class Avisador: NSObject, ObservableObject {
             hablarSiguiente()  // la música ya está frenada; encadena el siguiente
         } else {
             estaHablando = false
-            Reproductor.compartido.reanudarTrasVoz()
+            if Reproductor.compartido.modoMusicaExterna {
+                // Soltar la sesión avisando: Spotify recupera su volumen.
+                try? AVAudioSession.sharedInstance().setActive(
+                    false, options: .notifyOthersOnDeactivation)
+            } else {
+                Reproductor.compartido.reanudarTrasVoz()
+            }
         }
     }
 
