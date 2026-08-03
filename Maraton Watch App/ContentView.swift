@@ -44,6 +44,13 @@ struct ContentView: View {
                     .monospacedDigit()
                     .contentTransition(.numericText(countsDown: true))
             }
+        } else if reproductor.preparando {
+            VStack(spacing: 8) {
+                ProgressView()
+                Text("Activando audio…")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         } else if reproductor.estado == .detenido {
             lobby
         } else {
@@ -148,6 +155,15 @@ struct ContentView: View {
         .buttonStyle(.borderedProminent)
         .tint(.green)
         .disabled(!musicaExterna && listas == 0)
+
+        // El error de arranque va acá arriba, pegado al Play: abajo de
+        // todo no lo veía nadie.
+        if let error = reproductor.mensajeError {
+            Text(error)
+                .font(.footnote)
+                .foregroundStyle(.red)
+                .multilineTextAlignment(.center)
+        }
     }
 
     // MARK: - Cuenta regresiva 3-2-1
@@ -227,13 +243,6 @@ struct ContentView: View {
 
     @ViewBuilder
     private func resumen(_ plan: Plan) -> some View {
-        if let error = reproductor.mensajeError {
-            Text(error)
-                .font(.footnote)
-                .foregroundStyle(.red)
-                .multilineTextAlignment(.center)
-        }
-
         if let error = entrenamiento.mensajeError {
             Text(error)
                 .font(.footnote)

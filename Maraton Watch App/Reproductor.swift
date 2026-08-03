@@ -33,6 +33,10 @@ final class Reproductor: NSObject, ObservableObject {
     /// duckea el audio ajeno en vez de frenar un reproductor propio.
     @Published private(set) var modoMusicaExterna = false
 
+    /// true mientras se activa el audio (entre la cuenta regresiva y el
+    /// arranque real): la UI muestra "Activando audio…" en vez del lobby.
+    @Published var preparando = false
+
     private var pistas: [String] = []
     private var urlDe: ((String) -> URL)?
     private var indice = 0
@@ -84,6 +88,7 @@ final class Reproductor: NSObject, ObservableObject {
         acumuladoPrevio = 0
         fechaReanudacion = nil
         mensajeError = nil
+        preparando = true
 
         let sesion = AVAudioSession.sharedInstance()
         do {
@@ -93,23 +98,38 @@ final class Reproductor: NSObject, ObservableObject {
             return
         }
 
-        // En watchOS la activación es asíncrona: si no hay auriculares
-        // Bluetooth conectados, el sistema muestra el selector para elegirlos.
-        sesion.activate(options: []) { [weak self] exito, error in
+        // En watchOS la activación long-form es asíncrona y EXIGE
+        // auriculares Bluetooth: si no hay, el sistema muestra el selector.
+        sesion.activate(options: []) { [weak self] exito, _ in
             DispatchQueue.main.async {
                 guard let self else { return }
-                guard exito else {
-                    self.mensajeError = "No se activó el audio: \(error?.localizedDescription ?? "conectá los auriculares")"
+                if exito {
+                    self.empezarSesion(plan: plan)
                     return
                 }
-                self.configurarComandosRemotos()
-                Avisador.compartido.iniciar(plan: plan)
-                self.fechaReanudacion = Date()
-                self.estado = .reproduciendo
-                self.reproducirPistaActual()
-                self.iniciarTimerUI()
+                // Sin auriculares (o cerraste el selector): caemos al
+                // parlante del reloj con la sesión estándar, para que la
+                // sesión arranque igual — clave para probar en casa.
+                do {
+                    try sesion.setCategory(.playback, mode: .default, options: [])
+                    try sesion.setActive(true)
+                    self.empezarSesion(plan: plan)
+                } catch {
+                    self.preparando = false
+                    self.mensajeError = "No pude activar el audio: \(error.localizedDescription)"
+                }
             }
         }
+    }
+
+    private func empezarSesion(plan: Plan) {
+        preparando = false
+        configurarComandosRemotos()
+        Avisador.compartido.iniciar(plan: plan)
+        fechaReanudacion = Date()
+        estado = .reproduciendo
+        reproducirPistaActual()
+        iniciarTimerUI()
     }
 
     func alternarPlayPausa() {
@@ -192,6 +212,7 @@ final class Reproductor: NSObject, ObservableObject {
         tiempoTranscurrido = 0
         nombrePistaActual = ""
         musicaSilenciada = false
+        preparando = false
         estado = .detenido
         if !modoMusicaExterna {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
