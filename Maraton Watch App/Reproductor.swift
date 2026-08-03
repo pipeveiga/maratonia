@@ -303,7 +303,7 @@ final class Reproductor: NSObject, ObservableObject {
         guard !modoMusicaExterna else { return }
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: nombreLegible(nombrePistaActual),
-            MPMediaItemPropertyArtist: "Maratón",
+            MPMediaItemPropertyArtist: "Maratonia",
             MPNowPlayingInfoPropertyPlaybackRate: estado == .reproduciendo ? 1.0 : 0.0,
         ]
         if let player {

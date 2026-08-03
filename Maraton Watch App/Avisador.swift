@@ -171,7 +171,7 @@ final class Avisador: NSObject, ObservableObject {
             guard restante > 1 else { continue }
             if programadas >= 60 { break }
             let contenido = UNMutableNotificationContent()
-            contenido.title = "Maratón"
+            contenido.title = "Maratonia"
             contenido.body = aviso.texto
             let disparo = UNTimeIntervalNotificationTrigger(timeInterval: restante, repeats: false)
             centro.add(UNNotificationRequest(

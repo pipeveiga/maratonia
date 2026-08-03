@@ -1,4 +1,4 @@
-# 🏃 Maratón — App de running para Apple Watch + iPhone
+# 🏃 Maratonia — App de running para Apple Watch + iPhone
 
 **Asistente de carrera completo para Apple Watch**: reproduce tu música, te guía
 por voz con un entrenador que sigue tu plan de tramos, registra la carrera

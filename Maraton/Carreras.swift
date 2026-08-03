@@ -5,7 +5,7 @@ import MapKit
 
 // Historial de carreras en el iPhone. Los entrenamientos que graba el
 // reloj llegan solos por la sincronización de Salud; acá se listan los
-// de Maratón con sus números (tiempo, distancia, ritmo, FC, calorías)
+// de Maratonia con sus números (tiempo, distancia, ritmo, FC, calorías)
 // y el recorrido dibujado en un mapa.
 
 struct CarreraResumen: Identifiable {

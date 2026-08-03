@@ -29,7 +29,7 @@ struct ContentView: View {
                 seccionEnvio
                 seccionCarreras
             }
-            .navigationTitle("Maratón")
+            .navigationTitle("Maratonia")
             .toolbar { EditButton() }
             .fileImporter(
                 isPresented: $mostrandoImportador,
@@ -314,7 +314,7 @@ struct ContentView: View {
                       systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
             } else if !conectividad.appInstaladaEnReloj {
-                Label("Instalá Maratón en el reloj (app Watch del iPhone → Maratón → Instalar) para poder enviar.",
+                Label("Instalá Maratonia en el reloj (app Watch del iPhone → Maratonia → Instalar) para poder enviar.",
                       systemImage: "exclamationmark.triangle")
                     .foregroundStyle(.orange)
             }

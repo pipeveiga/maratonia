@@ -23,7 +23,7 @@ struct ContentView: View {
     /// FC máxima para calcular las zonas (Z1–Z5). Ajustable en el lobby.
     @AppStorage("fcMaxima") private var fcMaxima = 190
 
-    /// true = la música la pone otra app (Spotify del reloj); Maratón
+    /// true = la música la pone otra app (Spotify del reloj); Maratonia
     /// solo corre cronómetro, avisos y entrenamiento. Requiere
     /// "Registrar carrera": sin música propia, el workout es lo que
     /// mantiene viva la app en segundo plano.
@@ -61,7 +61,7 @@ struct ContentView: View {
     private var lobby: some View {
         ScrollView {
             VStack(spacing: 10) {
-                Label("Maratón", systemImage: "figure.run")
+                Label("Maratonia", systemImage: "figure.run")
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.green)
 
@@ -234,7 +234,7 @@ struct ContentView: View {
 
     private var textoDeModo: String {
         if musicaExterna {
-            return "Ponés la música con Spotify u otra app; Maratón corre avisos y entrenamiento, y la voz le baja el volumen al hablar."
+            return "Ponés la música con Spotify u otra app; Maratonia corre avisos y entrenamiento, y la voz le baja el volumen al hablar."
         }
         return modoEntrenamiento
             ? "Con FC y guardado en Salud. No uses Runna a la vez."
