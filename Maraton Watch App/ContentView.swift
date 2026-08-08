@@ -20,9 +20,6 @@ struct ContentView: View {
     /// batería consume y lo primero que conviene apagar si algo falla.
     @AppStorage("rutaGPS") private var rutaGPS = true
 
-    /// FC máxima para calcular las zonas (Z1–Z5). Ajustable en el lobby.
-    @AppStorage("fcMaxima") private var fcMaxima = 190
-
     /// true = la música la pone otra app (Spotify del reloj); Maratonia
     /// solo corre cronómetro, avisos y entrenamiento. Requiere
     /// "Registrar carrera": sin música propia, el workout es lo que
@@ -58,23 +55,35 @@ struct ContentView: View {
         }
     }
 
+    // El lobby es deliberadamente mínimo: nombre del plan, estado de la
+    // música y un Play grande. Todo lo configurable vive en Ajustes
+    // (engranaje arriba a la derecha) para que antes de correr no haya
+    // que leer una pila de interruptores.
     private var lobby: some View {
-        ScrollView {
-            VStack(spacing: 10) {
-                Label("Maratonia", systemImage: "figure.run")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.green)
-
-                if let resumen = entrenamiento.resumen {
-                    vistaResumen(resumen)
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 12) {
+                    if let resumen = entrenamiento.resumen {
+                        vistaResumen(resumen)
+                    }
+                    if let plan = conectividad.plan {
+                        vistaPlan(plan)
+                    } else {
+                        vistaSinPlan
+                    }
                 }
-                if let plan = conectividad.plan {
-                    vistaPlan(plan)
-                } else {
-                    vistaSinPlan
+                .padding(.horizontal, 4)
+            }
+            .navigationTitle("Maratonia")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        AjustesReloj()
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                    }
                 }
             }
-            .padding(.horizontal, 4)
         }
     }
 
@@ -115,55 +124,119 @@ struct ContentView: View {
         .background(Color.green.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
     }
 
-    // El lobby va partido en tres bloques chicos a propósito: SwiftUI
-    // admite como máximo 10 vistas por bloque y de una sola pieza quedaba
-    // al borde de ese límite.
+    // El lobby va partido en bloques chicos a propósito: SwiftUI admite
+    // como máximo 10 vistas por bloque y de una sola pieza quedaba al
+    // borde de ese límite.
 
     @ViewBuilder
     private func vistaPlan(_ plan: Plan) -> some View {
         cabecera(plan)
-        controles(plan)
-        resumen(plan)
+        botonera(plan)
     }
 
     @ViewBuilder
     private func cabecera(_ plan: Plan) -> some View {
-        let faltantes = conectividad.pistasFaltantes
-        let listas = plan.pistas.count - faltantes.count
-
         Text(plan.nombre)
             .font(.headline)
+            .multilineTextAlignment(.center)
 
-        Text("\(listas) de \(plan.pistas.count) pistas listas")
-            .font(.footnote)
-            .foregroundStyle(faltantes.isEmpty ? Color.green : Color.orange)
+        estadoDeMusica(plan)
 
-        if !faltantes.isEmpty {
-            Text("Faltan: \(faltantes.joined(separator: ", "))")
+        if let datos = datosDelPlan(plan) {
+            Text(datos)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Una sola línea de estado con color: reemplaza el viejo bloque de
+    /// textos sobre pistas listas/faltantes.
+    @ViewBuilder
+    private func estadoDeMusica(_ plan: Plan) -> some View {
+        let faltantes = conectividad.pistasFaltantes
+        if musicaExterna {
+            Label("Música de otra app", systemImage: "music.note.list")
+                .font(.footnote)
+                .foregroundStyle(.purple)
+        } else if plan.pistas.isEmpty {
+            Label("Sin música cargada", systemImage: "exclamationmark.triangle.fill")
                 .font(.footnote)
                 .foregroundStyle(.orange)
-                .multilineTextAlignment(.center)
+        } else if faltantes.isEmpty {
+            Label(plan.pistas.count == 1 ? "1 pista lista" : "\(plan.pistas.count) pistas listas",
+                  systemImage: "checkmark.circle.fill")
+                .font(.footnote)
+                .foregroundStyle(.green)
+        } else {
+            Label("Faltan \(faltantes.count) de \(plan.pistas.count) pistas",
+                  systemImage: "arrow.down.circle")
+                .font(.footnote)
+                .foregroundStyle(.orange)
         }
+    }
 
+    @ViewBuilder
+    private func botonera(_ plan: Plan) -> some View {
+        let listas = plan.pistas.count - conectividad.pistasFaltantes.count
+
+        // Play redondo grande, como la app Entrenamiento de Apple.
         Button {
             comenzarCuentaRegresiva(plan)
         } label: {
-            Label("Play", systemImage: "play.fill")
-                .font(.title3)
-                .frame(maxWidth: .infinity)
+            Image(systemName: "play.fill")
+                .font(.system(size: 32, weight: .heavy))
+                .foregroundStyle(.black)
+                .frame(width: 76, height: 76)
+                .background(Circle().fill(Color.green.gradient))
         }
-        .buttonStyle(.borderedProminent)
-        .tint(.green)
+        .buttonStyle(.plain)
         .disabled(!musicaExterna && listas == 0)
+        .padding(.vertical, 4)
 
-        // El error de arranque va acá arriba, pegado al Play: abajo de
-        // todo no lo veía nadie.
+        Label(resumenDeModo, systemImage: iconoDeModo)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+
+        // El error de arranque va acá, pegado al Play: abajo de todo no
+        // lo veía nadie.
         if let error = reproductor.mensajeError {
             Text(error)
                 .font(.footnote)
                 .foregroundStyle(.red)
                 .multilineTextAlignment(.center)
         }
+
+        if let error = entrenamiento.mensajeError {
+            Text(error)
+                .font(.footnote)
+                .foregroundStyle(.orange)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    /// Cómo va a arrancar la sesión, en cuatro palabras. El detalle y los
+    /// cambios viven en Ajustes.
+    private var resumenDeModo: String {
+        if !modoEntrenamiento { return "Solo música y avisos" }
+        return rutaGPS ? "Carrera con GPS" : "Carrera sin GPS"
+    }
+
+    private var iconoDeModo: String {
+        if !modoEntrenamiento { return "music.note" }
+        return rutaGPS ? "location.fill" : "heart.fill"
+    }
+
+    /// "12 avisos · 3 tramos": qué trae el plan, en una sola línea.
+    private func datosDelPlan(_ plan: Plan) -> String? {
+        var partes: [String] = []
+        let avisos = plan.cronograma(duracionMaximaMinutos: 360).count
+            + plan.avisosKmActivos.count
+        if avisos > 0 { partes.append(avisos == 1 ? "1 aviso" : "\(avisos) avisos") }
+        if !plan.tramosActivos.isEmpty {
+            let n = plan.tramosActivos.count
+            partes.append(n == 1 ? "1 tramo" : "\(n) tramos")
+        }
+        return partes.isEmpty ? nil : partes.joined(separator: " · ")
     }
 
     // MARK: - Cuenta regresiva 3-2-1
@@ -190,80 +263,6 @@ struct ContentView: View {
                 }
                 planPendiente = nil
             }
-        }
-    }
-
-    private func controles(_ plan: Plan) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-        Toggle(isOn: $musicaExterna) {
-            Label("Música de otra app", systemImage: "music.note.list")
-                .font(.footnote)
-        }
-        .onChange(of: musicaExterna) {
-            if musicaExterna {
-                modoEntrenamiento = true
-            }
-        }
-
-        Toggle(isOn: $modoEntrenamiento) {
-            Label("Registrar carrera", systemImage: "heart.fill")
-                .font(.footnote)
-        }
-        .tint(.red)
-        .disabled(musicaExterna)
-
-        if modoEntrenamiento {
-            Toggle(isOn: $rutaGPS) {
-                Label("Ruta GPS", systemImage: "map.fill")
-                    .font(.footnote)
-            }
-
-            Stepper("FC máx: \(fcMaxima)", value: $fcMaxima, in: 120...220, step: 5)
-                .font(.footnote)
-        }
-
-        Text(textoDeModo)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .multilineTextAlignment(.center)
-        }
-        .padding(10)
-        .background(Color.white.opacity(0.06),
-                    in: RoundedRectangle(cornerRadius: Diseno.radioTarjeta))
-    }
-
-    private var textoDeModo: String {
-        if musicaExterna {
-            return "Ponés la música con Spotify u otra app; Maratonia corre avisos y entrenamiento, y la voz le baja el volumen al hablar."
-        }
-        return modoEntrenamiento
-            ? "Con FC y guardado en Salud. No uses Runna a la vez."
-            : "Solo audio: compatible con Runna u otro tracker."
-    }
-
-    @ViewBuilder
-    private func resumen(_ plan: Plan) -> some View {
-        if let error = entrenamiento.mensajeError {
-            Text(error)
-                .font(.footnote)
-                .foregroundStyle(.orange)
-                .multilineTextAlignment(.center)
-        }
-
-        Text("\(plan.cronograma(duracionMaximaMinutos: 360).count) avisos en el cronograma")
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-
-        if !plan.tramosActivos.isEmpty {
-            Text("\(plan.tramosActivos.count) tramos con ritmo objetivo")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-
-        if !plan.avisosKmActivos.isEmpty {
-            Text("\(plan.avisosKmActivos.count) avisos por kilómetro")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
     }
 
@@ -685,6 +684,120 @@ struct PantallaReproduccion: View {
         }
     }
 
+}
+
+// MARK: - Ajustes del reloj
+
+/// Todo lo configurable de la sesión, fuera del lobby: una lista nativa
+/// de watchOS con interruptores y una pantalla propia para la FC máxima.
+struct AjustesReloj: View {
+    @AppStorage("modoEntrenamiento") private var modoEntrenamiento = true
+    @AppStorage("rutaGPS") private var rutaGPS = true
+    @AppStorage("fcMaxima") private var fcMaxima = 190
+    @AppStorage("musicaExterna") private var musicaExterna = false
+
+    var body: some View {
+        List {
+            Section {
+                Toggle(isOn: $musicaExterna) {
+                    Label("Música de otra app", systemImage: "music.note.list")
+                }
+                .tint(.purple)
+                .onChange(of: musicaExterna) {
+                    if musicaExterna {
+                        modoEntrenamiento = true
+                    }
+                }
+            } footer: {
+                Text(musicaExterna
+                     ? "Ponés la música con Spotify u otra app; Maratonia corre avisos y entrenamiento, y la voz baja el volumen al hablar."
+                     : "Apagado: Maratonia reproduce las pistas que mandaste desde el iPhone.")
+            }
+
+            Section {
+                Toggle(isOn: $modoEntrenamiento) {
+                    Label("Registrar carrera", systemImage: "heart.fill")
+                }
+                .tint(.red)
+                .disabled(musicaExterna)
+
+                if modoEntrenamiento {
+                    Toggle(isOn: $rutaGPS) {
+                        Label("Ruta GPS", systemImage: "map.fill")
+                    }
+                    .tint(.blue)
+
+                    NavigationLink {
+                        EditorFCMaxima()
+                    } label: {
+                        HStack {
+                            Label("FC máxima", systemImage: "bolt.heart.fill")
+                            Spacer()
+                            Text("\(fcMaxima)")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
+                }
+            } footer: {
+                Text(modoEntrenamiento
+                     ? "Guarda FC, distancia y ruta en Salud. No uses Runna a la vez."
+                     : "Solo música y avisos: compatible con Runna u otro tracker.")
+            }
+        }
+        .navigationTitle("Ajustes")
+    }
+}
+
+/// La FC máxima con número protagonista y botones redondos de ±5,
+/// en lugar del viejo stepper "FC máx: 190" apretado en el lobby.
+struct EditorFCMaxima: View {
+    @AppStorage("fcMaxima") private var fcMaxima = 190
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Text("\(fcMaxima)")
+                .font(.system(size: 54, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.red)
+                .contentTransition(.numericText())
+
+            Text("PULSACIONES MÁX.")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .tracking(1.2)
+
+            HStack(spacing: 24) {
+                Button {
+                    withAnimation { fcMaxima = max(120, fcMaxima - 5) }
+                } label: {
+                    Image(systemName: "minus")
+                        .font(.headline)
+                        .frame(width: 42, height: 42)
+                        .background(Circle().fill(Color.white.opacity(0.12)))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    withAnimation { fcMaxima = min(220, fcMaxima + 5) }
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.headline)
+                        .frame(width: 42, height: 42)
+                        .background(Circle().fill(Color.white.opacity(0.12)))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.top, 4)
+
+            Text("Define tus zonas Z1–Z5. Si no la sabés: 220 menos tu edad.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 4)
+        }
+        .navigationTitle("FC máxima")
+    }
 }
 
 #Preview {
