@@ -28,6 +28,8 @@
 		A10000000000000000000045 /* Carreras.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000044 /* Carreras.swift */; };
 		A10000000000000000000047 /* Diseno.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000046 /* Diseno.swift */; };
 		A10000000000000000000048 /* Diseno.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000046 /* Diseno.swift */; };
+		A1000000000000000000004A /* TramosEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000049 /* TramosEditor.swift */; };
+		A1000000000000000000004C /* Tutorial.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000004B /* Tutorial.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,6 +79,8 @@
 		A10000000000000000000041 /* EntrenadorRitmo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntrenadorRitmo.swift; sourceTree = "<group>"; };
 		A10000000000000000000044 /* Carreras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Carreras.swift; sourceTree = "<group>"; };
 		A10000000000000000000046 /* Diseno.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diseno.swift; sourceTree = "<group>"; };
+		A10000000000000000000049 /* TramosEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TramosEditor.swift; sourceTree = "<group>"; };
+		A1000000000000000000004B /* Tutorial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tutorial.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -125,6 +129,8 @@
 				A10000000000000000000028 /* AvisoEditores.swift */,
 				A10000000000000000000029 /* Conectividad.swift */,
 				A10000000000000000000040 /* TramosImport.swift */,
+				A10000000000000000000049 /* TramosEditor.swift */,
+				A1000000000000000000004B /* Tutorial.swift */,
 				A10000000000000000000044 /* Carreras.swift */,
 				A1000000000000000000002E /* Maraton.entitlements */,
 				A10000000000000000000022 /* Assets.xcassets */,
@@ -264,6 +270,8 @@
 				A10000000000000000000039 /* AvisoEditores.swift in Sources */,
 				A1000000000000000000003A /* Conectividad.swift in Sources */,
 				A10000000000000000000042 /* TramosImport.swift in Sources */,
+				A1000000000000000000004A /* TramosEditor.swift in Sources */,
+				A1000000000000000000004C /* Tutorial.swift in Sources */,
 				A10000000000000000000045 /* Carreras.swift in Sources */,
 				A10000000000000000000047 /* Diseno.swift in Sources */,
 			);
@@ -416,7 +424,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratonia";
@@ -450,7 +458,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratonia";
@@ -485,7 +493,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratonia";
@@ -521,7 +529,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 19;
+				CURRENT_PROJECT_VERSION = 20;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratonia";

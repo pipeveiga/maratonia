@@ -11,7 +11,12 @@ struct ContentView: View {
     @State private var mostrandoImportador = false
     @State private var fijoEnEdicion: AvisoFijo?
     @State private var repetidoEnEdicion: AvisoRepetido?
+    @State private var tramoEnEdicion: Tramo?
     @State private var mostrandoImportadorTramos = false
+    @State private var mostrandoTutorial = false
+
+    /// El tutorial se abre solo la primera vez que se abre la app.
+    @AppStorage("vioTutorial") private var vioTutorial = false
 
     /// Horizonte de la vista previa del cronograma (solo afecta la vista,
     /// no el plan). Se recuerda entre aperturas de la app.
@@ -28,6 +33,7 @@ struct ContentView: View {
                 seccionCronograma
                 seccionEnvio
                 seccionCarreras
+                seccionAyuda
             }
             .navigationTitle("Maratonia")
             .toolbar { EditButton() }
@@ -52,6 +58,26 @@ struct ContentView: View {
             .sheet(isPresented: $mostrandoImportadorTramos) {
                 ImportadorTramos { tramos in
                     store.plan.tramos = tramos
+                }
+            }
+            .sheet(item: $tramoEnEdicion) { tramo in
+                TramoEditor(tramo: tramo) { actualizado in
+                    if var tramos = store.plan.tramos,
+                       let indice = tramos.firstIndex(where: { $0.id == actualizado.id }) {
+                        tramos[indice] = actualizado
+                        store.plan.tramos = tramos
+                    } else {
+                        store.plan.tramos = (store.plan.tramos ?? []) + [actualizado]
+                    }
+                }
+            }
+            .sheet(isPresented: $mostrandoTutorial) {
+                TutorialView()
+            }
+            .onAppear {
+                if !vioTutorial {
+                    vioTutorial = true
+                    mostrandoTutorial = true
                 }
             }
             .sheet(item: $repetidoEnEdicion) { aviso in
@@ -233,13 +259,18 @@ struct ContentView: View {
     private var seccionTramos: some View {
         Section {
             ForEach(store.plan.tramosActivos) { tramo in
-                HStack(spacing: 10) {
-                    IconoAjuste(sistema: "speedometer", color: .green)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(tramo.nombre)
-                        Text(tramo.descripcion)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                Button {
+                    tramoEnEdicion = tramo
+                } label: {
+                    HStack(spacing: 10) {
+                        IconoAjuste(sistema: "speedometer", color: .green)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(tramo.nombre)
+                                .foregroundStyle(.primary)
+                            Text(tramo.descripcion)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .swipeActions {
@@ -252,14 +283,51 @@ struct ContentView: View {
             }
 
             Button {
-                mostrandoImportadorTramos = true
+                tramoEnEdicion = Tramo(nombre: "", kilometros: 3, ritmoMinSegKm: nil, ritmoMaxSegKm: nil)
             } label: {
-                Label("Pegar plan de tramos (JSON)", systemImage: "doc.on.clipboard")
+                Label("Agregar tramo", systemImage: "plus.circle.fill")
             }
+
+            Menu {
+                ForEach(PlanesSugeridos.todos, id: \.nombre) { plan in
+                    Button(plan.nombre) {
+                        store.plan.tramos = plan.tramos
+                    }
+                }
+            } label: {
+                Label("Usar un plan sugerido", systemImage: "sparkles")
+            }
+
+            DisclosureGroup("Avanzado") {
+                Button {
+                    mostrandoImportadorTramos = true
+                } label: {
+                    Label("Pegar plan (JSON de ChatGPT)", systemImage: "doc.on.clipboard")
+                        .font(.callout)
+                }
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
         } header: {
             Text("Tramos con ritmo objetivo")
         } footer: {
-            Text("El reloj anuncia cada tramo y te avisa por voz si vas más rápido o más lento que el rango. Necesita «Registrar carrera» activado en el reloj.")
+            Text("Tocá un tramo para editarlo. Los planes sugeridos traen ritmos de referencia: ajustalos a los tuyos. El reloj anuncia cada tramo y corrige por voz (requiere «Registrar carrera»).")
+        }
+    }
+
+    // MARK: - Ayuda
+
+    private var seccionAyuda: some View {
+        Section {
+            Button {
+                mostrandoTutorial = true
+            } label: {
+                HStack(spacing: 10) {
+                    IconoAjuste(sistema: "questionmark", color: .gray)
+                    Text("Cómo usar Maratonia")
+                        .foregroundStyle(.primary)
+                }
+            }
         }
     }
 

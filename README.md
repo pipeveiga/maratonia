@@ -46,7 +46,7 @@ Bluetooth, incluso sin señal.
   reordenable con duraciones.
 - ⏰ Editor de avisos fijos y repetidos con vista previa del cronograma
   expandido.
-- 🧠 **Plan de tramos importable por JSON** — formato diseñado para pedírselo a
+- 🧠 **Planes de tramos**: editor manual, planes sugeridos de un toque, y (en Avanzado) importación por JSON — formato diseñado para pedírselo a
   ChatGPT y pegarlo directo:
   ```json
   {"tramos":[
