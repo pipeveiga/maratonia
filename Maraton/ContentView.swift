@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @StateObject private var store = PlanStore()
     @ObservedObject private var conectividad = Conectividad.compartida
+    @ObservedObject private var cuenta = CuentaStore.compartida
     @State private var mostrandoImportador = false
     @State private var fijoEnEdicion: AvisoFijo?
     @State private var repetidoEnEdicion: AvisoRepetido?
@@ -31,9 +32,12 @@ struct ContentView: View {
                 seccionAvisosRepetidos
                 seccionTramos
                 seccionCronograma
-                seccionEnvio
-                seccionCarreras
-                seccionAyuda
+                Group {
+                    seccionCuenta
+                    seccionEnvio
+                    seccionCarreras
+                    seccionAyuda
+                }
             }
             .navigationTitle("Maratonia")
             .toolbar { EditButton() }
@@ -312,6 +316,53 @@ struct ContentView: View {
             Text("Tramos con ritmo objetivo")
         } footer: {
             Text("Tocá un tramo para editarlo. Los planes sugeridos traen ritmos de referencia: ajustalos a los tuyos. El reloj anuncia cada tramo y corrige por voz (requiere «Registrar carrera»).")
+        }
+    }
+
+    // MARK: - Cuenta (iCloud)
+
+    private var seccionCuenta: some View {
+        Section {
+            HStack(spacing: 10) {
+                IconoAjuste(sistema: "person.crop.circle.fill", color: .blue)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(textoCuenta)
+                    if let fecha = cuenta.ultimoRespaldo {
+                        Text("Último respaldo: \(fecha.formatted(date: .omitted, time: .shortened))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Button {
+                cuenta.restaurar { plan in
+                    if let plan {
+                        store.plan = plan
+                    }
+                }
+            } label: {
+                Label("Restaurar plan desde iCloud", systemImage: "icloud.and.arrow.down")
+            }
+
+            if let mensaje = cuenta.mensaje {
+                Text(mensaje)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Cuenta")
+        } footer: {
+            Text("Tu plan se respalda automáticamente en tu iCloud privado — sin registro ni contraseñas, tu iPhone ya sabe quién sos. Al reinstalar o cambiar de teléfono: «Restaurar plan».")
+        }
+    }
+
+    private var textoCuenta: String {
+        switch cuenta.estado {
+        case .verificando: return "Verificando tu iCloud…"
+        case .conectada: return "Conectado con tu iCloud"
+        case .sinSesion: return "Sin sesión de iCloud (activala en Ajustes → tu nombre)"
+        case .problema(let detalle): return detalle
         }
     }
 

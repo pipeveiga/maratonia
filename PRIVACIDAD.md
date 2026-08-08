@@ -18,6 +18,9 @@ con ellos. La versión corta: **tus datos no salen de tus dispositivos.**
   en Apple Salud, asociada a tu carrera.
 - **Tu música y tus planes de entrenamiento**: se guardan localmente en tu
   iPhone y tu Apple Watch.
+- **Respaldo del plan en iCloud**: tu plan de entrenamiento se respalda en la
+  base de datos **privada** de tu propia cuenta de iCloud, a la que solo vos
+  tenés acceso. El desarrollador no puede ver ni acceder a ese respaldo.
 
 ## Qué NO hace la app
 

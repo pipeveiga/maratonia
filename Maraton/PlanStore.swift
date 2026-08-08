@@ -44,6 +44,8 @@ final class PlanStore: ObservableObject {
         if let datos = try? JSONEncoder().encode(plan) {
             try? datos.write(to: Self.urlPlan, options: .atomic)
         }
+        // Respaldo en el iCloud del usuario (con demora anti-tipeo).
+        CuentaStore.compartida.respaldarConDemora(plan)
     }
 
     // MARK: - Pistas
