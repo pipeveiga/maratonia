@@ -78,11 +78,18 @@ struct PlanTab: View {
         }
     }
 
+    /// Tarjeta hero con degradado de marca: el nombre del plan editable
+    /// y sus números, como portada de la app.
     private var seccionCabecera: some View {
         Section {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 14) {
+                Label("TU ENTRENAMIENTO", systemImage: "figure.run")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.85))
                 TextField("Nombre del plan", text: $store.plan.nombre)
-                    .font(.title3.bold())
+                    .font(.title2.bold())
+                    .foregroundStyle(.white)
+                    .tint(.white)
                 HStack(spacing: 0) {
                     estadistica("music.note", "\(store.plan.pistas.count)", "pistas")
                     estadistica("clock.fill", formatearDuracion(store.duracionTotal), "música")
@@ -90,7 +97,11 @@ struct PlanTab: View {
                     estadistica("speedometer", "\(store.plan.tramosActivos.count)", "tramos")
                 }
             }
-            .padding(.vertical, 4)
+            .padding(18)
+            .background(
+                LinearGradient(colors: [Color.accentColor, .teal],
+                               startPoint: .topLeading, endPoint: .bottomTrailing))
+            .listRowInsets(EdgeInsets())
         }
     }
 
@@ -99,16 +110,17 @@ struct PlanTab: View {
             HStack(spacing: 4) {
                 Image(systemName: icono)
                     .font(.caption2)
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(.white.opacity(0.8))
                 Text(valor)
                     .font(.subheadline.weight(.semibold))
                     .monospacedDigit()
+                    .foregroundStyle(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
             Text(nombre)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.75))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -156,8 +168,17 @@ struct MusicaScreen: View {
         List {
             Section {
                 if store.plan.pistas.isEmpty {
-                    Text("Todavía no hay pistas. Importá tus MP3 para armar la cola.")
-                        .foregroundStyle(.secondary)
+                    VStack(spacing: 8) {
+                        Image(systemName: "music.note.list")
+                            .font(.largeTitle)
+                            .foregroundStyle(.secondary)
+                        Text("Importá tus MP3 para armar la cola de la carrera.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
                 }
 
                 ForEach(store.plan.pistas, id: \.self) { nombre in
@@ -518,7 +539,13 @@ struct RelojTab: View {
                         conectividad.enviar(plan: store.plan, urlDePista: store.urlDePista)
                     } label: {
                         Label("Enviar al reloj", systemImage: "applewatch.radiowaves.left.and.right")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    .listRowBackground(Color.clear)
                     .disabled(store.plan.pistas.isEmpty
                               && store.plan.avisosFijos.isEmpty
                               && store.plan.avisosRepetidos.isEmpty
@@ -571,9 +598,9 @@ struct RelojTab: View {
 
     private func filaEstado(_ texto: String, ok: Bool) -> some View {
         HStack(spacing: 10) {
-            Circle()
-                .fill(ok ? Color.green : Color.orange)
-                .frame(width: 10, height: 10)
+            Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                .font(.title3)
+                .foregroundStyle(ok ? Color.green : Color.orange)
             Text(texto)
             Spacer()
             Text(ok ? "Sí" : "No")

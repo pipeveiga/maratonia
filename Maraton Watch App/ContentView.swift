@@ -330,74 +330,84 @@ struct PantallaReproduccion: View {
 
     // MARK: - Página izquierda: la sesión entera
 
+    /// Botones redondos en grilla 2x2, como la app Entrenamiento de
+    /// Apple: gesto conocido, dedos transpirados, cero lectura.
     private var paginaSesion: some View {
         ScrollView {
             VStack(spacing: 10) {
-                Text("Sesión")
-                    .font(.headline)
-
-                Button {
-                    reproductor.alternarPlayPausa()
-                } label: {
-                    Label(reproductor.estado == .reproduciendo ? "Pausar todo" : "Reanudar",
-                          systemImage: reproductor.estado == .reproduciendo ? "pause.fill" : "play.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(reproductor.estado == .reproduciendo ? .orange : .green)
-
-                Button {
-                    avisador.probar()
-                } label: {
-                    Label("Probar aviso", systemImage: "speaker.wave.2.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-
-                Button {
-                    confirmandoTerminar = true
-                } label: {
-                    Label("Terminar y guardar", systemImage: "stop.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
-                .confirmationDialog("¿Terminar la sesión?", isPresented: $confirmandoTerminar) {
-                    Button("Terminar y guardar", role: .destructive) {
-                        reproductor.detener()
-                        EntrenadorRitmo.compartido.detener()
-                        Entrenamiento.compartido.finalizar()
+                Grid(horizontalSpacing: 14, verticalSpacing: 10) {
+                    GridRow {
+                        botonSesion(reproductor.estado == .reproduciendo ? "Pausar" : "Reanudar",
+                                    icono: reproductor.estado == .reproduciendo ? "pause.fill" : "play.fill",
+                                    color: reproductor.estado == .reproduciendo ? .orange : .green) {
+                            reproductor.alternarPlayPausa()
+                        }
+                        botonSesion("Terminar", icono: "stop.fill", color: .red) {
+                            confirmandoTerminar = true
+                        }
                     }
-                    Button("Seguir", role: .cancel) {}
-                } message: {
-                    Text("La carrera se guarda en Salud.")
-                }
-
-                Button {
-                    confirmandoCancelar = true
-                } label: {
-                    Label("Cancelar sesión", systemImage: "xmark")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .confirmationDialog("¿Cancelar la sesión?", isPresented: $confirmandoCancelar) {
-                    Button("Descartar todo", role: .destructive) {
-                        reproductor.detener()
-                        EntrenadorRitmo.compartido.detener()
-                        Entrenamiento.compartido.cancelar()
+                    GridRow {
+                        botonSesion("Aviso", icono: "speaker.wave.2.fill", color: .blue) {
+                            avisador.probar()
+                        }
+                        botonSesion("Cancelar", icono: "xmark", color: .gray) {
+                            confirmandoCancelar = true
+                        }
                     }
-                    Button("Seguir", role: .cancel) {}
-                } message: {
-                    Text("El entrenamiento NO se guarda en Salud. No se puede deshacer.")
                 }
+                .padding(.top, 2)
 
-                Text("Pausar todo congela música, avisos y entrenamiento.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                if reproductor.estado == .pausado {
+                    Text("En pausa — todo congelado")
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                } else {
+                    Text("«Terminar» guarda la carrera en Salud.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
             }
             .padding(.horizontal, 4)
         }
+        .confirmationDialog("¿Terminar la sesión?", isPresented: $confirmandoTerminar) {
+            Button("Terminar y guardar", role: .destructive) {
+                reproductor.detener()
+                EntrenadorRitmo.compartido.detener()
+                Entrenamiento.compartido.finalizar()
+            }
+            Button("Seguir", role: .cancel) {}
+        } message: {
+            Text("La carrera se guarda en Salud.")
+        }
+        .confirmationDialog("¿Cancelar la sesión?", isPresented: $confirmandoCancelar) {
+            Button("Descartar todo", role: .destructive) {
+                reproductor.detener()
+                EntrenadorRitmo.compartido.detener()
+                Entrenamiento.compartido.cancelar()
+            }
+            Button("Seguir", role: .cancel) {}
+        } message: {
+            Text("El entrenamiento NO se guarda en Salud. No se puede deshacer.")
+        }
+    }
+
+    private func botonSesion(_ titulo: String, icono: String, color: Color,
+                             accion: @escaping () -> Void) -> some View {
+        Button(action: accion) {
+            VStack(spacing: 4) {
+                Image(systemName: icono)
+                    .font(.system(size: 19, weight: .semibold))
+                    .foregroundStyle(color)
+                    .frame(width: 54, height: 54)
+                    .background(Circle().fill(color.opacity(0.22)))
+                Text(titulo)
+                    .font(.system(size: 12))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Página central: métricas
@@ -499,46 +509,62 @@ struct PantallaReproduccion: View {
 
     // MARK: - Página derecha: solo la música
 
+    /// Mini reproductor: nombre de la pista protagonista y dos botones
+    /// redondos (pausar solo la música / siguiente).
     private var paginaMusica: some View {
         ScrollView {
             VStack(spacing: 10) {
-                Text("Música")
-                    .font(.headline)
-
                 if reproductor.modoMusicaExterna {
                     Image(systemName: "music.note.list")
                         .font(.title2)
                         .foregroundStyle(.secondary)
+                        .padding(.top, 14)
                     Text("La música la maneja otra app (Spotify). Usá sus controles o el Now Playing del reloj.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 } else {
-                    Text(nombreLegible(reproductor.nombrePistaActual))
-                        .font(.footnote)
+                    Text("MÚSICA")
+                        .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .tracking(1.2)
+
+                    Text(reproductor.nombrePistaActual.isEmpty
+                         ? "Sin pista"
+                         : nombreLegible(reproductor.nombrePistaActual))
+                        .font(.headline)
                         .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
 
-                    Button {
-                        reproductor.alternarSoloMusica()
-                    } label: {
-                        Label(reproductor.musicaSilenciada ? "Reanudar música" : "Pausar música",
-                              systemImage: reproductor.musicaSilenciada ? "speaker.fill" : "speaker.slash.fill")
-                            .frame(maxWidth: .infinity)
+                    HStack(spacing: 16) {
+                        Button {
+                            reproductor.alternarSoloMusica()
+                        } label: {
+                            Image(systemName: reproductor.musicaSilenciada ? "play.fill" : "pause.fill")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundStyle(.black)
+                                .frame(width: 62, height: 62)
+                                .background(Circle().fill(
+                                    reproductor.musicaSilenciada ? Color.green.gradient : Color.blue.gradient))
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            reproductor.siguiente()
+                        } label: {
+                            Image(systemName: "forward.fill")
+                                .font(.system(size: 17, weight: .semibold))
+                                .frame(width: 46, height: 46)
+                                .background(Circle().fill(Color.white.opacity(0.12)))
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(reproductor.musicaSilenciada ? .green : .blue)
+                    .padding(.vertical, 2)
 
-                    Button {
-                        reproductor.siguiente()
-                    } label: {
-                        Label("Siguiente pista", systemImage: "forward.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-
-                    Text("Frena solo la música: el entrenamiento y los avisos siguen.")
+                    Text(reproductor.musicaSilenciada
+                         ? "Música en pausa: avisos y entrenamiento siguen."
+                         : "Pausa solo la música: avisos y entrenamiento siguen.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

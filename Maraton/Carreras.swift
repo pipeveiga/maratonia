@@ -156,8 +156,17 @@ struct CarrerasView: View {
     var body: some View {
         List {
             if let mensaje = store.mensaje {
-                Text(mensaje)
-                    .foregroundStyle(.secondary)
+                if store.carreras.isEmpty {
+                    ContentUnavailableView {
+                        Label("Sin carreras todavía", systemImage: "figure.run")
+                    } description: {
+                        Text(mensaje)
+                    }
+                    .listRowBackground(Color.clear)
+                } else {
+                    Text(mensaje)
+                        .foregroundStyle(.secondary)
+                }
             }
             ForEach(store.carreras) { carrera in
                 NavigationLink {
