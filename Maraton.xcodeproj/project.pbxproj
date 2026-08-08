@@ -100,7 +100,6 @@
 			children = (
 				0F955765180CC524CD29D189 /* Plan.swift */,
 			);
-			name = Shared;
 			path = Shared;
 			sourceTree = "<group>";
 		};
@@ -132,7 +131,6 @@
 				62D96B15795E013986B1E7FC /* Assets.xcassets */,
 				22E3A150CDEB4B566079429F /* Info.plist */,
 			);
-			name = "Maraton Watch App";
 			path = "Maraton Watch App";
 			sourceTree = "<group>";
 		};
@@ -143,7 +141,6 @@
 				1B5BCB7A4EB5420678DED3F3 /* ContentView.swift */,
 				AD3AC28E847B2E3DAE36BEB9 /* Assets.xcassets */,
 			);
-			name = Maraton;
 			path = Maraton;
 			sourceTree = "<group>";
 		};
@@ -203,6 +200,16 @@
 			attributes = {
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					42B81E982E5B37C755807039 = {
+						DevelopmentTeam = 2M7NJ8V37F;
+						ProvisioningStyle = Automatic;
+					};
+					D3B7F007299F5FE4A9C46101 = {
+						DevelopmentTeam = 2M7NJ8V37F;
+						ProvisioningStyle = Automatic;
+					};
+				};
 			};
 			buildConfigurationList = E16C64CC609BF07519F34A7F /* Build configuration list for PBXProject "Maraton" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -213,8 +220,6 @@
 				Base,
 			);
 			mainGroup = 4B9E7CB0126C26DAEC6E03BD;
-			minimizedProjectReferenceProxies = 0;
-			preferredProjectObjectVersion = 100;
 			productRefGroup = E12A836C47BC5768A82212AB /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -285,6 +290,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
@@ -311,6 +317,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Maratón";
@@ -399,6 +406,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Maraton Watch App/Info.plist";
@@ -423,6 +431,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Maraton Watch App/Info.plist";
@@ -488,8 +497,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
