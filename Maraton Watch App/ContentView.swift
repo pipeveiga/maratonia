@@ -110,6 +110,15 @@ struct ContentView: View {
                     .foregroundStyle(.orange)
             }
             .font(.footnote)
+            if resumen.usoGPS {
+                Label(resumen.puntosRuta > 0
+                      ? "Recorrido: \(resumen.puntosRuta) puntos GPS"
+                      : "Sin señal GPS: quedó sin recorrido",
+                      systemImage: resumen.puntosRuta > 0 ? "map.fill" : "location.slash.fill")
+                    .font(.footnote)
+                    .foregroundStyle(resumen.puntosRuta > 0 ? Color.secondary : Color.orange)
+                    .multilineTextAlignment(.center)
+            }
             Text("Mapa y detalles: «Mis carreras» en el iPhone.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -668,6 +677,12 @@ struct PantallaReproduccion: View {
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
+        }
+
+        if entrenamiento.activo, entrenamiento.usaGPS, entrenamiento.puntosRuta == 0 {
+            Label("GPS: buscando señal…", systemImage: "location.slash")
+                .font(.footnote)
+                .foregroundStyle(.orange)
         }
 
         if reproductor.estado == .pausado {

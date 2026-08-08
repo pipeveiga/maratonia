@@ -18,6 +18,10 @@ struct ResumenCarrera {
     var ritmoPromedioSegKm: Int?
     var fcPromedio: Int?
     var calorias: Double
+    /// Para diagnóstico del recorrido: si se corrió con GPS y cuántos
+    /// puntos se capturaron (0 = no va a haber mapa).
+    var usoGPS: Bool = false
+    var puntosRuta: Int = 0
 }
 
 final class Entrenamiento: NSObject, ObservableObject {
@@ -34,6 +38,10 @@ final class Entrenamiento: NSObject, ObservableObject {
     @Published var caloriasActivas: Double = 0
     @Published var mensajeError: String?
 
+    /// Puntos GPS buenos capturados en esta sesión. Si corre con GPS y
+    /// sigue en 0, la pantalla de métricas avisa que no hay señal.
+    @Published var puntosRuta = 0
+
     /// Ritmo actual en seg/km, suavizado sobre los últimos ~45 s.
     /// nil = todavía no hay datos o estás prácticamente parado.
     @Published var ritmoActualSegKm: Int?
@@ -48,7 +56,7 @@ final class Entrenamiento: NSObject, ObservableObject {
     // finalizar se atan al workout, para ver el recorrido en el mapa.
     private let ubicaciones = CLLocationManager()
     private var routeBuilder: HKWorkoutRouteBuilder?
-    private var usaGPS = false
+    private(set) var usaGPS = false
     private var descartarAlTerminar = false
 
     // Muestras (fecha, metros) del último minuto para suavizar el ritmo:
@@ -104,6 +112,17 @@ final class Entrenamiento: NSObject, ObservableObject {
         usaGPS = conGPS
         descartarAlTerminar = false
         resumen = nil
+
+        // El permiso de ubicación es APARTE del de Salud: si está negado
+        // se avisa acá mismo, en vez de correr y descubrir al final que
+        // no hay recorrido. La carrera se registra igual, sin mapa.
+        if conGPS {
+            let estado = ubicaciones.authorizationStatus
+            if estado == .denied || estado == .restricted {
+                usaGPS = false
+                mensajeError = "Ubicación negada: la carrera se guarda SIN recorrido. Activala en el reloj: Ajustes → Privacidad → Localización → Maratonia."
+            }
+        }
         let configuracion = HKWorkoutConfiguration()
         configuracion.activityType = .running
         configuracion.locationType = .outdoor
@@ -122,7 +141,7 @@ final class Entrenamiento: NSObject, ObservableObject {
             nuevaSesion.startActivity(with: inicio)
             nuevoBuilder.beginCollection(withStart: inicio) { _, _ in }
 
-            if conGPS {
+            if usaGPS {
                 routeBuilder = HKWorkoutRouteBuilder(healthStore: healthStore, device: nil)
                 // Solo si el modo está declarado: ponerlo sin declararlo
                 // termina la app en el acto.
@@ -132,6 +151,7 @@ final class Entrenamiento: NSObject, ObservableObject {
             frecuenciaCardiaca = 0
             distanciaMetros = 0
             caloriasActivas = 0
+            puntosRuta = 0
             ritmoActualSegKm = nil
             ritmoPromedioSegKm = nil
             muestras = []
@@ -188,7 +208,9 @@ final class Entrenamiento: NSObject, ObservableObject {
                 distanciaMetros: distanciaMetros,
                 ritmoPromedioSegKm: ritmoPromedioSegKm,
                 fcPromedio: fcPromedio.map { Int($0) },
-                calorias: caloriasActivas)
+                calorias: caloriasActivas,
+                usoGPS: usaGPS,
+                puntosRuta: puntosRuta)
         }
         sesion?.end()
     }
@@ -276,7 +298,9 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
         builder?.endCollection(withEnd: date) { [weak self] _, _ in
             self?.builder?.finishWorkout { workout, _ in
                 // Atar la ruta GPS al workout guardado, para el mapa.
-                if let workout, let rutas = self?.routeBuilder {
+                // Con 0 puntos no hay nada que atar (y finishRoute daría
+                // error): se salta y el resumen ya avisa "sin recorrido".
+                if let workout, let rutas = self?.routeBuilder, (self?.puntosRuta ?? 0) > 0 {
                     rutas.finishRoute(with: workout, metadata: nil) { _, _ in }
                 }
                 DispatchQueue.main.async {
@@ -317,11 +341,36 @@ extension Entrenamiento: CLLocationManagerDelegate {
         let buenas = locations.filter { $0.horizontalAccuracy > 0 && $0.horizontalAccuracy <= 50 }
         guard !buenas.isEmpty else { return }
         routeBuilder.insertRouteData(buenas) { _, _ in }
+        DispatchQueue.main.async {
+            self.puntosRuta += buenas.count
+        }
+    }
+
+    /// Si el permiso se concede DESPUÉS de arrancar (el cartel apareció
+    /// con la sesión ya en marcha), acá se enciende el GPS que había
+    /// quedado mudo. Antes esto se perdía y la carrera salía sin mapa.
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        guard activo, usaGPS else { return }
+        switch manager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            manager.startUpdatingLocation()
+        case .denied, .restricted:
+            DispatchQueue.main.async {
+                self.mensajeError = "Ubicación negada: esta carrera queda sin recorrido. Activala en Ajustes → Privacidad → Localización → Maratonia."
+            }
+        default:
+            break
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         // Sin GPS momentáneo (túnel, arranque): no es fatal, la ruta sigue
-        // con los puntos que haya.
+        // con los puntos que haya. Pero permiso negado sí se avisa.
+        if let clError = error as? CLError, clError.code == .denied {
+            DispatchQueue.main.async {
+                self.mensajeError = "Ubicación negada: esta carrera queda sin recorrido. Activala en Ajustes → Privacidad → Localización → Maratonia."
+            }
+        }
     }
 }
 
