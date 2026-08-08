@@ -49,6 +49,75 @@ struct AvisoFijoEditor: View {
     }
 }
 
+struct AvisoKmEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @State var aviso: AvisoKm
+    @State private var repite: Bool
+    @State private var cada: Double
+    let alGuardar: (AvisoKm) -> Void
+
+    init(aviso: AvisoKm, alGuardar: @escaping (AvisoKm) -> Void) {
+        _aviso = State(initialValue: aviso)
+        _repite = State(initialValue: aviso.cadaKm != nil)
+        _cada = State(initialValue: aviso.cadaKm ?? 3)
+        self.alGuardar = alGuardar
+    }
+
+    private var esValido: Bool {
+        aviso.kilometro > 0
+            && !aviso.texto.trimmingCharacters(in: .whitespaces).isEmpty
+            && (!repite || cada > 0)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        Text("En el kilómetro")
+                        Spacer()
+                        TextField("5", value: $aviso.kilometro, format: .number)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 80)
+                    }
+                    Toggle("Repetir", isOn: $repite)
+                    if repite {
+                        HStack {
+                            Text("Cada (km)")
+                            Spacer()
+                            TextField("3", value: $cada, format: .number)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 80)
+                        }
+                    }
+                } footer: {
+                    Text("Los avisos por kilómetro usan la distancia del entrenamiento: necesitan «Registrar carrera» activado en el reloj.")
+                }
+                Section("¿Qué tiene que decir?") {
+                    TextField("Mitad de carrera", text: $aviso.texto, axis: .vertical)
+                }
+            }
+            .navigationTitle("Aviso por km")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Guardar") {
+                        aviso.cadaKm = repite ? cada : nil
+                        alGuardar(aviso)
+                        dismiss()
+                    }
+                    .disabled(!esValido)
+                }
+            }
+        }
+    }
+}
+
 struct AvisoRepetidoEditor: View {
     @Environment(\.dismiss) private var dismiss
     @State var aviso: AvisoRepetido

@@ -14,7 +14,13 @@ struct Plan: Codable, Equatable {
     /// con versiones viejas sigan cargando sin problema).
     var tramos: [Tramo]? = nil
 
+    /// Avisos por distancia recorrida (requieren el modo entrenamiento,
+    /// que es el que mide los kilómetros). Opcional por la misma razón.
+    var avisosKm: [AvisoKm]? = nil
+
     var tramosActivos: [Tramo] { tramos ?? [] }
+
+    var avisosKmActivos: [AvisoKm] { avisosKm ?? [] }
 
     static let vacio = Plan(nombre: "Mi plan", pistas: [], avisosFijos: [], avisosRepetidos: [])
 }
@@ -45,6 +51,27 @@ struct Tramo: Codable, Equatable, Identifiable, Hashable {
             return "\(distancia) libre"
         }
     }
+}
+
+/// Un aviso disparado por distancia: suena al llegar a `kilometro`, y si
+/// `cadaKm` tiene valor, vuelve a sonar cada esa cantidad de km.
+struct AvisoKm: Codable, Equatable, Identifiable, Hashable {
+    var id = UUID()
+    var kilometro: Double
+    var cadaKm: Double?
+    var texto: String
+
+    var descripcion: String {
+        if let cada = cadaKm, cada > 0 {
+            return "Cada \(kmTexto(cada)) km, desde el km \(kmTexto(kilometro))"
+        }
+        return "En el km \(kmTexto(kilometro))"
+    }
+}
+
+/// 5.0 -> "5" · 7.5 -> "7,5"
+func kmTexto(_ valor: Double) -> String {
+    valor == valor.rounded() ? "\(Int(valor))" : String(format: "%.1f", valor)
 }
 
 /// 230 -> "3:50"

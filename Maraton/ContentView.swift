@@ -133,7 +133,9 @@ struct PlanTab: View {
     }
 
     private var subtituloAvisos: String {
-        let total = store.plan.avisosFijos.count + store.plan.avisosRepetidos.count
+        let total = store.plan.avisosFijos.count
+            + store.plan.avisosRepetidos.count
+            + store.plan.avisosKmActivos.count
         return total == 0 ? "«Tomá agua», «comé un gel»…" : "\(total) avisos configurados"
     }
 
@@ -209,6 +211,7 @@ struct AvisosScreen: View {
     @ObservedObject var store: PlanStore
     @State private var fijoEnEdicion: AvisoFijo?
     @State private var repetidoEnEdicion: AvisoRepetido?
+    @State private var kmEnEdicion: AvisoKm?
 
     var body: some View {
         List {
@@ -274,8 +277,54 @@ struct AvisosScreen: View {
             } footer: {
                 Text("Cada aviso llega por voz, vibración y notificación. La música se pausa mientras habla y sigue después.")
             }
+
+            Section {
+                ForEach(store.plan.avisosKmActivos) { aviso in
+                    Button {
+                        kmEnEdicion = aviso
+                    } label: {
+                        HStack(spacing: 10) {
+                            IconoAjuste(sistema: "flag.checkered", color: .teal)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(aviso.texto)
+                                    .foregroundStyle(.primary)
+                                Text(aviso.descripcion)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .swipeActions {
+                        Button(role: .destructive) {
+                            store.plan.avisosKm?.removeAll { $0.id == aviso.id }
+                        } label: {
+                            Label("Borrar", systemImage: "trash")
+                        }
+                    }
+                }
+                Button {
+                    kmEnEdicion = AvisoKm(kilometro: 5, cadaKm: nil, texto: "")
+                } label: {
+                    Label("Agregar aviso por km", systemImage: "plus.circle.fill")
+                }
+            } header: {
+                Text("Por kilómetro")
+            } footer: {
+                Text("Suenan según la distancia recorrida — necesitan «Registrar carrera» activado en el reloj.")
+            }
         }
         .navigationTitle("Avisos por voz")
+        .sheet(item: $kmEnEdicion) { aviso in
+            AvisoKmEditor(aviso: aviso) { actualizado in
+                if var avisos = store.plan.avisosKm,
+                   let indice = avisos.firstIndex(where: { $0.id == actualizado.id }) {
+                    avisos[indice] = actualizado
+                    store.plan.avisosKm = avisos
+                } else {
+                    store.plan.avisosKm = (store.plan.avisosKm ?? []) + [actualizado]
+                }
+            }
+        }
         .sheet(item: $fijoEnEdicion) { aviso in
             AvisoFijoEditor(aviso: aviso) { actualizado in
                 if let indice = store.plan.avisosFijos.firstIndex(where: { $0.id == actualizado.id }) {
@@ -407,7 +456,7 @@ struct CronogramaScreen: View {
                 Text("El horizonte es solo para esta vista previa.")
             }
 
-            Section("Todos los avisos, en orden") {
+            Section("Por tiempo, en orden") {
                 let avisos = store.plan.cronograma(duracionMaximaMinutos: horizonteMinutos)
                 if avisos.isEmpty {
                     Text("Sin avisos por ahora. Agregalos en «Avisos por voz».")
@@ -417,6 +466,24 @@ struct CronogramaScreen: View {
                         HStack(spacing: 10) {
                             InsigniaMinuto(minuto: aviso.minuto)
                             Text(aviso.texto)
+                        }
+                    }
+                }
+            }
+
+            if !store.plan.avisosKmActivos.isEmpty {
+                Section("Por kilómetro (con «Registrar carrera»)") {
+                    ForEach(store.plan.avisosKmActivos) { aviso in
+                        HStack(spacing: 10) {
+                            Chip(texto: "km \(kmTexto(aviso.kilometro))")
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(aviso.texto)
+                                if aviso.cadaKm != nil {
+                                    Text(aviso.descripcion)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                         }
                     }
                 }

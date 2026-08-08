@@ -29,6 +29,7 @@ Bluetooth, incluso sin señal.
   filtros anti-molestia (suavizado de ritmo ~45 s, margen, máx. 1 corrección
   por minuto).
 - 📢 **Splits por kilómetro**: "Kilómetro 5: 4:12 el último".
+- 🚩 **Avisos por distancia**: "en el km 5" o "cada 3 km" — además de los por tiempo (usan la distancia del entrenamiento).
 - ❤️ **Zonas de FC** (Z1–Z5) con colores, según tu FC máxima configurable.
 - 🗺️ **Ruta GPS**: el recorrido queda dibujado en el mapa de Fitness.
 - ⏸️ **Pausa total**: congela música, cronómetro, avisos, workout y GPS a la

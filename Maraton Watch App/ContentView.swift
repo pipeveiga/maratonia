@@ -259,6 +259,12 @@ struct ContentView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+
+        if !plan.avisosKmActivos.isEmpty {
+            Text("\(plan.avisosKmActivos.count) avisos por kilómetro")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
     }
 
     /// La música y los avisos arrancan siempre primero: son el corazón de
