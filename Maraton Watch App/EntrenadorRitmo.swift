@@ -41,6 +41,10 @@ final class EntrenadorRitmo: ObservableObject {
     private var ultimoKmAnunciado = 0
     private var tiempoAlUltimoKm: TimeInterval = 0
 
+    // Avisos por distancia: para cada aviso, el próximo km donde suena.
+    private var avisosKm: [AvisoKm] = []
+    private var proximoDisparoKm: [UUID: Double] = [:]
+
     func iniciar(plan: Plan) {
         tramos = plan.tramosActivos
         indice = 0
@@ -52,6 +56,8 @@ final class EntrenadorRitmo: ObservableObject {
         tramosDelPlan = tramos
         indiceActual = 0
         parciales = []
+        avisosKm = plan.avisosKmActivos
+        proximoDisparoKm = Dictionary(uniqueKeysWithValues: avisosKm.map { ($0.id, $0.kilometro) })
     }
 
     func detener() {
@@ -63,6 +69,8 @@ final class EntrenadorRitmo: ObservableObject {
         tramosDelPlan = []
         indiceActual = 0
         parciales = []
+        avisosKm = []
+        proximoDisparoKm = [:]
     }
 
     /// Lo llama Entrenamiento una vez por segundo. tiempoActivo es el del
@@ -71,6 +79,7 @@ final class EntrenadorRitmo: ObservableObject {
         guard Reproductor.compartido.estado == .reproduciendo else { return }
 
         anunciarSplitSiCorresponde(distanciaMetros: distanciaMetros, tiempoActivo: tiempoActivo)
+        dispararAvisosPorKm(kmActual: distanciaMetros / 1000)
 
         guard !tramos.isEmpty, indice < tramos.count else { return }
 
@@ -131,6 +140,21 @@ final class EntrenadorRitmo: ObservableObject {
         parciales.append(ParcialKm(km: km, segundos: Int(parcial)))
         Avisador.compartido.anunciar(
             "Kilómetro \(km): \(ritmoParaHablar(Int(parcial))) el último.")
+    }
+
+    /// Avisos configurados por distancia ("en el km 5", "cada 3 km"):
+    /// cada uno guarda su próximo punto de disparo; los repetidos lo
+    /// corren hacia adelante al sonar, los únicos se apagan.
+    private func dispararAvisosPorKm(kmActual: Double) {
+        for aviso in avisosKm {
+            guard let objetivo = proximoDisparoKm[aviso.id], kmActual >= objetivo else { continue }
+            if let cada = aviso.cadaKm, cada > 0 {
+                proximoDisparoKm[aviso.id] = objetivo + cada
+            } else {
+                proximoDisparoKm[aviso.id] = nil
+            }
+            Avisador.compartido.anunciar(aviso.texto)
+        }
     }
 
     private func anuncio(de tramo: Tramo, numero: Int) -> String {
