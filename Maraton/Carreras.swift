@@ -37,7 +37,13 @@ final class CarrerasStore: ObservableObject {
     private var yaCargo = false
 
     func cargar() {
-        guard !yaCargo else { return }
+        // Después de la primera vez, cada entrada a la pestaña vuelve a
+        // consultar: los workouts del reloj tardan minutos en sincronizar
+        // y con una sola consulta la lista quedaba vieja hasta reabrir.
+        guard !yaCargo else {
+            consultarWorkouts()
+            return
+        }
         yaCargo = true
         guard HKHealthStore.isHealthDataAvailable() else {
             mensaje = "Salud no está disponible en este dispositivo."
@@ -53,7 +59,14 @@ final class CarrerasStore: ObservableObject {
         }
     }
 
-    private func consultarWorkouts() {
+    /// Para el gesto de "tirar hacia abajo" de la lista.
+    func recargar() async {
+        await withCheckedContinuation { continuacion in
+            consultarWorkouts { continuacion.resume() }
+        }
+    }
+
+    private func consultarWorkouts(alTerminar: (() -> Void)? = nil) {
         let predicado = HKQuery.predicateForWorkouts(with: .running)
         let orden = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
         let consulta = HKSampleQuery(
@@ -69,10 +82,11 @@ final class CarrerasStore: ObservableObject {
                 if let error {
                     self.mensaje = "No pude leer Salud: \(error.localizedDescription)"
                 } else if nuestras.isEmpty {
-                    self.mensaje = "Todavía no hay carreras. Corré con «Registrar carrera» activado en el reloj y van a aparecer acá solas."
+                    self.mensaje = "Todavía no hay carreras. Corré con «Registrar carrera» activado en el reloj y van a aparecer acá solas. Ojo: la sincronización desde el reloj puede tardar unos minutos — tirá la lista hacia abajo para actualizar."
                 } else {
                     self.mensaje = nil
                 }
+                alTerminar?()
             }
             nuestras.forEach { self.cargarDetalles(de: $0) }
         }
@@ -179,6 +193,7 @@ struct CarrerasView: View {
         }
         .navigationTitle("Mis carreras")
         .onAppear { store.cargar() }
+        .refreshable { await store.recargar() }
     }
 }
 
