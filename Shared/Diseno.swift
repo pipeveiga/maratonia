@@ -48,3 +48,42 @@ struct IconoAjuste: View {
 func nombreSinExtension(_ nombreArchivo: String) -> String {
     (nombreArchivo as NSString).deletingPathExtension
 }
+
+/// Pastillita de dato ("5,2 km" · "28:30"): para filas de listas.
+struct Chip: View {
+    let texto: String
+
+    var body: some View {
+        Text(texto)
+            .font(.caption.weight(.medium))
+            .monospacedDigit()
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Color.secondary.opacity(0.15), in: Capsule())
+    }
+}
+
+/// Ficha de estadística (título chico de color + valor grande), para
+/// grillas de métricas como el detalle de una carrera.
+struct TarjetaEstadistica: View {
+    let titulo: String
+    let valor: String
+    let icono: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(titulo, systemImage: icono)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(color)
+            Text(valor)
+                .font(.title3.weight(.semibold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: Diseno.radioTarjeta))
+    }
+}

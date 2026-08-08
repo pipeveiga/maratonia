@@ -149,12 +149,31 @@ struct CarrerasView: View {
                 NavigationLink {
                     CarreraDetalleView(store: store, id: carrera.id)
                 } label: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(carrera.fecha.formatted(date: .abbreviated, time: .shortened))
-                        Text("\(String(format: "%.2f km", carrera.distanciaMetros / 1000)) · \(formatearDuracion(carrera.duracion))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(LinearGradient(colors: [.blue, .teal],
+                                                     startPoint: .topLeading,
+                                                     endPoint: .bottomTrailing))
+                            Image(systemName: "figure.run")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(.white)
+                        }
+                        .frame(width: 44, height: 44)
+
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(carrera.fecha.formatted(date: .abbreviated, time: .shortened))
+                                .font(.headline)
+                            HStack(spacing: 6) {
+                                Chip(texto: String(format: "%.2f km", carrera.distanciaMetros / 1000))
+                                Chip(texto: formatearDuracion(carrera.duracion))
+                                if let ritmo = carrera.ritmoPromedioSegKm {
+                                    Chip(texto: "\(formatearRitmo(ritmo)) /km")
+                                }
+                            }
+                        }
                     }
+                    .padding(.vertical, 4)
                 }
             }
         }
@@ -191,19 +210,35 @@ struct CarreraDetalleView: View {
                     }
                 }
 
-                Section("Números") {
-                    fila("Fecha", carrera.fecha.formatted(date: .long, time: .shortened))
-                    fila("Tiempo", formatearDuracion(carrera.duracion))
-                    fila("Distancia", String(format: "%.2f km", carrera.distanciaMetros / 1000))
-                    if let ritmo = carrera.ritmoPromedioSegKm {
-                        fila("Ritmo promedio", "\(formatearRitmo(ritmo)) /km")
+                Section {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())],
+                              spacing: 10) {
+                        TarjetaEstadistica(titulo: "Distancia",
+                                           valor: String(format: "%.2f km", carrera.distanciaMetros / 1000),
+                                           icono: "figure.run", color: .green)
+                        TarjetaEstadistica(titulo: "Tiempo",
+                                           valor: formatearDuracion(carrera.duracion),
+                                           icono: "stopwatch.fill", color: .blue)
+                        if let ritmo = carrera.ritmoPromedioSegKm {
+                            TarjetaEstadistica(titulo: "Ritmo promedio",
+                                               valor: "\(formatearRitmo(ritmo)) /km",
+                                               icono: "speedometer", color: .orange)
+                        }
+                        if let fc = carrera.fcPromedio {
+                            TarjetaEstadistica(titulo: "FC promedio",
+                                               valor: "\(Int(fc)) ppm",
+                                               icono: "heart.fill", color: .red)
+                        }
+                        if let kcal = carrera.calorias {
+                            TarjetaEstadistica(titulo: "Calorías",
+                                               valor: "\(Int(kcal)) kcal",
+                                               icono: "flame.fill", color: .pink)
+                        }
                     }
-                    if let fc = carrera.fcPromedio {
-                        fila("FC promedio", "\(Int(fc)) ppm")
-                    }
-                    if let kcal = carrera.calorias {
-                        fila("Calorías", "\(Int(kcal)) kcal")
-                    }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                    .listRowBackground(Color.clear)
+                } header: {
+                    Text(carrera.fecha.formatted(date: .long, time: .shortened))
                 }
             }
             .navigationTitle("Carrera")
@@ -211,16 +246,6 @@ struct CarreraDetalleView: View {
         } else {
             Text("No encontré esta carrera.")
                 .foregroundStyle(.secondary)
-        }
-    }
-
-    private func fila(_ titulo: String, _ valor: String) -> some View {
-        HStack {
-            Text(titulo)
-            Spacer()
-            Text(valor)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
         }
     }
 }
