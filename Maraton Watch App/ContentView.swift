@@ -630,7 +630,9 @@ struct PantallaReproduccion: View {
 
     private var celdaZona: some View {
         let (nombre, color) = Self.zona(
-            fc: Int(entrenamiento.frecuenciaCardiaca), fcMaxima: fcMaxima)
+            fc: Int(entrenamiento.frecuenciaCardiaca),
+            reposo: entrenamiento.fcReposo ?? 60,
+            fcMaxima: fcMaxima)
         return VStack(spacing: 1) {
             Text(nombre)
                 .font(.system(.title3, design: .rounded).weight(.bold))
@@ -659,9 +661,14 @@ struct PantallaReproduccion: View {
         return .green
     }
 
-    static func zona(fc: Int, fcMaxima: Int) -> (String, Color) {
-        guard fc > 0, fcMaxima > 0 else { return ("––", .gray) }
-        switch Double(fc) / Double(fcMaxima) {
+    /// Zonas por reserva cardíaca (Karvonen): qué % del camino entre tu
+    /// FC en reposo y tu FC máxima estás usando. El % crudo de la máxima
+    /// marcaba Z4 en trotes tranquilos; con la reserva, 150-160 ppm de
+    /// un rodaje caen en Z2-Z3, como corresponde.
+    static func zona(fc: Int, reposo: Int, fcMaxima: Int) -> (String, Color) {
+        guard fc > 0, fcMaxima > reposo else { return ("––", .gray) }
+        let reserva = Double(fc - reposo) / Double(fcMaxima - reposo)
+        switch reserva {
         case ..<0.6: return ("Z1", .blue)
         case ..<0.7: return ("Z2", .green)
         case ..<0.8: return ("Z3", .yellow)
@@ -831,7 +838,7 @@ struct EditorFCMaxima: View {
             }
             .padding(.top, 4)
 
-            Text("Define tus zonas Z1–Z5. Si no la sabés: 220 menos tu edad.")
+            Text("Define tus zonas Z1–Z5 junto con tu FC en reposo de Salud. Si no la sabés: 220 menos tu edad.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

@@ -42,6 +42,11 @@ final class Entrenamiento: NSObject, ObservableObject {
     /// sigue en 0, la pantalla de métricas avisa que no hay señal.
     @Published var puntosRuta = 0
 
+    /// FC en reposo (la calcula el reloj todas las noches y queda en
+    /// Salud). Se usa para las zonas por reserva cardíaca (Karvonen):
+    /// el % crudo de la FC máxima marca zonas de más.
+    @Published var fcReposo: Int?
+
     /// Ritmo actual en seg/km, suavizado sobre los últimos ~45 s.
     /// nil = todavía no hay datos o estás prácticamente parado.
     @Published var ritmoActualSegKm: Int?
@@ -95,6 +100,7 @@ final class Entrenamiento: NSObject, ObservableObject {
             HKQuantityType(.heartRate),
             HKQuantityType(.activeEnergyBurned),
             HKQuantityType(.distanceWalkingRunning),
+            HKQuantityType(.restingHeartRate),
         ]
         healthStore.requestAuthorization(toShare: paraCompartir, read: paraLeer) { [weak self] ok, error in
             DispatchQueue.main.async {
@@ -102,9 +108,26 @@ final class Entrenamiento: NSObject, ObservableObject {
                     self?.mensajeError = "Sin permisos de Salud: \(error?.localizedDescription ?? "los rechazaste")"
                     return
                 }
+                self?.cargarFCReposo()
                 alTerminar()
             }
         }
+    }
+
+    /// Última FC en reposo registrada en Salud, para las zonas.
+    private func cargarFCReposo() {
+        let orden = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        let consulta = HKSampleQuery(
+            sampleType: HKQuantityType(.restingHeartRate), predicate: nil,
+            limit: 1, sortDescriptors: [orden]
+        ) { [weak self] _, muestras, _ in
+            guard let muestra = (muestras as? [HKQuantitySample])?.first else { return }
+            let ppm = HKUnit.count().unitDivided(by: .minute())
+            DispatchQueue.main.async {
+                self?.fcReposo = Int(muestra.quantity.doubleValue(for: ppm))
+            }
+        }
+        healthStore.execute(consulta)
     }
 
     func iniciar(conGPS: Bool) {
