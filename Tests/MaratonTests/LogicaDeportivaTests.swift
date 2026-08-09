@@ -99,6 +99,49 @@ final class FormatosTests: XCTestCase {
     }
 }
 
+final class DrenajeDeAvisosTests: XCTestCase {
+
+    private func aviso(_ minuto: Int, _ texto: String) -> AvisoProgramado {
+        AvisoProgramado(minuto: minuto, texto: texto)
+    }
+
+    // Regresión del bug MAJOR de la revisión adversarial: el colapso
+    // anti-ráfaga descartaba avisos legítimos del mismo minuto.
+    func testTresAvisosDelMismoMinutoSuenanTodos() {
+        let resultado = CarreraCelu.avisosParaAnunciar(
+            vencidos: [aviso(30, "gel"), aviso(30, "agua"), aviso(30, "postura")],
+            minuto: 30)
+        XCTAssertEqual(resultado, ["gel", "agua", "postura"])
+    }
+
+    // Tras 20 min suspendida en background, los vencidos viejos no se
+    // leen en ráfaga: suena solo el más reciente.
+    func testCatchUpColapsaALoMasReciente() {
+        let resultado = CarreraCelu.avisosParaAnunciar(
+            vencidos: [aviso(30, "a"), aviso(35, "b"), aviso(40, "c")],
+            minuto: 55)
+        XCTAssertEqual(resultado, ["c"])
+    }
+
+    func testCatchUpConAvisoFrescoConservaSoloLosFrescos() {
+        let resultado = CarreraCelu.avisosParaAnunciar(
+            vencidos: [aviso(30, "viejo"), aviso(54, "b"), aviso(55, "c")],
+            minuto: 55)
+        XCTAssertEqual(resultado, ["b", "c"])
+    }
+
+    func testAvisoDelMinutoAnteriorCuentaComoFresco() {
+        // Un tick que llega apenas tarde no degrada el aviso a "viejo".
+        XCTAssertEqual(
+            CarreraCelu.avisosParaAnunciar(vencidos: [aviso(29, "x")], minuto: 30),
+            ["x"])
+    }
+
+    func testSinVencidosNoSuenaNada() {
+        XCTAssertTrue(CarreraCelu.avisosParaAnunciar(vencidos: [], minuto: 30).isEmpty)
+    }
+}
+
 final class ImportacionTramosTests: XCTestCase {
 
     func testParsearRitmoValido() throws {

@@ -63,6 +63,19 @@ final class Reproductor: NSObject, ObservableObject {
         ) { [weak self] nota in
             self?.manejarInterrupcion(nota)
         }
+        // Auriculares BT que se caen en plena carrera: el sistema corta
+        // el audio pero el estado quedaba en "reproduciendo" mintiendo.
+        // Pausar TODO coherentemente; el corredor reanuda al reconectar.
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: nil, queue: .main
+        ) { [weak self] nota in
+            guard let self, self.estado == .reproduciendo, !self.modoMusicaExterna,
+                  let crudo = nota.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  AVAudioSession.RouteChangeReason(rawValue: crudo) == .oldDeviceUnavailable
+            else { return }
+            self.pausar()
+        }
     }
 
     private func manejarInterrupcion(_ nota: Notification) {
@@ -75,8 +88,17 @@ final class Reproductor: NSObject, ObservableObject {
         guard opciones.contains(.shouldResume),
               !musicaSilenciada,
               !Avisador.compartido.estaHablando else { return }
-        try? AVAudioSession.sharedInstance().setActive(true)
-        player?.play()
+        // En watchOS una sesión long-form solo se reactiva de forma
+        // ASÍNCRONA: el setActive(true) síncrono fallaba y la música no
+        // volvía tras la llamada.
+        AVAudioSession.sharedInstance().activate(options: []) { [weak self] exito, _ in
+            DispatchQueue.main.async {
+                guard let self, exito, self.estado == .reproduciendo,
+                      !self.musicaSilenciada,
+                      !Avisador.compartido.estaHablando else { return }
+                self.player?.play()
+            }
+        }
     }
 
     // MARK: - Control
@@ -99,6 +121,7 @@ final class Reproductor: NSObject, ObservableObject {
             acumuladoPrevio = 0
             mensajeError = nil
             musicaSilenciada = false
+            preparando = false  // por si quedó de un intento con música propia
             Avisador.compartido.iniciar(plan: plan)
             fechaReanudacion = Date()
             estado = .reproduciendo
@@ -141,6 +164,10 @@ final class Reproductor: NSObject, ObservableObject {
         sesion.activate(options: []) { [weak self] exito, _ in
             DispatchQueue.main.async {
                 guard let self else { return }
+                // El selector de BT puede quedar abierto minutos: si en
+                // el medio el usuario canceló (detener) o arrancó otra
+                // sesión, este completion viejo no debe tocar nada.
+                guard self.preparando else { return }
                 if exito {
                     self.empezarSesion(plan: plan)
                     return
@@ -247,6 +274,7 @@ final class Reproductor: NSObject, ObservableObject {
     func detener() {
         Avisador.compartido.detener()
         alArrancarPendiente = nil
+        preparando = false  // invalida completions de activación en vuelo
         player?.stop()
         player = nil
         timerUI?.invalidate()

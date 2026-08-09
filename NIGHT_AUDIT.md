@@ -1,4 +1,17 @@
-# Auditoría autónoma — 2026-08-09 (builds 30 → 31)
+# Auditoría autónoma — 2026-08-09 (builds 30 → 32, estado: RC1)
+
+> **Resumen ejecutivo (para quien abra esto en seis meses)**
+> Tres pasadas sobre el código completo: auditoría (14 fixes),
+> deep-audit multi-agente (23 fixes) y revisión adversarial del propio
+> trabajo (3 defectos propios corregidos) + consolidación RC (2 efectos
+> de segundo orden). Total: **42 correcciones reales**, 0 features.
+> Los temas: pérdida de datos (iCloud/Salud/plan), estados colgados
+> (audio, workout fantasma, recovery), carreras de callbacks tardíos, y
+> honestidad de la UI ante fallos. Las invariantes que el RC protege y
+> el checklist de validación física están en `CHECKLIST_RC1.md`. La
+> lógica pura tiene tests en `Tests/` (target por crear, 7 pasos en
+> `Tests/README.md`). Nada de esto está probado en hardware todavía:
+> **build 32 = candidato, no estable**.
 
 Sesión de auditoría profunda del repositorio completo: los 19 archivos
 Swift de los tres targets (iOS, watchOS, Shared) y el `project.pbxproj`
@@ -157,6 +170,90 @@ paralelo (6 lentes) con verificación adversarial de cada hallazgo.
     (colección ya cerrada) muestra el error y LIMPIA el estado.
 19. Comentario engañoso de `kmTexto` (decía coma decimal; produce punto).
 
+### Corregido en Pass 2 — tanda de la revisión multi-agente
+
+Los 6 buscadores paralelos entregaron 47 hallazgos crudos; la fase de
+verificación adversarial no pudo correr (límite de sesión), así que
+cada hallazgo aplicado fue confirmado a mano contra el código por el
+agente principal antes de tocar nada. Los aplicados (build 32):
+
+20. **Workout fantasma (P1, reloj)**: si el audio fallaba al arrancar,
+    el entrenamiento arrancaba igual y quedaba grabando sin UI para
+    pararlo. El entrenamiento ahora se engancha a un callback que solo
+    dispara con el audio arrancado de verdad.
+21. **Builder pisado (P1, celu)**: el completion tardío de
+    `finishWorkout` de una carrera anulaba el builder de la siguiente
+    (no se guardaba) y podía atarle la ruta equivocada. Identidad
+    comparada + capturas locales de routeBuilder/puntos.
+22. **Reactivación long-form síncrona (P1, reloj)**: tras una llamada,
+    `setActive(true)` síncrono no es válido para sesiones long-form en
+    watchOS — la música no volvía. Ahora usa `activate(options:)`
+    asíncrona con re-chequeo de vigencia del estado.
+23. **Spotify duckeado para siempre (P1, reloj)**: Terminar durante un
+    aviso en modo música externa dejaba la sesión `.duckOthers` activa.
+    `Avisador.detener()` la suelta él mismo.
+24. **`preparando` clavado (P2, reloj)** si `setCategory` tiraba, y
+    completion de activación zombie (selector BT abierto minutos) que
+    podía resetear una sesión nueva: guard de vigencia + reset en modo
+    externa y en detener().
+25. **`estaHablando` colgado por interrupción (P2, ambos)**: una
+    llamada que PAUSA la frase (ni didFinish ni didCancel) dejaba voz y
+    música muertas el resto de la corrida. Observer de `.began` corta
+    la frase; el didCancel resultante limpia todo. En el celu faltaba
+    además el delegate `didCancel` entero.
+26. **Delegates fuera de main (P2, ambos)**: HealthKit (didChangeTo /
+    didCollectDataOf) y los delegates de audio/voz del celu leían y
+    mutaban estado compartido en colas internas. Todos con hop a main.
+27. **Música encima de la voz (P2, ambos)**: `reanudar()` (y el toggle
+    de música del celu) arrancaban el player con la voz sonando.
+28. **Avisos con el cronómetro congelado (P2, reloj)**: pausar en medio
+    de dos avisos encadenados seguía hablando el resto de la cola; la
+    pausa ahora la vacía. Y el aviso de prueba del lobby se corta al
+    arrancar la sesión (desincronizaba `estaHablando`).
+29. **Respaldo iCloud descartado en silencio (P2)**: el estado de la
+    cuenta se verificaba UNA vez por proceso; si iCloud llegaba tarde,
+    ningún respaldo subía nunca y sin aviso. Se re-verifica en cada
+    intento y el descarte deja mensaje visible.
+30. **"No hay respaldo" falso (P3)**: un respaldo existente pero
+    ilegible se reportaba como inexistente.
+31. **Distancia negada muda (P2, celu)**: se puede permitir
+    "Entrenamientos" y negar "Distancia" — el workout se guardaba con
+    0 km sin aviso. El error de `builder.add` ahora se muestra.
+32. **Eventos de pausa pre-builder (P3, celu)**: pausas hechas antes de
+    responder el diálogo de permisos se perdían (Salud contaba la pausa
+    como tiempo activo). Se acumulan y vuelcan al crear el builder.
+33. **Ráfaga de avisos tras suspensión (P3, celu)**: al volver de un
+    background largo, todos los avisos vencidos sonaban en cadena; con
+    más de dos, ahora suena solo el más reciente.
+34. **Spotify muerto con plan sin pistas (P3, celu)**: la sesión
+    `.playback` exclusiva cortaba la música de otra app aunque no
+    hubiera nada propio que reproducir. Sin pistas, la sesión se activa
+    por frase con ducking y se suelta al terminar.
+35. **Auriculares BT caídos (P3, ambos)**: el reloj pausa todo
+    coherentemente; el celu silencia la música y corta la voz (antes
+    seguía a todo volumen por el parlante en la calle).
+36. **Mis carreras (P3)**: consultas concurrentes coalescadas, fusión
+    que preserva rutas/FC ya cargadas (antes cada refresh reseteaba los
+    detalles y relanzaba todas las queries), y errores del route query
+    ya no dejan el spinner "Cargando recorrido…" eterno.
+37. **Importar MP3 fallido ahora avisa (P3)** (típico: archivo en
+    iCloud Drive sin descargar) y la lectura fallida de plan.json se
+    distingue de "no existe" (preserva evidencia + mensaje).
+
+### Hallazgos evaluados y NO aplicados (con motivo)
+
+- *Race botón Reanudar vs auto-reanudación GPS* (ventana sub-segundo,
+  autocorregible en pantalla): mitigación posible con debounce; costo
+  UX de ignorar taps > beneficio. Documentado.
+- *Debounce de zona por ticks vs timestamps*: los ticks solo corren con
+  la sesión activa, así que descuentan pausas — comportamiento deseado;
+  timestamps contarían el tiempo pausado. Se mantiene por diseño.
+- *Reintentos automáticos de transferencias WCSession*: el reenvío
+  manual ("Enviar al reloj") ya re-encola solo lo faltante; un retry
+  automático sin límites puede comerse la batería. Pendiente diseño.
+- *Persistir flag de respaldo pendiente (debounce de 3 s vs force-quit)*:
+  requiere reconciliación al arranque; anotado como mejora 1.1.
+
 ### Escenarios trazados a mano (sin hallazgos nuevos)
 
 - **Normal** (play → pausa → reanudar → terminar): cascada de pausa
@@ -210,6 +307,93 @@ paralelo (6 lentes) con verificación adversarial de cada hallazgo.
   watchOS pausa solo con longForm; no se agregó auto-play a ciegas
   para no sonar por parlante en la calle), crash recovery físico,
   auto-pausa en semáforo real.
+
+## Adversarial Review — Pass 3
+
+Revisión adversarial del diff completo de la sesión (18 archivos,
+~1.180 líneas) como reviewer externo hostil: ataques de estado, de
+secuencia, de concurrencia, de tiempo y de cálculo contra MI propio
+código. Metodología: cada cambio de la sesión re-derivado desde cero y
+atacado con secuencias de eventos (doble pausa, callbacks tardíos,
+interrupciones encadenadas, kill a mitad de guardado).
+
+### Defectos propios encontrados y corregidos
+
+1. **MAJOR — regresión del colapso de avisos (celu, introducida en
+   Pass 2)**: el "anti-ráfaga tras suspensión" descartaba avisos
+   LEGÍTIMOS cuando el corredor configuró 3+ avisos en el mismo minuto
+   (fijo + repetidos alineados): sonaba solo el último. *Final
+   approach*: se descartan únicamente los vencidos de minutos YA
+   pasados; los del minuto en curso suenan todos. Verificado por
+   simulación con ambos escenarios.
+2. **MINOR — mensaje falso de iCloud (introducido en Pass 2)**:
+   `respaldar` acusaba "no hay sesión de iCloud activa" también durante
+   `.verificando` (arranque en frío + edición rápida). Ahora el estado
+   en verificación se salta en silencio (el próximo cambio reintenta,
+   y `verificar()` ya corre en cada intento).
+3. **NIT — código muerto**: `PlanStore.pistaExiste` sin ningún
+   llamador (previo a la sesión). Eliminado.
+
+### Ataques que NO encontraron defecto (los importantes)
+
+- *Terminar en modo solo-avisos con la voz sonando*: el `didCancel`
+  diferido llega con `modoSoloAvisos` ya reseteado, pero
+  `detenerComponentes` ya soltó la sesión de audio él mismo — sin fuga.
+- *Play nuevo antes del completion de guardado del anterior (celu)*:
+  la comparación de identidad del builder y las capturas locales de
+  ruta/puntos aíslan cada carrera; secuencia trazada dos veces.
+- *`.began` de interrupción con música propia*: el `play()` del
+  didCancel durante la interrupción es no-op del sistema; la vuelta
+  real la hace el `.ended` con `shouldResume`. Benigno.
+- *Doble `.ended` de HKWorkoutSession / cerrarYGuardar re-entrante*:
+  el segundo endCollection erroría y limpia igual — sin doble guardado.
+- *Cascada de auto-pausa vs comandos del Now Playing*: todos los
+  caminos pasan por los guards de estado del Reproductor; no existe
+  secuencia que produzca doble pausa o doble "Seguimos".
+- *Reserva cardíaca negativa (FC < reposo)*: cae en Z1 por diseño del
+  switch; sin NaN ni crash (el assert adversarial que "falló" era una
+  expectativa mía equivocada, no el código).
+- *Tests*: re-leídos contra la implementación — fallarían ante el bug
+  que protegen (límites de zona en 0.6 exacto, orden fijo-primero,
+  comillas curvas) y no están acoplados a detalles internos.
+
+### Riesgos aceptados y documentados (no solucionables acá)
+
+- `consultaEnCurso` de Mis carreras quedaría trabado si HealthKit no
+  llamara nunca el callback (no observado en la práctica; el reinicio
+  de la app lo limpia).
+- `mensajeProblema` de una importación fallida persiste hasta el
+  próximo problema o reinicio (banner informativo, no bloqueante).
+- Todo el trabajo de audio/interrupciones/recovery de esta sesión
+  necesita el Archive + prueba física para considerarse validado.
+
+## Consolidación RC1 — interacciones entre fixes
+
+Revisión de cómo interactúan los fixes de la sesión entre sí (no
+individualmente). Dos efectos de segundo orden encontrados y corregidos:
+
+38. **El guard de identidad silenciaba errores de guardado**: si la
+    corrida siguiente ya había arrancado, el error de `finishWorkout`
+    de la anterior no se reportaba (guard antes del reporte). El error
+    ahora se muestra SIEMPRE; solo el estado queda protegido por el
+    guard. Una corrida perdida no puede ser invisible.
+39. **Contaminación entre corridas (celu)**: `iniciar()` no reseteaba
+    `builder`/`routeBuilder`; con la cadena de guardado anterior
+    colgada, una pausa de la corrida nueva le metía eventos al builder
+    viejo. `iniciar()` ahora los resetea (el completion viejo trabaja
+    sobre sus capturas locales).
+
+Además: la regla de drenaje de avisos se extrajo a función pura
+(`CarreraCelu.avisosParaAnunciar`) con 5 regression tests — protege el
+bug MAJOR de la revisión adversarial.
+
+Interacciones auditadas SIN defecto: recovery × Play nuevo, route
+change × auto-pausa, interrupción × auto-pausa × voz, cascada de pausa
+× Now Playing, `detener` × didCancel diferido en modo solo-avisos,
+`didFailWithError` × música en curso (sigue sola: filosofía
+música-primero). Riesgo residual documentado: auto-pausa disparada
+DURANTE una llamada podría dejar `estaHablando` colgado si el
+sintetizador nunca responde (probabilidad baja; requiere prueba física).
 
 ## Qué revisar manualmente (usuario)
 

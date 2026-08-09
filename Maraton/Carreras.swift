@@ -40,6 +40,7 @@ final class CarrerasStore: ObservableObject {
 
     private let healthStore = HKHealthStore()
     private var yaCargo = false
+    private var consultaEnCurso = false
 
     func cargar() {
         // Después de la primera vez, cada entrada a la pestaña vuelve a
@@ -72,6 +73,13 @@ final class CarrerasStore: ObservableObject {
     }
 
     private func consultarWorkouts(alTerminar: (() -> Void)? = nil) {
+        // Coalescer: onAppear + tirar-para-refrescar podían disparar dos
+        // consultas en vuelo que se pisaban el array entre sí.
+        guard !consultaEnCurso else {
+            alTerminar?()
+            return
+        }
+        consultaEnCurso = true
         let predicado = HKQuery.predicateForWorkouts(with: .running)
         let orden = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
         let consulta = HKSampleQuery(
@@ -83,7 +91,14 @@ final class CarrerasStore: ObservableObject {
                 $0.sourceRevision.source.bundleIdentifier.hasPrefix("com.pipeveiga.maraton")
             }
             DispatchQueue.main.async {
-                self.carreras = nuestras.map { CarreraResumen(workout: $0) }
+                self.consultaEnCurso = false
+                // Fusionar preservando los detalles ya cargados (ruta,
+                // FC): reemplazar todo reseteaba mapas y promedios en
+                // cada refresh y relanzaba todas las queries de detalle.
+                let previos = Dictionary(uniqueKeysWithValues: self.carreras.map { ($0.id, $0) })
+                let nuevos = nuestras.filter { previos[$0.uuid] == nil }
+                self.carreras = nuestras.map { previos[$0.uuid] ?? CarreraResumen(workout: $0) }
+                nuevos.forEach { self.cargarDetalles(de: $0) }
                 if let error {
                     self.mensaje = "No pude leer Salud: \(error.localizedDescription)"
                 } else if nuestras.isEmpty {
@@ -93,7 +108,6 @@ final class CarrerasStore: ObservableObject {
                 }
                 alTerminar?()
             }
-            nuestras.forEach { self.cargarDetalles(de: $0) }
         }
         healthStore.execute(consulta)
     }
@@ -129,7 +143,15 @@ final class CarrerasStore: ObservableObject {
                 return
             }
             var puntos: [CLLocationCoordinate2D] = []
-            let recorrido = HKWorkoutRouteQuery(route: ruta) { _, ubicaciones, terminado, _ in
+            let recorrido = HKWorkoutRouteQuery(route: ruta) { _, ubicaciones, terminado, error in
+                // Error a mitad de la enumeración: "terminado" no llega
+                // nunca y el spinner quedaba girando para siempre.
+                if error != nil {
+                    DispatchQueue.main.async {
+                        self.actualizar(workout: workout) { $0.rutaCargada = true }
+                    }
+                    return
+                }
                 if let ubicaciones {
                     puntos.append(contentsOf: ubicaciones.map(\.coordinate))
                 }

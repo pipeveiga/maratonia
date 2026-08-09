@@ -34,22 +34,26 @@ final class PlanStore: ObservableObject {
     }
 
     init() {
-        if let datos = try? Data(contentsOf: Self.urlPlan) {
-            if let cargado = try? JSONDecoder().decode(Plan.self, from: datos) {
-                plan = cargado
-            } else {
-                // plan.json existe pero no se puede leer: preservarlo con
-                // otro nombre (evidencia recuperable) en vez de dejarlo
-                // para que el próximo guardado lo pise, y avisar. Antes
-                // esto arrancaba con plan vacío en silencio total.
-                plan = .vacio
-                let copia = Self.urlDocumentos.appendingPathComponent("plan-corrupto.json")
-                try? FileManager.default.removeItem(at: copia)
-                try? FileManager.default.moveItem(at: Self.urlPlan, to: copia)
-                mensajeProblema = "No pude leer el plan guardado en este teléfono (quedó una copia como plan-corrupto.json). Podés recuperarlo con «Restaurar plan desde iCloud» en Perfil."
-            }
-        } else {
+        // Distinguir "no existe" (primera apertura) de "existe pero no
+        // se puede leer/decodificar" (I/O o corrupción): el segundo caso
+        // preserva el archivo y avisa — antes se colapsaban y una falla
+        // de lectura arrancaba vacío en silencio.
+        let existia = FileManager.default.fileExists(atPath: Self.urlPlan.path)
+        if let datos = try? Data(contentsOf: Self.urlPlan),
+           let cargado = try? JSONDecoder().decode(Plan.self, from: datos) {
+            plan = cargado
+        } else if !existia {
             plan = .vacio
+        } else {
+            // plan.json existe pero no se puede leer: preservarlo con
+            // otro nombre (evidencia recuperable) en vez de dejarlo
+            // para que el próximo guardado lo pise, y avisar. Antes
+            // esto arrancaba con plan vacío en silencio total.
+            plan = .vacio
+            let copia = Self.urlDocumentos.appendingPathComponent("plan-corrupto.json")
+            try? FileManager.default.removeItem(at: copia)
+            try? FileManager.default.moveItem(at: Self.urlPlan, to: copia)
+            mensajeProblema = "No pude leer el plan guardado en este teléfono (quedó una copia como plan-corrupto.json). Podés recuperarlo con «Restaurar plan desde iCloud» en Perfil."
         }
         try? FileManager.default.createDirectory(
             at: Self.urlCarpetaPistas, withIntermediateDirectories: true)
@@ -75,10 +79,6 @@ final class PlanStore: ObservableObject {
         Self.urlCarpetaPistas.appendingPathComponent(nombre)
     }
 
-    func pistaExiste(_ nombre: String) -> Bool {
-        FileManager.default.fileExists(atPath: urlDePista(nombre).path)
-    }
-
     var duracionTotal: TimeInterval {
         plan.pistas.compactMap { duraciones[$0] }.reduce(0, +)
     }
@@ -87,6 +87,7 @@ final class PlanStore: ObservableObject {
     /// agrega al final de la cola. El URL del picker es temporal y con
     /// permiso restringido: hay que abrirlo con security scope y copiarlo ya.
     func importar(urls: [URL]) {
+        var fallidas: [String] = []
         for url in urls {
             let conAcceso = url.startAccessingSecurityScopedResource()
             defer { if conAcceso { url.stopAccessingSecurityScopedResource() } }
@@ -107,8 +108,14 @@ final class PlanStore: ObservableObject {
                 plan.pistas.append(nombre)
                 duraciones[nombre] = duracion(de: destino)
             } catch {
-                // Si la copia falla, la pista no se agrega; no hay nada que limpiar.
+                // Copia fallida (típico: MP3 en iCloud Drive sin
+                // descargar, o disco lleno): la pista no se agrega, y
+                // ahora SE AVISA — antes desaparecía en silencio.
+                fallidas.append(url.lastPathComponent)
             }
+        }
+        if !fallidas.isEmpty {
+            mensajeProblema = "No pude importar: \(fallidas.joined(separator: ", ")). Si están en iCloud Drive, abrilas primero en la app Archivos para descargarlas."
         }
     }
 

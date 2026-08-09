@@ -51,6 +51,10 @@ final class CuentaStore: ObservableObject {
     /// Respaldo con espera de 3 s: PlanStore lo llama en cada cambio y
     /// así no bombardeamos iCloud mientras el usuario tipea.
     func respaldarConDemora(_ plan: Plan) {
+        // Re-verificar la cuenta en cada intento: antes se chequeaba UNA
+        // vez por vida del proceso, y si iCloud llegó tarde (o volvió),
+        // los respaldos se descartaban en silencio para siempre.
+        verificar()
         trabajoPendiente?.cancel()
         let trabajo = DispatchWorkItem { [weak self] in
             self?.respaldar(plan)
@@ -71,8 +75,20 @@ final class CuentaStore: ObservableObject {
             && plan.avisosKmActivos.isEmpty
         guard !esVacio else { return }
 
-        guard case .conectada = estado,
-              let datos = try? JSONEncoder().encode(plan),
+        switch estado {
+        case .conectada:
+            break
+        case .verificando:
+            // Aún resolviendo la cuenta: no acusar "sin iCloud" en falso.
+            // El próximo cambio del plan reintenta (verificar ya corre
+            // en cada respaldarConDemora).
+            return
+        default:
+            // Que se sepa: antes el respaldo se descartaba mudo.
+            mensaje = "El plan no se está respaldando: no hay sesión de iCloud activa."
+            return
+        }
+        guard let datos = try? JSONEncoder().encode(plan),
               let json = String(data: datos, encoding: .utf8) else { return }
 
         let registro = CKRecord(recordType: "Plan", recordID: Self.idRegistro)
@@ -98,12 +114,18 @@ final class CuentaStore: ObservableObject {
     func restaurar(alTerminar: @escaping (Plan?) -> Void) {
         contenedor.privateCloudDatabase.fetch(withRecordID: Self.idRegistro) { [weak self] registro, error in
             DispatchQueue.main.async {
-                guard let json = registro?["json"] as? String,
-                      let datos = json.data(using: .utf8),
-                      let plan = try? JSONDecoder().decode(Plan.self, from: datos) else {
+                guard let json = registro?["json"] as? String else {
                     self?.mensaje = error != nil
                         ? "Restaurar: \(error!.localizedDescription)"
                         : "No hay ningún plan respaldado todavía."
+                    alTerminar(nil)
+                    return
+                }
+                guard let datos = json.data(using: .utf8),
+                      let plan = try? JSONDecoder().decode(Plan.self, from: datos) else {
+                    // El respaldo EXISTE pero no se entiende: decirlo tal
+                    // cual, no "no hay respaldo" (mentira desesperante).
+                    self?.mensaje = "Hay un respaldo pero no lo puedo leer con esta versión de la app. Actualizá Maratonia e intentá de nuevo."
                     alTerminar(nil)
                     return
                 }

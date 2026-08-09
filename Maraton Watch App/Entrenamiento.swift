@@ -480,7 +480,11 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
                         from fromState: HKWorkoutSessionState,
                         date: Date) {
         guard toState == .ended else { return }
-        cerrarYGuardar(fechaFin: date)
+        // El delegate llega en la cola interna de HealthKit: el estado
+        // compartido (descartarAlTerminar, builders) se lee en main.
+        DispatchQueue.main.async {
+            self.cerrarYGuardar(fechaFin: date)
+        }
     }
 
     /// Cierre real del workout (colección + guardado + ruta + limpieza).
@@ -614,7 +618,10 @@ extension Entrenamiento: CLLocationManagerDelegate {
 extension Entrenamiento: HKLiveWorkoutBuilderDelegate {
     func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder,
                         didCollectDataOf collectedTypes: Set<HKSampleType>) {
-        actualizarEstadisticas(con: collectedTypes)
+        // Cola interna de HealthKit → leer el builder siempre en main.
+        DispatchQueue.main.async {
+            self.actualizarEstadisticas(con: collectedTypes)
+        }
     }
 
     func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {}
