@@ -376,21 +376,50 @@ tienen qué mostrar. Por eso el dominio y el calendario van primero.
    la duplicación restante es deliberada (frameworks distintos:
    HKWorkoutSession vs HKWorkoutBuilder).
 
-## 18. Decisiones que necesita tomar el usuario
+## 18. Decisiones de producto — RESUELTAS (aprobación 2026-08-09)
 
-- **D1 — Completado parcial**: si hacés 6 de 8 km del rodaje, ¿queda
-  cumplido, "parcial" visible, o programado con evidencia vinculada?
-  (Recomendación: v2.0 mantiene la regla actual —todo o sigue
-  pendiente— y agrega "marcar como cumplido a mano".)
-- **D2 — Carrera libre que "cuenta"**: ¿botón "contar esta carrera
-  como el entrenamiento de hoy"? (Recomendación: sí, es la válvula de
-  escape de D1 y cuesta poco.)
-- **D3 — Qué pasa con un día que pasó sin hacerse**: ¿se marca
-  `omitido` solo, o queda pendiente hasta que el usuario decida?
-  (Recomendación: pendiente 7 días, después omitido automático.)
-- **D4 — Metodología de ritmos**: ¿tablas VDOT (Daniels) como base
-  citable, u otra fuente que prefieras? Bloquea Fase G.
-- **D5 — Dónde vive "Reloj"**: ¿sección de PERFIL o de PLAN?
-- **D6 — Persistencia**: recomiendo seguir con JSON en Documents +
-  CloudKit (continuidad total, migración trivial) y NO adoptar
-  SwiftData en v2. Confirmar.
+- **D1 — Parcial es estado real**: estructura completa cumplida →
+  `cumplido`; iniciada sin completar → `parcial` (conserva sesión,
+  vínculo y datos); no iniciada → programado/vencido/omitido. Sin
+  reglas mágicas de porcentaje salvo metodología futura explícita.
+- **D2 — Carrera libre puede contar, NUNCA automáticamente**: al
+  terminar una libre con un programado compatible pendiente se OFRECE
+  vincular la sesión existente (sin duplicar nada en Salud). La
+  arquitectura lo soporta desde Fase A (`AlmacenV2.vincular`); la
+  oferta de UI y la heurística de compatibilidad son fases futuras.
+- **D3 — `overdue` (vencido) existe desde Fase A y es DERIVADO**: se
+  calcula de la fecha, nunca se persiste — cero mutaciones silenciosas
+  por paso del tiempo. Un vencido se puede hacer (→ cumplido/parcial
+  vía vínculo), reprogramar u omitir explícitamente. No hay "7 días →
+  skipped automático".
+- **D4 — VDOT/Daniels como primera metodología**, con arquitectura
+  multi-metodología versionada (`metodologiaID@version`), ritmos
+  simbólicos en las definiciones y baseline siempre en datos crudos
+  (VDOT = derivado recalculable). Implementación recién en Fase G,
+  precedida de investigación de fuentes/licencias/límites. No se
+  copian tablas propietarias.
+- **D5 — Reloj vive en PERFIL** (dispositivos/preferencias/cuenta).
+- **D6 — JSON + CloudKit se mantienen**; no se migra a SwiftData. Una
+  sola cosa cambia por vez: dominio ahora, persistencia jamás en V2.
+- **`rescheduled` NO es estado** (análisis aceptado): reprogramar =
+  mutar `dia` conservando `diaOriginal`; el programado sigue
+  `pendiente`. Preserva la historia sin estados contradictorios.
+- **Refinamiento de §11**: los avisos por KM quedan en
+  `ConfiguracionAudio` (son recordatorios del corredor, valen también
+  en Carrera Libre); los TRAMOS/segmentos son entrenamiento.
+
+## 19. Fase A — IMPLEMENTADA (build 35)
+
+`Shared/DominioV2.swift` (ambos targets): DiaLocal, Definicion/
+Segmento/RitmoObjetivo, EntrenamientoProgramado (estados D1/D3,
+reprogramar, omitir), PlanUsuario/SemanaPlan (snapshot), RegistroSesion
+(id = HKWorkout.uuid, vínculo único por construcción), Configuracion-
+Audio, ReferenciaRendimiento, AlmacenV2 (vincular/registrarSesionLibre,
+`activado`) y MigracionV2. `PlanStore` materializa `dominio-v2.json`
+como ENSAYO regenerable en cada arranque; con `activado == true`
+(cutover de Fase B) se vuelve fuente de verdad intocable. La
+`huellaEntrenamiento` queda como puente de migración del lado del
+reloj y **muere en Fase E** (cuando el watch pase a ProyeccionDia y
+resuelva su huella local contra el programado migrado). Tests:
+`Tests/MaratonTests/DominioV2Tests.swift` (18 casos). Ninguna pantalla
+ni motor consume V2 todavía.
