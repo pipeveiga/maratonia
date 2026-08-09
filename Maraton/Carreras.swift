@@ -457,9 +457,21 @@ struct TarjetaCompartir: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label("Maratonia", systemImage: "figure.run")
-                .font(.headline)
-                .foregroundStyle(.white.opacity(0.9))
+            HStack(spacing: 8) {
+                // El logo real de la app (asset LogoMaratonia, 1024 px:
+                // sobra resolución a 22 pt × escala 3). La esquina
+                // redondeada lo encapsula como sticker sobre cualquier
+                // fondo; la sombra del contenedor ya le da contraste en
+                // la variante transparente.
+                Image("LogoMaratonia")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 22, height: 22)
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+                Text("Maratonia")
+                    .font(.headline)
+                    .foregroundStyle(.white.opacity(0.9))
+            }
             Text(carrera.fecha.formatted(date: .long, time: .omitted))
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.75))
