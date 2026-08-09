@@ -169,6 +169,12 @@ final class CarreraCelu: NSObject, ObservableObject {
         guard estado == .detenida else { return }
         resumen = nil
         mensajeError = nil
+        // Aislar la corrida nueva de la anterior: si la cadena de
+        // guardado anterior quedó colgada, su builder no debe recibir
+        // eventos de ESTA carrera (el completion viejo trabaja sobre su
+        // propia captura local).
+        builder = nil
+        routeBuilder = nil
         self.urlDe = urlDe
         pistas = plan.pistas
         indicePista = 0
@@ -315,16 +321,21 @@ final class CarreraCelu: NSObject, ObservableObject {
         while let primero = avisosPendientes.first, primero.minuto <= minuto {
             vencidos.append(avisosPendientes.removeFirst())
         }
-        // Tras una suspensión larga pueden vencer varios de golpe. Solo
-        // se descartan los VIEJOS (de minutos ya pasados): los del
-        // minuto en curso suenan todos — tres avisos configurados para
-        // el mismo minuto son legítimos, no una ráfaga de catch-up.
+        Self.avisosParaAnunciar(vencidos: vencidos, minuto: minuto)
+            .forEach { anunciar($0) }
+    }
+
+    /// Regla de drenaje, pura y testeable. Tras una suspensión larga
+    /// pueden vencer varios avisos de golpe: se descartan solo los
+    /// VIEJOS (minutos ya pasados) — tres avisos configurados para el
+    /// mismo minuto son legítimos y suenan todos, no son catch-up. Si
+    /// todo era viejo, suena únicamente el más reciente.
+    static func avisosParaAnunciar(vencidos: [AvisoProgramado], minuto: Int) -> [String] {
         let frescos = vencidos.filter { $0.minuto >= minuto - 1 }
         if frescos.isEmpty, let ultimo = vencidos.last {
-            anunciar(ultimo.texto)  // todo era viejo: solo el más reciente
-        } else {
-            frescos.forEach { anunciar($0.texto) }
+            return [ultimo.texto]
         }
+        return frescos.map(\.texto)
     }
 
     private func chequearSplits() {
@@ -567,13 +578,17 @@ final class CarreraCelu: NSObject, ObservableObject {
                         rutas.finishRoute(with: workout, metadata: nil) { _, _ in }
                     }
                     DispatchQueue.main.async {
-                        // Solo limpiar si seguimos en la MISMA carrera:
-                        // este completion puede llegar tarde, con la
-                        // siguiente carrera ya arrancada, y antes le
-                        // pisaba el builder (esa carrera no se guardaba).
-                        guard self?.builder === builder else { return }
+                        // El error se reporta SIEMPRE (aunque ya haya
+                        // otra carrera andando: una corrida perdida no
+                        // puede ser invisible)…
                         if let error = errorFinal ?? errorColeccion {
                             self?.mensajeError = "La carrera NO se pudo guardar en Salud: \(error.localizedDescription)"
+                        }
+                        // …pero el estado solo se toca si seguimos en la
+                        // MISMA carrera: este completion puede llegar
+                        // tarde y antes pisaba el builder de la nueva.
+                        guard self?.builder === builder else { return }
+                        if errorFinal != nil || errorColeccion != nil {
                             self?.resumen?.guardadaEnSalud = false
                         }
                         self?.builder = nil

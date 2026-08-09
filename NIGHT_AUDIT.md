@@ -1,4 +1,17 @@
-# Auditoría autónoma — 2026-08-09 (builds 30 → 31)
+# Auditoría autónoma — 2026-08-09 (builds 30 → 32, estado: RC1)
+
+> **Resumen ejecutivo (para quien abra esto en seis meses)**
+> Tres pasadas sobre el código completo: auditoría (14 fixes),
+> deep-audit multi-agente (23 fixes) y revisión adversarial del propio
+> trabajo (3 defectos propios corregidos) + consolidación RC (2 efectos
+> de segundo orden). Total: **42 correcciones reales**, 0 features.
+> Los temas: pérdida de datos (iCloud/Salud/plan), estados colgados
+> (audio, workout fantasma, recovery), carreras de callbacks tardíos, y
+> honestidad de la UI ante fallos. Las invariantes que el RC protege y
+> el checklist de validación física están en `CHECKLIST_RC1.md`. La
+> lógica pura tiene tests en `Tests/` (target por crear, 7 pasos en
+> `Tests/README.md`). Nada de esto está probado en hardware todavía:
+> **build 32 = candidato, no estable**.
 
 Sesión de auditoría profunda del repositorio completo: los 19 archivos
 Swift de los tres targets (iOS, watchOS, Shared) y el `project.pbxproj`
@@ -353,6 +366,34 @@ interrupciones encadenadas, kill a mitad de guardado).
   próximo problema o reinicio (banner informativo, no bloqueante).
 - Todo el trabajo de audio/interrupciones/recovery de esta sesión
   necesita el Archive + prueba física para considerarse validado.
+
+## Consolidación RC1 — interacciones entre fixes
+
+Revisión de cómo interactúan los fixes de la sesión entre sí (no
+individualmente). Dos efectos de segundo orden encontrados y corregidos:
+
+38. **El guard de identidad silenciaba errores de guardado**: si la
+    corrida siguiente ya había arrancado, el error de `finishWorkout`
+    de la anterior no se reportaba (guard antes del reporte). El error
+    ahora se muestra SIEMPRE; solo el estado queda protegido por el
+    guard. Una corrida perdida no puede ser invisible.
+39. **Contaminación entre corridas (celu)**: `iniciar()` no reseteaba
+    `builder`/`routeBuilder`; con la cadena de guardado anterior
+    colgada, una pausa de la corrida nueva le metía eventos al builder
+    viejo. `iniciar()` ahora los resetea (el completion viejo trabaja
+    sobre sus capturas locales).
+
+Además: la regla de drenaje de avisos se extrajo a función pura
+(`CarreraCelu.avisosParaAnunciar`) con 5 regression tests — protege el
+bug MAJOR de la revisión adversarial.
+
+Interacciones auditadas SIN defecto: recovery × Play nuevo, route
+change × auto-pausa, interrupción × auto-pausa × voz, cascada de pausa
+× Now Playing, `detener` × didCancel diferido en modo solo-avisos,
+`didFailWithError` × música en curso (sigue sola: filosofía
+música-primero). Riesgo residual documentado: auto-pausa disparada
+DURANTE una llamada podría dejar `estaHablando` colgado si el
+sintetizador nunca responde (probabilidad baja; requiere prueba física).
 
 ## Qué revisar manualmente (usuario)
 
