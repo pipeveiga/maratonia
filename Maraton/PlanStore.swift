@@ -16,6 +16,11 @@ final class PlanStore: ObservableObject {
     /// Duración en segundos de cada pista, por nombre de archivo.
     @Published var duraciones: [String: TimeInterval] = [:]
 
+    /// Problemas de persistencia que el usuario TIENE que ver (plan
+    /// ilegible al arrancar, guardado fallando): antes eran try? mudos y
+    /// se podía perder el plan entero sin ningún aviso.
+    @Published var mensajeProblema: String?
+
     private static var urlDocumentos: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
@@ -29,9 +34,20 @@ final class PlanStore: ObservableObject {
     }
 
     init() {
-        if let datos = try? Data(contentsOf: Self.urlPlan),
-           let cargado = try? JSONDecoder().decode(Plan.self, from: datos) {
-            plan = cargado
+        if let datos = try? Data(contentsOf: Self.urlPlan) {
+            if let cargado = try? JSONDecoder().decode(Plan.self, from: datos) {
+                plan = cargado
+            } else {
+                // plan.json existe pero no se puede leer: preservarlo con
+                // otro nombre (evidencia recuperable) en vez de dejarlo
+                // para que el próximo guardado lo pise, y avisar. Antes
+                // esto arrancaba con plan vacío en silencio total.
+                plan = .vacio
+                let copia = Self.urlDocumentos.appendingPathComponent("plan-corrupto.json")
+                try? FileManager.default.removeItem(at: copia)
+                try? FileManager.default.moveItem(at: Self.urlPlan, to: copia)
+                mensajeProblema = "No pude leer el plan guardado en este teléfono (quedó una copia como plan-corrupto.json). Podés recuperarlo con «Restaurar plan desde iCloud» en Perfil."
+            }
         } else {
             plan = .vacio
         }
@@ -41,8 +57,13 @@ final class PlanStore: ObservableObject {
     }
 
     private func guardar() {
-        if let datos = try? JSONEncoder().encode(plan) {
-            try? datos.write(to: Self.urlPlan, options: .atomic)
+        do {
+            let datos = try JSONEncoder().encode(plan)
+            try datos.write(to: Self.urlPlan, options: .atomic)
+        } catch {
+            // Disco lleno o similar: si esto falla mudo, el usuario
+            // edita durante días y lo pierde todo al cerrar la app.
+            mensajeProblema = "No pude guardar el plan en el teléfono: \(error.localizedDescription)"
         }
         // Respaldo en el iCloud del usuario (con demora anti-tipeo).
         CuentaStore.compartida.respaldarConDemora(plan)

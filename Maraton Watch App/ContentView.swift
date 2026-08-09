@@ -662,19 +662,16 @@ struct PantallaReproduccion: View {
         return .green
     }
 
-    /// Zonas por reserva cardíaca (Karvonen): qué % del camino entre tu
-    /// FC en reposo y tu FC máxima estás usando. El % crudo de la máxima
-    /// marcaba Z4 en trotes tranquilos; con la reserva, 150-160 ppm de
-    /// un rodaje caen en Z2-Z3, como corresponde.
+    /// Presentación de la zona (el cálculo vive en zonaCardiaca, en
+    /// Shared/Plan.swift — misma fórmula que el aviso hablado).
     static func zona(fc: Int, reposo: Int, fcMaxima: Int) -> (String, Color) {
-        guard fc > 0, fcMaxima > reposo else { return ("––", .gray) }
-        let reserva = Double(fc - reposo) / Double(fcMaxima - reposo)
-        switch reserva {
-        case ..<0.6: return ("Z1", .blue)
-        case ..<0.7: return ("Z2", .green)
-        case ..<0.8: return ("Z3", .yellow)
-        case ..<0.9: return ("Z4", .orange)
-        default: return ("Z5", .red)
+        switch zonaCardiaca(fc: fc, reposo: reposo, maxima: fcMaxima) {
+        case 1: return ("Z1", .blue)
+        case 2: return ("Z2", .green)
+        case 3: return ("Z3", .yellow)
+        case 4: return ("Z4", .orange)
+        case 5: return ("Z5", .red)
+        default: return ("––", .gray)
         }
     }
 

@@ -207,7 +207,15 @@ final class Entrenamiento: NSObject, ObservableObject {
                     self.caloriasActivas = kcal
                 }
 
-                self.finalizar()
+                // Si el crash pegó justo después de terminar, la sesión
+                // ya está en .ended y el delegate no va a re-dispararse:
+                // cerrar directo. Si no, finalizar() la termina normal.
+                if recuperada.state == .ended {
+                    self.capturarResumen()
+                    self.cerrarYGuardar(fechaFin: Date())
+                } else {
+                    self.finalizar()
+                }
                 self.mensajeError = "La app se cerró en plena carrera: recuperé el entrenamiento y lo guardé en Salud."
             }
         }
@@ -332,21 +340,25 @@ final class Entrenamiento: NSObject, ObservableObject {
         timerMuestras = nil
         ubicaciones.stopUpdatingLocation()
         if activo, !descartarAlTerminar {
-            let ppm = HKUnit.count().unitDivided(by: .minute())
-            let fcPromedio = builder?
-                .statistics(for: HKQuantityType(.heartRate))?
-                .averageQuantity()?
-                .doubleValue(for: ppm)
-            resumen = ResumenCarrera(
-                duracion: builder?.elapsedTime ?? 0,
-                distanciaMetros: distanciaMetros,
-                ritmoPromedioSegKm: ritmoPromedioSegKm,
-                fcPromedio: fcPromedio.map { Int($0) },
-                calorias: caloriasActivas,
-                usoGPS: usaGPS,
-                puntosRuta: puntosRuta)
+            capturarResumen()
         }
         sesion?.end()
+    }
+
+    private func capturarResumen() {
+        let ppm = HKUnit.count().unitDivided(by: .minute())
+        let fcPromedio = builder?
+            .statistics(for: HKQuantityType(.heartRate))?
+            .averageQuantity()?
+            .doubleValue(for: ppm)
+        resumen = ResumenCarrera(
+            duracion: builder?.elapsedTime ?? 0,
+            distanciaMetros: distanciaMetros,
+            ritmoPromedioSegKm: ritmoPromedioSegKm,
+            fcPromedio: fcPromedio.map { Int($0) },
+            calorias: caloriasActivas,
+            usoGPS: usaGPS,
+            puntosRuta: puntosRuta)
     }
 
     /// Cancela la sesión DESCARTANDO todo: el entrenamiento no se guarda
@@ -400,18 +412,11 @@ final class Entrenamiento: NSObject, ObservableObject {
     /// "Zona 4." cuando cambiás de zona y te quedás ahí 20 s, con 45 s
     /// mínimo entre avisos. La primera zona de la sesión no se anuncia.
     private func avisarZonaSiCorresponde() {
-        guard avisarZonas, frecuenciaCardiaca > 0 else { return }
-        let reposo = Double(fcReposo ?? 60)
-        guard Double(fcMaxima) > reposo else { return }
-        let reserva = (frecuenciaCardiaca - reposo) / (Double(fcMaxima) - reposo)
-        let zona: Int
-        switch reserva {
-        case ..<0.6: zona = 1
-        case ..<0.7: zona = 2
-        case ..<0.8: zona = 3
-        case ..<0.9: zona = 4
-        default: zona = 5
-        }
+        guard avisarZonas else { return }
+        let zona = zonaCardiaca(fc: Int(frecuenciaCardiaca),
+                                reposo: fcReposo ?? 60,
+                                maxima: fcMaxima)
+        guard zona > 0 else { return }
         if zona == zonaAnunciada {
             zonaCandidata = 0
             segundosEnZonaCandidata = 0
@@ -469,7 +474,15 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
                         from fromState: HKWorkoutSessionState,
                         date: Date) {
         guard toState == .ended else { return }
+        cerrarYGuardar(fechaFin: date)
+    }
 
+    /// Cierre real del workout (colección + guardado + ruta + limpieza).
+    /// Lo dispara el delegate al pasar a .ended; la recuperación
+    /// post-crash lo llama directo cuando la sesión recuperada YA está
+    /// en .ended (ese delegate no vuelve a dispararse y, sin esto, el
+    /// estado quedaba colgado y bloqueaba todos los Play futuros).
+    private func cerrarYGuardar(fechaFin: Date) {
         if descartarAlTerminar {
             // Cancelación: se tira todo, nada llega a Salud.
             builder?.discardWorkout()
@@ -480,7 +493,7 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
             return
         }
 
-        builder?.endCollection(withEnd: date) { [weak self] _, errorColeccion in
+        builder?.endCollection(withEnd: fechaFin) { [weak self] _, errorColeccion in
             self?.builder?.finishWorkout { workout, errorFinal in
                 // Atar la ruta GPS al workout guardado, para el mapa.
                 // Con 0 puntos no hay nada que atar (y finishRoute daría

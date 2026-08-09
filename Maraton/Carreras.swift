@@ -10,8 +10,12 @@ import UIKit
 // y el recorrido dibujado en un mapa.
 
 struct CarreraResumen: Identifiable {
-    let id = UUID()
     let workout: HKWorkout
+
+    /// ID estable entre recargas: el UUID del workout en Salud. Con un
+    /// UUID nuevo por consulta, refrescar la lista con el detalle
+    /// abierto lo rompía ("No encontré esta carrera").
+    var id: UUID { workout.uuid }
     var fcPromedio: Double?
     var ruta: [CLLocationCoordinate2D] = []
     var rutaCargada = false

@@ -47,6 +47,14 @@ struct PlanTab: View {
     var body: some View {
         NavigationStack {
             List {
+                if let problema = store.mensajeProblema {
+                    Section {
+                        Label(problema, systemImage: "exclamationmark.triangle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
+
                 seccionCabecera
 
                 Section("Armá tu entrenamiento") {

@@ -69,7 +69,7 @@ struct AvisoKm: Codable, Equatable, Identifiable, Hashable {
     }
 }
 
-/// 5.0 -> "5" · 7.5 -> "7,5"
+/// 5.0 -> "5" · 7.5 -> "7.5" (String(format:) usa punto siempre)
 func kmTexto(_ valor: Double) -> String {
     valor == valor.rounded() ? "\(Int(valor))" : String(format: "%.1f", valor)
 }
@@ -77,6 +77,22 @@ func kmTexto(_ valor: Double) -> String {
 /// 230 -> "3:50"
 func formatearRitmo(_ segundosPorKm: Int) -> String {
     "\(segundosPorKm / 60):" + String(format: "%02d", segundosPorKm % 60)
+}
+
+/// Zona cardíaca 1...5 por reserva (Karvonen): dónde está `fc` en el
+/// camino entre la FC de reposo y la máxima. 0 = datos inválidos.
+/// ÚNICA fuente de la fórmula: la usan el aviso hablado y la celda de
+/// métricas del reloj — antes estaba duplicada y podían divergir.
+func zonaCardiaca(fc: Int, reposo: Int, maxima: Int) -> Int {
+    guard fc > 0, maxima > reposo else { return 0 }
+    let reserva = Double(fc - reposo) / Double(maxima - reposo)
+    switch reserva {
+    case ..<0.6: return 1
+    case ..<0.7: return 2
+    case ..<0.8: return 3
+    case ..<0.9: return 4
+    default: return 5
+    }
 }
 
 /// 230 -> "3 50", para que la voz lo lea natural.
