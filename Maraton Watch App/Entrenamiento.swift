@@ -56,9 +56,12 @@ final class Entrenamiento: NSObject, ObservableObject {
     @Published var enPausaAutomatica = false
     private var ubicacionPausa: CLLocation?
 
-    // Aviso hablado al cambiar de zona (sostenida, sin spam).
+    // Aviso hablado al cambiar de zona (sostenida, sin spam). La
+    // candidata evita que un pulso oscilando entre dos zonas sume
+    // segundos "de cambio" repartidos entre zonas distintas.
     private var zonaAnunciada = 0
-    private var segundosEnZonaNueva = 0
+    private var zonaCandidata = 0
+    private var segundosEnZonaCandidata = 0
     private var fechaUltimoAvisoZona: Date?
 
     private var autoPausaActiva: Bool {
@@ -224,7 +227,8 @@ final class Entrenamiento: NSObject, ObservableObject {
             enPausaAutomatica = false
             ubicacionPausa = nil
             zonaAnunciada = 0
-            segundosEnZonaNueva = 0
+            zonaCandidata = 0
+            segundosEnZonaCandidata = 0
             fechaUltimoAvisoZona = nil
 
             timerMuestras?.invalidate()
@@ -321,7 +325,9 @@ final class Entrenamiento: NSObject, ObservableObject {
         muestras.removeAll { ahora.timeIntervalSince($0.fecha) > 60 }
 
         // Auto-pausa: ~10 s casi sin avanzar (menos de 6 m) = parado.
-        if usaGPS, autoPausaActiva, (builder?.elapsedTime ?? 0) > 30,
+        // Exige puntos GPS reales (puntosRuta > 0): sin señal no hay
+        // manera de detectar el arranque y quedaría pausada para siempre.
+        if usaGPS, autoPausaActiva, puntosRuta > 0, (builder?.elapsedTime ?? 0) > 30,
            let vieja = muestras.first(where: { ahora.timeIntervalSince($0.fecha) <= 10 }),
            ahora.timeIntervalSince(vieja.fecha) >= 9,
            distanciaMetros - vieja.metros < 6 {
@@ -367,14 +373,22 @@ final class Entrenamiento: NSObject, ObservableObject {
         default: zona = 5
         }
         if zona == zonaAnunciada {
-            segundosEnZonaNueva = 0
+            zonaCandidata = 0
+            segundosEnZonaCandidata = 0
             return
         }
-        segundosEnZonaNueva += 1
-        guard segundosEnZonaNueva >= 20 else { return }
+        // Los 20 s se cuentan en UNA MISMA zona candidata: si el pulso
+        // oscila entre dos zonas, el contador vuelve a cero.
+        if zona != zonaCandidata {
+            zonaCandidata = zona
+            segundosEnZonaCandidata = 0
+        }
+        segundosEnZonaCandidata += 1
+        guard segundosEnZonaCandidata >= 20 else { return }
         let esLaPrimera = zonaAnunciada == 0
         zonaAnunciada = zona
-        segundosEnZonaNueva = 0
+        zonaCandidata = 0
+        segundosEnZonaCandidata = 0
         guard !esLaPrimera else { return }
         if let ultimo = fechaUltimoAvisoZona, Date().timeIntervalSince(ultimo) < 45 { return }
         fechaUltimoAvisoZona = Date()
@@ -475,10 +489,13 @@ extension Entrenamiento: CLLocationManagerDelegate {
         // En auto-pausa el GPS queda vivo SOLO para esto: si te alejaste
         // más de 15 m del punto donde frenaste, la sesión sigue sola.
         if enPausaAutomatica, pausado {
+            // Precisión hasta 50 m con umbral dinámico: con mala señal
+            // urbana, exigir 20 m de precisión dejaba la pausa clavada.
             guard let ubicacion = locations.last,
-                  ubicacion.horizontalAccuracy > 0, ubicacion.horizontalAccuracy <= 20 else { return }
+                  ubicacion.horizontalAccuracy > 0, ubicacion.horizontalAccuracy <= 50 else { return }
             if let referencia = ubicacionPausa {
-                if ubicacion.distance(from: referencia) > 15 {
+                let umbral = max(15, ubicacion.horizontalAccuracy)
+                if ubicacion.distance(from: referencia) > umbral {
                     autoReanudar()
                 }
             } else {

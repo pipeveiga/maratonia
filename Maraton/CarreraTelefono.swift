@@ -217,7 +217,9 @@ final class CarreraCelu: NSObject, ObservableObject {
         muestras.removeAll { ahora.timeIntervalSince($0.fecha) > 60 }
 
         // Auto-pausa: ~10 s casi sin avanzar (menos de 6 m) = parado.
-        if autoPausaActiva, tiempoTranscurrido > 30,
+        // Exige puntos GPS reales: sin señal (o sin permiso) no hay
+        // manera de detectar el arranque y quedaría pausada para siempre.
+        if autoPausaActiva, puntosRuta > 0, tiempoTranscurrido > 30,
            let vieja = muestras.first(where: { ahora.timeIntervalSince($0.fecha) <= 10 }),
            ahora.timeIntervalSince(vieja.fecha) >= 9,
            distanciaMetros - vieja.metros < 6 {
@@ -528,10 +530,13 @@ extension CarreraCelu: CLLocationManagerDelegate {
         // Auto-pausa: si te alejaste más de 15 m del punto donde
         // frenaste, la carrera sigue sola.
         if estado == .pausada, enPausaAutomatica {
+            // Precisión hasta 50 m con umbral dinámico: con mala señal
+            // urbana, exigir 20 m de precisión dejaba la pausa clavada.
             guard let ubicacion = locations.last,
-                  ubicacion.horizontalAccuracy > 0, ubicacion.horizontalAccuracy <= 20 else { return }
+                  ubicacion.horizontalAccuracy > 0, ubicacion.horizontalAccuracy <= 50 else { return }
             if let referencia = ubicacionPausa {
-                if ubicacion.distance(from: referencia) > 15 {
+                let umbral = max(15, ubicacion.horizontalAccuracy)
+                if ubicacion.distance(from: referencia) > umbral {
                     reanudar()
                     anunciar("Seguimos.")
                 }
