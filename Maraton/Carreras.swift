@@ -348,9 +348,18 @@ struct CarreraDetalleView: View {
             .navigationTitle("Carrera")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ShareLink(item: imagenParaCompartir(carrera),
-                          preview: SharePreview("Mi carrera con Maratonia",
-                                                image: imagenParaCompartir(carrera))) {
+                Menu {
+                    ShareLink(item: imagenParaCompartir(carrera),
+                              preview: SharePreview("Mi carrera con Maratonia",
+                                                    image: imagenParaCompartir(carrera))) {
+                        Label("Postal con fondo", systemImage: "photo")
+                    }
+                    ShareLink(item: urlPNGSinFondo(carrera),
+                              preview: SharePreview("Mi carrera (PNG sin fondo)",
+                                                    image: imagenSinFondo(carrera))) {
+                        Label("PNG sin fondo, para tus fotos", systemImage: "photo.on.rectangle.angled")
+                    }
+                } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
             }
@@ -362,19 +371,89 @@ struct CarreraDetalleView: View {
 
     /// La carrera como imagen linda para mandar al grupo o subir a redes.
     private func imagenParaCompartir(_ carrera: CarreraResumen) -> Image {
-        let render = ImageRenderer(content: TarjetaCompartir(carrera: carrera))
+        let render = ImageRenderer(content: TarjetaCompartir(carrera: carrera, ruta: carrera.ruta))
         render.scale = 3
         if let imagen = render.uiImage {
             return Image(uiImage: imagen)
         }
         return Image(systemName: "figure.run")
     }
+
+    private func imagenSinFondo(_ carrera: CarreraResumen) -> Image {
+        let render = ImageRenderer(content: TarjetaCompartir(
+            carrera: carrera, ruta: carrera.ruta, transparente: true))
+        render.scale = 3
+        render.isOpaque = false
+        if let imagen = render.uiImage {
+            return Image(uiImage: imagen)
+        }
+        return Image(systemName: "figure.run")
+    }
+
+    /// El PNG con transparencia real viaja como ARCHIVO: compartir la
+    /// imagen "suelta" puede aplanarla a JPG y perder el alfa.
+    private func urlPNGSinFondo(_ carrera: CarreraResumen) -> URL {
+        let render = ImageRenderer(content: TarjetaCompartir(
+            carrera: carrera, ruta: carrera.ruta, transparente: true))
+        render.scale = 3
+        render.isOpaque = false
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("maratonia-carrera.png")
+        if let imagen = render.uiImage, let datos = imagen.pngData() {
+            try? datos.write(to: url)
+        }
+        return url
+    }
 }
 
-/// La postal para compartir: degradado de marca, los km protagonistas y
-/// los números de la carrera. Sin mapa a propósito: no regala tu casa.
+/// El recorrido como trazo estilo Strava: solo la línea, sin mapa de
+/// fondo — queda canchero y no regala calles ni direcciones. Normaliza
+/// las coordenadas al rectángulo corrigiendo el aspecto (un grado de
+/// longitud mide cos(latitud) de lo que mide uno de latitud).
+struct TrazadoRuta: Shape {
+    let coordenadas: [CLLocationCoordinate2D]
+
+    func path(in rect: CGRect) -> Path {
+        // Adelgazar: con miles de puntos GPS el trazo no gana nada.
+        let paso = max(1, coordenadas.count / 300)
+        let puntos = stride(from: 0, to: coordenadas.count, by: paso).map { coordenadas[$0] }
+        guard puntos.count > 1 else { return Path() }
+
+        let latitudes = puntos.map(\.latitude)
+        let longitudes = puntos.map(\.longitude)
+        guard let latMin = latitudes.min(), let latMax = latitudes.max(),
+              let lonMin = longitudes.min(), let lonMax = longitudes.max() else { return Path() }
+
+        let escalaLon = cos((latMin + latMax) / 2 * .pi / 180)
+        let ancho = max((lonMax - lonMin) * escalaLon, 1e-6)
+        let alto = max(latMax - latMin, 1e-6)
+        let escala = min(rect.width / ancho, rect.height / alto)
+        let margenX = (rect.width - ancho * escala) / 2 + rect.minX
+        let margenY = (rect.height - alto * escala) / 2 + rect.minY
+
+        func punto(_ c: CLLocationCoordinate2D) -> CGPoint {
+            CGPoint(x: margenX + (c.longitude - lonMin) * escalaLon * escala,
+                    y: margenY + (latMax - c.latitude) * escala)
+        }
+
+        var trazo = Path()
+        trazo.move(to: punto(puntos[0]))
+        for coordenada in puntos.dropFirst() {
+            trazo.addLine(to: punto(coordenada))
+        }
+        return trazo
+    }
+}
+
+/// La postal para compartir: el trazado del recorrido protagonista, los
+/// km grandes y los números. Dos variantes: con degradado de marca, o
+/// transparente (todo blanco con sombra) para pegar sobre fotos.
 struct TarjetaCompartir: View {
     let carrera: CarreraResumen
+    var ruta: [CLLocationCoordinate2D] = []
+    var transparente = false
+
+    private var sombra: Color { transparente ? .black.opacity(0.45) : .clear }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -384,6 +463,16 @@ struct TarjetaCompartir: View {
             Text(carrera.fecha.formatted(date: .long, time: .omitted))
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.75))
+
+            if ruta.count > 1 {
+                TrazadoRuta(coordenadas: ruta)
+                    .stroke(.white, style: StrokeStyle(
+                        lineWidth: 4, lineCap: .round, lineJoin: .round))
+                    .frame(height: 190)
+                    .shadow(color: sombra, radius: 3, y: 1)
+                    .padding(.vertical, 4)
+            }
+
             Text(String(format: "%.2f km", carrera.distanciaMetros / 1000))
                 .font(.system(size: 56, weight: .heavy, design: .rounded))
                 .monospacedDigit()
@@ -398,11 +487,15 @@ struct TarjetaCompartir: View {
                 }
             }
         }
+        .shadow(color: sombra, radius: 2, y: 1)
         .padding(28)
         .frame(width: 380, alignment: .leading)
-        .background(
-            LinearGradient(colors: [Color(red: 0.15, green: 0.51, blue: 0.93), .teal],
-                           startPoint: .topLeading, endPoint: .bottomTrailing))
+        .background {
+            if !transparente {
+                LinearGradient(colors: [Color(red: 0.15, green: 0.51, blue: 0.93), .teal],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 24))
     }
 
