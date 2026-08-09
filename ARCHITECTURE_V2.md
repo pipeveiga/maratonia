@@ -430,6 +430,29 @@ compilar/archivar el build 36 (Fase B: PlanV2.swift + UI), (b) crear
 el target de tests (Tests/README.md) y correr DominioV2Tests. Fase B
 se declara estable cuando (a) pase.
 
+## 21. Fase C — IMPLEMENTADA (build 37)
+
+Circuito completo por primera vez: programado → EMPEZAR (Plan o
+Correr) → motor iPhone → HKWorkout guardado → vínculo por
+HKWorkout.uuid + metadata `com.pipeveiga.maraton.programadoID` →
+cumplido/parcial (D1: estructura = todos los tramos ejecutables
+recorridos, misma regla que el reloj) → calendario refrescado al
+instante. El vínculo solo se emite con el workout real en mano: si
+Salud falla, el programado queda pendiente (cumplido fantasma
+imposible por construcción; no hay nada que reintentar porque sin
+HKWorkout no existe sesión). Carrera libre pasa por el mismo
+LanzadorSesion con vínculo nil; la oferta "¿contar esta carrera?"
+(D2) tiene la arquitectura lista (vincular) y la UI/heurística de
+candidato queda para una fase posterior — nunca automática. Design
+System V2 fundacional en `DisenoV2.swift` (tokens DV2 + TarjetaV2 +
+botón primario + métricas + TarjetaEntrenamientoV2), aplicado SOLO a
+lo nuevo. **Destino de PLAN (§12, documentado, no ejecutado)**: la
+pestaña debe terminar priorizando hoy/semana/objetivo/calendario;
+Música/Avisos/Tramos manuales/Cronograma bajan a "configuración del
+entrenamiento" (hoy siguen donde están; la migración visual global
+llega con el contenido definitivo estable). Watch: sin cambios,
+sigue V1 hasta Fase E.
+
 ## 19. Fase A — IMPLEMENTADA (build 35)
 
 `Shared/DominioV2.swift` (ambos targets): DiaLocal, Definicion/
