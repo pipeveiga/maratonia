@@ -26,8 +26,11 @@ struct ContentView: View {
     /// mantiene viva la app en segundo plano.
     @AppStorage("musicaExterna") private var musicaExterna = false
 
+    @ObservedObject private var estadoPlan = EstadoPlanWatch.compartido
+
     @State private var cuentaRegresiva: Int?
     @State private var planPendiente: Plan?
+    @State private var libreEnCuentaRegresiva = false
 
     var body: some View {
         if let numero = cuentaRegresiva {
@@ -137,10 +140,34 @@ struct ContentView: View {
     // como máximo 10 vistas por bloque y de una sola pieza quedaba al
     // borde de ese límite.
 
+    /// La Home SIEMPRE ofrece una acción para salir a correr:
+    /// entrenamiento pendiente → Entrenamiento primero, Carrera libre
+    /// segunda; cumplido o sin tramos → Carrera libre primera (el plan
+    /// y su historial siguen existiendo).
     @ViewBuilder
     private func vistaPlan(_ plan: Plan) -> some View {
+        let estado = estadoDelEntrenamiento(plan: plan,
+                                            huellaCumplida: estadoPlan.huellaCumplida)
         cabecera(plan)
-        botonera(plan)
+        if estado == .pendiente {
+            botonPlay(plan, libre: false, titulo: "Entrenamiento")
+            Button {
+                comenzarCuentaRegresiva(plan, libre: true)
+            } label: {
+                Label("Carrera libre", systemImage: "hare.fill")
+                    .font(.footnote)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+        } else {
+            botonPlay(plan, libre: true, titulo: "Carrera libre")
+            if estado == .cumplido {
+                Label("Entrenamiento cumplido", systemImage: "checkmark.seal.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.green)
+            }
+        }
+        piePlan(plan)
     }
 
     @ViewBuilder
@@ -184,24 +211,33 @@ struct ContentView: View {
         }
     }
 
+    /// Play redondo grande, como la app Entrenamiento de Apple, con la
+    /// etiqueta de qué arranca ("Entrenamiento" o "Carrera libre").
     @ViewBuilder
-    private func botonera(_ plan: Plan) -> some View {
+    private func botonPlay(_ plan: Plan, libre: Bool, titulo: String) -> some View {
         let listas = plan.pistas.count - conectividad.pistasFaltantes.count
-
-        // Play redondo grande, como la app Entrenamiento de Apple.
-        Button {
-            comenzarCuentaRegresiva(plan)
-        } label: {
-            Image(systemName: "play.fill")
-                .font(.system(size: 32, weight: .heavy))
-                .foregroundStyle(.black)
-                .frame(width: 76, height: 76)
-                .background(Circle().fill(Color.green.gradient))
+        VStack(spacing: 4) {
+            Button {
+                comenzarCuentaRegresiva(plan, libre: libre)
+            } label: {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 32, weight: .heavy))
+                    .foregroundStyle(.black)
+                    .frame(width: 76, height: 76)
+                    .background(Circle().fill(Color.green.gradient))
+            }
+            .buttonStyle(.plain)
+            // La carrera libre nunca se bloquea: sin música local
+            // arranca igual, en modo sin música propia.
+            .disabled(!libre && !musicaExterna && listas == 0)
+            Text(titulo)
+                .font(.footnote.weight(.semibold))
         }
-        .buttonStyle(.plain)
-        .disabled(!musicaExterna && listas == 0)
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
+    }
 
+    @ViewBuilder
+    private func piePlan(_ plan: Plan) -> some View {
         Label(resumenDeModo, systemImage: iconoDeModo)
             .font(.footnote)
             .foregroundStyle(.secondary)
@@ -252,8 +288,9 @@ struct ContentView: View {
 
     // MARK: - Cuenta regresiva 3-2-1
 
-    private func comenzarCuentaRegresiva(_ plan: Plan) {
+    private func comenzarCuentaRegresiva(_ plan: Plan, libre: Bool) {
         planPendiente = plan
+        libreEnCuentaRegresiva = libre
         cuentaRegresiva = 3
         WKInterfaceDevice.current().play(.start)
         programarTick()
@@ -270,7 +307,7 @@ struct ContentView: View {
                 cuentaRegresiva = nil
                 WKInterfaceDevice.current().play(.success)
                 if let plan = planPendiente {
-                    arrancar(plan)
+                    arrancar(plan, libre: libreEnCuentaRegresiva)
                 }
                 planPendiente = nil
             }
@@ -282,33 +319,59 @@ struct ContentView: View {
     /// El entrenamiento se engancha al callback de arranque REAL del
     /// audio: si el audio falla, no queda un workout fantasma grabando
     /// con la app de vuelta en el lobby y sin botón para pararlo.
-    private func arrancar(_ plan: Plan) {
+    private func arrancar(_ plan: Plan, libre: Bool) {
+        // Carrera libre = la MISMA infraestructura (música, avisos, GPS,
+        // Salud, auto-pausa, recovery) sin tramos: el entrenador de
+        // ritmo no opina y el entrenamiento planificado NO se consume
+        // (sin tramos no hay huella que marcar).
+        var planSesion = plan
+        if libre { planSesion.tramos = nil }
+
+        let hayMusicaLocal = planSesion.pistas.contains { conectividad.archivosLocales.contains($0) }
+        // Libre sin música en el reloj: arranca igual, sin música propia.
+        let externa = musicaExterna || (libre && !hayMusicaLocal)
+        // "Registrar carrera" se respeta también en libre (convivencia
+        // con Runna); solo se fuerza cuando no hay música propia — sin
+        // audio, el workout es lo único que mantiene viva la app.
+        let entrenar = modoEntrenamiento || (libre && !hayMusicaLocal)
         let conGPS = rutaGPS
-        let entrenar = modoEntrenamiento
-        reproductor.iniciar(plan: plan, urlDe: conectividad.urlDePista,
-                            musicaExterna: musicaExterna) {
+        reproductor.iniciar(plan: planSesion, urlDe: conectividad.urlDePista,
+                            musicaExterna: externa) {
             guard entrenar else { return }
-            EntrenadorRitmo.compartido.iniciar(plan: plan)
+            EntrenadorRitmo.compartido.iniciar(plan: planSesion)
             Entrenamiento.compartido.pedirPermisos(conGPS: conGPS) {
                 Entrenamiento.compartido.iniciar(conGPS: conGPS)
             }
         }
     }
 
+    /// Sin plan NO hay callejón sin salida: Carrera libre directa, con
+    /// GPS, pulso y guardado en Salud.
     private var vistaSinPlan: some View {
         VStack(spacing: 8) {
-            Image(systemName: "iphone")
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-            Text("Todavía no llegó ningún plan")
-                .font(.headline)
-                .multilineTextAlignment(.center)
-            Text("Mandalo desde la app del iPhone con «Enviar al reloj».")
+            botonPlay(.vacio, libre: true, titulo: "Carrera libre")
+            Text("GPS, pulso y guardado en Salud.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
+            Text("Para música, avisos y tramos, mandá un plan desde el iPhone.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            if let error = reproductor.mensajeError {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+            }
+            if let error = entrenamiento.mensajeError {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .multilineTextAlignment(.center)
+            }
         }
-        .padding(.top, 10)
+        .padding(.top, 6)
     }
 }
 
