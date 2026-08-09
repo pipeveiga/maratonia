@@ -17,6 +17,8 @@ struct ContentView: View {
         TabView {
             PlanTab(store: store)
                 .tabItem { Label("Plan", systemImage: "slider.horizontal.3") }
+            CorrerTab(store: store)
+                .tabItem { Label("Correr", systemImage: "figure.run") }
             RelojTab(store: store)
                 .tabItem { Label("Reloj", systemImage: "applewatch") }
             CarrerasTab()
