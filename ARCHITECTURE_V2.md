@@ -408,7 +408,7 @@ tienen qué mostrar. Por eso el dominio y el calendario van primero.
   `ConfiguracionAudio` (son recordatorios del corredor, valen también
   en Carrera Libre); los TRAMOS/segmentos son entrenamiento.
 
-## 20. Fase B — IMPLEMENTADA (build 36) · NO estable hasta validar Xcode
+## 20. Fase B — IMPLEMENTADA (build 36) · pendiente compilar el 36
 
 Catálogo de 2 PlanBase provisionales (JSON embebido + Codable),
 adopción por snapshot con fechas DiaLocal determinísticas, consultas
@@ -421,9 +421,14 @@ hasta Fase E**: exactamente lo mismo que hoy — plan.json legacy
 (tramos+audio) vía WatchConnectivity; el calendario V2 vive solo en el
 iPhone; el cumplimiento del watch sigue por huella V1. Adoptar un plan
 del catálogo NO cambia lo que el reloj recibe (limitación conocida y
-aceptada hasta Fase E). Condición previa vigente: builds 35/36 sin
-compilar en Xcode — Fase B no se declara estable hasta Archive +
-DominioV2Tests en verde.
+aceptada hasta Fase E).
+
+**Validación**: build 35 (Fase A) COMPILADO, archivado, subido a
+TestFlight y en uso en dispositivo — condición previa satisfecha; el
+Codable del dominio V2 quedó probado en binario real. Pendiente: (a)
+compilar/archivar el build 36 (Fase B: PlanV2.swift + UI), (b) crear
+el target de tests (Tests/README.md) y correr DominioV2Tests. Fase B
+se declara estable cuando (a) pase.
 
 ## 19. Fase A — IMPLEMENTADA (build 35)
 
@@ -439,4 +444,5 @@ como ENSAYO regenerable en cada arranque; con `activado == true`
 reloj y **muere en Fase E** (cuando el watch pase a ProyeccionDia y
 resuelva su huella local contra el programado migrado). Tests:
 `Tests/MaratonTests/DominioV2Tests.swift` (18 casos). Ninguna pantalla
-ni motor consume V2 todavía.
+ni motor consume V2 todavía. **VALIDADA: build 35 compilado, archivado,
+en TestFlight y funcionando en dispositivo.**
