@@ -33,6 +33,21 @@ final class Avisador: NSObject, ObservableObject {
         super.init()
         sintetizador.delegate = self
         UNUserNotificationCenter.current().delegate = self
+        // Si una interrupción (llamada) PAUSA la frase en vez de
+        // cancelarla, no llega ni didFinish ni didCancel y estaHablando
+        // quedaba en true para siempre (voz y música muertas). Cortar la
+        // frase ya: el didCancel resultante limpia el estado.
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil, queue: .main
+        ) { [weak self] nota in
+            guard let self,
+                  let crudo = nota.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  AVAudioSession.InterruptionType(rawValue: crudo) == .began,
+                  self.estaHablando else { return }
+            self.colaPorHablar = []
+            self.sintetizador.stopSpeaking(at: .immediate)
+        }
     }
 
     /// Voz en español: es-AR con fallback a es-MX y es-ES.
@@ -49,6 +64,10 @@ final class Avisador: NSObject, ObservableObject {
     // MARK: - Ciclo de la sesión (lo llama el Reproductor)
 
     func iniciar(plan: Plan) {
+        // Si el aviso de prueba del lobby sigue sonando, cortarlo: si no,
+        // el estado se desincroniza y la música puede arrancar encima
+        // del primer aviso real.
+        sintetizador.stopSpeaking(at: .immediate)
         cronograma = plan.cronograma(duracionMaximaMinutos: Self.horizonteMinutos)
         disparados = []
         colaPorHablar = []
@@ -62,6 +81,10 @@ final class Avisador: NSObject, ObservableObject {
     /// desfasadas) y se reprograman al reanudar con los tiempos corridos.
     func pausar() {
         cancelarNotificaciones()
+        // Los avisos del plan que quedaron encolados pierden sentido con
+        // todo congelado: sin esto, el asistente seguía dando avisos con
+        // el cronómetro pausado. (La frase en curso sí se termina.)
+        colaPorHablar = []
     }
 
     func reanudar(transcurrido: TimeInterval) {

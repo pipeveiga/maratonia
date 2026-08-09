@@ -50,6 +50,17 @@ final class CarreraCelu: NSObject, ObservableObject {
     private var indicePista = 0
     private var player: AVAudioPlayer?
 
+    /// Plan sin pistas: no se toma la sesión de audio en forma
+    /// permanente (mataba al Spotify del corredor toda la carrera); la
+    /// voz activa una sesión con ducking por frase y la suelta al final.
+    private var modoSoloAvisos = false
+
+    /// Eventos de pausa/reanudación previos a que exista el builder (el
+    /// permiso de Salud puede responderse minutos tarde): se acumulan y
+    /// se vuelcan al crearlo — antes se perdían y Salud contaba la
+    /// pausa como tiempo activo.
+    private var eventosPendientes: [HKWorkoutEvent] = []
+
     // Voz.
     private let voz = AVSpeechSynthesizer()
 
@@ -101,16 +112,40 @@ final class CarreraCelu: NSObject, ObservableObject {
         ) { [weak self] nota in
             self?.manejarInterrupcion(nota)
         }
+        // Auriculares BT que se caen: sin esto, música y voz seguían a
+        // todo volumen por el parlante del teléfono en plena calle.
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: nil, queue: .main
+        ) { [weak self] nota in
+            guard let self, self.estado == .corriendo,
+                  let crudo = nota.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  AVAudioSession.RouteChangeReason(rawValue: crudo) == .oldDeviceUnavailable
+            else { return }
+            self.voz.stopSpeaking(at: .immediate)
+            if !self.musicaSilenciada {
+                self.alternarSoloMusica()  // el corredor la reactiva cuando quiera
+            }
+        }
     }
 
     private func manejarInterrupcion(_ nota: Notification) {
         guard estado == .corriendo,
               let info = nota.userInfo,
               let tipoCrudo = info[AVAudioSessionInterruptionTypeKey] as? UInt,
-              AVAudioSession.InterruptionType(rawValue: tipoCrudo) == .ended else { return }
+              let tipo = AVAudioSession.InterruptionType(rawValue: tipoCrudo) else { return }
+        if tipo == .began {
+            // Una frase pausada a medias por la interrupción dejaba
+            // isSpeaking en true para siempre (ni didFinish ni didCancel)
+            // y bloqueaba la vuelta de la música: cortarla ya.
+            if voz.isSpeaking { voz.stopSpeaking(at: .immediate) }
+            return
+        }
+        guard tipo == .ended else { return }
         let opciones = AVAudioSession.InterruptionOptions(
             rawValue: info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
-        guard opciones.contains(.shouldResume), !musicaSilenciada, !voz.isSpeaking else { return }
+        guard opciones.contains(.shouldResume), !modoSoloAvisos,
+              !musicaSilenciada, !voz.isSpeaking else { return }
         try? AVAudioSession.sharedInstance().setActive(true)
         player?.play()
     }
@@ -163,15 +198,19 @@ final class CarreraCelu: NSObject, ObservableObject {
         // El estado pasa a "corriendo" ANTES de arrancar la música: la
         // primera pista chequea el estado para decidir si suena.
         estado = .corriendo
+        modoSoloAvisos = plan.pistas.isEmpty
+        eventosPendientes = []
 
-        do {
-            let sesion = AVAudioSession.sharedInstance()
-            try sesion.setCategory(.playback, mode: .default, options: [])
-            try sesion.setActive(true)
-        } catch {
-            mensajeError = "No pude activar el audio: \(error.localizedDescription)"
+        if !modoSoloAvisos {
+            do {
+                let sesion = AVAudioSession.sharedInstance()
+                try sesion.setCategory(.playback, mode: .default, options: [])
+                try sesion.setActive(true)
+            } catch {
+                mensajeError = "No pude activar el audio: \(error.localizedDescription)"
+            }
+            reproducirPistaActual()
         }
-        reproducirPistaActual()
 
         arrancarGPS()
         pedirPermisosSalud()
@@ -224,6 +263,10 @@ final class CarreraCelu: NSObject, ObservableObject {
                                              configuration: configuracion,
                                              device: .local())
                 nuevo.beginCollection(withStart: self.fechaInicio) { _, _ in }
+                if !self.eventosPendientes.isEmpty {
+                    nuevo.addWorkoutEvents(self.eventosPendientes) { _, _ in }
+                    self.eventosPendientes = []
+                }
                 self.builder = nuevo
                 self.routeBuilder = HKWorkoutRouteBuilder(healthStore: self.healthStore, device: nil)
             }
@@ -268,9 +311,17 @@ final class CarreraCelu: NSObject, ObservableObject {
 
     private func chequearAvisosDeTiempo() {
         let minuto = Int(tiempoTranscurrido / 60)
+        var vencidos: [AvisoProgramado] = []
         while let primero = avisosPendientes.first, primero.minuto <= minuto {
-            avisosPendientes.removeFirst()
-            anunciar(primero.texto)
+            vencidos.append(avisosPendientes.removeFirst())
+        }
+        // Tras una suspensión larga en background pueden vencer varios de
+        // golpe: leerlos todos era una ráfaga de voz insufrible. Con más
+        // de dos, suena solo el más reciente.
+        if vencidos.count > 2, let ultimo = vencidos.last {
+            anunciar(ultimo.texto)
+        } else {
+            vencidos.forEach { anunciar($0.texto) }
         }
     }
 
@@ -359,7 +410,13 @@ final class CarreraCelu: NSObject, ObservableObject {
     // MARK: - Voz (pausa la música, habla, y la música sigue)
 
     private func anunciar(_ texto: String) {
-        if player?.isPlaying == true {
+        if modoSoloAvisos {
+            // Sesión por frase con ducking: baja el volumen de la app de
+            // música del corredor solo mientras habla.
+            let sesion = AVAudioSession.sharedInstance()
+            try? sesion.setCategory(.playback, options: [.duckOthers])
+            try? sesion.setActive(true)
+        } else if player?.isPlaying == true {
             player?.pause()
         }
         let frase = AVSpeechUtterance(string: texto)
@@ -455,10 +512,13 @@ final class CarreraCelu: NSObject, ObservableObject {
     /// Pausas y reanudaciones quedan registradas en el workout para que
     /// Salud descuente el tiempo parado.
     private func agregarEvento(_ tipo: HKWorkoutEventType) {
-        guard let builder else { return }
         let evento = HKWorkoutEvent(type: tipo,
                                     dateInterval: DateInterval(start: Date(), duration: 0),
                                     metadata: nil)
+        guard let builder else {
+            eventosPendientes.append(evento)
+            return
+        }
         builder.addWorkoutEvents([evento]) { _, _ in }
     }
 
@@ -492,11 +552,16 @@ final class CarreraCelu: NSObject, ObservableObject {
 
     private func guardarEnSalud() {
         guard let builder else { return }
+        // Capturas locales: el completion puede llegar con la carrera
+        // SIGUIENTE ya andando — no debe atarle la ruta equivocada al
+        // workout viejo ni tocarle sus builders.
+        let rutas = routeBuilder
+        let puntos = puntosRuta
         let fin = Date()
         let cerrar: () -> Void = { [weak self] in
             builder.endCollection(withEnd: fin) { _, errorColeccion in
                 builder.finishWorkout { workout, errorFinal in
-                    if let workout, let rutas = self?.routeBuilder, (self?.puntosRuta ?? 0) > 0 {
+                    if let workout, let rutas, puntos > 0 {
                         rutas.finishRoute(with: workout, metadata: nil) { _, _ in }
                     }
                     DispatchQueue.main.async {
@@ -520,7 +585,16 @@ final class CarreraCelu: NSObject, ObservableObject {
                 type: HKQuantityType(.distanceWalkingRunning),
                 quantity: HKQuantity(unit: .meter(), doubleValue: distanciaMetros),
                 start: fechaInicio, end: fin)
-            builder.add([muestra]) { _, _ in cerrar() }
+            builder.add([muestra]) { [weak self] _, errorMuestra in
+                if let errorMuestra {
+                    // Se puede permitir "Entrenamientos" y negar
+                    // "Distancia": el workout se guardaba con 0 km mudo.
+                    DispatchQueue.main.async {
+                        self?.mensajeError = "Salud rechazó la distancia (revisá el permiso «Distancia» en Salud → Apps → Maratonia): \(errorMuestra.localizedDescription)"
+                    }
+                }
+                cerrar()
+            }
         } else {
             cerrar()
         }
@@ -542,29 +616,49 @@ final class CarreraCelu: NSObject, ObservableObject {
         fechaReanudacion = nil
         enPausaAutomatica = false
         ubicacionPausa = nil
+        modoSoloAvisos = false
+        eventosPendientes = []
     }
 }
 
 extension CarreraCelu: AVAudioPlayerDelegate {
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        guard estado != .detenida else { return }
-        siguiente()
+        // El delegate puede llegar fuera de main; el estado vive en main.
+        DispatchQueue.main.async {
+            guard self.estado != .detenida else { return }
+            self.siguiente()
+        }
     }
 }
 
 extension CarreraCelu: AVSpeechSynthesizerDelegate {
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
                            didFinish utterance: AVSpeechUtterance) {
-        // Reanudar la música solo cuando no quedan frases en cola.
-        guard !synthesizer.isSpeaking, estado == .corriendo, !musicaSilenciada else { return }
-        player?.play()
+        DispatchQueue.main.async {
+            self.terminoLaVoz(synthesizer)
+        }
     }
 
     /// Voz cancelada (interrupción, terminar): sin esto la música
     /// quedaba muerta hasta el próximo aviso.
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
                            didCancel utterance: AVSpeechUtterance) {
-        guard !synthesizer.isSpeaking, estado == .corriendo, !musicaSilenciada else { return }
+        DispatchQueue.main.async {
+            self.terminoLaVoz(synthesizer)
+        }
+    }
+
+    /// Al terminar la última frase: en modo solo-avisos suelta la sesión
+    /// de ducking (la app de música ajena recupera su volumen); con
+    /// música propia, la reanuda.
+    private func terminoLaVoz(_ synthesizer: AVSpeechSynthesizer) {
+        guard !synthesizer.isSpeaking else { return }
+        if modoSoloAvisos {
+            try? AVAudioSession.sharedInstance().setActive(
+                false, options: [.notifyOthersOnDeactivation])
+            return
+        }
+        guard estado == .corriendo, !musicaSilenciada else { return }
         player?.play()
     }
 }
