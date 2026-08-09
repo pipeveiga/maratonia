@@ -236,9 +236,11 @@ struct ContentView: View {
     }
 
     /// "12 avisos · 3 tramos": qué trae el plan, en una sola línea.
+    /// El horizonte (12 h) es el mismo que usa el Avisador, para que el
+    /// número mostrado coincida con lo que de verdad va a sonar.
     private func datosDelPlan(_ plan: Plan) -> String? {
         var partes: [String] = []
-        let avisos = plan.cronograma(duracionMaximaMinutos: 360).count
+        let avisos = plan.cronograma(duracionMaximaMinutos: 12 * 60).count
             + plan.avisosKmActivos.count
         if avisos > 0 { partes.append(avisos == 1 ? "1 aviso" : "\(avisos) avisos") }
         if !plan.tramosActivos.isEmpty {

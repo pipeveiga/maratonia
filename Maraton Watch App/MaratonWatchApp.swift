@@ -10,6 +10,9 @@ struct MaratonWatchApp: App {
         // Primera apertura: pedir permiso para las notificaciones locales
         // de los avisos (el canal visible encima de Runna).
         Avisador.pedirPermisoNotificaciones()
+        // Si una corrida anterior terminó con la app muerta (crash,
+        // batería), recuperar la sesión de workout y guardarla en Salud.
+        Entrenamiento.compartido.recuperarSesionInterrumpida()
     }
 
     var body: some Scene {

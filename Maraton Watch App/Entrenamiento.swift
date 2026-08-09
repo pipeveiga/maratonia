@@ -173,6 +173,46 @@ final class Entrenamiento: NSObject, ObservableObject {
         healthStore.execute(consulta)
     }
 
+    /// Al abrir la app: si quedó una sesión viva de una corrida en la
+    /// que la app murió (crash, batería, cierre forzado), watchOS la
+    /// devuelve acá. La cerramos y guardamos lo registrado en Salud —
+    /// antes esa carrera se perdía entera.
+    func recuperarSesionInterrumpida() {
+        guard HKHealthStore.isHealthDataAvailable() else { return }
+        healthStore.recoverActiveWorkoutSession { [weak self] recuperada, _ in
+            DispatchQueue.main.async {
+                guard let self, let recuperada, self.sesion == nil else { return }
+                let builderRecuperado = recuperada.associatedWorkoutBuilder()
+                recuperada.delegate = self
+                builderRecuperado.delegate = self
+                self.sesion = recuperada
+                self.builder = builderRecuperado
+                self.usaGPS = false
+                self.descartarAlTerminar = false
+                self.activo = true
+
+                // Reponer los números desde el builder para que el
+                // resumen no muestre ceros.
+                if let metros = builderRecuperado
+                    .statistics(for: HKQuantityType(.distanceWalkingRunning))?
+                    .sumQuantity()?.doubleValue(for: .meter()) {
+                    self.distanciaMetros = metros
+                    if metros > 100 {
+                        self.ritmoPromedioSegKm = Int(builderRecuperado.elapsedTime / metros * 1000)
+                    }
+                }
+                if let kcal = builderRecuperado
+                    .statistics(for: HKQuantityType(.activeEnergyBurned))?
+                    .sumQuantity()?.doubleValue(for: .kilocalorie()) {
+                    self.caloriasActivas = kcal
+                }
+
+                self.finalizar()
+                self.mensajeError = "La app se cerró en plena carrera: recuperé el entrenamiento y lo guardé en Salud."
+            }
+        }
+    }
+
     func iniciar(conGPS: Bool) {
         guard sesion == nil else { return }
         usaGPS = conGPS

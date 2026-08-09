@@ -79,6 +79,20 @@ se leyeron entero antes de tocar nada.
     mensaje prometía que las carreras iban a aparecer. Ahora sugiere
     revisar los permisos.
 
+### E — Recuperación tras crash (P2, era "pendiente")
+12. **Carrera perdida si la app del reloj moría en plena corrida**
+    (crash, batería, cierre forzado). Al relanzar, ahora se llama
+    `recoverActiveWorkoutSession`: la sesión huérfana se cierra y lo
+    registrado se guarda en Salud, con los números repuestos desde el
+    builder para que el resumen no muestre ceros, y un aviso en el
+    lobby. (`Entrenamiento.swift`, `MaratonWatchApp.swift`)
+13. **Conteo de avisos del lobby del reloj** usaba horizonte 6 h cuando
+    el Avisador programa 12 h: el número mostrado podía no coincidir
+    con lo que iba a sonar. Unificado a 12 h.
+14. **Falso positivo del validador sintáctico** (comilla impar en un
+    comentario se comía llaves del conteo): reemplazado por un
+    tokenizador real, ahora versionado en `scripts/chequear_swift.py`.
+
 ## Verificaciones ejecutadas
 
 - Simulación Python de: zonas Karvonen (incluye el caso real 150–160
@@ -99,7 +113,7 @@ se leyeron entero antes de tocar nada.
 |---|---|---|
 | Sin target de tests (XCTest) | P2 | Crear un target requiere editar el pbxproj a mano con riesgo alto y no se puede ejecutar en este entorno. Recomendado: crearlo desde Xcode en la Mac (File → New → Target → Unit Testing Bundle) y portar los casos de la simulación Python de este documento. |
 | Celu sin música y sin permiso de GPS: en segundo plano los avisos por tiempo pueden no sonar (no hay audio ni location manteniendo viva la app) | P2 | Limitación de iOS. Mitigación futura: notificaciones locales como en el reloj. |
-| Recuperación de workout tras crash (`recoverActiveWorkoutSession`) | P2 | Si la app del reloj muere en plena carrera, la sesión se pierde. API disponible; implementarla con calma y probarla en dispositivo real. |
+| Recuperación tras crash en el CELU (el reloj ya la tiene) | P3 | iOS no tiene `recoverActiveWorkoutSession`; con la app muerta, el HKWorkoutBuilder del teléfono se pierde. Mitigable persistiendo estado propio; beneficio menor (el modo principal es el reloj). |
 | Ventanas de gracia de tramos (45 s) corren en reloj de pared durante pausas | P3 | Tras una pausa larga puede corregir apenas reanudás (mitigado: el ritmo tarda ~20 s en volver a existir). Cambiarlo a tiempo activo requiere plumbing; beneficio menor. |
 | `ShareLink` renderiza la imagen dos veces por evaluación | P3 | Costo bajo (tarjeta chica). Cachear con @State si alguna vez molesta. |
 | CloudKit `savePolicy .allKeys` pisa sin comparar | P3 | Un solo usuario + debounce 3 s lo hace aceptable. Si algún día hay multi-dispositivo simultáneo, pasar a changedTag. |
