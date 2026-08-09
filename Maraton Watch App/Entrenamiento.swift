@@ -463,6 +463,8 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
     private func limpiarTrasFinal() {
         activo = false
         pausado = false
+        enPausaAutomatica = false
+        ubicacionPausa = nil
         sesion = nil
         builder = nil
         routeBuilder = nil

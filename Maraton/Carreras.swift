@@ -83,7 +83,7 @@ final class CarrerasStore: ObservableObject {
                 if let error {
                     self.mensaje = "No pude leer Salud: \(error.localizedDescription)"
                 } else if nuestras.isEmpty {
-                    self.mensaje = "Todavía no hay carreras. Corré con «Registrar carrera» activado en el reloj y van a aparecer acá solas. Ojo: la sincronización desde el reloj puede tardar unos minutos — tirá la lista hacia abajo para actualizar."
+                    self.mensaje = "Todavía no hay carreras. Corré con «Registrar carrera» activado y van a aparecer acá solas (la sincronización desde el reloj tarda unos minutos — tirá hacia abajo para actualizar). Si corriste y no aparecen, revisá los permisos en Salud → Compartir → Apps → Maratonia."
                 } else {
                     self.mensaje = nil
                 }

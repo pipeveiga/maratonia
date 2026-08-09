@@ -157,6 +157,12 @@ final class CarreraCelu: NSObject, ObservableObject {
         fechaReanudacion = Date()
         tiempoTranscurrido = 0
         fechaInicio = Date()
+        enPausaAutomatica = false
+        ubicacionPausa = nil
+
+        // El estado pasa a "corriendo" ANTES de arrancar la música: la
+        // primera pista chequea el estado para decidir si suena.
+        estado = .corriendo
 
         do {
             let sesion = AVAudioSession.sharedInstance()
@@ -170,7 +176,6 @@ final class CarreraCelu: NSObject, ObservableObject {
         arrancarGPS()
         pedirPermisosSalud()
 
-        estado = .corriendo
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             self?.tick()
@@ -386,7 +391,9 @@ final class CarreraCelu: NSObject, ObservableObject {
             nuevo.delegate = self
             player = nuevo
             nombrePistaActual = nombre
-            if estado != .pausada && !musicaSilenciada {
+            // No arrancar encima de la voz: si el asistente está hablando,
+            // la pista queda lista y el didFinish de la voz la suelta.
+            if estado == .corriendo && !musicaSilenciada && !voz.isSpeaking {
                 nuevo.play()
             }
         } catch {
@@ -526,6 +533,8 @@ final class CarreraCelu: NSObject, ObservableObject {
         musicaSilenciada = false
         tramoActual = nil
         fechaReanudacion = nil
+        enPausaAutomatica = false
+        ubicacionPausa = nil
     }
 }
 
