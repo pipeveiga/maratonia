@@ -69,6 +69,7 @@ struct TramoEditor: View {
                 }
             }
             .navigationTitle("Tramo")
+            .scrollDismissesKeyboard(.immediately)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

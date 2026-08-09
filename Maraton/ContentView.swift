@@ -63,6 +63,12 @@ struct PlanTab: View {
     @Binding var pestana: Pestana
     @AppStorage("horizonteCronograma") private var horizonteMinutos = 120
 
+    // Edición EXPLÍCITA del nombre (lápiz → editar → Guardar/Cancelar):
+    // el título tocable que abría el teclado de sorpresa era mala UX.
+    @State private var editandoNombre = false
+    @State private var nombreBorrador = ""
+    @FocusState private var nombreEnfocado: Bool
+
     var body: some View {
         NavigationStack {
             List {
@@ -136,7 +142,17 @@ struct PlanTab: View {
                 }
             }
             .navigationTitle("Maratonia")
+            .scrollDismissesKeyboard(.immediately)
         }
+    }
+
+    private func guardarNombre() {
+        let limpio = nombreBorrador.trimmingCharacters(in: .whitespaces)
+        if !limpio.isEmpty {
+            store.plan.nombre = limpio
+        }
+        editandoNombre = false
+        nombreEnfocado = false
     }
 
     /// Tarjeta hero con degradado de marca: el nombre del plan editable
@@ -144,13 +160,48 @@ struct PlanTab: View {
     private var seccionCabecera: some View {
         Section {
             VStack(alignment: .leading, spacing: 14) {
-                Label("TU ENTRENAMIENTO", systemImage: "figure.run")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.85))
-                TextField("Nombre del plan", text: $store.plan.nombre)
-                    .font(.title2.bold())
+                HStack {
+                    Label("TU ENTRENAMIENTO", systemImage: "figure.run")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.85))
+                    Spacer()
+                    if !editandoNombre {
+                        Button {
+                            nombreBorrador = store.plan.nombre
+                            editandoNombre = true
+                            nombreEnfocado = true
+                        } label: {
+                            Image(systemName: "pencil.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.white.opacity(0.9))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                if editandoNombre {
+                    TextField("Nombre del plan", text: $nombreBorrador)
+                        .font(.title2.bold())
+                        .foregroundStyle(.white)
+                        .tint(.white)
+                        .focused($nombreEnfocado)
+                        .submitLabel(.done)
+                        .onSubmit(guardarNombre)
+                    HStack(spacing: 12) {
+                        Button("Guardar", action: guardarNombre)
+                            .buttonStyle(.borderedProminent)
+                            .tint(.white.opacity(0.3))
+                        Button("Cancelar") {
+                            editandoNombre = false
+                            nombreEnfocado = false
+                        }
+                    }
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
-                    .tint(.white)
+                } else {
+                    Text(store.plan.nombre)
+                        .font(.title2.bold())
+                        .foregroundStyle(.white)
+                }
                 HStack(spacing: 0) {
                     estadistica("music.note", "\(store.plan.pistas.count)", "pistas")
                     estadistica("clock.fill", formatearDuracion(store.duracionTotal), "música")

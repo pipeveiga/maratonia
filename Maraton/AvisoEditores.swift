@@ -32,6 +32,7 @@ struct AvisoFijoEditor: View {
                 }
             }
             .navigationTitle("Aviso fijo")
+            .scrollDismissesKeyboard(.immediately)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -100,6 +101,7 @@ struct AvisoKmEditor: View {
                 }
             }
             .navigationTitle("Aviso por km")
+            .scrollDismissesKeyboard(.immediately)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -182,6 +184,7 @@ struct AvisoRepetidoEditor: View {
                 }
             }
             .navigationTitle("Aviso repetido")
+            .scrollDismissesKeyboard(.immediately)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
