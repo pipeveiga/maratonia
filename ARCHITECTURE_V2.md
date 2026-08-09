@@ -408,6 +408,23 @@ tienen qué mostrar. Por eso el dominio y el calendario van primero.
   `ConfiguracionAudio` (son recordatorios del corredor, valen también
   en Carrera Libre); los TRAMOS/segmentos son entrenamiento.
 
+## 20. Fase B — IMPLEMENTADA (build 36) · NO estable hasta validar Xcode
+
+Catálogo de 2 PlanBase provisionales (JSON embebido + Codable),
+adopción por snapshot con fechas DiaLocal determinísticas, consultas
+de dominio (entrenamientoDeHoy/próximos/vencidos), historial de planes
+archivados, CUTOVER orden-independiente e idempotente (AlmacenStore:
+`activado = true` en el primer arranque; la migración de ensayo ya no
+toca el archivo), y UI mínima en PLAN (Calendario con 5 estados +
+Explorar planes con confirmación de reemplazo). **Qué ve el watch
+hasta Fase E**: exactamente lo mismo que hoy — plan.json legacy
+(tramos+audio) vía WatchConnectivity; el calendario V2 vive solo en el
+iPhone; el cumplimiento del watch sigue por huella V1. Adoptar un plan
+del catálogo NO cambia lo que el reloj recibe (limitación conocida y
+aceptada hasta Fase E). Condición previa vigente: builds 35/36 sin
+compilar en Xcode — Fase B no se declara estable hasta Archive +
+DominioV2Tests en verde.
+
 ## 19. Fase A — IMPLEMENTADA (build 35)
 
 `Shared/DominioV2.swift` (ambos targets): DiaLocal, Definicion/
