@@ -8,6 +8,10 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var store = PlanStore()
+    // Se declara DESPUÉS de PlanStore a propósito: PlanStore corre la
+    // migración de ensayo primero y AlmacenStore hace el cutover sobre
+    // el ensayo fresco (aunque ambos órdenes son seguros).
+    @StateObject private var almacen = AlmacenStore()
     @State private var mostrandoTutorial = false
 
     /// El tutorial se abre solo la primera vez que se abre la app.
@@ -15,7 +19,7 @@ struct ContentView: View {
 
     var body: some View {
         TabView {
-            PlanTab(store: store)
+            PlanTab(store: store, almacen: almacen)
                 .tabItem { Label("Plan", systemImage: "slider.horizontal.3") }
             CorrerTab(store: store)
                 .tabItem { Label("Correr", systemImage: "figure.run") }
@@ -42,6 +46,7 @@ struct ContentView: View {
 
 struct PlanTab: View {
     @ObservedObject var store: PlanStore
+    @ObservedObject var almacen: AlmacenStore
     @AppStorage("horizonteCronograma") private var horizonteMinutos = 120
 
     var body: some View {
@@ -56,6 +61,23 @@ struct PlanTab: View {
                 }
 
                 seccionCabecera
+
+                Section("Plan de entrenamiento") {
+                    if almacen.almacen.planActivo != nil {
+                        NavigationLink {
+                            CalendarioView(almacen: almacen)
+                        } label: {
+                            filaNavegacion(icono: "calendar", color: .green,
+                                           titulo: "Calendario", subtitulo: subtituloCalendario)
+                        }
+                    }
+                    NavigationLink {
+                        CatalogoView(almacen: almacen)
+                    } label: {
+                        filaNavegacion(icono: "sparkles", color: .purple,
+                                       titulo: "Explorar planes", subtitulo: subtituloCatalogo)
+                    }
+                }
 
                 Section("Armá tu entrenamiento") {
                     NavigationLink {
@@ -146,6 +168,24 @@ struct PlanTab: View {
             }
         }
         .padding(.vertical, 2)
+    }
+
+    private var subtituloCalendario: String {
+        let hoy = DiaLocal(fecha: Date())
+        if let deHoy = almacen.almacen.entrenamientoDeHoy(hoy) {
+            return "Hoy: \(deHoy.definicion.nombre)"
+        }
+        let vencidos = almacen.almacen.vencidos(hoy).count
+        if vencidos > 0 {
+            return vencidos == 1 ? "1 entrenamiento vencido" : "\(vencidos) entrenamientos vencidos"
+        }
+        return "Hoy no hay entrenamiento programado"
+    }
+
+    private var subtituloCatalogo: String {
+        almacen.almacen.planActivo == nil
+            ? "Elegí un plan de 5K o 10K"
+            : "Cambiar de plan (el actual se archiva)"
     }
 
     private var subtituloMusica: String {

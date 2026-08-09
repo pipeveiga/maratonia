@@ -215,6 +215,229 @@ final class SerializacionV2Tests: XCTestCase {
     }
 }
 
+final class CatalogoTests: XCTestCase {
+
+    // El JSON embebido decodifica: si un template está roto, esto
+    // falla acá y no en la cara del usuario.
+    func testCargaDePlanesBase() {
+        let planes = Catalogo.planesDisponibles()
+        XCTAssertEqual(planes.count, 2)
+        XCTAssertEqual(planes[0].id, "primeros-5k")
+        XCTAssertEqual(planes[0].planBaseID, "primeros-5k@1")
+        XCTAssertEqual(planes[0].semanas.count, planes[0].semanasTotales)
+        XCTAssertEqual(planes[1].planBaseID, "10k-continuo@1")
+        XCTAssertEqual(planes[1].semanas.count, 8)
+        XCTAssertTrue(planes.allSatisfy(\.provisional))
+        // Cada semana respeta los días declarados y ningún día se sale de 1...7.
+        for plan in planes {
+            for semana in plan.semanas {
+                XCTAssertEqual(semana.entrenamientos.count, plan.diasPorSemana)
+                XCTAssertTrue(semana.entrenamientos.allSatisfy { (1...7).contains($0.diaDeSemana) })
+            }
+        }
+    }
+}
+
+final class AdopcionTests: XCTestCase {
+
+    private var base: PlanBase { Catalogo.planesDisponibles()[0] }
+    private let adopcion = Date(timeIntervalSince1970: 0)
+
+    func testSnapshotConIDsNuevosYProcedencia() {
+        let a = base.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 10), fechaAdopcion: adopcion)
+        let b = base.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 10), fechaAdopcion: adopcion)
+        XCTAssertNotEqual(a.id, b.id)
+        XCTAssertNotEqual(a.semanas[0].programados[0].id, b.semanas[0].programados[0].id)
+        XCTAssertEqual(a.origen, .catalogo(planBaseID: "primeros-5k@1"))
+        XCTAssertEqual(a.semanas.count, base.semanasTotales)
+    }
+
+    // Modificar el template DESPUÉS de adoptar no toca la instancia.
+    func testTemplateNoMutaInstancia() {
+        var template = base
+        let usuario = template.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 10),
+                                       fechaAdopcion: adopcion)
+        template.semanas[0].entrenamientos[0].nombre = "CAMBIADO"
+        template.version = 99
+        XCTAssertEqual(usuario.semanas[0].programados[0].definicion.nombre,
+                       "Caminata y trote 1")
+        XCTAssertEqual(usuario.origen, .catalogo(planBaseID: "primeros-5k@1"))
+    }
+
+    // Fechas determinísticas: inicio lunes 10/8 → días 1/3/5 de la
+    // semana 1 caen 10, 12 y 14; semana 2 arranca el 17.
+    func testFechasDeterministicas() {
+        let plan = base.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 10),
+                                fechaAdopcion: adopcion)
+        let dias1 = plan.semanas[0].programados.map(\.dia)
+        XCTAssertEqual(dias1, [DiaLocal(anio: 2026, mes: 8, dia: 10),
+                               DiaLocal(anio: 2026, mes: 8, dia: 12),
+                               DiaLocal(anio: 2026, mes: 8, dia: 14)])
+        XCTAssertEqual(plan.semanas[1].programados[0].dia, DiaLocal(anio: 2026, mes: 8, dia: 17))
+    }
+
+    // Cruce de mes: inicio 30/8 → el día 3 de la semana 1 es 1/9.
+    func testFechasCruzanMes() {
+        let plan = base.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 30),
+                                fechaAdopcion: adopcion)
+        XCTAssertEqual(plan.semanas[0].programados[1].dia, DiaLocal(anio: 2026, mes: 9, dia: 1))
+        XCTAssertEqual(plan.semanas[1].programados[0].dia, DiaLocal(anio: 2026, mes: 9, dia: 6))
+    }
+
+    func testRoundTripConOrigenDeCatalogo() throws {
+        var almacen = AlmacenV2()
+        almacen.adoptarPlan(base.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 10),
+                                         fechaAdopcion: adopcion))
+        almacen.adoptarPlan(Catalogo.planesDisponibles()[1]
+            .adoptar(inicio: DiaLocal(anio: 2026, mes: 9, dia: 7), fechaAdopcion: adopcion))
+        let releido = try JSONDecoder().decode(AlmacenV2.self,
+                                               from: JSONEncoder().encode(almacen))
+        XCTAssertEqual(releido, almacen)
+        XCTAssertEqual(releido.historialDePlanes.count, 1)  // el 5K quedó archivado
+        XCTAssertEqual(releido.planActivo?.nombre, "Rumbo a 10K")
+    }
+}
+
+final class HoyTests: XCTestCase {
+
+    private func almacenConPlan(inicio: DiaLocal) -> AlmacenV2 {
+        var almacen = AlmacenV2()
+        almacen.adoptarPlan(Catalogo.planesDisponibles()[0]
+            .adoptar(inicio: inicio, fechaAdopcion: Date(timeIntervalSince1970: 0)))
+        return almacen
+    }
+
+    func testHayUnoHoy() {
+        let hoy = DiaLocal(anio: 2026, mes: 8, dia: 12)
+        let almacen = almacenConPlan(inicio: DiaLocal(anio: 2026, mes: 8, dia: 10))
+        XCTAssertEqual(almacen.entrenamientoDeHoy(hoy)?.definicion.nombre, "Caminata y trote 2")
+    }
+
+    func testNingunoHoy() {
+        let almacen = almacenConPlan(inicio: DiaLocal(anio: 2026, mes: 8, dia: 10))
+        XCTAssertNil(almacen.entrenamientoDeHoy(DiaLocal(anio: 2026, mes: 8, dia: 11)))
+    }
+
+    // Un vencido de ayer NO es "hoy" (se lista aparte, sin arrastres).
+    func testVencidoAnteriorNoEsHoy() {
+        let hoy = DiaLocal(anio: 2026, mes: 8, dia: 11)
+        let almacen = almacenConPlan(inicio: DiaLocal(anio: 2026, mes: 8, dia: 10))
+        XCTAssertNil(almacen.entrenamientoDeHoy(hoy))
+        XCTAssertEqual(almacen.vencidos(hoy).count, 1)
+    }
+
+    // Cumplido hoy → ya no "toca" (no aparece como pendiente).
+    func testCumplidoHoyNoAparece() {
+        let hoy = DiaLocal(anio: 2026, mes: 8, dia: 10)
+        var almacen = almacenConPlan(inicio: hoy)
+        let programado = almacen.entrenamientoDeHoy(hoy)!
+        almacen.vincular(sesionID: UUID(), fechaSesion: Date(timeIntervalSince1970: 1),
+                         aProgramado: programado.id, completo: true)
+        XCTAssertNil(almacen.entrenamientoDeHoy(hoy))
+        XCTAssertEqual(almacen.vencidos(hoy).count, 0)
+    }
+
+    func testProximosOrdenadosYLimitados() {
+        let hoy = DiaLocal(anio: 2026, mes: 8, dia: 10)
+        let almacen = almacenConPlan(inicio: hoy)
+        let proximos = almacen.proximosEntrenamientos(despuesDe: hoy, maximo: 3)
+        XCTAssertEqual(proximos.count, 3)
+        XCTAssertEqual(proximos[0].dia, DiaLocal(anio: 2026, mes: 8, dia: 12))
+        XCTAssertEqual(proximos[1].dia, DiaLocal(anio: 2026, mes: 8, dia: 14))
+        XCTAssertEqual(proximos[2].dia, DiaLocal(anio: 2026, mes: 8, dia: 17))
+    }
+}
+
+final class CutoverTests: XCTestCase {
+
+    private func directorioTemporal() throws -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("test-cutover-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
+    private func planLegacy() -> Plan {
+        var plan = Plan(nombre: "Legacy", pistas: ["x.mp3"], avisosFijos: [], avisosRepetidos: [])
+        plan.tramos = [Tramo(nombre: "Bloque", kilometros: 5,
+                             ritmoMinSegKm: 300, ritmoMaxSegKm: 330)]
+        return plan
+    }
+
+    // Usuario existente: ensayo de Fase A → cutover → activado, y el
+    // snapshot pasa a ser el PlanUsuario real sin perder nada.
+    func testUsuarioExistenteHaceCutoverUnaVez() throws {
+        let dir = try directorioTemporal()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let urlV2 = dir.appendingPathComponent("dominio-v2.json")
+        let urlLegacy = dir.appendingPathComponent("plan.json")
+        try JSONEncoder().encode(planLegacy()).write(to: urlLegacy)
+        PlanStore.migrarADominioV2SiHaceFalta(planV1: planLegacy(), en: urlV2,
+                                              fecha: Date(timeIntervalSince1970: 0))
+
+        let almacen = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
+                                                    fecha: Date(timeIntervalSince1970: 1))
+        XCTAssertTrue(almacen.activado)
+        XCTAssertEqual(almacen.planActivo?.nombre, "Legacy")
+        XCTAssertEqual(almacen.audio.pistas, ["x.mp3"])
+
+        // La migración de ensayo YA NO pisa el almacén activado…
+        PlanStore.migrarADominioV2SiHaceFalta(planV1: Plan.vacio, en: urlV2,
+                                              fecha: Date(timeIntervalSince1970: 2))
+        // …y el segundo arranque carga lo mismo, sin re-migrar.
+        let segundo = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
+                                                    fecha: Date(timeIntervalSince1970: 3))
+        XCTAssertEqual(segundo, almacen)
+    }
+
+    // Las mutaciones post-cutover sobreviven a los arranques siguientes.
+    func testMutacionesSobrevivenArranques() throws {
+        let dir = try directorioTemporal()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let urlV2 = dir.appendingPathComponent("dominio-v2.json")
+        let urlLegacy = dir.appendingPathComponent("plan.json")
+
+        var almacen = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
+                                                    fecha: Date(timeIntervalSince1970: 0))
+        almacen.adoptarPlan(Catalogo.planesDisponibles()[0]
+            .adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 10),
+                     fechaAdopcion: Date(timeIntervalSince1970: 1)))
+        try JSONEncoder().encode(almacen).write(to: urlV2)
+
+        let releido = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
+                                                    fecha: Date(timeIntervalSince1970: 9))
+        XCTAssertEqual(releido.planActivo?.nombre, "Primeros 5K")
+    }
+
+    // Usuario nuevo sin legacy: almacén limpio, sin entidades basura.
+    func testUsuarioNuevoSinLegacy() throws {
+        let dir = try directorioTemporal()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let almacen = AlmacenStore.cargarConCutover(
+            urlV2: dir.appendingPathComponent("dominio-v2.json"),
+            urlLegacy: dir.appendingPathComponent("plan.json"),
+            fecha: Date(timeIntervalSince1970: 0))
+        XCTAssertTrue(almacen.activado)
+        XCTAssertNil(almacen.planActivo)
+        XCTAssertTrue(almacen.historialDePlanes.isEmpty)
+        XCTAssertTrue(almacen.sesiones.isEmpty)
+    }
+
+    // Sin ensayo pero con legacy (orden de arranque invertido): migra
+    // directo del legacy igual de bien.
+    func testCutoverSinEnsayoMigraDelLegacy() throws {
+        let dir = try directorioTemporal()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let urlLegacy = dir.appendingPathComponent("plan.json")
+        try JSONEncoder().encode(planLegacy()).write(to: urlLegacy)
+        let almacen = AlmacenStore.cargarConCutover(
+            urlV2: dir.appendingPathComponent("dominio-v2.json"),
+            urlLegacy: urlLegacy, fecha: Date(timeIntervalSince1970: 0))
+        XCTAssertTrue(almacen.activado)
+        XCTAssertEqual(almacen.planActivo?.nombre, "Legacy")
+    }
+}
+
 final class MigracionV2Tests: XCTestCase {
 
     private func planV1() -> Plan {

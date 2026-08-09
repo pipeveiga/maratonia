@@ -29,6 +29,10 @@ final class PlanStore: ObservableObject {
         urlDocumentos.appendingPathComponent("plan.json")
     }
 
+    /// El plan legacy V1, expuesto para el cutover de AlmacenStore
+    /// (read-only desde afuera: nadie más escribe este archivo).
+    static var urlPlanLegacy: URL { urlPlan }
+
     static var urlCarpetaPistas: URL {
         urlDocumentos.appendingPathComponent("Pistas", isDirectory: true)
     }

@@ -42,6 +42,22 @@ struct DiaLocal: Codable, Equatable, Hashable, Comparable {
     static func < (lhs: DiaLocal, rhs: DiaLocal) -> Bool {
         (lhs.anio, lhs.mes, lhs.dia) < (rhs.anio, rhs.mes, rhs.dia)
     }
+
+    /// El instante "medianoche local" de este día (para formateo y
+    /// aritmética). nil solo ante componentes absurdos.
+    func fecha(calendario: Calendar = .current) -> Date? {
+        calendario.date(from: DateComponents(year: anio, month: mes, day: dia))
+    }
+
+    /// Aritmética de calendario real (meses de 28-31 días, años
+    /// bisiestos): siempre vía Calendar, jamás sumando a mano.
+    func sumando(dias: Int, calendario: Calendar = .current) -> DiaLocal {
+        guard let base = fecha(calendario: calendario),
+              let nueva = calendario.date(byAdding: .day, value: dias, to: base) else {
+            return self
+        }
+        return DiaLocal(fecha: nueva, calendario: calendario)
+    }
 }
 
 // MARK: - Definición (QUÉ es el entrenamiento)
@@ -223,9 +239,17 @@ struct AlmacenV2: Codable, Equatable {
     /// reales.
     var activado = false
     var planActivo: PlanUsuario?
+
+    /// Planes reemplazados: historial read-only (adoptar uno nuevo
+    /// archiva el anterior, jamás lo pisa). Opcional para que los
+    /// dominio-v2.json de Fase A sigan decodificando.
+    var planesAnteriores: [PlanUsuario]? = nil
+
     var audio = ConfiguracionAudio()
     var sesiones: [RegistroSesion] = []
     var referencias: [ReferenciaRendimiento] = []
+
+    var historialDePlanes: [PlanUsuario] { planesAnteriores ?? [] }
 
     /// Vincula una sesión a un programado (la base de D2). Reglas:
     /// - idempotente: repetir el mismo vínculo no cambia nada;
@@ -271,6 +295,46 @@ struct AlmacenV2: Codable, Equatable {
             }
         }
         return nil
+    }
+
+    // MARK: Consultas de calendario (la UI nunca rastrilla arrays a mano)
+
+    var todosLosProgramados: [EntrenamientoProgramado] {
+        (planActivo?.semanas ?? []).flatMap(\.programados)
+    }
+
+    /// "¿Qué me toca hoy?": el pendiente con fecha de hoy. Cumplidos,
+    /// parciales y omitidos de hoy ya no "tocan"; los vencidos de días
+    /// anteriores NO son "hoy" (se listan aparte, sin heurísticas de
+    /// arrastre automático).
+    func entrenamientoDeHoy(_ hoy: DiaLocal) -> EntrenamientoProgramado? {
+        todosLosProgramados.first { $0.dia == hoy && $0.resolucion == .pendiente }
+    }
+
+    /// Pendientes con fecha FUTURA, en orden.
+    func proximosEntrenamientos(despuesDe hoy: DiaLocal, maximo: Int = 5) -> [EntrenamientoProgramado] {
+        todosLosProgramados
+            .filter { programado in
+                guard let dia = programado.dia else { return false }
+                return dia > hoy && programado.resolucion == .pendiente
+            }
+            .sorted { ($0.dia ?? hoy) < ($1.dia ?? hoy) }
+            .prefix(maximo)
+            .map { $0 }
+    }
+
+    /// Pendientes cuya fecha ya pasó (derivado, ver D3).
+    func vencidos(_ hoy: DiaLocal) -> [EntrenamientoProgramado] {
+        todosLosProgramados.filter { $0.estado(hoy: hoy) == .vencido }
+    }
+
+    /// Adoptar un plan nuevo archiva el activo (read-only): nada se
+    /// pisa ni se borra.
+    mutating func adoptarPlan(_ nuevo: PlanUsuario) {
+        if let actual = planActivo {
+            planesAnteriores = historialDePlanes + [actual]
+        }
+        planActivo = nuevo
     }
 }
 
