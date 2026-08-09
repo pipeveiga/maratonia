@@ -130,6 +130,12 @@ final class Entrenamiento: NSObject, ObservableObject {
                     self?.mensajeError = "Sin permisos de Salud: \(error?.localizedDescription ?? "los rechazaste")"
                     return
                 }
+                // OJO: ok == true solo significa que el pedido se procesó.
+                // Si el permiso de GUARDAR está negado, la sesión corre
+                // pero el workout no se guardaría — avisar ANTES de correr.
+                if self?.healthStore.authorizationStatus(for: .workoutType()) == .sharingDenied {
+                    self?.mensajeError = "Salud tiene negado el permiso de guardar entrenamientos: la carrera NO se va a guardar. Activalo en el iPhone: Salud → Compartir → Apps → Maratonia."
+                }
                 self?.cargarFCReposo()
                 self?.cargarFCMaxima()
                 alTerminar()
@@ -420,8 +426,8 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
             return
         }
 
-        builder?.endCollection(withEnd: date) { [weak self] _, _ in
-            self?.builder?.finishWorkout { workout, _ in
+        builder?.endCollection(withEnd: date) { [weak self] _, errorColeccion in
+            self?.builder?.finishWorkout { workout, errorFinal in
                 // Atar la ruta GPS al workout guardado, para el mapa.
                 // Con 0 puntos no hay nada que atar (y finishRoute daría
                 // error): se salta y el resumen ya avisa "sin recorrido".
@@ -429,6 +435,11 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
                     rutas.finishRoute(with: workout, metadata: nil) { _, _ in }
                 }
                 DispatchQueue.main.async {
+                    // Si Salud rechazó el guardado, decirlo: antes fallaba
+                    // en silencio y la tarjeta mentía "carrera guardada".
+                    if let error = errorFinal ?? errorColeccion {
+                        self?.mensajeError = "La carrera NO se pudo guardar en Salud: \(error.localizedDescription)"
+                    }
                     self?.limpiarTrasFinal()
                 }
             }

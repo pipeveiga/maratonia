@@ -61,6 +61,16 @@ final class CuentaStore: ObservableObject {
 
     /// Sube el plan a la base privada del iCloud del usuario.
     private func respaldar(_ plan: Plan) {
+        // Un plan sin contenido NUNCA pisa el respaldo: tras reinstalar,
+        // la app arranca con el plan vacío y el primer cambio dispararía
+        // un respaldo que destruiría justo lo que se quiere restaurar.
+        let esVacio = plan.pistas.isEmpty
+            && plan.avisosFijos.isEmpty
+            && plan.avisosRepetidos.isEmpty
+            && plan.tramosActivos.isEmpty
+            && plan.avisosKmActivos.isEmpty
+        guard !esVacio else { return }
+
         guard case .conectada = estado,
               let datos = try? JSONEncoder().encode(plan),
               let json = String(data: datos, encoding: .utf8) else { return }

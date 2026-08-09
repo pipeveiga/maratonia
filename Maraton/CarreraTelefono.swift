@@ -185,6 +185,13 @@ final class CarreraCelu: NSObject, ObservableObject {
         healthStore.requestAuthorization(toShare: compartir, read: []) { [weak self] ok, _ in
             DispatchQueue.main.async {
                 guard let self, ok, self.estado != .detenida else { return }
+                // ok == true no garantiza permiso de escritura: si guardar
+                // workouts está negado, avisar ya y no armar el builder —
+                // así el resumen dice la verdad ("terminada", no "guardada").
+                guard self.healthStore.authorizationStatus(for: .workoutType()) != .sharingDenied else {
+                    self.mensajeError = "Salud tiene negado el permiso de guardar entrenamientos: la carrera NO se va a guardar. Activalo en Salud → Compartir → Apps → Maratonia."
+                    return
+                }
                 let configuracion = HKWorkoutConfiguration()
                 configuracion.activityType = .running
                 configuracion.locationType = .outdoor
@@ -456,12 +463,16 @@ final class CarreraCelu: NSObject, ObservableObject {
         guard let builder else { return }
         let fin = Date()
         let cerrar: () -> Void = { [weak self] in
-            builder.endCollection(withEnd: fin) { _, _ in
-                builder.finishWorkout { workout, _ in
+            builder.endCollection(withEnd: fin) { _, errorColeccion in
+                builder.finishWorkout { workout, errorFinal in
                     if let workout, let rutas = self?.routeBuilder, (self?.puntosRuta ?? 0) > 0 {
                         rutas.finishRoute(with: workout, metadata: nil) { _, _ in }
                     }
                     DispatchQueue.main.async {
+                        if let error = errorFinal ?? errorColeccion {
+                            self?.mensajeError = "La carrera NO se pudo guardar en Salud: \(error.localizedDescription)"
+                            self?.resumen?.guardadaEnSalud = false
+                        }
                         self?.builder = nil
                         self?.routeBuilder = nil
                     }
