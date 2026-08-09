@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import Maraton
 
 // Tests del dominio V2 (Fase A). Protegen las invariantes de
@@ -212,6 +213,26 @@ final class SerializacionV2Tests: XCTestCase {
         let releido = try JSONDecoder().decode(
             AlmacenV2.self, from: JSONEncoder().encode(almacen))
         XCTAssertEqual(releido.planActivo!.semanas[0].programados[0].resolucion, .parcial)
+    }
+}
+
+final class ExportacionCompartirTests: XCTestCase {
+
+    // Regresión del bug del logo ausente en el PNG transparente: el
+    // nombre fijo hacía que el share sheet sirviera archivos viejos.
+    func testNombreDeExportacionUnicoYPNG() {
+        let a = CarreraDetalleView.nombreDeExportacion()
+        let b = CarreraDetalleView.nombreDeExportacion()
+        XCTAssertNotEqual(a, b)
+        XCTAssertTrue(a.hasPrefix("maratonia-carrera-"))
+        XCTAssertTrue(a.hasSuffix(".png"))
+    }
+
+    // El asset del logo tiene que existir en el bundle: si se renombra
+    // o se pierde, la tarjeta compartible sale sin marca.
+    func testLogoExisteEnElBundle() {
+        XCTAssertNotNil(UIImage(named: "LogoMaratonia"),
+                        "Falta el imageset LogoMaratonia en Assets.xcassets")
     }
 }
 

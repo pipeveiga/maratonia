@@ -397,12 +397,22 @@ struct CarreraDetalleView: View {
             carrera: carrera, ruta: carrera.ruta, transparente: true))
         render.scale = 3
         render.isOpaque = false
+        // Nombre ÚNICO por exportación: el share sheet y varios destinos
+        // cachean por URL, y con el nombre fijo servían el PNG viejo de
+        // builds anteriores (sin logo) aunque el archivo nuevo estuviera
+        // bien escrito. Bug real confirmado en dispositivo.
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("maratonia-carrera.png")
+            .appendingPathComponent(Self.nombreDeExportacion())
         if let imagen = render.uiImage, let datos = imagen.pngData() {
-            try? datos.write(to: url)
+            try? datos.write(to: url, options: .atomic)
         }
         return url
+    }
+
+    /// Separado y determinístico-testeable: siempre .png y nunca dos
+    /// exportaciones con el mismo nombre.
+    static func nombreDeExportacion(unico: String = UUID().uuidString) -> String {
+        "maratonia-carrera-\(unico).png"
     }
 }
 
