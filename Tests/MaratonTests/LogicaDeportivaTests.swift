@@ -227,6 +227,73 @@ final class DrenajeDeAvisosTests: XCTestCase {
     }
 }
 
+final class CumplimientoDePlanTests: XCTestCase {
+
+    private func planConTramos(_ nombre: String = "Bloque", km: Double = 3) -> Plan {
+        var plan = Plan.vacio
+        plan.tramos = [Tramo(nombre: nombre, kilometros: km,
+                             ritmoMinSegKm: 300, ritmoMaxSegKm: 330)]
+        return plan
+    }
+
+    // pending → completar el workout correspondiente → completed.
+    func testPendienteACumplido() {
+        let plan = planConTramos()
+        XCTAssertEqual(estadoDelEntrenamiento(plan: plan, huellaCumplida: nil), .pendiente)
+        let huella = plan.huellaEntrenamiento
+        XCTAssertNotNil(huella)
+        XCTAssertEqual(estadoDelEntrenamiento(plan: plan, huellaCumplida: huella), .cumplido)
+    }
+
+    // sync: el iPhone reenvía el MISMO plan → sigue cumplido (la huella
+    // es de contenido, idéntico contenido = idéntica huella). Esto
+    // también cubre cerrar/reabrir: la huella persiste en UserDefaults.
+    func testReenviarElMismoPlanNoLoVuelvePendiente() {
+        let enviado = planConTramos()
+        let reenviado = planConTramos()
+        XCTAssertEqual(enviado.huellaEntrenamiento, reenviado.huellaEntrenamiento)
+        XCTAssertEqual(
+            estadoDelEntrenamiento(plan: reenviado,
+                                   huellaCumplida: enviado.huellaEntrenamiento),
+            .cumplido)
+    }
+
+    // Editar los tramos = entrenamiento NUEVO → vuelve a pendiente.
+    func testEditarTramosGeneraEntrenamientoNuevo() {
+        let viejo = planConTramos(km: 3)
+        let editado = planConTramos(km: 5)
+        XCTAssertNotEqual(viejo.huellaEntrenamiento, editado.huellaEntrenamiento)
+        XCTAssertEqual(
+            estadoDelEntrenamiento(plan: editado,
+                                   huellaCumplida: viejo.huellaEntrenamiento),
+            .pendiente)
+    }
+
+    // Sin plan, o plan sin tramos (solo música/avisos): no hay
+    // entrenamiento que cumplir.
+    func testSinTramosNoHayEntrenamiento() {
+        XCTAssertEqual(estadoDelEntrenamiento(plan: nil, huellaCumplida: nil), .sinEntrenamiento)
+        XCTAssertEqual(estadoDelEntrenamiento(plan: .vacio, huellaCumplida: nil), .sinEntrenamiento)
+        XCTAssertNil(Plan.vacio.huellaEntrenamiento)
+    }
+
+    // Carrera libre (0 tramos) NO consume el entrenamiento planificado.
+    func testCarreraLibreNoMarcaCumplido() {
+        XCTAssertFalse(debeMarcarCumplido(tramosTotales: 0, indiceAlcanzado: 0))
+        XCTAssertFalse(debeMarcarCumplido(tramosTotales: 0, indiceAlcanzado: 5))
+    }
+
+    // Abandonar a mitad de plan NO marca cumplido (conservador).
+    func testAbandonoNoMarcaCumplido() {
+        XCTAssertFalse(debeMarcarCumplido(tramosTotales: 5, indiceAlcanzado: 3))
+    }
+
+    func testPlanCompletoSiMarca() {
+        XCTAssertTrue(debeMarcarCumplido(tramosTotales: 5, indiceAlcanzado: 5))
+        XCTAssertTrue(debeMarcarCumplido(tramosTotales: 5, indiceAlcanzado: 6))
+    }
+}
+
 final class ImportacionTramosTests: XCTestCase {
 
     func testParsearRitmoValido() throws {

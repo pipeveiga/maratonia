@@ -7,6 +7,38 @@ import WatchConnectivity
 // de disco. Cada vez que cambian los archivos locales, le avisa al
 // iPhone qué tiene (para que no reenvíe lo que ya está).
 
+/// Cumplimiento del entrenamiento planificado, persistido en el reloj.
+/// Guarda la HUELLA de los tramos cumplidos (identidad por contenido,
+/// no heurísticas de fecha/distancia): si el iPhone reenvía el mismo
+/// plan, sigue cumplido; si el usuario edita los tramos, la huella
+/// cambia y es un entrenamiento nuevo pendiente. Sobrevive a cerrar la
+/// app y reiniciar el reloj (UserDefaults). El historial de la carrera
+/// vive en Salud y no se toca.
+final class EstadoPlanWatch: ObservableObject {
+    static let compartido = EstadoPlanWatch()
+
+    @Published private(set) var huellaCumplida: String?
+    @Published private(set) var fechaCumplida: Date?
+
+    private static let claveHuella = "huellaEntrenamientoCumplido"
+    private static let claveFecha = "fechaEntrenamientoCumplido"
+
+    private init() {
+        huellaCumplida = UserDefaults.standard.string(forKey: Self.claveHuella)
+        let cruda = UserDefaults.standard.double(forKey: Self.claveFecha)
+        fechaCumplida = cruda > 0 ? Date(timeIntervalSince1970: cruda) : nil
+    }
+
+    /// Idempotente: marcar dos veces la misma huella no duplica nada
+    /// (es un único valor, no una lista).
+    func marcarCumplida(huella: String) {
+        huellaCumplida = huella
+        fechaCumplida = Date()
+        UserDefaults.standard.set(huella, forKey: Self.claveHuella)
+        UserDefaults.standard.set(fechaCumplida!.timeIntervalSince1970, forKey: Self.claveFecha)
+    }
+}
+
 final class ConectividadWatch: NSObject, ObservableObject {
     static let compartida = ConectividadWatch()
 

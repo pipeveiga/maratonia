@@ -377,6 +377,9 @@ struct PantallaReproduccion: View {
         }
         .confirmationDialog("¿Terminar la sesión?", isPresented: $confirmandoTerminar) {
             Button("Terminar y guardar", role: .destructive) {
+                // El cumplimiento del plan se decide ANTES de detener
+                // (detener borra el estado del entrenador).
+                EntrenadorRitmo.compartido.marcarCumplimientoSiCorresponde()
                 reproductor.detener()
                 EntrenadorRitmo.compartido.detener()
                 Entrenamiento.compartido.finalizar()

@@ -45,7 +45,13 @@ final class EntrenadorRitmo: ObservableObject {
     private var avisosKm: [AvisoKm] = []
     private var proximoDisparoKm: [UUID: Double] = [:]
 
+    /// Huella del entrenamiento con el que ARRANCÓ esta sesión: si el
+    /// plan cambia en el iPhone a mitad de carrera, el cumplimiento se
+    /// marca sobre lo que efectivamente corriste, no sobre lo nuevo.
+    private var huellaSesion: String?
+
     func iniciar(plan: Plan) {
+        huellaSesion = plan.huellaEntrenamiento
         tramos = plan.tramosActivos
         indice = 0
         fechaInicioTramo = nil
@@ -60,7 +66,19 @@ final class EntrenadorRitmo: ObservableObject {
         proximoDisparoKm = Dictionary(uniqueKeysWithValues: avisosKm.map { ($0.id, $0.kilometro) })
     }
 
+    /// Llamar ANTES de detener (detener borra el estado): si el plan de
+    /// tramos se recorrió entero y la carrera se guarda, el
+    /// entrenamiento queda CUMPLIDO. Carrera libre (0 tramos) o
+    /// abandono a mitad de plan no marcan nada — criterio conservador.
+    func marcarCumplimientoSiCorresponde() {
+        guard debeMarcarCumplido(tramosTotales: tramosDelPlan.count,
+                                 indiceAlcanzado: indiceActual),
+              let huella = huellaSesion else { return }
+        EstadoPlanWatch.compartido.marcarCumplida(huella: huella)
+    }
+
     func detener() {
+        huellaSesion = nil
         tramos = []
         tramoActual = nil
         fechaInicioTramo = nil
