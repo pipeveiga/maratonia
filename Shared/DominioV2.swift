@@ -289,6 +289,28 @@ struct ConfiguracionAudio: Codable, Equatable {
     var avisosKm: [AvisoKm] = []
 }
 
+// MARK: - Perfil deportivo (Fase F: onboarding)
+
+/// La meta que el corredor eligió. Enum cerrado a propósito: el plan
+/// generator y el coach futuro razonan sobre esto.
+enum ObjetivoDeportivo: String, Codable, CaseIterable {
+    case primeros5K, mejorar5K, diez, mediaMaraton, maraton
+}
+
+/// Lo que el onboarding recolecta. TODO opcional: el perfil incompleto
+/// es un estado normal (usuario viejo, onboarding salteado) y ninguna
+/// pantalla debe romperse por un campo vacío. Las MARCAS no viven acá:
+/// son ReferenciaRendimiento (datos crudos, con fecha y fuente).
+struct PerfilDeportivo: Codable, Equatable {
+    var objetivo: ObjetivoDeportivo?
+    var diasPorSemana: Int?
+    var fechaObjetivo: DiaLocal?
+    /// Cuándo completó el onboarding (nil = nunca lo hizo).
+    var fechaOnboarding: Date?
+    /// Eligió "hacer el test de 5K" y todavía no lo corrió.
+    var testPendiente: Bool = false
+}
+
 // MARK: - Referencia de rendimiento (baseline, se llena en Fase F)
 
 enum FuenteReferencia: String, Codable {
@@ -329,7 +351,30 @@ struct AlmacenV2: Codable, Equatable {
     var sesiones: [RegistroSesion] = []
     var referencias: [ReferenciaRendimiento] = []
 
+    /// Opcional para que los dominio-v2.json anteriores a Fase F sigan
+    /// decodificando. Leer siempre vía `perfilDeportivo`.
+    var perfil: PerfilDeportivo? = nil
+
     var historialDePlanes: [PlanUsuario] { planesAnteriores ?? [] }
+    var perfilDeportivo: PerfilDeportivo { perfil ?? PerfilDeportivo() }
+
+    /// Registra una marca CRUDA. Idempotencia por contenido: la misma
+    /// (fuente, distancia, tiempo, fecha) no se duplica.
+    mutating func registrarReferencia(_ nueva: ReferenciaRendimiento) {
+        let repetida = referencias.contains {
+            $0.fuente == nueva.fuente && $0.distanciaMetros == nueva.distanciaMetros
+                && $0.segundos == nueva.segundos && $0.fecha == nueva.fecha
+        }
+        guard !repetida else { return }
+        referencias.append(nueva)
+    }
+
+    /// La referencia MÁS RECIENTE (el baseline de Fase G parte de acá;
+    /// "más reciente" y no "mejor marca": el estado actual del corredor
+    /// pesa más que su mejor día histórico).
+    var referenciaVigente: ReferenciaRendimiento? {
+        referencias.max { $0.fecha < $1.fecha }
+    }
 
     /// Vincula una sesión a un programado (la base de D2). Reglas:
     /// - idempotente: repetir el mismo vínculo no cambia nada;

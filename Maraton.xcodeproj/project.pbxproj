@@ -36,6 +36,7 @@
 		A10000000000000000000050 /* CarreraTelefono.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000004F /* CarreraTelefono.swift */; };
 		A10000000000000000000055 /* PlanV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000054 /* PlanV2.swift */; };
 		A10000000000000000000057 /* DisenoV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000056 /* DisenoV2.swift */; };
+		A10000000000000000000059 /* Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000058 /* Onboarding.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -92,6 +93,7 @@
 		A1000000000000000000004F /* CarreraTelefono.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarreraTelefono.swift; sourceTree = "<group>"; };
 		A10000000000000000000054 /* PlanV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanV2.swift; sourceTree = "<group>"; };
 		A10000000000000000000056 /* DisenoV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisenoV2.swift; sourceTree = "<group>"; };
+		A10000000000000000000058 /* Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Onboarding.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -146,6 +148,7 @@
 				A1000000000000000000004F /* CarreraTelefono.swift */,
 				A10000000000000000000054 /* PlanV2.swift */,
 				A10000000000000000000056 /* DisenoV2.swift */,
+				A10000000000000000000058 /* Onboarding.swift */,
 				A10000000000000000000044 /* Carreras.swift */,
 				A1000000000000000000002E /* Maraton.entitlements */,
 				A10000000000000000000022 /* Assets.xcassets */,
@@ -292,6 +295,7 @@
 				A10000000000000000000050 /* CarreraTelefono.swift in Sources */,
 				A10000000000000000000055 /* PlanV2.swift in Sources */,
 				A10000000000000000000057 /* DisenoV2.swift in Sources */,
+				A10000000000000000000059 /* Onboarding.swift in Sources */,
 				A10000000000000000000045 /* Carreras.swift in Sources */,
 				A10000000000000000000047 /* Diseno.swift in Sources */,
 				A10000000000000000000052 /* DominioV2.swift in Sources */,

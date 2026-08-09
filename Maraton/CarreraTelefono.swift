@@ -30,6 +30,10 @@ struct SesionGuardada {
     /// de la sesión fueron recorridos (misma regla debeMarcarCumplido
     /// del reloj). Sin tramos no hay estructura que completar → false.
     let estructuraCompleta: Bool
+    /// Tiempo ACTIVO (sin pausas) al momento de completar la estructura
+    /// (nil si no se completó). Para el Test 5K esto ES la marca: el
+    /// trote posterior no la ensucia.
+    var tiempoEstructuraSegundos: Int? = nil
 }
 
 final class CarreraCelu: NSObject, ObservableObject {
@@ -120,6 +124,8 @@ final class CarreraCelu: NSObject, ObservableObject {
     // cuando la sesión quedó guardada de verdad.
     private var programadoID: UUID?
     private var alGuardarSesion: ((SesionGuardada) -> Void)?
+    /// Tiempo activo en el tick que cerró el último tramo del plan.
+    private var tiempoAlCompletarEstructura: TimeInterval?
     private var fechaInicioTramo: Date?
     private var fechaUltimaCorreccion: Date?
     private let margenSegKm = 5
@@ -229,6 +235,7 @@ final class CarreraCelu: NSObject, ObservableObject {
         fraccionTramo = nil
         tramosDelPlan = progreso.tramos
         indiceTramoUI = 0
+        tiempoAlCompletarEstructura = nil
         fechaInicioTramo = nil
         fechaUltimaCorreccion = nil
         ultimoKmAnunciado = 0
@@ -440,6 +447,7 @@ final class CarreraCelu: NSObject, ObservableObject {
                 case .planCompletado:
                     textoProgresoTramo = nil
                     fraccionTramo = nil
+                    tiempoAlCompletarEstructura = tiempoTranscurrido
                     anunciar("Plan de tramos completado. ¡Bien ahí!")
                 }
             }
@@ -649,6 +657,7 @@ final class CarreraCelu: NSObject, ObservableObject {
         // el cumplimiento del reloj): todos los tramos recorridos.
         let estructuraCompleta = debeMarcarCumplido(tramosTotales: progreso.tramos.count,
                                                     indiceAlcanzado: progreso.indice)
+        let tiempoEstructura = tiempoAlCompletarEstructura.map { Int($0.rounded()) }
         // La evidencia de origen viaja también en Salud (respaldo).
         if let idProgramado {
             builder.addMetadata(MetadatosSesion.metadata(programadoID: idProgramado)) { _, _ in }
@@ -666,7 +675,8 @@ final class CarreraCelu: NSObject, ObservableObject {
                         DispatchQueue.main.async {
                             callback?(SesionGuardada(hkUUID: workout.uuid,
                                                      fecha: fin,
-                                                     estructuraCompleta: estructuraCompleta))
+                                                     estructuraCompleta: estructuraCompleta,
+                                                     tiempoEstructuraSegundos: tiempoEstructura))
                         }
                     }
                     DispatchQueue.main.async {
@@ -877,6 +887,18 @@ struct CorrerTab: View {
                     TarjetaEntrenamientoV2(programado: deHoy, mostrarEstructura: true) {
                         LanzadorSesion.iniciar(definicion: deHoy.definicion,
                                                programadoID: deHoy.id,
+                                               store: store, almacen: almacen)
+                    }
+                    .padding(.horizontal)
+
+                    botonCarreraLibre(protagonista: false)
+                        .padding(.horizontal)
+                } else if almacen.almacen.perfilDeportivo.testPendiente {
+                    // El Test 5K del onboarding: disponible, nunca
+                    // forzado — un entrenamiento real más.
+                    TarjetaTest5K {
+                        LanzadorSesion.iniciar(definicion: LanzadorSesion.definicionTest5K(),
+                                               programadoID: nil,
                                                store: store, almacen: almacen)
                     }
                     .padding(.horizontal)

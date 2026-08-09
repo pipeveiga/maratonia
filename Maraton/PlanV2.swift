@@ -313,6 +313,28 @@ final class AlmacenStore: ObservableObject {
         }
     }
 
+    // MARK: Perfil deportivo y referencias (Fase F)
+
+    /// El onboarding terminó: se guarda el perfil y, si trajo una marca,
+    /// la referencia cruda. NO toca plan, sesiones ni audio — el
+    /// onboarding es aditivo por diseño.
+    func guardarOnboarding(_ perfil: PerfilDeportivo,
+                           marca: ReferenciaRendimiento?) {
+        almacen.perfil = perfil
+        if let marca {
+            almacen.registrarReferencia(marca)
+        }
+    }
+
+    func registrarResultadoDeTest(distanciaMetros: Double, segundos: Int, fecha: Date) {
+        almacen.registrarReferencia(ReferenciaRendimiento(
+            fecha: fecha, fuente: .test5K,
+            distanciaMetros: distanciaMetros, segundos: segundos))
+        if almacen.perfil?.testPendiente == true {
+            almacen.perfil?.testPendiente = false
+        }
+    }
+
     private func guardar() {
         Self.escribir(almacen, en: url)
         // Cada mutación re-proyecta HOY al reloj: adopción, vínculo,
@@ -364,7 +386,29 @@ enum LanzadorSesion {
             programadoID: programadoID
         ) { sesion in
             almacen.registrar(sesion, programadoID: programadoID)
+            // Test de evaluación completado: la marca CRUDA queda como
+            // referencia (tiempo activo AL COMPLETAR los 5 km — el
+            // trote posterior no la ensucia).
+            if let definicion, definicion.tipo == .testEvaluacion,
+               sesion.estructuraCompleta,
+               let segundos = sesion.tiempoEstructuraSegundos, segundos > 0,
+               let metros = definicion.distanciaTotalKm.map({ $0 * 1000 }) {
+                almacen.registrarResultadoDeTest(distanciaMetros: metros,
+                                                 segundos: segundos,
+                                                 fecha: sesion.fecha)
+            }
         }
+    }
+
+    /// El Test 5K del onboarding: un entrenamiento REAL (pasa por el
+    /// mismo motor, se guarda en Salud) cuyo tiempo final es la
+    /// referencia de rendimiento.
+    static func definicionTest5K() -> DefinicionEntrenamiento {
+        DefinicionEntrenamiento(
+            tipo: .testEvaluacion,
+            nombre: "Test 5K",
+            descripcion: "5 km fuerte pero controlado: el objetivo es un ritmo que puedas sostener parejo hasta el final.",
+            segmentos: [Segmento(nombre: "Test 5K", distanciaKm: 5)])
     }
 }
 

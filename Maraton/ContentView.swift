@@ -25,6 +25,11 @@ struct ContentView: View {
     /// El tutorial se abre solo la primera vez que se abre la app.
     @AppStorage("vioTutorial") private var vioTutorial = false
 
+    /// El onboarding deportivo se OFRECE una sola vez (después queda en
+    /// Perfil, nunca insiste).
+    @AppStorage("ofrecioOnboarding") private var ofrecioOnboarding = false
+    @State private var mostrandoOnboarding = false
+
     var body: some View {
         TabView(selection: $pestana) {
             PlanTab(store: store, almacen: almacen, pestana: $pestana)
@@ -39,19 +44,45 @@ struct ContentView: View {
             CarrerasTab()
                 .tabItem { Label("Carreras", systemImage: "map.fill") }
                 .tag(Pestana.carreras)
-            PerfilTab(store: store, mostrandoTutorial: $mostrandoTutorial)
+            PerfilTab(store: store, almacen: almacen, mostrandoTutorial: $mostrandoTutorial)
                 .tabItem { Label("Perfil", systemImage: "person.crop.circle") }
                 .tag(Pestana.perfil)
         }
         .sheet(isPresented: $mostrandoTutorial) {
             TutorialView()
         }
+        .sheet(isPresented: $mostrandoOnboarding) {
+            OnboardingDeportivo(almacen: almacen)
+        }
         .onAppear {
             if !vioTutorial {
                 vioTutorial = true
                 mostrandoTutorial = true
+            } else {
+                ofrecerOnboardingSiCorresponde()
             }
         }
+        .onChange(of: mostrandoTutorial) { _, abierto in
+            if !abierto { ofrecerOnboardingSiCorresponde() }
+        }
+    }
+
+    /// El onboarding se OFRECE solo (una única vez) a quien no tiene
+    /// nada: sin perfil, sin plan, sin sesiones, sin referencias. Un
+    /// usuario existente jamás lo ve sin pedirlo (no destructivo);
+    /// siempre queda disponible en Perfil.
+    private func ofrecerOnboardingSiCorresponde() {
+        guard !ofrecioOnboarding else { return }
+        let dominio = almacen.almacen
+        guard dominio.perfilDeportivo.fechaOnboarding == nil,
+              dominio.planActivo == nil,
+              dominio.sesiones.isEmpty,
+              dominio.referencias.isEmpty else {
+            ofrecioOnboarding = true
+            return
+        }
+        ofrecioOnboarding = true
+        mostrandoOnboarding = true
     }
 }
 
@@ -753,13 +784,17 @@ struct CarrerasTab: View {
 
 struct PerfilTab: View {
     @ObservedObject var store: PlanStore
+    @ObservedObject var almacen: AlmacenStore
     @ObservedObject private var cuenta = CuentaStore.compartida
     @Binding var mostrandoTutorial: Bool
     @State private var confirmandoRestaurar = false
+    @State private var mostrandoOnboarding = false
 
     var body: some View {
         NavigationStack {
             List {
+                seccionObjetivo
+
                 Section {
                     HStack(spacing: 10) {
                         IconoAjuste(sistema: "person.crop.circle.fill", color: .blue)
@@ -826,6 +861,109 @@ struct PerfilTab: View {
                 }
             }
             .navigationTitle("Perfil")
+            .sheet(isPresented: $mostrandoOnboarding) {
+                OnboardingDeportivo(almacen: almacen)
+            }
+        }
+    }
+
+    /// El corredor y su meta: objetivo, disponibilidad, fecha, plan
+    /// activo y referencia vigente (Fase F). Todo opcional: sin
+    /// onboarding la sección invita a hacerlo, nada se rompe.
+    @ViewBuilder
+    private var seccionObjetivo: some View {
+        let perfil = almacen.almacen.perfilDeportivo
+        Section("Tu objetivo") {
+            if let objetivo = perfil.objetivo {
+                HStack(spacing: 10) {
+                    IconoAjuste(sistema: "target", color: .red)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(nombreObjetivo(objetivo))
+                        Text(subtituloPerfil(perfil))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if let referencia = almacen.almacen.referenciaVigente {
+                    HStack(spacing: 10) {
+                        IconoAjuste(sistema: "stopwatch.fill", color: .teal)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Referencia: \(textoReferencia(referencia))")
+                            Text(origenReferencia(referencia))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } else if perfil.testPendiente {
+                    Label("Test 5K pendiente — está en la pestaña Correr",
+                          systemImage: "flag.checkered")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                if let plan = almacen.almacen.planActivo {
+                    HStack(spacing: 10) {
+                        IconoAjuste(sistema: "calendar", color: .green)
+                        Text("Plan activo: \(plan.nombre)")
+                    }
+                }
+                Button("Cambiar objetivo") { mostrandoOnboarding = true }
+            } else {
+                Button {
+                    mostrandoOnboarding = true
+                } label: {
+                    HStack(spacing: 10) {
+                        IconoAjuste(sistema: "target", color: .red)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Elegí tu objetivo")
+                                .foregroundStyle(.primary)
+                            Text("2 minutos: meta, experiencia y disponibilidad")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func nombreObjetivo(_ objetivo: ObjetivoDeportivo) -> String {
+        switch objetivo {
+        case .primeros5K: return "Mis primeros 5K"
+        case .mejorar5K: return "Mejorar mis 5K"
+        case .diez: return "Correr 10K"
+        case .mediaMaraton: return "Media maratón"
+        case .maraton: return "Maratón"
+        }
+    }
+
+    private func subtituloPerfil(_ perfil: PerfilDeportivo) -> String {
+        var partes: [String] = []
+        if let dias = perfil.diasPorSemana { partes.append("\(dias) días/semana") }
+        if let fecha = perfil.fechaObjetivo?.fecha() {
+            partes.append("carrera el \(fecha.formatted(date: .abbreviated, time: .omitted))")
+        }
+        return partes.isEmpty ? "Sin más datos" : partes.joined(separator: " · ")
+    }
+
+    private func textoReferencia(_ referencia: ReferenciaRendimiento) -> String {
+        let distancia: String
+        switch referencia.distanciaMetros {
+        case 5000: distancia = "5K"
+        case 10000: distancia = "10K"
+        case 21097.5: distancia = "21K"
+        case 42195: distancia = "42K"
+        default: distancia = String(format: "%.1f km", referencia.distanciaMetros / 1000)
+        }
+        return "\(distancia) en \(formatearDuracion(TimeInterval(referencia.segundos)))"
+    }
+
+    private func origenReferencia(_ referencia: ReferenciaRendimiento) -> String {
+        let fecha = referencia.fecha.formatted(date: .abbreviated, time: .omitted)
+        switch referencia.fuente {
+        case .test5K: return "Test 5K · \(fecha)"
+        case .carreraReal: return "Carrera real · \(fecha)"
+        case .marcaManual: return "Marca ingresada · \(fecha)"
+        case .estimacionInicial: return "Estimación inicial · \(fecha)"
         }
     }
 

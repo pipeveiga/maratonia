@@ -797,3 +797,110 @@ final class FaseETests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(ResultadoSesionWatch.self, from: datos2), resultado)
     }
 }
+
+// MARK: - Fase F: perfil deportivo y referencias
+
+final class FaseFTests: XCTestCase {
+
+    func testAlmacenViejoSinPerfilDecodifica() throws {
+        // dominio-v2.json escrito ANTES de Fase F (sin campo perfil):
+        // tiene que seguir cargando — el onboarding es aditivo.
+        var viejo = AlmacenV2()
+        viejo.activado = true
+        var json = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(viejo)) as! [String: Any]
+        json.removeValue(forKey: "perfil")
+        let datos = try JSONSerialization.data(withJSONObject: json)
+        let cargado = try JSONDecoder().decode(AlmacenV2.self, from: datos)
+        XCTAssertNil(cargado.perfil)
+        XCTAssertNil(cargado.perfilDeportivo.objetivo)
+        XCTAssertFalse(cargado.perfilDeportivo.testPendiente)
+    }
+
+    func testRegistrarReferenciaEsIdempotentePorContenido() {
+        var almacen = AlmacenV2()
+        let fecha = Date(timeIntervalSince1970: 1000)
+        let marca = ReferenciaRendimiento(fecha: fecha, fuente: .marcaManual,
+                                          distanciaMetros: 5000, segundos: 1500)
+        almacen.registrarReferencia(marca)
+        almacen.registrarReferencia(marca)   // reintento del onboarding
+        XCTAssertEqual(almacen.referencias.count, 1)
+
+        // Otra marca del mismo día con distinto tiempo SÍ entra.
+        almacen.registrarReferencia(ReferenciaRendimiento(
+            fecha: fecha, fuente: .marcaManual, distanciaMetros: 5000, segundos: 1499))
+        XCTAssertEqual(almacen.referencias.count, 2)
+    }
+
+    func testReferenciaVigenteEsLaMasReciente() {
+        var almacen = AlmacenV2()
+        almacen.registrarReferencia(ReferenciaRendimiento(
+            fecha: Date(timeIntervalSince1970: 5000), fuente: .test5K,
+            distanciaMetros: 5000, segundos: 1400))   // más nueva, más lenta
+        almacen.registrarReferencia(ReferenciaRendimiento(
+            fecha: Date(timeIntervalSince1970: 1000), fuente: .marcaManual,
+            distanciaMetros: 5000, segundos: 1200))   // vieja, más rápida
+        // Gana la MÁS RECIENTE (estado actual), no la mejor histórica.
+        XCTAssertEqual(almacen.referenciaVigente?.segundos, 1400)
+        XCTAssertEqual(almacen.referenciaVigente?.fuente, .test5K)
+    }
+
+    func testResultadoDeTestRegistraYApagaPendiente() {
+        let directorio = FileManager.default.temporaryDirectory
+            .appendingPathComponent("test-fase-f-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: directorio, withIntermediateDirectories: true)
+        var inicial = AlmacenV2()
+        inicial.activado = true
+        inicial.perfil = PerfilDeportivo(objetivo: .mejorar5K, testPendiente: true)
+        let url = directorio.appendingPathComponent("dominio-v2.json")
+        try? JSONEncoder().encode(inicial).write(to: url)
+
+        let store = AlmacenStore(url: url,
+                                 urlLegacy: directorio.appendingPathComponent("plan.json"),
+                                 conectadoAlReloj: false)
+        store.registrarResultadoDeTest(distanciaMetros: 5000, segundos: 1450,
+                                       fecha: Date(timeIntervalSince1970: 7000))
+        XCTAssertEqual(store.almacen.referencias.count, 1)
+        XCTAssertEqual(store.almacen.referencias[0].fuente, .test5K)
+        XCTAssertEqual(store.almacen.perfilDeportivo.testPendiente, false)
+
+        // Reentrega del mismo resultado: idempotente.
+        store.registrarResultadoDeTest(distanciaMetros: 5000, segundos: 1450,
+                                       fecha: Date(timeIntervalSince1970: 7000))
+        XCTAssertEqual(store.almacen.referencias.count, 1)
+        try? FileManager.default.removeItem(at: directorio)
+    }
+
+    func testOnboardingEsAditivo() {
+        // Un usuario CON plan y sesiones hace el onboarding: nada de lo
+        // suyo se toca.
+        let directorio = FileManager.default.temporaryDirectory
+            .appendingPathComponent("test-fase-f-adit-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: directorio, withIntermediateDirectories: true)
+        var inicial = AlmacenV2()
+        inicial.activado = true
+        inicial.planActivo = PlanUsuario(nombre: "Mi plan", origen: .personalizado,
+                                         fechaAdopcion: Date(timeIntervalSince1970: 0),
+                                         semanas: [])
+        inicial.sesiones = [RegistroSesion(id: UUID(), fecha: Date(), vinculoProgramadoID: nil)]
+        inicial.audio.pistas = ["a.mp3"]
+        let url = directorio.appendingPathComponent("dominio-v2.json")
+        try? JSONEncoder().encode(inicial).write(to: url)
+
+        let store = AlmacenStore(url: url,
+                                 urlLegacy: directorio.appendingPathComponent("plan.json"),
+                                 conectadoAlReloj: false)
+        let perfil = PerfilDeportivo(objetivo: .diez, diasPorSemana: 3,
+                                     fechaObjetivo: nil, fechaOnboarding: Date())
+        store.guardarOnboarding(perfil, marca: ReferenciaRendimiento(
+            fecha: Date(timeIntervalSince1970: 500), fuente: .marcaManual,
+            distanciaMetros: 10000, segundos: 3300))
+
+        XCTAssertEqual(store.almacen.perfilDeportivo.objetivo, .diez)
+        XCTAssertEqual(store.almacen.referencias.count, 1)
+        XCTAssertEqual(store.almacen.planActivo?.nombre, "Mi plan")
+        XCTAssertEqual(store.almacen.sesiones.count, 1)
+        XCTAssertEqual(store.almacen.audio.pistas, ["a.mp3"])
+        try? FileManager.default.removeItem(at: directorio)
+    }
+}
