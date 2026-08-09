@@ -99,6 +99,91 @@ final class FormatosTests: XCTestCase {
     }
 }
 
+final class AutoPausaTests: XCTestCase {
+
+    // Regresión del bug real observado: la distancia del sensor se
+    // congela en movimiento (vehículo / hipo del delegate) y la lógica
+    // vieja lo interpretaba como "parado". Con la doble confirmación,
+    // avance congelado + GPS viendo desplazamiento = NO pausar.
+    func testAvanceCongeladoConGPSEnMovimientoNoPausa() {
+        XCTAssertFalse(AutoPausa.debePausar(
+            avanceMetros: 0, ventanaSegundos: 10,
+            desplazamientoGPSMetros: 120, edadUltimoGPSSegundos: 1))
+    }
+
+    func testDetencionRealSostenidaSiPausa() {
+        XCTAssertTrue(AutoPausa.debePausar(
+            avanceMetros: 2, ventanaSegundos: 10,
+            desplazamientoGPSMetros: 3, edadUltimoGPSSegundos: 1))
+    }
+
+    // GPS viejo o inexistente NO es "parado": es señal no confiable.
+    func testGPSViejoOInexistenteNoPausa() {
+        XCTAssertFalse(AutoPausa.debePausar(
+            avanceMetros: 0, ventanaSegundos: 10,
+            desplazamientoGPSMetros: nil, edadUltimoGPSSegundos: 12))
+        XCTAssertFalse(AutoPausa.debePausar(
+            avanceMetros: 0, ventanaSegundos: 10,
+            desplazamientoGPSMetros: nil, edadUltimoGPSSegundos: nil))
+    }
+
+    // Una ventana corta (una lectura anómala aislada) no pausa.
+    func testVentanaCortaNoPausa() {
+        XCTAssertFalse(AutoPausa.debePausar(
+            avanceMetros: 0, ventanaSegundos: 3,
+            desplazamientoGPSMetros: 0, edadUltimoGPSSegundos: 1))
+    }
+
+    func testCorriendoNormalNoPausa() {
+        // ~5:00/km = 33 m cada 10 s.
+        XCTAssertFalse(AutoPausa.debePausar(
+            avanceMetros: 33, ventanaSegundos: 10,
+            desplazamientoGPSMetros: 33, edadUltimoGPSSegundos: 1))
+    }
+}
+
+final class DetectorReanudacionTests: XCTestCase {
+
+    private let t0 = Date(timeIntervalSince1970: 1_000_000)
+
+    // Una única lectura rápida (fix saltarín) NO reanuda.
+    func testUnaSolaLecturaNoReanuda() {
+        var detector = AutoPausa.DetectorReanudacion()
+        XCTAssertFalse(detector.procesar(desplazamiento: 30, umbral: 15, fecha: t0))
+    }
+
+    // Movimiento sostenido (dos lecturas sobre el umbral, >= 1,5 s) SÍ.
+    func testMovimientoSostenidoReanuda() {
+        var detector = AutoPausa.DetectorReanudacion()
+        XCTAssertFalse(detector.procesar(desplazamiento: 20, umbral: 15, fecha: t0))
+        XCTAssertTrue(detector.procesar(desplazamiento: 25, umbral: 15,
+                                        fecha: t0.addingTimeInterval(2)))
+    }
+
+    // Ruido alrededor del umbral: cruza, vuelve al punto de pausa,
+    // cruza de nuevo… nunca sostiene → nunca reanuda (sin ping-pong).
+    func testRuidoAlrededorDelUmbralNoHaceNada() {
+        var detector = AutoPausa.DetectorReanudacion()
+        var fecha = t0
+        for _ in 0..<20 {
+            XCTAssertFalse(detector.procesar(desplazamiento: 17, umbral: 15, fecha: fecha))
+            fecha = fecha.addingTimeInterval(1)
+            XCTAssertFalse(detector.procesar(desplazamiento: 3, umbral: 15, fecha: fecha))
+            fecha = fecha.addingTimeInterval(1)
+        }
+    }
+
+    // Dos lecturas sobre el umbral demasiado juntas todavía no alcanzan.
+    func testDosLecturasMuyJuntasNoReanudan() {
+        var detector = AutoPausa.DetectorReanudacion()
+        XCTAssertFalse(detector.procesar(desplazamiento: 20, umbral: 15, fecha: t0))
+        XCTAssertFalse(detector.procesar(desplazamiento: 22, umbral: 15,
+                                         fecha: t0.addingTimeInterval(1)))
+        XCTAssertTrue(detector.procesar(desplazamiento: 22, umbral: 15,
+                                        fecha: t0.addingTimeInterval(2)))
+    }
+}
+
 final class DrenajeDeAvisosTests: XCTestCase {
 
     private func aviso(_ minuto: Int, _ texto: String) -> AvisoProgramado {

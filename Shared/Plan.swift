@@ -79,6 +79,99 @@ func formatearRitmo(_ segundosPorKm: Int) -> String {
     "\(segundosPorKm / 60):" + String(format: "%02d", segundosPorKm % 60)
 }
 
+// MARK: - Auto-pausa (lógica pura, compartida por reloj y celu)
+
+/// Decisiones de auto-pausa con histéresis. La pausa exige que TODAS
+/// las señales digan "parado": el avance congelado NO alcanza solo,
+/// porque la distancia del sensor puede congelarse en movimiento (en
+/// un vehículo el reloj no detecta braceo; un hipo del delegate hace
+/// lo mismo) y el GPS puede perderse — y ninguna de esas dos cosas es
+/// una detención real. La reanudación exige movimiento SOSTENIDO, no
+/// una lectura aislada.
+enum AutoPausa {
+
+    /// ¿Frenó de verdad? Requiere: ventana completa (~10 s), GPS FRESCO
+    /// (una señal vieja no es "parado": es señal vieja), avance del
+    /// motor casi nulo, y que el GPS tampoco vea desplazamiento.
+    static func debePausar(avanceMetros: Double,
+                           ventanaSegundos: Double,
+                           desplazamientoGPSMetros: Double?,
+                           edadUltimoGPSSegundos: Double?) -> Bool {
+        guard ventanaSegundos >= 9 else { return false }
+        guard let edad = edadUltimoGPSSegundos, edad <= 5 else { return false }
+        guard avanceMetros < 6 else { return false }
+        if let gps = desplazamientoGPSMetros, gps >= 8 { return false }
+        return true
+    }
+
+    /// Histéresis de la reanudación: hacen falta DOS lecturas que
+    /// superen el umbral, separadas al menos 1,5 s. Una lectura que
+    /// vuelve cerca del punto de pausa (< 60 % del umbral) desarma el
+    /// candidato — el ruido alrededor del umbral no produce ping-pong.
+    struct DetectorReanudacion {
+        private var fechaPrimerMovimiento: Date?
+
+        mutating func procesar(desplazamiento: Double, umbral: Double, fecha: Date) -> Bool {
+            guard desplazamiento > umbral else {
+                if desplazamiento < umbral * 0.6 {
+                    fechaPrimerMovimiento = nil
+                }
+                return false
+            }
+            guard let primera = fechaPrimerMovimiento else {
+                fechaPrimerMovimiento = fecha
+                return false
+            }
+            if fecha.timeIntervalSince(primera) >= 1.5 {
+                fechaPrimerMovimiento = nil
+                return true
+            }
+            return false
+        }
+
+        mutating func reiniciar() {
+            fechaPrimerMovimiento = nil
+        }
+    }
+}
+
+// MARK: - Cumplimiento del entrenamiento planificado
+
+/// El "entrenamiento planificado" son los TRAMOS del plan. Su identidad
+/// es esta huella de contenido: si el iPhone reenvía el mismo plan, la
+/// huella no cambia (lo cumplido sigue cumplido); si el usuario edita
+/// los tramos, cambia la huella y es un entrenamiento nuevo pendiente.
+extension Plan {
+    var huellaEntrenamiento: String? {
+        let tramos = tramosActivos
+        guard !tramos.isEmpty else { return nil }
+        return tramos
+            .map { "\($0.nombre)|\($0.kilometros)|\($0.ritmoMinSegKm ?? -1)|\($0.ritmoMaxSegKm ?? -1)" }
+            .joined(separator: ";")
+    }
+}
+
+enum EstadoEntrenamiento: Equatable {
+    case sinEntrenamiento   // sin plan, o plan sin tramos
+    case pendiente
+    case cumplido
+}
+
+/// Estado del entrenamiento planificado para la pantalla del reloj.
+/// "Cumplido" y "sin entrenamiento" se comportan igual en la Home
+/// (Carrera libre primera), pero el plan y su historial siguen ahí.
+func estadoDelEntrenamiento(plan: Plan?, huellaCumplida: String?) -> EstadoEntrenamiento {
+    guard let plan, let huella = plan.huellaEntrenamiento else { return .sinEntrenamiento }
+    return huella == huellaCumplida ? .cumplido : .pendiente
+}
+
+/// El plan queda cumplido SOLO si se recorrieron todos los tramos y se
+/// guardó la carrera. Carrera libre (0 tramos) o abandono a mitad no
+/// marcan nada — criterio conservador y explícito.
+func debeMarcarCumplido(tramosTotales: Int, indiceAlcanzado: Int) -> Bool {
+    tramosTotales > 0 && indiceAlcanzado >= tramosTotales
+}
+
 /// Zona cardíaca 1...5 por reserva (Karvonen): dónde está `fc` en el
 /// camino entre la FC de reposo y la máxima. 0 = datos inválidos.
 /// ÚNICA fuente de la fórmula: la usan el aviso hablado y la celda de

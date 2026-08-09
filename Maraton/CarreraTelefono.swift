@@ -40,6 +40,12 @@ final class CarreraCelu: NSObject, ObservableObject {
     @Published var enPausaAutomatica = false
     private var ubicacionPausa: CLLocation?
 
+    /// Frescura del GPS y histéresis de reanudación (ver AutoPausa en
+    /// Shared): perder señal congela la distancia, y eso NO es estar
+    /// parado — sin esto, un túnel o un mal fix disparaba pausas falsas.
+    private var fechaUltimoGPS: Date?
+    private var detectorReanudacion = AutoPausa.DetectorReanudacion()
+
     private var autoPausaActiva: Bool {
         UserDefaults.standard.object(forKey: "autoPausaCelu") as? Bool ?? true
     }
@@ -193,6 +199,8 @@ final class CarreraCelu: NSObject, ObservableObject {
         ritmoActualSegKm = nil
         muestras = []
         ultimaUbicacion = nil
+        fechaUltimoGPS = nil
+        detectorReanudacion.reiniciar()
         musicaSilenciada = false
         acumuladoPrevio = 0
         fechaReanudacion = Date()
@@ -290,13 +298,17 @@ final class CarreraCelu: NSObject, ObservableObject {
         muestras.append((ahora, distanciaMetros))
         muestras.removeAll { ahora.timeIntervalSince($0.fecha) > 60 }
 
-        // Auto-pausa: ~10 s casi sin avanzar (menos de 6 m) = parado.
-        // Exige puntos GPS reales: sin señal (o sin permiso) no hay
-        // manera de detectar el arranque y quedaría pausada para siempre.
-        if autoPausaActiva, puntosRuta > 0, tiempoTranscurrido > 30,
+        // Auto-pausa: ~10 s casi sin avanzar Y GPS fresco entregando
+        // (una señal perdida congela la distancia y eso no es estar
+        // parado). En el celu la distancia YA viene del GPS, así que
+        // avance congelado + señal fresca = detención real.
+        if autoPausaActiva, tiempoTranscurrido > 30,
            let vieja = muestras.first(where: { ahora.timeIntervalSince($0.fecha) <= 10 }),
-           ahora.timeIntervalSince(vieja.fecha) >= 9,
-           distanciaMetros - vieja.metros < 6 {
+           AutoPausa.debePausar(
+               avanceMetros: distanciaMetros - vieja.metros,
+               ventanaSegundos: ahora.timeIntervalSince(vieja.fecha),
+               desplazamientoGPSMetros: nil,
+               edadUltimoGPSSegundos: fechaUltimoGPS.map { ahora.timeIntervalSince($0) }) {
             pausar(automatica: true)
             anunciar("Pausa automática.")
             return
@@ -500,6 +512,7 @@ final class CarreraCelu: NSObject, ObservableObject {
         estado = .pausada
         enPausaAutomatica = automatica
         ubicacionPausa = nil
+        detectorReanudacion.reiniciar()
         player?.pause()
         // En auto-pausa el GPS queda vivo para detectar el arranque.
         if !automatica { ubicaciones.stopUpdatingLocation() }
@@ -685,13 +698,15 @@ extension CarreraCelu: CLLocationManagerDelegate {
         // Auto-pausa: si te alejaste más de 15 m del punto donde
         // frenaste, la carrera sigue sola.
         if estado == .pausada, enPausaAutomatica {
-            // Precisión hasta 50 m con umbral dinámico: con mala señal
-            // urbana, exigir 20 m de precisión dejaba la pausa clavada.
+            // Precisión hasta 50 m con umbral dinámico y con HISTÉRESIS:
+            // dos lecturas sostenidas sobre el umbral, no una aislada.
             guard let ubicacion = locations.last,
                   ubicacion.horizontalAccuracy > 0, ubicacion.horizontalAccuracy <= 50 else { return }
             if let referencia = ubicacionPausa {
                 let umbral = max(15, ubicacion.horizontalAccuracy)
-                if ubicacion.distance(from: referencia) > umbral {
+                if detectorReanudacion.procesar(
+                    desplazamiento: ubicacion.distance(from: referencia),
+                    umbral: umbral, fecha: Date()) {
                     reanudar()
                     anunciar("Seguimos.")
                 }
@@ -712,6 +727,7 @@ extension CarreraCelu: CLLocationManagerDelegate {
             buenas.append(ubicacion)
         }
         guard !buenas.isEmpty else { return }
+        fechaUltimoGPS = Date()
         puntosRuta += buenas.count
         routeBuilder?.insertRouteData(buenas) { _, _ in }
     }

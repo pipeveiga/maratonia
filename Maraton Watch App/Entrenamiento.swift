@@ -56,6 +56,13 @@ final class Entrenamiento: NSObject, ObservableObject {
     @Published var enPausaAutomatica = false
     private var ubicacionPausa: CLLocation?
 
+    /// Ventana de ubicaciones buenas (~15 s) para la auto-pausa: la
+    /// distancia del builder sola NO alcanza (se congela en un vehículo
+    /// o ante un hipo del sensor aunque te estés moviendo); el GPS
+    /// confirma la detención y detecta señal vieja.
+    private var ubicacionesRecientes: [(fecha: Date, ubicacion: CLLocation)] = []
+    private var detectorReanudacion = AutoPausa.DetectorReanudacion()
+
     // Aviso hablado al cambiar de zona (sostenida, sin spam). La
     // candidata evita que un pulso oscilando entre dos zonas sume
     // segundos "de cambio" repartidos entre zonas distintas.
@@ -280,6 +287,8 @@ final class Entrenamiento: NSObject, ObservableObject {
             pausado = false
             enPausaAutomatica = false
             ubicacionPausa = nil
+            ubicacionesRecientes = []
+            detectorReanudacion.reiniciar()
             zonaAnunciada = 0
             zonaCandidata = 0
             segundosEnZonaCandidata = 0
@@ -314,6 +323,8 @@ final class Entrenamiento: NSObject, ObservableObject {
         pausado = false
         enPausaAutomatica = false
         ubicacionPausa = nil
+        detectorReanudacion.reiniciar()
+        ubicacionesRecientes = []  // sin restos: la próxima pausa junta datos frescos
         sesion?.resume()
         if usaGPS { ubicaciones.startUpdatingLocation() }
         muestras = []  // arranca limpio: sin ritmo hasta juntar datos nuevos
@@ -328,9 +339,23 @@ final class Entrenamiento: NSObject, ObservableObject {
         guard Reproductor.compartido.estado == .reproduciendo else { return }
         enPausaAutomatica = true
         ubicacionPausa = nil
+        detectorReanudacion.reiniciar()
+        ubicacionesRecientes = []
         Reproductor.compartido.pausar()  // cascada: avisos + entrenamiento
         ubicaciones.startUpdatingLocation()
         Avisador.compartido.anunciar("Pausa automática.")
+    }
+
+    /// Desplazamiento GPS (primer a último punto bueno) en la ventana.
+    /// nil = menos de dos puntos: sin datos para confirmar nada.
+    private func desplazamientoGPS(enUltimos segundos: TimeInterval) -> Double? {
+        let ahora = Date()
+        ubicacionesRecientes.removeAll { ahora.timeIntervalSince($0.fecha) > 15 }
+        let ventana = ubicacionesRecientes.filter { ahora.timeIntervalSince($0.fecha) <= segundos }
+        guard ventana.count >= 2, let primera = ventana.first, let ultima = ventana.last else {
+            return nil
+        }
+        return ultima.ubicacion.distance(from: primera.ubicacion)
     }
 
     private func autoReanudar() {
@@ -382,13 +407,20 @@ final class Entrenamiento: NSObject, ObservableObject {
         muestras.append((ahora, distanciaMetros))
         muestras.removeAll { ahora.timeIntervalSince($0.fecha) > 60 }
 
-        // Auto-pausa: ~10 s casi sin avanzar (menos de 6 m) = parado.
-        // Exige puntos GPS reales (puntosRuta > 0): sin señal no hay
-        // manera de detectar el arranque y quedaría pausada para siempre.
-        if usaGPS, autoPausaActiva, puntosRuta > 0, (builder?.elapsedTime ?? 0) > 30,
+        // Auto-pausa con doble confirmación: avance del builder congelado
+        // Y el GPS fresco sin ver desplazamiento. Una sola de las dos
+        // señales no alcanza — la distancia del sensor se congela en un
+        // vehículo o ante un hipo del delegate, y eso NO es estar parado
+        // (causa del falso positivo pausa→"seguimos" en movimiento).
+        if usaGPS, autoPausaActiva, (builder?.elapsedTime ?? 0) > 30,
            let vieja = muestras.first(where: { ahora.timeIntervalSince($0.fecha) <= 10 }),
-           ahora.timeIntervalSince(vieja.fecha) >= 9,
-           distanciaMetros - vieja.metros < 6 {
+           AutoPausa.debePausar(
+               avanceMetros: distanciaMetros - vieja.metros,
+               ventanaSegundos: ahora.timeIntervalSince(vieja.fecha),
+               desplazamientoGPSMetros: desplazamientoGPS(enUltimos: 10),
+               edadUltimoGPSSegundos: ubicacionesRecientes.last.map {
+                   ahora.timeIntervalSince($0.fecha)
+               }) {
             autoPausar()
             return
         }
@@ -562,13 +594,17 @@ extension Entrenamiento: CLLocationManagerDelegate {
         // En auto-pausa el GPS queda vivo SOLO para esto: si te alejaste
         // más de 15 m del punto donde frenaste, la sesión sigue sola.
         if enPausaAutomatica, pausado {
-            // Precisión hasta 50 m con umbral dinámico: con mala señal
-            // urbana, exigir 20 m de precisión dejaba la pausa clavada.
+            // Precisión hasta 50 m con umbral dinámico, y con HISTÉRESIS:
+            // hacen falta dos lecturas sostenidas que superen el umbral
+            // (ver AutoPausa.DetectorReanudacion) — una única lectura
+            // saltarina del GPS ya no dispara el "Seguimos".
             guard let ubicacion = locations.last,
                   ubicacion.horizontalAccuracy > 0, ubicacion.horizontalAccuracy <= 50 else { return }
             if let referencia = ubicacionPausa {
                 let umbral = max(15, ubicacion.horizontalAccuracy)
-                if ubicacion.distance(from: referencia) > umbral {
+                if detectorReanudacion.procesar(
+                    desplazamiento: ubicacion.distance(from: referencia),
+                    umbral: umbral, fecha: Date()) {
                     autoReanudar()
                 }
             } else {
@@ -583,6 +619,9 @@ extension Entrenamiento: CLLocationManagerDelegate {
         guard !buenas.isEmpty else { return }
         routeBuilder.insertRouteData(buenas) { _, _ in }
         DispatchQueue.main.async {
+            for ubicacion in buenas {
+                self.ubicacionesRecientes.append((Date(), ubicacion))
+            }
             self.puntosRuta += buenas.count
         }
     }
