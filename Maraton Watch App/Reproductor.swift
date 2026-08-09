@@ -53,6 +53,32 @@ final class Reproductor: NSObject, ObservableObject {
         acumuladoPrevio + (fechaReanudacion.map { Date().timeIntervalSince($0) } ?? 0)
     }
 
+    override private init() {
+        super.init()
+        // Una llamada o Siri cortan el audio y, sin esto, la música no
+        // volvía nunca al terminar la interrupción.
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil, queue: .main
+        ) { [weak self] nota in
+            self?.manejarInterrupcion(nota)
+        }
+    }
+
+    private func manejarInterrupcion(_ nota: Notification) {
+        guard estado == .reproduciendo, !modoMusicaExterna,
+              let info = nota.userInfo,
+              let tipoCrudo = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+              AVAudioSession.InterruptionType(rawValue: tipoCrudo) == .ended else { return }
+        let opciones = AVAudioSession.InterruptionOptions(
+            rawValue: info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
+        guard opciones.contains(.shouldResume),
+              !musicaSilenciada,
+              !Avisador.compartido.estaHablando else { return }
+        try? AVAudioSession.sharedInstance().setActive(true)
+        player?.play()
+    }
+
     // MARK: - Control
 
     func iniciar(plan: Plan, urlDe: @escaping (String) -> URL, musicaExterna: Bool = false) {

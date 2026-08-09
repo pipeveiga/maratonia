@@ -93,6 +93,26 @@ final class CarreraCelu: NSObject, ObservableObject {
         ubicaciones.delegate = self
         ubicaciones.desiredAccuracy = kCLLocationAccuracyBest
         ubicaciones.activityType = .fitness
+        // Una llamada o Siri cortan el audio y, sin esto, la música no
+        // volvía nunca al terminar la interrupción.
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil, queue: .main
+        ) { [weak self] nota in
+            self?.manejarInterrupcion(nota)
+        }
+    }
+
+    private func manejarInterrupcion(_ nota: Notification) {
+        guard estado == .corriendo,
+              let info = nota.userInfo,
+              let tipoCrudo = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+              AVAudioSession.InterruptionType(rawValue: tipoCrudo) == .ended else { return }
+        let opciones = AVAudioSession.InterruptionOptions(
+            rawValue: info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
+        guard opciones.contains(.shouldResume), !musicaSilenciada, !voz.isSpeaking else { return }
+        try? AVAudioSession.sharedInstance().setActive(true)
+        player?.play()
     }
 
     private static var permiteUbicacionEnFondo: Bool {

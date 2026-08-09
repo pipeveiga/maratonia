@@ -62,6 +62,7 @@ final class Conectividad: NSObject, ObservableObject {
 
     private func actualizarProgreso() {
         let transferencias = WCSession.default.outstandingFileTransfers
+        let planesPendientes = WCSession.default.outstandingUserInfoTransfers
         var progreso: [String: Double] = [:]
         for transferencia in transferencias {
             if let nombre = transferencia.file.metadata?["nombre"] as? String {
@@ -70,7 +71,10 @@ final class Conectividad: NSObject, ObservableObject {
         }
         DispatchQueue.main.async {
             self.progresoEnvios = progreso
-            if transferencias.isEmpty {
+            // "Plan encolado" solo mientras de verdad esté en la cola:
+            // antes quedaba prendido para siempre.
+            self.planEncolado = !planesPendientes.isEmpty
+            if transferencias.isEmpty && planesPendientes.isEmpty {
                 self.timerProgreso?.invalidate()
                 self.timerProgreso = nil
             }

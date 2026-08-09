@@ -65,7 +65,14 @@ final class ConectividadWatch: NSObject, ObservableObject {
 
     /// Borra del reloj los MP3 que ya no figuran en el plan: si no, el
     /// reloj acumula archivos viejos para siempre y se queda sin espacio.
+    /// NUNCA durante una sesión: si el plan llega en plena carrera,
+    /// borraría las pistas que están sonando y mataría la música.
     private func limpiarPistasHuerfanas() {
+        guard Reproductor.compartido.estado == .detenido else {
+            refrescarArchivosLocales()
+            avisarArchivosAlTelefono()
+            return
+        }
         guard let plan else { return }
         let vigentes = Set(plan.pistas)
         for nombre in archivosLocales where !vigentes.contains(nombre) {
