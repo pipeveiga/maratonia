@@ -31,6 +31,7 @@ struct ContentView: View {
     @State private var cuentaRegresiva: Int?
     @State private var planPendiente: Plan?
     @State private var libreEnCuentaRegresiva = false
+    @State private var programadoEnCuentaRegresiva: UUID?
 
     var body: some View {
         if let numero = cuentaRegresiva {
@@ -69,7 +70,14 @@ struct ContentView: View {
                     if let resumen = entrenamiento.resumen {
                         vistaResumen(resumen)
                     }
-                    if let plan = conectividad.plan {
+                    // Fase E: si el iPhone proyectó un entrenamiento
+                    // para HOY, ese es el protagonista (identidad por
+                    // programadoID, no por huella). Sin proyección
+                    // vigente, el reloj se comporta como siempre — un
+                    // iPhone viejo no rompe nada.
+                    if let hoy = conectividad.entrenamientoDeHoy(DiaLocal(fecha: Date())) {
+                        vistaEntrenamientoHoy(hoy.id, hoy.definicion)
+                    } else if let plan = conectividad.plan {
                         vistaPlan(plan)
                     } else {
                         vistaSinPlan
@@ -139,6 +147,63 @@ struct ContentView: View {
     // El lobby va partido en bloques chicos a propósito: SwiftUI admite
     // como máximo 10 vistas por bloque y de una sola pieza quedaba al
     // borde de ese límite.
+
+    /// Fase E — el entrenamiento de HOY proyectado por el iPhone:
+    /// tipo, nombre, estructura, EMPEZAR grande y Carrera libre debajo.
+    /// Al terminar, el resultado vuelve al iPhone con el programadoID.
+    @ViewBuilder
+    private func vistaEntrenamientoHoy(_ programadoID: UUID,
+                                       _ definicion: DefinicionEntrenamiento) -> some View {
+        let planAudio = conectividad.plan ?? .vacio
+        VStack(spacing: 3) {
+            Text("HOY")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.green)
+                .tracking(1)
+            Text(definicion.nombre)
+                .font(.headline)
+                .multilineTextAlignment(.center)
+            Text(definicion.resumenEstructura)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            if !definicion.descripcion.isEmpty {
+                Text(definicion.descripcion)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+        }
+
+        estadoDeMusica(planAudio)
+
+        botonPlay(planParaDefinicion(definicion, audio: planAudio),
+                  libre: false, titulo: "Entrenamiento",
+                  programadoID: programadoID)
+
+        Button {
+            comenzarCuentaRegresiva(planAudio, libre: true)
+        } label: {
+            Label("Carrera libre", systemImage: "hare.fill")
+                .font(.footnote)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+
+        piePlan(planAudio)
+    }
+
+    /// El plan de la SESIÓN para un entrenamiento V2: los tramos salen
+    /// de la definición (distancia y tiempo); música y avisos, de la
+    /// configuración de audio que ya vive en el reloj.
+    private func planParaDefinicion(_ definicion: DefinicionEntrenamiento,
+                                    audio: Plan) -> Plan {
+        var plan = audio
+        plan.nombre = definicion.nombre
+        let tramos = definicion.tramosEjecutables
+        plan.tramos = tramos.isEmpty ? nil : tramos
+        return plan
+    }
 
     /// La Home SIEMPRE ofrece una acción para salir a correr:
     /// entrenamiento pendiente → Entrenamiento primero, Carrera libre
@@ -214,11 +279,12 @@ struct ContentView: View {
     /// Play redondo grande, como la app Entrenamiento de Apple, con la
     /// etiqueta de qué arranca ("Entrenamiento" o "Carrera libre").
     @ViewBuilder
-    private func botonPlay(_ plan: Plan, libre: Bool, titulo: String) -> some View {
+    private func botonPlay(_ plan: Plan, libre: Bool, titulo: String,
+                           programadoID: UUID? = nil) -> some View {
         let listas = plan.pistas.count - conectividad.pistasFaltantes.count
         VStack(spacing: 4) {
             Button {
-                comenzarCuentaRegresiva(plan, libre: libre)
+                comenzarCuentaRegresiva(plan, libre: libre, programadoID: programadoID)
             } label: {
                 Image(systemName: "play.fill")
                     .font(.system(size: 32, weight: .heavy))
@@ -288,9 +354,11 @@ struct ContentView: View {
 
     // MARK: - Cuenta regresiva 3-2-1
 
-    private func comenzarCuentaRegresiva(_ plan: Plan, libre: Bool) {
+    private func comenzarCuentaRegresiva(_ plan: Plan, libre: Bool,
+                                         programadoID: UUID? = nil) {
         planPendiente = plan
         libreEnCuentaRegresiva = libre
+        programadoEnCuentaRegresiva = programadoID
         cuentaRegresiva = 3
         WKInterfaceDevice.current().play(.start)
         programarTick()
@@ -307,9 +375,11 @@ struct ContentView: View {
                 cuentaRegresiva = nil
                 WKInterfaceDevice.current().play(.success)
                 if let plan = planPendiente {
-                    arrancar(plan, libre: libreEnCuentaRegresiva)
+                    arrancar(plan, libre: libreEnCuentaRegresiva,
+                             programadoID: programadoEnCuentaRegresiva)
                 }
                 planPendiente = nil
+                programadoEnCuentaRegresiva = nil
             }
         }
     }
@@ -319,7 +389,7 @@ struct ContentView: View {
     /// El entrenamiento se engancha al callback de arranque REAL del
     /// audio: si el audio falla, no queda un workout fantasma grabando
     /// con la app de vuelta en el lobby y sin botón para pararlo.
-    private func arrancar(_ plan: Plan, libre: Bool) {
+    private func arrancar(_ plan: Plan, libre: Bool, programadoID: UUID? = nil) {
         // Carrera libre = la MISMA infraestructura (música, avisos, GPS,
         // Salud, auto-pausa, recovery) sin tramos: el entrenador de
         // ritmo no opina y el entrenamiento planificado NO se consume
@@ -331,16 +401,17 @@ struct ContentView: View {
         // Libre sin música en el reloj: arranca igual, sin música propia.
         let externa = musicaExterna || (libre && !hayMusicaLocal)
         // "Registrar carrera" se respeta también en libre (convivencia
-        // con Runna); solo se fuerza cuando no hay música propia — sin
-        // audio, el workout es lo único que mantiene viva la app.
-        let entrenar = modoEntrenamiento || (libre && !hayMusicaLocal)
+        // con Runna); se fuerza cuando no hay música propia (sin audio,
+        // el workout mantiene viva la app) y SIEMPRE en un programado:
+        // sin workout no hay HKWorkout.uuid ni resultado que devolver.
+        let entrenar = modoEntrenamiento || (libre && !hayMusicaLocal) || programadoID != nil
         let conGPS = rutaGPS
         reproductor.iniciar(plan: planSesion, urlDe: conectividad.urlDePista,
                             musicaExterna: externa) {
             guard entrenar else { return }
             EntrenadorRitmo.compartido.iniciar(plan: planSesion)
             Entrenamiento.compartido.pedirPermisos(conGPS: conGPS) {
-                Entrenamiento.compartido.iniciar(conGPS: conGPS)
+                Entrenamiento.compartido.iniciar(conGPS: conGPS, programadoID: programadoID)
             }
         }
     }
@@ -443,6 +514,8 @@ struct PantallaReproduccion: View {
                 // El cumplimiento del plan se decide ANTES de detener
                 // (detener borra el estado del entrenador).
                 EntrenadorRitmo.compartido.marcarCumplimientoSiCorresponde()
+                Entrenamiento.compartido.estructuraCompletaAlGuardar =
+                    EntrenadorRitmo.compartido.estructuraCompleta
                 reproductor.detener()
                 EntrenadorRitmo.compartido.detener()
                 Entrenamiento.compartido.finalizar()

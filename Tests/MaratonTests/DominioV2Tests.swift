@@ -646,3 +646,154 @@ final class MigracionV2Tests: XCTestCase {
         try? FileManager.default.removeItem(at: directorio)
     }
 }
+
+// MARK: - Fase E: proyección del día y resultados del reloj
+
+final class FaseETests: XCTestCase {
+
+    private func definicion() -> DefinicionEntrenamiento {
+        DefinicionEntrenamiento(tipo: .facil, nombre: "Rodaje", segmentos: [
+            Segmento(nombre: "Rodaje", distanciaKm: 5),
+        ])
+    }
+
+    private func almacenConPlan(dia: DiaLocal) -> (AlmacenV2, UUID) {
+        var almacen = AlmacenV2()
+        almacen.activado = true
+        let programado = EntrenamientoProgramado(definicion: definicion(), dia: dia)
+        almacen.planActivo = PlanUsuario(nombre: "Plan", origen: .personalizado,
+                                         fechaAdopcion: Date(timeIntervalSince1970: 0),
+                                         semanas: [SemanaPlan(numero: 1, programados: [programado])])
+        return (almacen, programado.id)
+    }
+
+    private func storeDePrueba(_ almacen: AlmacenV2) -> AlmacenStore {
+        let directorio = FileManager.default.temporaryDirectory
+            .appendingPathComponent("test-fase-e-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: directorio, withIntermediateDirectories: true)
+        let url = directorio.appendingPathComponent("dominio-v2.json")
+        try? JSONEncoder().encode(almacen).write(to: url)
+        return AlmacenStore(url: url,
+                            urlLegacy: directorio.appendingPathComponent("plan.json"),
+                            conectadoAlReloj: false)
+    }
+
+    func testProyeccionVigenciaPorDiaYVersion() {
+        let hoy = DiaLocal(anio: 2026, mes: 8, dia: 9)
+        var proyeccion = ProyeccionDia(generadaEl: Date(), dia: hoy)
+        XCTAssertTrue(proyeccion.vigente(hoy: hoy))
+        XCTAssertFalse(proyeccion.vigente(hoy: DiaLocal(anio: 2026, mes: 8, dia: 10)))
+        // Versión del futuro: se ignora en vez de malinterpretarse.
+        proyeccion.version = ProyeccionDia.versionActual + 1
+        XCTAssertFalse(proyeccion.vigente(hoy: hoy))
+    }
+
+    func testProyeccionDeHoyConYSinEntrenamiento() {
+        let hoy = DiaLocal(fecha: Date())
+        let (almacen, id) = almacenConPlan(dia: hoy)
+        let store = storeDePrueba(almacen)
+        let proyeccion = store.proyeccionDeHoy()
+        XCTAssertEqual(proyeccion.programadoID, id)
+        XCTAssertEqual(proyeccion.definicion?.nombre, "Rodaje")
+        XCTAssertEqual(proyeccion.dia, hoy)
+
+        // Día sin entrenamiento: proyección "vacía" pero con el día —
+        // el reloj se entera de que hoy no hay nada pendiente.
+        let (sinHoy, _) = almacenConPlan(dia: hoy.sumando(dias: 3))
+        let storeVacio = storeDePrueba(sinHoy)
+        let vacia = storeVacio.proyeccionDeHoy()
+        XCTAssertNil(vacia.programadoID)
+        XCTAssertNil(vacia.definicion)
+        XCTAssertEqual(vacia.dia, hoy)
+    }
+
+    func testResultadoVinculaYEsIdempotente() {
+        let hoy = DiaLocal(fecha: Date())
+        let (almacen, id) = almacenConPlan(dia: hoy)
+        let store = storeDePrueba(almacen)
+        let sesion = UUID()
+        let resultado = ResultadoSesionWatch(sesionID: sesion, fecha: Date(),
+                                             programadoID: id, estructuraCompleta: true)
+        store.procesar(resultado: resultado)
+        XCTAssertEqual(store.almacen.todosLosProgramados[0].resolucion, .cumplido)
+        XCTAssertEqual(store.almacen.todosLosProgramados[0].sesionVinculadaID, sesion)
+        XCTAssertEqual(store.almacen.sesiones.count, 1)
+
+        // La cola de WC puede reentregar: nada se duplica ni cambia.
+        store.procesar(resultado: resultado)
+        XCTAssertEqual(store.almacen.sesiones.count, 1)
+        XCTAssertEqual(store.almacen.todosLosProgramados[0].resolucion, .cumplido)
+    }
+
+    func testResultadoParcial() {
+        let hoy = DiaLocal(fecha: Date())
+        let (almacen, id) = almacenConPlan(dia: hoy)
+        let store = storeDePrueba(almacen)
+        store.procesar(resultado: ResultadoSesionWatch(sesionID: UUID(), fecha: Date(),
+                                                       programadoID: id,
+                                                       estructuraCompleta: false))
+        XCTAssertEqual(store.almacen.todosLosProgramados[0].resolucion, .parcial)
+    }
+
+    func testResultadoConProgramadoDesconocidoSeRegistraLibre() {
+        // El plan cambió mientras el reloj estaba offline: la evidencia
+        // no se tira — queda como carrera libre.
+        let (almacen, _) = almacenConPlan(dia: DiaLocal(fecha: Date()))
+        let store = storeDePrueba(almacen)
+        let sesion = UUID()
+        store.procesar(resultado: ResultadoSesionWatch(sesionID: sesion, fecha: Date(),
+                                                       programadoID: UUID(),
+                                                       estructuraCompleta: true))
+        XCTAssertEqual(store.almacen.todosLosProgramados[0].resolucion, .pendiente)
+        XCTAssertEqual(store.almacen.sesiones.count, 1)
+        XCTAssertTrue(store.almacen.sesiones[0].esLibre)
+        XCTAssertEqual(store.almacen.sesiones[0].id, sesion)
+    }
+
+    func testResultadoTardioNoPisaVinculoExistente() {
+        // Corriste el programado desde el iPhone; DESPUÉS llega un
+        // resultado viejo del reloj para el mismo programado: no roba
+        // el vínculo — se registra libre.
+        let hoy = DiaLocal(fecha: Date())
+        let (almacen, id) = almacenConPlan(dia: hoy)
+        let store = storeDePrueba(almacen)
+        let sesionTelefono = UUID()
+        store.almacen.vincular(sesionID: sesionTelefono, fechaSesion: Date(),
+                               aProgramado: id, completo: true)
+
+        let sesionReloj = UUID()
+        store.procesar(resultado: ResultadoSesionWatch(sesionID: sesionReloj, fecha: Date(),
+                                                       programadoID: id,
+                                                       estructuraCompleta: true))
+        XCTAssertEqual(store.almacen.todosLosProgramados[0].sesionVinculadaID, sesionTelefono)
+        XCTAssertEqual(store.almacen.sesiones.count, 2)
+        XCTAssertTrue(store.almacen.sesiones.first { $0.id == sesionReloj }!.esLibre)
+    }
+
+    func testResultadoLibreSeRegistraLibre() {
+        let (almacen, _) = almacenConPlan(dia: DiaLocal(fecha: Date()))
+        let store = storeDePrueba(almacen)
+        store.procesar(resultado: ResultadoSesionWatch(sesionID: UUID(), fecha: Date(),
+                                                       programadoID: nil,
+                                                       estructuraCompleta: false))
+        XCTAssertEqual(store.almacen.sesiones.count, 1)
+        XCTAssertTrue(store.almacen.sesiones[0].esLibre)
+    }
+
+    func testProtocoloCodableIdaYVuelta() throws {
+        let proyeccion = ProyeccionDia(generadaEl: Date(timeIntervalSince1970: 100),
+                                       dia: DiaLocal(anio: 2026, mes: 8, dia: 9),
+                                       programadoID: UUID(),
+                                       definicion: definicion(),
+                                       nombrePlan: "Primeros 5K")
+        let datos = try JSONEncoder().encode(proyeccion)
+        XCTAssertEqual(try JSONDecoder().decode(ProyeccionDia.self, from: datos), proyeccion)
+
+        let resultado = ResultadoSesionWatch(sesionID: UUID(),
+                                             fecha: Date(timeIntervalSince1970: 200),
+                                             programadoID: nil,
+                                             estructuraCompleta: true)
+        let datos2 = try JSONEncoder().encode(resultado)
+        XCTAssertEqual(try JSONDecoder().decode(ResultadoSesionWatch.self, from: datos2), resultado)
+    }
+}

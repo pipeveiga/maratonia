@@ -208,11 +208,69 @@ final class AlmacenStore: ObservableObject {
 
     private let url: URL
 
+    /// false en tests: los stores de prueba no deben tocar WCSession ni
+    /// pisarse el registro de resultados entre sí.
+    private let conectadoAlReloj: Bool
+
     init(url: URL = PlanStore.urlDominioV2,
          urlLegacy: URL = PlanStore.urlPlanLegacy,
-         fecha: Date = Date()) {
+         fecha: Date = Date(),
+         conectadoAlReloj: Bool = true) {
         self.url = url
+        self.conectadoAlReloj = conectadoAlReloj
         almacen = Self.cargarConCutover(urlV2: url, urlLegacy: urlLegacy, fecha: fecha)
+        guard conectadoAlReloj else { return }
+        // Fase E: el reloj recibe la proyección de HOY y devuelve
+        // resultados; este store es el dueño de las dos puntas.
+        Conectividad.compartida.proveedorProyeccion = { [weak self] in
+            self?.proyeccionDeHoy()
+        }
+        Conectividad.compartida.entregarResultados { [weak self] resultado in
+            self?.procesar(resultado: resultado)
+        }
+        Conectividad.compartida.enviar(proyeccion: proyeccionDeHoy())
+    }
+
+    // MARK: Proyección del día (Fase E)
+
+    /// La foto de HOY para el reloj: el pendiente del día si existe.
+    /// También se manda "vacía" (sin definición) — así el reloj se
+    /// entera de que hoy NO hay nada pendiente (p. ej. recién cumplido
+    /// desde el iPhone).
+    func proyeccionDeHoy(fecha: Date = Date()) -> ProyeccionDia {
+        let hoy = DiaLocal(fecha: fecha)
+        let deHoy = almacen.entrenamientoDeHoy(hoy)
+        return ProyeccionDia(generadaEl: fecha,
+                             dia: hoy,
+                             programadoID: deHoy?.id,
+                             definicion: deHoy?.definicion,
+                             nombrePlan: almacen.planActivo?.nombre)
+    }
+
+    // MARK: Resultados del reloj (Fase E)
+
+    /// Idempotente y a prueba de desorden: el mismo resultado puede
+    /// llegar dos veces (cola de WC) o tarde (reloj offline). Reglas:
+    /// - programadoID nil o ya desconocido (plan cambiado/archivado) →
+    ///   la sesión se registra como LIBRE: la evidencia nunca se tira;
+    /// - programado ya resuelto por OTRA sesión (corriste desde el
+    ///   iPhone y el resultado viejo del reloj llegó después) → LIBRE,
+    ///   el vínculo existente no se pisa;
+    /// - duplicado exacto → vincular/registrar ya son idempotentes.
+    func procesar(resultado: ResultadoSesionWatch) {
+        if let programadoID = resultado.programadoID,
+           let programado = almacen.todosLosProgramados.first(where: { $0.id == programadoID }) {
+            let resueltoPorOtra = programado.resolucion != .pendiente
+                && programado.sesionVinculadaID != resultado.sesionID
+            if !resueltoPorOtra {
+                almacen.vincular(sesionID: resultado.sesionID,
+                                 fechaSesion: resultado.fecha,
+                                 aProgramado: programadoID,
+                                 completo: resultado.estructuraCompleta)
+                return
+            }
+        }
+        almacen.registrarSesionLibre(sesionID: resultado.sesionID, fecha: resultado.fecha)
     }
 
     /// Idempotente entre arranques: activado → cargar y listo.
@@ -257,6 +315,13 @@ final class AlmacenStore: ObservableObject {
 
     private func guardar() {
         Self.escribir(almacen, en: url)
+        // Cada mutación re-proyecta HOY al reloj: adopción, vínculo,
+        // omitir, reprogramar — todo pasa por el didSet, así que el
+        // reloj nunca queda mirando un "hoy" viejo por más de un canal
+        // caído (y applicationContext lo entrega al reconectar).
+        if conectadoAlReloj {
+            Conectividad.compartida.enviar(proyeccion: proyeccionDeHoy())
+        }
     }
 
     private static func escribir(_ almacen: AlmacenV2, en url: URL) {

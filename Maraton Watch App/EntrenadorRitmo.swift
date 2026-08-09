@@ -77,10 +77,16 @@ final class EntrenadorRitmo: ObservableObject {
     /// tramos se recorrió entero y la carrera se guarda, el
     /// entrenamiento queda CUMPLIDO. Carrera libre (0 tramos) o
     /// abandono a mitad de plan no marcan nada — criterio conservador.
+    /// ¿Se recorrió la estructura ENTERA del plan de esta sesión? (D1:
+    /// esto decide cumplido vs parcial en el iPhone). Consultarlo ANTES
+    /// de detener() — detener borra el estado.
+    var estructuraCompleta: Bool {
+        debeMarcarCumplido(tramosTotales: tramosDelPlan.count,
+                           indiceAlcanzado: indiceActual)
+    }
+
     func marcarCumplimientoSiCorresponde() {
-        guard debeMarcarCumplido(tramosTotales: tramosDelPlan.count,
-                                 indiceAlcanzado: indiceActual),
-              let huella = huellaSesion else { return }
+        guard estructuraCompleta, let huella = huellaSesion else { return }
         EstadoPlanWatch.compartido.marcarCumplida(huella: huella)
     }
 

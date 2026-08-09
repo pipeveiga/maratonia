@@ -469,3 +469,43 @@ resuelva su huella local contra el programado migrado). Tests:
 `Tests/MaratonTests/DominioV2Tests.swift` (18 casos). Ninguna pantalla
 ni motor consume V2 todavía. **VALIDADA: build 35 compilado, archivado,
 en TestFlight y funcionando en dispositivo.**
+
+## 20. Fases D y E — IMPLEMENTADAS (post build 37)
+
+**Fase D.** `ProgresoTramos` (Shared/Plan.swift): máquina PURA de avance
+de tramos mixtos —por distancia y por TIEMPO ACTIVO— compartida por los
+dos motores (reemplazó las dos sumas de prefijos duplicadas). `Tramo`
+ganó `duracionSegundos` (opcional, retrocompatible; huella V1 idéntica
+para tramos por distancia). `tramosEjecutables` ya ejecuta segmentos por
+duración (con ambas metas gana la distancia; sin meta, no ejecutable).
+Pestaña Correr V2: entrenamiento de hoy protagonista con estructura y
+EMPEZAR; Carrera Libre principal cuando no hay nada pendiente, con el
+próximo programado como contexto. Durante la carrera: tarjeta del tramo
+en curso (x/n, progreso, barra) + siguiente tramo.
+
+**Fase E.** Protocolo en Shared: `ProyeccionDia` (iPhone→reloj por
+applicationContext: gana la última, sobrevive offline; vigencia = mismo
+día local + versión conocida) y `ResultadoSesionWatch` (reloj→iPhone por
+transferUserInfo: cola confiable; receptor idempotente). El iPhone
+re-proyecta HOY en cada mutación del almacén (funnel del didSet), al
+activar la sesión WC y al cambiar el estado del reloj. El reloj: Home
+con "HOY" desde la proyección (identidad por programadoID), corre la
+definición (tramos por distancia y tiempo), estampa el programadoID como
+metadata del HKWorkout, y devuelve el resultado SOLO con el workout real
+guardado. Recuperación post-crash conserva el programadoID persistido
+(resultado sale como parcial). Reglas del receptor (`AlmacenStore.
+procesar`): programado desconocido o resuelto por OTRA sesión → la
+evidencia se registra como carrera libre, jamás se pisa un vínculo ni se
+tira una sesión; duplicados = no-op (validado con fuzzing de 30k
+corridas de eventos desordenados/duplicados).
+
+**Retiro de `huellaEntrenamiento` / `EstadoPlanWatch`** (progresivo):
+la Home del reloj YA no usa huella cuando hay proyección vigente con
+entrenamiento. La huella sigue viva SOLO como respaldo para: (a) iPhone
+viejo + reloj nuevo (sin proyección), y (b) el plan V1 manual con tramos
+cuando hoy no hay programado V2. Se puede BORRAR (EstadoPlanWatch,
+huellaEntrenamiento, estadoDelEntrenamiento y marcarCumplimientoSi-
+Corresponde) cuando: (1) la proyección esté validada en dispositivo
+físico, (2) el flujo Tramos manuales se ejecute vía definiciones V2
+(reorganización del Plan), y (3) no queden usuarios con app iPhone
+pre-Fase E (hoy: un solo usuario — condición trivial).

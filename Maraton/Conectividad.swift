@@ -18,6 +18,18 @@ final class Conectividad: NSObject, ObservableObject {
     @Published var planEncolado = false
     @Published var mensajeError: String?
 
+    /// Quién sabe qué proyectar (AlmacenStore): se consulta al activar
+    /// la sesión y cuando cambia el estado del reloj, para que el reloj
+    /// reciba HOY apenas haya canal — sin esperar a que el usuario
+    /// toque algo.
+    var proveedorProyeccion: (() -> ProyeccionDia?)?
+
+    /// Entrega de resultados del reloj (en main). Si llega un resultado
+    /// antes de que alguien se registre, queda en el buffer y se entrega
+    /// al registrarse — un resultado no se pierde por orden de arranque.
+    private var alRecibirResultado: ((ResultadoSesionWatch) -> Void)?
+    private var resultadosSinEntregar: [ResultadoSesionWatch] = []
+
     private var timerProgreso: Timer?
 
     override private init() {
@@ -84,6 +96,43 @@ final class Conectividad: NSObject, ObservableObject {
     private static func nombres(deContexto contexto: [String: Any]) -> Set<String> {
         Set((contexto["archivos"] as? [String]) ?? [])
     }
+
+    // MARK: Proyección del día (iPhone → reloj)
+
+    /// applicationContext PISA el contexto entero del lado iPhone: este
+    /// es el ÚNICO punto que lo escribe, así la proyección nunca borra
+    /// otra cosa (los "archivos" viven en el contexto DEL RELOJ, que es
+    /// un diccionario aparte — no se tocan entre sí).
+    func enviar(proyeccion: ProyeccionDia) {
+        guard WCSession.isSupported(),
+              WCSession.default.activationState == .activated,
+              let datos = try? JSONEncoder().encode(proyeccion) else { return }
+        try? WCSession.default.updateApplicationContext([MensajesWC.claveProyeccion: datos])
+    }
+
+    private func empujarProyeccionSiHay() {
+        if let proyeccion = proveedorProyeccion?() {
+            enviar(proyeccion: proyeccion)
+        }
+    }
+
+    // MARK: Resultados (reloj → iPhone)
+
+    /// Registra el receptor y drena lo que haya llegado antes.
+    func entregarResultados(a receptor: @escaping (ResultadoSesionWatch) -> Void) {
+        alRecibirResultado = receptor
+        let pendientes = resultadosSinEntregar
+        resultadosSinEntregar = []
+        pendientes.forEach(receptor)
+    }
+
+    fileprivate func recibio(resultado: ResultadoSesionWatch) {
+        if let receptor = alRecibirResultado {
+            receptor(resultado)
+        } else {
+            resultadosSinEntregar.append(resultado)
+        }
+    }
 }
 
 extension Conectividad: WCSessionDelegate {
@@ -98,6 +147,17 @@ extension Conectividad: WCSessionDelegate {
             if let error {
                 self.mensajeError = error.localizedDescription
             }
+            self.empujarProyeccionSiHay()
+        }
+    }
+
+    /// Llegan resultados del reloj (transferUserInfo: cola confiable).
+    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        guard let datos = userInfo[MensajesWC.claveResultado] as? Data,
+              let resultado = try? JSONDecoder().decode(ResultadoSesionWatch.self, from: datos),
+              resultado.version <= ResultadoSesionWatch.versionActual else { return }
+        DispatchQueue.main.async {
+            self.recibio(resultado: resultado)
         }
     }
 
@@ -111,6 +171,7 @@ extension Conectividad: WCSessionDelegate {
         DispatchQueue.main.async {
             self.relojEmparejado = session.isPaired
             self.appInstaladaEnReloj = session.isWatchAppInstalled
+            self.empujarProyeccionSiHay()
         }
     }
 

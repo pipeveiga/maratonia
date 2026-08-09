@@ -84,6 +84,19 @@ final class Entrenamiento: NSObject, ObservableObject {
     /// Ritmo promedio de toda la sesión, en seg/km.
     @Published var ritmoPromedioSegKm: Int?
 
+    /// Identidad del programado que ESTA sesión ejecuta (nil = carrera
+    /// libre). Persiste en UserDefaults mientras la sesión vive: si la
+    /// app muere y la recuperación cierra el workout, el resultado le
+    /// llega igual al iPhone (como parcial) en vez de perderse.
+    private(set) var programadoID: UUID?
+
+    /// Lo setea la UI ANTES de finalizar (consultando al entrenador de
+    /// ritmo). Tras un crash queda false — criterio conservador: la
+    /// sesión recuperada se reporta como parcial.
+    var estructuraCompletaAlGuardar = false
+
+    private static let claveProgramadoActivo = "programadoIDSesionActiva"
+
     private let healthStore = HKHealthStore()
     private var sesion: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
@@ -198,6 +211,13 @@ final class Entrenamiento: NSObject, ObservableObject {
                 self.descartarAlTerminar = false
                 self.activo = true
 
+                // Si la sesión que murió ejecutaba un programado, su ID
+                // quedó persistido: el resultado sale igual (parcial).
+                self.programadoID = UserDefaults.standard
+                    .string(forKey: Self.claveProgramadoActivo)
+                    .flatMap(UUID.init(uuidString:))
+                self.estructuraCompletaAlGuardar = false
+
                 // Reponer los números desde el builder para que el
                 // resumen no muestre ceros.
                 if let metros = builderRecuperado
@@ -228,13 +248,20 @@ final class Entrenamiento: NSObject, ObservableObject {
         }
     }
 
-    func iniciar(conGPS: Bool) {
+    func iniciar(conGPS: Bool, programadoID: UUID? = nil) {
         guard sesion == nil else {
             // Puede pasar si la recuperación post-crash todavía está
             // cerrando la sesión anterior: avisar en vez de dejar la
             // carrera sin registro en silencio.
             mensajeError = "Todavía estoy cerrando la sesión anterior. Esperá unos segundos y volvé a dar Play."
             return
+        }
+        self.programadoID = programadoID
+        estructuraCompletaAlGuardar = false
+        if let programadoID {
+            UserDefaults.standard.set(programadoID.uuidString, forKey: Self.claveProgramadoActivo)
+        } else {
+            UserDefaults.standard.removeObject(forKey: Self.claveProgramadoActivo)
         }
         usaGPS = conGPS
         descartarAlTerminar = false
@@ -526,13 +553,26 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
     /// estado quedaba colgado y bloqueaba todos los Play futuros).
     private func cerrarYGuardar(fechaFin: Date) {
         if descartarAlTerminar {
-            // Cancelación: se tira todo, nada llega a Salud.
+            // Cancelación: se tira todo, nada llega a Salud ni al
+            // iPhone — el programado sigue pendiente.
             builder?.discardWorkout()
             routeBuilder?.discard()
+            UserDefaults.standard.removeObject(forKey: Self.claveProgramadoActivo)
             DispatchQueue.main.async {
                 self.limpiarTrasFinal()
             }
             return
+        }
+
+        // Capturas locales: el completion puede llegar con otra sesión
+        // ya arrancando y no debe leer el estado de esa otra.
+        let idProgramado = programadoID
+        let estructuraCompleta = estructuraCompletaAlGuardar
+
+        // La evidencia de origen también queda en Salud (respaldo si el
+        // mensaje al iPhone jamás llega).
+        if let idProgramado {
+            builder?.addMetadata(MetadatosSesion.metadata(programadoID: idProgramado)) { _, _ in }
         }
 
         builder?.endCollection(withEnd: fechaFin) { [weak self] _, errorColeccion in
@@ -544,6 +584,20 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
                     rutas.finishRoute(with: workout, metadata: nil) { _, _ in }
                 }
                 DispatchQueue.main.async {
+                    // El resultado viaja SOLO con el workout real en
+                    // mano: si Salud falló, no se inventa cumplimiento
+                    // (el programado queda pendiente en el iPhone).
+                    if let workout {
+                        ConectividadWatch.compartida.enviar(resultado: ResultadoSesionWatch(
+                            sesionID: workout.uuid,
+                            fecha: fechaFin,
+                            programadoID: idProgramado,
+                            estructuraCompleta: estructuraCompleta))
+                        if let idProgramado {
+                            ConectividadWatch.compartida.marcarCompletadoLocal(idProgramado)
+                        }
+                        UserDefaults.standard.removeObject(forKey: Self.claveProgramadoActivo)
+                    }
                     // Si Salud rechazó el guardado, decirlo: antes fallaba
                     // en silencio y la tarjeta mentía "carrera guardada".
                     if let error = errorFinal ?? errorColeccion {
@@ -568,10 +622,16 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
         builder = nil
         routeBuilder = nil
         descartarAlTerminar = false
+        programadoID = nil
+        estructuraCompletaAlGuardar = false
     }
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
         DispatchQueue.main.async {
+            // La sesión murió sin guardar: el ID persistido no debe
+            // contaminar la recuperación de una carrera futura.
+            UserDefaults.standard.removeObject(forKey: Self.claveProgramadoActivo)
+            self.programadoID = nil
             self.mensajeError = "Entrenamiento: \(error.localizedDescription)"
             self.activo = false
             self.pausado = false

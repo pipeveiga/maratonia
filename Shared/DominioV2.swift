@@ -425,6 +425,53 @@ struct AlmacenV2: Codable, Equatable {
     }
 }
 
+// MARK: - Proyección del día y resultado (Watch V2, Fase E)
+
+/// Lo que el iPhone le PROYECTA al reloj: el entrenamiento pendiente de
+/// HOY (si hay) con su identidad estable. El reloj NO administra el
+/// calendario — muestra esto, corre, y devuelve el resultado. Viaja por
+/// applicationContext (siempre gana la última, sobrevive a reloj
+/// apagado o lejos).
+struct ProyeccionDia: Codable, Equatable {
+    /// Se sube SOLO ante cambios incompatibles; un receptor viejo
+    /// ignora versiones mayores en vez de malinterpretarlas.
+    static let versionActual = 1
+    var version: Int = ProyeccionDia.versionActual
+    var generadaEl: Date
+    /// El "hoy" del iPhone al generarla — la vigencia se decide acá.
+    var dia: DiaLocal
+    var programadoID: UUID?
+    var definicion: DefinicionEntrenamiento?
+    var nombrePlan: String?
+
+    /// Una proyección de ayer NO ofrece el entrenamiento de ayer como
+    /// si fuera de hoy: si el día no coincide, el reloj cae a Carrera
+    /// Libre (y el iPhone re-proyecta cuando se abra).
+    func vigente(hoy: DiaLocal) -> Bool {
+        version <= Self.versionActual && dia == hoy
+    }
+}
+
+/// Lo que el reloj devuelve al guardar una sesión: la evidencia mínima
+/// con IDs estables. Viaja por transferUserInfo (cola confiable que
+/// sobrevive offline y llega tarde si hace falta); el receptor es
+/// idempotente, así que llegar dos veces no duplica nada.
+struct ResultadoSesionWatch: Codable, Equatable {
+    static let versionActual = 1
+    var version: Int = ResultadoSesionWatch.versionActual
+    var sesionID: UUID          // HKWorkout.uuid — identidad global
+    var fecha: Date
+    var programadoID: UUID?     // nil = carrera libre
+    var estructuraCompleta: Bool
+}
+
+/// Claves únicas de los diccionarios de WatchConnectivity (los strings
+/// sueltos en dos targets divergen solos).
+enum MensajesWC {
+    static let claveProyeccion = "proyeccionDia"
+    static let claveResultado = "resultadoSesion"
+}
+
 // MARK: - Migración V1 → V2
 
 /// Transforma el modelo viejo (Plan con tramos+audio mezclados) en el
