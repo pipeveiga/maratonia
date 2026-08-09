@@ -311,7 +311,6 @@ struct PantallaReproduccion: View {
     @ObservedObject private var avisador = Avisador.compartido
     @ObservedObject private var entrenamiento = Entrenamiento.compartido
     @ObservedObject private var entrenador = EntrenadorRitmo.compartido
-    @AppStorage("fcMaxima") private var fcMaxima = 190
     @State private var confirmandoTerminar = false
     @State private var confirmandoCancelar = false
 
@@ -632,7 +631,7 @@ struct PantallaReproduccion: View {
         let (nombre, color) = Self.zona(
             fc: Int(entrenamiento.frecuenciaCardiaca),
             reposo: entrenamiento.fcReposo ?? 60,
-            fcMaxima: fcMaxima)
+            fcMaxima: entrenamiento.fcMaxima)
         return VStack(spacing: 1) {
             Text(nombre)
                 .font(.system(.title3, design: .rounded).weight(.bold))
@@ -719,9 +718,12 @@ struct PantallaReproduccion: View {
         }
 
         if reproductor.estado == .pausado {
-            Text("En pausa — todo congelado")
+            Text(entrenamiento.enPausaAutomatica
+                 ? "Pausa automática — al arrancar sigue solo"
+                 : "En pausa — todo congelado")
                 .font(.footnote)
                 .foregroundStyle(.orange)
+                .multilineTextAlignment(.center)
         }
 
         if let error = entrenamiento.mensajeError {
@@ -741,8 +743,9 @@ struct PantallaReproduccion: View {
 struct AjustesReloj: View {
     @AppStorage("modoEntrenamiento") private var modoEntrenamiento = true
     @AppStorage("rutaGPS") private var rutaGPS = true
-    @AppStorage("fcMaxima") private var fcMaxima = 190
     @AppStorage("musicaExterna") private var musicaExterna = false
+    @AppStorage("autoPausa") private var autoPausa = true
+    @AppStorage("avisarZonas") private var avisarZonas = true
 
     var body: some View {
         List {
@@ -775,76 +778,23 @@ struct AjustesReloj: View {
                     }
                     .tint(.blue)
 
-                    NavigationLink {
-                        EditorFCMaxima()
-                    } label: {
-                        HStack {
-                            Label("FC máxima", systemImage: "bolt.heart.fill")
-                            Spacer()
-                            Text("\(fcMaxima)")
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                        }
+                    Toggle(isOn: $autoPausa) {
+                        Label("Auto-pausa", systemImage: "pause.circle.fill")
                     }
+                    .tint(.orange)
+
+                    Toggle(isOn: $avisarZonas) {
+                        Label("Avisar zona de pulso", systemImage: "heart.text.square.fill")
+                    }
+                    .tint(.pink)
                 }
             } footer: {
                 Text(modoEntrenamiento
-                     ? "Guarda FC, distancia y ruta en Salud. No uses Runna a la vez."
+                     ? "Guarda FC, distancia y ruta en Salud. No uses Runna a la vez. Auto-pausa (requiere GPS): al frenar en un semáforo pausa todo y sigue sola. Las zonas se calculan solas con tu edad y tu FC en reposo de Salud."
                      : "Solo música y avisos: compatible con Runna u otro tracker.")
             }
         }
         .navigationTitle("Ajustes")
-    }
-}
-
-/// La FC máxima con número protagonista y botones redondos de ±5,
-/// en lugar del viejo stepper "FC máx: 190" apretado en el lobby.
-struct EditorFCMaxima: View {
-    @AppStorage("fcMaxima") private var fcMaxima = 190
-
-    var body: some View {
-        VStack(spacing: 6) {
-            Text("\(fcMaxima)")
-                .font(.system(size: 54, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(.red)
-                .contentTransition(.numericText())
-
-            Text("PULSACIONES MÁX.")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .tracking(1.2)
-
-            HStack(spacing: 24) {
-                Button {
-                    withAnimation { fcMaxima = max(120, fcMaxima - 5) }
-                } label: {
-                    Image(systemName: "minus")
-                        .font(.headline)
-                        .frame(width: 42, height: 42)
-                        .background(Circle().fill(Color.white.opacity(0.12)))
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    withAnimation { fcMaxima = min(220, fcMaxima + 5) }
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.headline)
-                        .frame(width: 42, height: 42)
-                        .background(Circle().fill(Color.white.opacity(0.12)))
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.top, 4)
-
-            Text("Define tus zonas Z1–Z5 junto con tu FC en reposo de Salud. Si no la sabés: 220 menos tu edad.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.top, 4)
-        }
-        .navigationTitle("FC máxima")
     }
 }
 

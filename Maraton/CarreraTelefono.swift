@@ -35,6 +35,15 @@ final class CarreraCelu: NSObject, ObservableObject {
     @Published var resumen: ResumenCelu?
     @Published var tramoActual: Tramo?
 
+    /// true mientras la auto-pausa tiene todo congelado; el GPS sigue
+    /// vivo solo para detectar que arrancaste de nuevo.
+    @Published var enPausaAutomatica = false
+    private var ubicacionPausa: CLLocation?
+
+    private var autoPausaActiva: Bool {
+        UserDefaults.standard.object(forKey: "autoPausaCelu") as? Bool ?? true
+    }
+
     // Música: cola de pistas en loop, como en el reloj.
     private var pistas: [String] = []
     private var urlDe: (String) -> URL? = { _ in nil }
@@ -199,6 +208,16 @@ final class CarreraCelu: NSObject, ObservableObject {
         let ahora = Date()
         muestras.append((ahora, distanciaMetros))
         muestras.removeAll { ahora.timeIntervalSince($0.fecha) > 60 }
+
+        // Auto-pausa: ~10 s casi sin avanzar (menos de 6 m) = parado.
+        if autoPausaActiva, tiempoTranscurrido > 30,
+           let vieja = muestras.first(where: { ahora.timeIntervalSince($0.fecha) <= 10 }),
+           ahora.timeIntervalSince(vieja.fecha) >= 9,
+           distanciaMetros - vieja.metros < 6 {
+            pausar(automatica: true)
+            anunciar("Pausa automática.")
+            return
+        }
         if let referencia = muestras.first(where: { ahora.timeIntervalSince($0.fecha) <= 45 }) {
             let segundos = ahora.timeIntervalSince(referencia.fecha)
             let metros = distanciaMetros - referencia.metros
@@ -368,13 +387,16 @@ final class CarreraCelu: NSObject, ObservableObject {
         estado == .corriendo ? pausar() : reanudar()
     }
 
-    private func pausar() {
+    private func pausar(automatica: Bool = false) {
         guard estado == .corriendo, let reanudacion = fechaReanudacion else { return }
         acumuladoPrevio += Date().timeIntervalSince(reanudacion)
         fechaReanudacion = nil
         estado = .pausada
+        enPausaAutomatica = automatica
+        ubicacionPausa = nil
         player?.pause()
-        ubicaciones.stopUpdatingLocation()
+        // En auto-pausa el GPS queda vivo para detectar el arranque.
+        if !automatica { ubicaciones.stopUpdatingLocation() }
         ultimaUbicacion = nil
         muestras = []
         ritmoActualSegKm = nil
@@ -385,6 +407,8 @@ final class CarreraCelu: NSObject, ObservableObject {
         guard estado == .pausada else { return }
         fechaReanudacion = Date()
         estado = .corriendo
+        enPausaAutomatica = false
+        ubicacionPausa = nil
         if !musicaSilenciada { player?.play() }
         ubicaciones.startUpdatingLocation()
         agregarEvento(.resume)
@@ -490,6 +514,22 @@ extension CarreraCelu: AVSpeechSynthesizerDelegate {
 
 extension CarreraCelu: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        // Auto-pausa: si te alejaste más de 15 m del punto donde
+        // frenaste, la carrera sigue sola.
+        if estado == .pausada, enPausaAutomatica {
+            guard let ubicacion = locations.last,
+                  ubicacion.horizontalAccuracy > 0, ubicacion.horizontalAccuracy <= 20 else { return }
+            if let referencia = ubicacionPausa {
+                if ubicacion.distance(from: referencia) > 15 {
+                    reanudar()
+                    anunciar("Seguimos.")
+                }
+            } else {
+                ubicacionPausa = ubicacion
+            }
+            return
+        }
+
         guard estado == .corriendo else { return }
         var buenas: [CLLocation] = []
         for ubicacion in locations where ubicacion.horizontalAccuracy > 0 && ubicacion.horizontalAccuracy <= 50 {
@@ -529,6 +569,7 @@ extension CarreraCelu: CLLocationManagerDelegate {
 struct CorrerTab: View {
     @ObservedObject var store: PlanStore
     @ObservedObject private var carrera = CarreraCelu.compartida
+    @AppStorage("autoPausaCelu") private var autoPausa = true
 
     var body: some View {
         NavigationStack {
@@ -570,6 +611,13 @@ struct CorrerTab: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.vertical, 6)
+
+                Toggle(isOn: $autoPausa) {
+                    Label("Auto-pausa en las paradas", systemImage: "pause.circle.fill")
+                        .font(.subheadline)
+                }
+                .frame(maxWidth: 320)
+                .padding(.horizontal)
 
                 Label("Sin Apple Watch: el GPS del teléfono mide la distancia. Llevá el celu con vos y los auriculares puestos.",
                       systemImage: "iphone")
@@ -706,7 +754,9 @@ struct PantallaCarreraCelu: View {
                 .foregroundStyle(.orange)
         }
         if carrera.estado == .pausada {
-            Text("En pausa — todo congelado")
+            Text(carrera.enPausaAutomatica
+                 ? "Pausa automática — al arrancar sigue solo"
+                 : "En pausa — todo congelado")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.orange)
         }

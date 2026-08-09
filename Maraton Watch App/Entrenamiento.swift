@@ -47,6 +47,27 @@ final class Entrenamiento: NSObject, ObservableObject {
     /// el % crudo de la FC máxima marca zonas de más.
     @Published var fcReposo: Int?
 
+    /// FC máxima estimada: 220 menos la edad (fecha de nacimiento de
+    /// Salud). Sin dato queda el respaldo 190. Ya no se configura a mano.
+    @Published var fcMaxima = 190
+
+    /// true mientras la auto-pausa tiene la sesión congelada: el GPS
+    /// sigue vivo solo para detectar que arrancaste de nuevo.
+    @Published var enPausaAutomatica = false
+    private var ubicacionPausa: CLLocation?
+
+    // Aviso hablado al cambiar de zona (sostenida, sin spam).
+    private var zonaAnunciada = 0
+    private var segundosEnZonaNueva = 0
+    private var fechaUltimoAvisoZona: Date?
+
+    private var autoPausaActiva: Bool {
+        UserDefaults.standard.object(forKey: "autoPausa") as? Bool ?? true
+    }
+    private var avisarZonas: Bool {
+        UserDefaults.standard.object(forKey: "avisarZonas") as? Bool ?? true
+    }
+
     /// Ritmo actual en seg/km, suavizado sobre los últimos ~45 s.
     /// nil = todavía no hay datos o estás prácticamente parado.
     @Published var ritmoActualSegKm: Int?
@@ -101,6 +122,7 @@ final class Entrenamiento: NSObject, ObservableObject {
             HKQuantityType(.activeEnergyBurned),
             HKQuantityType(.distanceWalkingRunning),
             HKQuantityType(.restingHeartRate),
+            HKCharacteristicType(.dateOfBirth),
         ]
         healthStore.requestAuthorization(toShare: paraCompartir, read: paraLeer) { [weak self] ok, error in
             DispatchQueue.main.async {
@@ -109,8 +131,20 @@ final class Entrenamiento: NSObject, ObservableObject {
                     return
                 }
                 self?.cargarFCReposo()
+                self?.cargarFCMaxima()
                 alTerminar()
             }
+        }
+    }
+
+    /// FC máxima estimada con la edad (220 − edad). Si el permiso de
+    /// fecha de nacimiento no está, queda el respaldo.
+    private func cargarFCMaxima() {
+        guard let componentes = try? healthStore.dateOfBirthComponents(),
+              let nacimiento = Calendar.current.date(from: componentes) else { return }
+        let edad = Calendar.current.dateComponents([.year], from: nacimiento, to: Date()).year ?? 0
+        if edad > 5, edad < 110 {
+            fcMaxima = 220 - edad
         }
     }
 
@@ -181,6 +215,11 @@ final class Entrenamiento: NSObject, ObservableObject {
             mensajeError = nil
             activo = true
             pausado = false
+            enPausaAutomatica = false
+            ubicacionPausa = nil
+            zonaAnunciada = 0
+            segundosEnZonaNueva = 0
+            fechaUltimoAvisoZona = nil
 
             timerMuestras?.invalidate()
             timerMuestras = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -209,9 +248,31 @@ final class Entrenamiento: NSObject, ObservableObject {
     func reanudar() {
         guard activo, pausado else { return }
         pausado = false
+        enPausaAutomatica = false
+        ubicacionPausa = nil
         sesion?.resume()
         if usaGPS { ubicaciones.startUpdatingLocation() }
         muestras = []  // arranca limpio: sin ritmo hasta juntar datos nuevos
+    }
+
+    // MARK: - Auto-pausa (requiere GPS)
+
+    /// Parado ~10 s → pausa TODO (música, avisos, workout) y deja el GPS
+    /// vivo solo para detectar el arranque. Al moverte de nuevo, sigue
+    /// solo. Nada de manotear el reloj en cada semáforo.
+    private func autoPausar() {
+        guard Reproductor.compartido.estado == .reproduciendo else { return }
+        enPausaAutomatica = true
+        ubicacionPausa = nil
+        Reproductor.compartido.pausar()  // cascada: avisos + entrenamiento
+        ubicaciones.startUpdatingLocation()
+        Avisador.compartido.anunciar("Pausa automática.")
+    }
+
+    private func autoReanudar() {
+        guard enPausaAutomatica else { return }
+        Reproductor.compartido.reanudar()  // limpia enPausaAutomatica
+        Avisador.compartido.anunciar("Seguimos.")
     }
 
     /// Termina la sesión y guarda el workout en Salud. La limpieza final
@@ -253,6 +314,17 @@ final class Entrenamiento: NSObject, ObservableObject {
         muestras.append((ahora, distanciaMetros))
         muestras.removeAll { ahora.timeIntervalSince($0.fecha) > 60 }
 
+        // Auto-pausa: ~10 s casi sin avanzar (menos de 6 m) = parado.
+        if usaGPS, autoPausaActiva, (builder?.elapsedTime ?? 0) > 30,
+           let vieja = muestras.first(where: { ahora.timeIntervalSince($0.fecha) <= 10 }),
+           ahora.timeIntervalSince(vieja.fecha) >= 9,
+           distanciaMetros - vieja.metros < 6 {
+            autoPausar()
+            return
+        }
+
+        avisarZonaSiCorresponde()
+
         // Ritmo actual: contra la muestra más vieja dentro de ~45 s.
         if let referencia = muestras.first(where: { ahora.timeIntervalSince($0.fecha) <= 45 }) {
             let segundos = ahora.timeIntervalSince(referencia.fecha)
@@ -271,6 +343,36 @@ final class Entrenamiento: NSObject, ObservableObject {
             distanciaMetros: distanciaMetros,
             ritmoActualSegKm: ritmoActualSegKm,
             tiempoActivo: builder?.elapsedTime ?? 0)
+    }
+
+    /// "Zona 4." cuando cambiás de zona y te quedás ahí 20 s, con 45 s
+    /// mínimo entre avisos. La primera zona de la sesión no se anuncia.
+    private func avisarZonaSiCorresponde() {
+        guard avisarZonas, frecuenciaCardiaca > 0 else { return }
+        let reposo = Double(fcReposo ?? 60)
+        guard Double(fcMaxima) > reposo else { return }
+        let reserva = (frecuenciaCardiaca - reposo) / (Double(fcMaxima) - reposo)
+        let zona: Int
+        switch reserva {
+        case ..<0.6: zona = 1
+        case ..<0.7: zona = 2
+        case ..<0.8: zona = 3
+        case ..<0.9: zona = 4
+        default: zona = 5
+        }
+        if zona == zonaAnunciada {
+            segundosEnZonaNueva = 0
+            return
+        }
+        segundosEnZonaNueva += 1
+        guard segundosEnZonaNueva >= 20 else { return }
+        let esLaPrimera = zonaAnunciada == 0
+        zonaAnunciada = zona
+        segundosEnZonaNueva = 0
+        guard !esLaPrimera else { return }
+        if let ultimo = fechaUltimoAvisoZona, Date().timeIntervalSince(ultimo) < 45 { return }
+        fechaUltimoAvisoZona = Date()
+        Avisador.compartido.anunciar("Zona \(zona).")
     }
 
     private func actualizarEstadisticas(con tipos: Set<HKSampleType>) {
@@ -359,6 +461,21 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
 
 extension Entrenamiento: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        // En auto-pausa el GPS queda vivo SOLO para esto: si te alejaste
+        // más de 15 m del punto donde frenaste, la sesión sigue sola.
+        if enPausaAutomatica, pausado {
+            guard let ubicacion = locations.last,
+                  ubicacion.horizontalAccuracy > 0, ubicacion.horizontalAccuracy <= 20 else { return }
+            if let referencia = ubicacionPausa {
+                if ubicacion.distance(from: referencia) > 15 {
+                    autoReanudar()
+                }
+            } else {
+                ubicacionPausa = ubicacion
+            }
+            return
+        }
+
         guard activo, !pausado, let routeBuilder else { return }
         // Solo puntos con precisión decente; los malos ensucian el mapa.
         let buenas = locations.filter { $0.horizontalAccuracy > 0 && $0.horizontalAccuracy <= 50 }

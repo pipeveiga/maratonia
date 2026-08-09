@@ -2,6 +2,7 @@ import Foundation
 import HealthKit
 import SwiftUI
 import MapKit
+import UIKit
 
 // Historial de carreras en el iPhone. Los entrenamientos que graba el
 // reloj llegan solos por la sincronización de Salud; acá se listan los
@@ -155,6 +156,9 @@ struct CarrerasView: View {
 
     var body: some View {
         List {
+            if !store.carreras.isEmpty {
+                seccionProgreso
+            }
             if let mensaje = store.mensaje {
                 if store.carreras.isEmpty {
                     ContentUnavailableView {
@@ -203,6 +207,56 @@ struct CarrerasView: View {
         .navigationTitle("Mis carreras")
         .onAppear { store.cargar() }
         .refreshable { await store.recargar() }
+    }
+
+    /// Tarjeta de progreso: la película de tu semana arriba de las fotos
+    /// (las carreras sueltas).
+    private var seccionProgreso: some View {
+        let semana = resumenSemanal
+        return Section {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("ESTA SEMANA", systemImage: "chart.line.uptrend.xyaxis")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.85))
+                HStack(spacing: 0) {
+                    estadisticaSemana(String(format: "%.1f", semana.km), "km")
+                    estadisticaSemana("\(semana.carreras)",
+                                      semana.carreras == 1 ? "carrera" : "carreras")
+                    estadisticaSemana(semana.ritmo.map { "\(formatearRitmo($0))" } ?? "–:––",
+                                      "ritmo /km")
+                }
+            }
+            .padding(16)
+            .background(
+                LinearGradient(colors: [Color.accentColor, .teal],
+                               startPoint: .topLeading, endPoint: .bottomTrailing))
+            .listRowInsets(EdgeInsets())
+        }
+    }
+
+    private func estadisticaSemana(_ valor: String, _ nombre: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(valor)
+                .font(.title3.weight(.bold))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+            Text(nombre)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.75))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var resumenSemanal: (km: Double, carreras: Int, ritmo: Int?) {
+        let calendario = Calendar.current
+        let ahora = Date()
+        let delaSemana = store.carreras.filter {
+            calendario.isDate($0.fecha, equalTo: ahora, toGranularity: .weekOfYear)
+        }
+        let metros = delaSemana.reduce(0.0) { $0 + $1.distanciaMetros }
+        let duracion = delaSemana.reduce(0.0) { $0 + $1.duracion }
+        let ritmo = metros > 100 ? Int(duracion / metros * 1000) : nil
+        return (metros / 1000, delaSemana.count, ritmo)
     }
 }
 
@@ -267,9 +321,75 @@ struct CarreraDetalleView: View {
             }
             .navigationTitle("Carrera")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ShareLink(item: imagenParaCompartir(carrera),
+                          preview: SharePreview("Mi carrera con Maratonia",
+                                                image: imagenParaCompartir(carrera))) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
         } else {
             Text("No encontré esta carrera.")
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    /// La carrera como imagen linda para mandar al grupo o subir a redes.
+    private func imagenParaCompartir(_ carrera: CarreraResumen) -> Image {
+        let render = ImageRenderer(content: TarjetaCompartir(carrera: carrera))
+        render.scale = 3
+        if let imagen = render.uiImage {
+            return Image(uiImage: imagen)
+        }
+        return Image(systemName: "figure.run")
+    }
+}
+
+/// La postal para compartir: degradado de marca, los km protagonistas y
+/// los números de la carrera. Sin mapa a propósito: no regala tu casa.
+struct TarjetaCompartir: View {
+    let carrera: CarreraResumen
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("Maratonia", systemImage: "figure.run")
+                .font(.headline)
+                .foregroundStyle(.white.opacity(0.9))
+            Text(carrera.fecha.formatted(date: .long, time: .omitted))
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.75))
+            Text(String(format: "%.2f km", carrera.distanciaMetros / 1000))
+                .font(.system(size: 56, weight: .heavy, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+            HStack(spacing: 26) {
+                datoCompartir("TIEMPO", formatearDuracion(carrera.duracion))
+                if let ritmo = carrera.ritmoPromedioSegKm {
+                    datoCompartir("RITMO", "\(formatearRitmo(ritmo)) /km")
+                }
+                if let fc = carrera.fcPromedio {
+                    datoCompartir("FC MEDIA", "\(Int(fc))")
+                }
+            }
+        }
+        .padding(28)
+        .frame(width: 380, alignment: .leading)
+        .background(
+            LinearGradient(colors: [Color(red: 0.15, green: 0.51, blue: 0.93), .teal],
+                           startPoint: .topLeading, endPoint: .bottomTrailing))
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+    }
+
+    private func datoCompartir(_ titulo: String, _ valor: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(titulo)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.7))
+                .tracking(1)
+            Text(valor)
+                .font(.headline)
+                .monospacedDigit()
+                .foregroundStyle(.white)
         }
     }
 }
