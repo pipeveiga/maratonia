@@ -1,0 +1,396 @@
+# ARCHITECTURE_V2 — Maratonia como app de entrenamiento completa
+
+Fecha: 2026-08-09 · Base: build 34 (RC1 + tareas de auto-pausa,
+cumplimiento y Carrera Libre) · Estado: **DISEÑO — nada de esto está
+implementado.**
+
+---
+
+## 1. Estado actual relevante
+
+Análisis sobre el código real (los 20 archivos Swift fueron leídos y
+auditados en las tres pasadas de NIGHT_AUDIT.md).
+
+### Qué podemos REUTILIZAR tal cual (funciona y está endurecido)
+
+| Pieza | Dónde | Nota |
+|---|---|---|
+| Motor de ejecución watch | `Reproductor`/`Avisador`/`Entrenamiento`/`EntrenadorRitmo` | Lifecycle completo: workout HK, GPS, ruta, pausa total/auto/solo-música, interrupciones, route change, recovery post-crash, ducking. Es el activo más valioso del repo. |
+| Motor de ejecución iPhone | `CarreraCelu` | Gemelo funcional (sin FC). Ya ejecuta tramos, splits, avisos por km. |
+| Auto-pausa | `AutoPausa` (Shared) | Lógica pura con doble confirmación + histéresis, testeada. |
+| Cumplimiento v1 | `EstadoPlanWatch` + huella | Puente perfecto hacia identidad real (ver §8). |
+| Historial | `CarrerasStore`/`CarrerasView` | Lee HealthKit por bundle, mapas, FC, fusión estable por `workout.uuid`. |
+| Compartir | `TarjetaCompartir` + `TrazadoRuta` | Validado en campo por el usuario. Solo falta el logo (§15). |
+| Sync de archivos | `Conectividad`/`ConectividadWatch` | transferFile con inventario y limpieza segura. |
+| Respaldo | `CuentaStore` (CloudKit) | Privado, con guardas anti-pisado. |
+| Infra de calidad | `Tests/`, `scripts/chequear_swift.py`, NIGHT_AUDIT | Se extiende, no se reemplaza. |
+
+### Qué necesita EVOLUCIONAR
+
+- **`Plan`**: hoy es a la vez (a) el workout (tramos), (b) la config de
+  audio (pistas, avisos por tiempo), (c) la biblioteca de música. Debe
+  partirse (§3, §11) — es LA deuda estructural.
+- **Identidad**: `huellaEntrenamiento` (hash de contenido) fue un
+  puente deliberado; la visión nueva exige IDs estables (§4).
+- **Slot único en el watch**: el reloj conoce "el plan", no "el
+  entrenamiento de hoy". Pasa a recibir una proyección (§10, §15.7).
+- **`CorrerTab` iPhone**: ya es Carrera Libre; le falta "entrenamiento
+  del día" (trivial una vez que exista calendario).
+
+### Deuda del prototipo original
+
+- Pistas como `[String]` de nombres de archivo (suficiente, documentado).
+- `PlanStore` guarda un único plan sin fechas ni calendario.
+- La pestaña "Reloj" como concepto de primer nivel (es plomería, no
+  producto).
+- Nada de esto bloquea la v2: se migra, no se reescribe (§8).
+
+## 2. Problemas estructurales para la nueva visión
+
+1. **Contenido = identidad**: dos planes con los mismos tramos son "el
+   mismo" workout. Imposible tener calendario, reprogramación o dos
+   martes iguales.
+2. **Sin dimensión temporal**: no existe fecha, semana ni "hoy".
+3. **Workout y audio acoplados** en `Plan`: no se puede decir "el
+   entrenamiento del martes" sin arrastrar la playlist.
+4. **Watch con estado propio de cumplimiento** (`EstadoPlanWatch`):
+   correcto para v1 de un solo workout; con calendario, el iPhone debe
+   ser el dueño y el watch un espejo.
+5. **Sin baseline de rendimiento**: los ritmos son números absolutos
+   escritos a mano o pegados de ChatGPT.
+
+## 3. Modelo de dominio propuesto
+
+Nombres en español, siguiendo el estilo del código. Separación central:
+**QUÉ HAY QUE HACER** (plan → programado → definición) vs **QUÉ SE
+HIZO** (sesión).
+
+```
+PlanBase (template versionado, en el bundle)
+  └─ genera →
+PlanUsuario (instancia snapshot, del usuario)
+  └─ SemanaPlan [1..n]
+       └─ EntrenamientoProgramado [0..n por semana]   ← "qué hay que hacer"
+            └─ referencia → DefinicionEntrenamiento    ← "en qué consiste"
+
+SesionRealizada                                        ← "qué se hizo"
+  └─ vinculoProgramadoID: UUID?   (nil = Carrera Libre)
+```
+
+- **`DefinicionEntrenamiento`**: id, tipo (`facil`, `recuperacion`,
+  `largo`, `tempo`, `umbral`, `series`, `ritmoCarrera`, `testEvaluacion`,
+  `libre`), nombre, descripción, segmentos. **Segmento** = evolución de
+  `Tramo`: `{ distanciaKm: Double? | duracionSegundos: Int?, ritmo:
+  RitmoObjetivo }` donde `RitmoObjetivo` es `.libre`, `.absoluto(min,
+  max)` (compat con hoy) o `.simbolico(TipoRitmo)` (resuelto contra el
+  baseline, §6). Esto agrega los segmentos por TIEMPO que hoy faltan
+  (recuperaciones de 2 min) — el motor `EntrenadorRitmo` avanza hoy
+  solo por distancia; el avance por tiempo es la única extensión de
+  motor requerida por la v2.
+- **`EntrenamientoProgramado`**: id, definicionID, `dia: DiaLocal`,
+  estado (§5), fechaOriginal (si fue reprogramado), sesionVinculadaID?.
+- **`SesionRealizada`**: NO es una entidad nueva de almacenamiento
+  pesado — es el `HKWorkout` (métricas, ruta, FC ya viven en Salud) más
+  un registro liviano nuestro: `{ sesionID = HKWorkout.uuid,
+  vinculoProgramadoID?, tipo }`. El vínculo se escribe además como
+  **metadata del HKWorkout** (`HKMetadata` con clave propia
+  `com.pipeveiga.maraton.programadoID`), así la evidencia viaja con
+  Salud y sobrevive reinstalaciones.
+
+## 4. Identidades y relaciones
+
+| ID | Identifica | Formato | Estable ante |
+|---|---|---|---|
+| `planBaseID@version` | El template del catálogo | `"primeros-5k@2"` | Ediciones del template (nueva versión = nuevo string) |
+| `planUsuarioID` | La instancia adoptada por el usuario | UUID | Todo: snapshot inmutable del template al adoptar |
+| `programadoID` | Un entrenamiento en una fecha | UUID | Reprogramación (cambia `dia`, no el ID) |
+| `definicionID` | El contenido de un entrenamiento | UUID | — (el contenido es inmutable dentro del PlanUsuario) |
+| `sesionID` | Una salida realizada | `HKWorkout.uuid` | Ya lo usamos en `CarreraResumen.id` — cero invención |
+
+La `huellaEntrenamiento` actual queda SOLO como puente de migración (§8)
+y muere después.
+
+## 5. Estados del entrenamiento programado
+
+Mínimo necesario (menos es más):
+
+- **`programado`** — pendiente.
+- **`cumplido`** — existe sesión vinculada que lo satisface. Es
+  *derivable* (¿tiene sesionVinculadaID?) pero se cachea por rendimiento;
+  la evidencia es el vínculo, no el flag.
+- **`omitido`** — el usuario lo marcó como "no lo voy a hacer" o el día
+  pasó y arrancó la semana siguiente (política exacta: decisión D3).
+- La **reprogramación NO es un estado**: es mutar `dia` conservando
+  `fechaOriginal`. Un entrenamiento movido sigue `programado`.
+- **`parcial` NO existe en v2.0**: la política actual (conservadora,
+  ya en producción) es "todos los tramos = cumplido; menos = sigue
+  programado". Una sesión incompleta puede quedar VINCULADA como
+  evidencia sin marcar cumplido. Formalizar "parcial" es la decisión
+  de producto D1.
+- Carrera Libre: `vinculoProgramadoID = nil`. Jamás consume un
+  programado automáticamente (invariante ya protegida en v1).
+
+## 6. Ritmos: infraestructura vs metodología
+
+- **`ReferenciaRendimiento`** (baseline): lista histórica de registros
+  objetivos `{ fecha, fuente: test5K | carreraReal | marcaManual |
+  estimacionInicial, distanciaMetros, segundos }`. NUNCA "nivel =
+  intermedio": siempre datos crudos recalculables. Se guarda la lista
+  completa (la evolución del baseline ES la feature de progreso §14).
+- **Infraestructura** (software, nuestra): función pura
+  `ritmo(tipo:baseline:metodologia:) -> RangoRitmo` + tests; los
+  segmentos simbólicos se resuelven al MOSTRAR/ejecutar, nunca se
+  persisten resueltos (si el baseline mejora, el plan futuro mejora).
+- **Metodología** (deporte, NO nuestra): una tabla de datos versionada
+  en el bundle (`MetodologiaRitmos-v1.json`): para cada tipo de ritmo,
+  el multiplicador/offset sobre el ritmo de referencia derivado del
+  baseline. Candidata seria: tablas VDOT (Jack Daniels, *Daniels'
+  Running Formula*) — estándar de la industria, publicadas, citables.
+  **Decisión D4 del usuario**: adoptar VDOT vs tabla propia con
+  asesoría. Ninguna fórmula inventada entra al código: el JSON lleva
+  `fuente` y `version` adentro.
+
+## 7. Source of truth (por dato)
+
+| Dato | Autoritativo | Réplicas |
+|---|---|---|
+| PlanUsuario, calendario, estados | **iPhone** (JSON en Documents, como hoy `plan.json`) | iCloud (respaldo CKRecord), Watch (proyección) |
+| Sesiones y métricas realizadas | **HealthKit** (ya lo es hoy) | UI de ambos |
+| Vínculo sesión↔programado | **Metadata del HKWorkout** + espejo en iPhone | — |
+| Cumplimiento | **Derivado** del vínculo; cache en iPhone | Watch (proyección) |
+| Preferencias de ejecución (GPS, auto-pausa, zonas, música externa) | **Cada dispositivo** (UserDefaults, como hoy) | No se sincronizan (correcto: son del aparato) |
+| Archivos de música | **iPhone** | Watch (réplica con inventario, como hoy) |
+| Baseline / referencias | **iPhone** | iCloud |
+
+Regla de oro: **un solo escritor por dato**. El watch nunca edita el
+calendario; el iPhone nunca inventa sesiones.
+
+## 8. Migración desde el modelo actual (sin perder nada)
+
+1. `Plan` actual → al primer arranque de la versión nueva, el iPhone lo
+   parte en: `ConfiguracionAudio` (pistas + avisos fijos/repetidos) y,
+   si tiene tramos, un `PlanUsuario` "Plan personalizado" de 1 semana
+   con 1 `EntrenamientoProgramado` sin fecha fija (o con fecha = hoy;
+   decisión menor).
+2. `huellaCumplida` del watch → si coincide con la huella del plan
+   migrado, ese programado nace `cumplido`. Después la huella se
+   ignora para siempre.
+3. Carreras históricas: ya viven en HealthKit con `workout.uuid` — no
+   migran, se releen. Sin vínculo (fueron pre-v2): aparecen como
+   sesiones libres. Correcto y honesto.
+4. Respaldo iCloud: el record `planActual` legacy se sigue LEYENDO
+   (restauración) durante una versión puente; se escribe el formato
+   nuevo bajo otro recordType (`PlanUsuario`), nunca pisando el viejo.
+5. Watch viejo + iPhone nuevo: el iPhone sigue emitiendo el `Plan`
+   legacy por WatchConnectivity durante la versión puente, además de
+   la proyección nueva. El decode del watch ya tolera campos extra
+   (campos opcionales, verificado por test).
+6. Preferencias (UserDefaults): claves intactas, cero migración.
+
+## 9. Arquitectura iPhone (el cerebro)
+
+Tabs propuestos (evolución de los actuales, no big-bang):
+
+| Nuevo | Origen | Contenido |
+|---|---|---|
+| **INICIO** | nuevo | "¿Qué tengo que hacer hoy?" (§ home abajo), próximos días, racha |
+| **PLAN** | `PlanTab` | Calendario del PlanUsuario + catálogo (§12) + editor manual actual como "plan personalizado" |
+| **CORRER** | `CorrerTab` | Entrenamiento de hoy (si hay) + Carrera Libre; motor `CarreraCelu` |
+| **PROGRESO** | `CarrerasTab` | Historial actual + resumen semanal (ya existe) + evolución (§14) |
+| **PERFIL** | `PerfilTab` | Cuenta, baseline, **audio/música** (§11), reloj (estado + envío, hoy pestaña propia), tutorial |
+
+La pestaña "Reloj" desaparece como tab y se vuelve sección de PERFIL
+(o de PLAN — decisión D5). Home de INICIO:
+
+```
+ENTRENAMIENTO DE HOY
+Rodaje fácil · 8 km · 5:45–6:10 /km
+[ EMPEZAR ]        ← lanza CORRER con ese programadoID
+── próximo: jueves — Series 5×1K
+── semana 3 de 8 · 2/3 cumplidos
+```
+
+Ejecutar desde iPhone ya funciona (CarreraCelu tiene pausa, auto-pausa,
+tramos, guardado); "EMPEZAR hoy" = pasarle la definición del día y el
+`programadoID` para el vínculo al guardar. **No hay motor nuevo.**
+
+## 10. Arquitectura Watch (el compañero)
+
+- Home: exactamente la de build 34 (pendiente → Entrenamiento +
+  Carrera libre; si no → Carrera libre) — la v2 solo cambia QUÉ recibe:
+  en vez de "el plan", una **ProyeccionDia** `{ programadoID,
+  definicion, configAudio }` vía applicationContext (idempotente,
+  last-writer-wins, correcto para una proyección).
+- Al terminar: el watch manda `{ programadoID, hkUUID }` por
+  transferUserInfo (cola persistente, como el plan hoy) y el iPhone
+  registra el vínculo. Fallback offline: el watch escribe además la
+  metadata en el HKWorkout — el iPhone la lee de Salud aunque el
+  mensaje se pierda (doble vía, una sola verdad final: la metadata).
+- El watch NO administra planes, catálogo ni calendario. Ajustes de
+  ejecución locales se quedan (GPS, auto-pausa, zonas, música externa).
+
+## 11. Rol futuro del audio
+
+Estado deseado: audio = configuración de la sesión, no identidad de la
+app. Modos: sin música propia / música local / música externa / solo
+avisos — **los cuatro ya funcionan en los motores** (verificado en las
+tareas de Carrera Libre y modoSoloAvisos). El acople que queda es de
+MODELO y UI, no de motor:
+
+- Acoplado hoy: `Plan` lleva pistas+avisos; la pestaña Plan del iPhone
+  muestra Música como parte del entrenamiento; `Reproductor.iniciar`
+  recibe el Plan entero.
+- Desacople incremental (sin refactor grande):
+  1. (Fase A) `ConfiguracionAudio` como struct separada; `Plan` legacy
+     se convierte en un adaptador computado `(definicion, audio)`.
+  2. (Fase B+) los motores reciben `(DefinicionEntrenamiento,
+     ConfiguracionAudio)`; firma nueva con adaptador del viejo — un
+     cambio de firma, no de lógica.
+  3. (UI) Música migra de PLAN a PERFIL→"Música y avisos"; los avisos
+     por tiempo ("tomá agua cada 20") son audio; los avisos por KM y
+     los tramos son entrenamiento. Línea divisoria explícita.
+
+## 12. Catálogo de planes
+
+- `PlanBase` en el bundle como JSON versionado:
+  `Recursos/Planes/primeros-5k@1.json` con metadata (nombre, distancia
+  objetivo, nivel recomendado, semanas, días/semana soportados
+  [3,4,5], descripción) y las semanas con definiciones que usan ritmos
+  SIMBÓLICOS.
+- Adoptar = **snapshot completo** a `PlanUsuario` (con `planBaseID@v`
+  como procedencia). Actualizar la app con `@2` jamás toca instancias
+  `@1` en curso. "Hay una versión nueva del plan" = feature futura
+  opcional, nunca automática.
+- Experiencia: Explorar → filtrar por objetivo/nivel/días → vista
+  previa de semanas → elegir fecha de inicio (o de carrera, contando
+  hacia atrás) → se instancia el calendario.
+- El editor manual actual (tramos + JSON de ChatGPT) se conserva como
+  "Plan personalizado" — mismo `PlanUsuario`, origen distinto.
+
+## 13. Evaluación inicial
+
+Onboarding (una pantalla, cuatro caminos, todos producen
+`ReferenciaRendimiento`):
+
+1. **Test 5K guiado**: un `DefinicionEntrenamiento` tipo
+   `testEvaluacion` (calent. + 5K a fondo controlado + vuelta a la
+   calma); al guardar la sesión, el tiempo del bloque central crea la
+   referencia con fuente `test5K`.
+2. **Marca reciente**: cargar distancia+tiempo a mano (fuente
+   `carreraReal` o `marcaManual`).
+3. **Estimación suave** para principiantes: sin test a fondo; caminata/
+   trote de evaluación liviana o directamente arrancar el plan
+   "Primeros 5K" SIN baseline (los planes para principiantes absolutos
+   pueden definirse por esfuerzo percibido, no por ritmo — decisión
+   metodológica D4).
+4. **Empezar sin test**: explícitamente permitido; el test queda
+   sugerido como primer entrenamiento opcional.
+
+## 14. Historial y progreso
+
+- Historial: lo actual (HealthKit + fusión por uuid) + el vínculo:
+  cada carrera muestra si fue "Entrenamiento: Series 5×1K (semana 3)"
+  o "Carrera libre".
+- Progreso derivable sin persistir derivados: km/semana y ritmo (ya
+  existe), consistencia = cumplidos/programados por semana (del
+  calendario), mejores marcas y evolución del test = de la lista de
+  `ReferenciaRendimiento` + sesiones. Solo se cachea lo que la UI
+  necesite rápido, recalculable siempre.
+
+## 15. Branding del resumen compartible (pendiente, NO implementado)
+
+- **Asset correcto**: `Maraton/Assets.xcassets/AppIcon.appiconset/icon1024.png`
+  (1024×1024, RGB sin alfa — es el logo del usuario ya centrado). El
+  original crudo es `logo.jpg` en la raíz del repo. El AppIcon NO es
+  accesible por `Image(named:)` de forma confiable → crear un imageset
+  nuevo: `Maraton/Assets.xcassets/LogoMaratonia.imageset/` con una
+  copia de `icon1024.png` y su `Contents.json` (idiom universal, single
+  scale) — se puede hacer a mano en el repo, sin Xcode.
+- **Cambio exacto en `TarjetaCompartir`** (cuando se implemente):
+  ```swift
+  HStack(spacing: 8) {
+      Image("LogoMaratonia")
+          .resizable().scaledToFit()
+          .frame(width: 22, height: 22)
+          .clipShape(RoundedRectangle(cornerRadius: 5))
+      Label("Maratonia", systemImage: "figure.run")  // → Text("Maratonia")
+  }
+  ```
+  reemplazando el `Label` actual (el ícono SF `figure.run` pasa a ser
+  redundante → `Text`). Proporción: cuadrado fijo 22 pt, `scaledToFit`.
+  Resolución: 1024 px a 22 pt × escala 3 (66 px) sobra nitidez.
+  Legibilidad en la variante transparente: el logo tiene fondo propio
+  (sin alfa), la esquina redondeada lo encapsula como sticker y la
+  sombra existente (`sombra`) ya se aplica al contenedor. Export:
+  `ImageRenderer` toma assets del bundle sin trabajo extra; verificar
+  en el PNG sin fondo que el logo no “flote” sin contraste — si
+  molesta, borde de 1 pt blanco al 30 %.
+
+## 16. Roadmap por fases (cada una: implementar → compilar → probar → commit)
+
+El orden difiere del sugerido: "Correr desde iPhone" ya existe en un
+80 % (motor completo); lo que no existe es el TIEMPO (calendario). Sin
+calendario no hay "hoy", y sin "hoy" ni el Home ni Correr-desde-iPhone
+tienen qué mostrar. Por eso el dominio y el calendario van primero.
+
+- **FASE A — Dominio + IDs + migración** (solo modelo y persistencia,
+  cero UI): entidades de §3, adaptador Plan legacy, migración §8,
+  tests de todo. *Riesgo bajo, desbloquea todo.*
+- **FASE B — Catálogo mínimo + calendario**: 1-2 PlanBase reales en
+  JSON (Primeros 5K, 10K), adopción con snapshot, pestaña PLAN muestra
+  el calendario, reprogramar (mover de día) y omitir. Ritmos absolutos
+  todavía (sin baseline).
+- **FASE C — INICIO + vínculo sesión↔programado**: Home "hoy",
+  cumplimiento por sesión vinculada (reemplaza huella), metadata en
+  HKWorkout, historial muestra el vínculo.
+- **FASE D — Correr el entrenamiento del día desde iPhone**:
+  `CarreraCelu` recibe (definición, audio, programadoID). Extensión
+  del motor: segmentos por TIEMPO (única pieza de motor nueva).
+- **FASE E — Watch a proyección del día**: ProyeccionDia +
+  vuelta `{programadoID, hkUUID}`; retirar EstadoPlanWatch/huella.
+- **FASE F — Evaluación inicial** (§13) + `ReferenciaRendimiento`.
+- **FASE G — Ritmos personalizados** (§6): simbólicos + metodología
+  versionada (requiere decisión D4).
+- **FASE H — Progreso** (§14).
+- **FASE I — Adaptación del plan** (futuro lejano; recién acá).
+- Transversal, en cualquier momento: §15 (logo en la tarjeta — 20
+  minutos), mover Música a PERFIL (§11 paso UI).
+
+## 17. Riesgos
+
+1. **Migración con dispositivos desincronizados** (iPhone v2 + watch
+   v1 y viceversa): mitigado con la versión puente (§8.5), pero es EL
+   punto a probar físico en cada fase.
+2. **Fechas**: todo el calendario debe ser DÍA LOCAL (`DateComponents`
+   año/mes/día, `Calendar.current`), jamás `Date` interpretado UTC —
+   la regla ya está escrita en NIGHT_AUDIT; el calendario es el primer
+   código que la pone a prueba de verdad.
+3. **Scope creep del catálogo**: escribir planes de entrenamiento
+   reales es trabajo DEPORTIVO, no de software. Fase B con 1-2 planes
+   sencillos y honestos; crecer después.
+4. **Metodología sin fuente** (D4): si se postea "tu ritmo umbral es X"
+   sin metodología citable, es humo peligroso. Bloqueante para Fase G,
+   no antes.
+5. **Doble motor iPhone/watch**: ya existen y comparten lo puro
+   (AutoPausa, zonas, Plan). Unificarlos del todo NO es objetivo v2:
+   la duplicación restante es deliberada (frameworks distintos:
+   HKWorkoutSession vs HKWorkoutBuilder).
+
+## 18. Decisiones que necesita tomar el usuario
+
+- **D1 — Completado parcial**: si hacés 6 de 8 km del rodaje, ¿queda
+  cumplido, "parcial" visible, o programado con evidencia vinculada?
+  (Recomendación: v2.0 mantiene la regla actual —todo o sigue
+  pendiente— y agrega "marcar como cumplido a mano".)
+- **D2 — Carrera libre que "cuenta"**: ¿botón "contar esta carrera
+  como el entrenamiento de hoy"? (Recomendación: sí, es la válvula de
+  escape de D1 y cuesta poco.)
+- **D3 — Qué pasa con un día que pasó sin hacerse**: ¿se marca
+  `omitido` solo, o queda pendiente hasta que el usuario decida?
+  (Recomendación: pendiente 7 días, después omitido automático.)
+- **D4 — Metodología de ritmos**: ¿tablas VDOT (Daniels) como base
+  citable, u otra fuente que prefieras? Bloquea Fase G.
+- **D5 — Dónde vive "Reloj"**: ¿sección de PERFIL o de PLAN?
+- **D6 — Persistencia**: recomiendo seguir con JSON en Documents +
+  CloudKit (continuidad total, migración trivial) y NO adoptar
+  SwiftData en v2. Confirmar.
