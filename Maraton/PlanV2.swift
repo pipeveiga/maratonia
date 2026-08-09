@@ -471,8 +471,13 @@ struct CalendarioView: View {
                             .font(.caption)
                             .foregroundStyle(programado.dia == hoy ? Color.orange : Color.secondary)
                     }
-                    Text(nombreDeTipo(programado.definicion.tipo))
+                    Text(DV2.nombre(de: programado.definicion.tipo))
                         .font(.caption)
+                        .foregroundStyle(DV2.color(de: programado.definicion.tipo))
+                }
+                if programado.sesionVinculadaID != nil {
+                    Text("Sesión guardada — vela en Carreras")
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -500,17 +505,4 @@ struct CalendarioView: View {
             .foregroundStyle(color)
     }
 
-    private func nombreDeTipo(_ tipo: TipoEntrenamiento) -> String {
-        switch tipo {
-        case .facil: return "Fácil"
-        case .recuperacion: return "Recuperación"
-        case .largo: return "Larga"
-        case .tempo: return "Tempo"
-        case .umbral: return "Umbral"
-        case .series: return "Series"
-        case .ritmoCarrera: return "Ritmo de carrera"
-        case .testEvaluacion: return "Evaluación"
-        case .personalizado: return "Personalizado"
-        }
-    }
 }

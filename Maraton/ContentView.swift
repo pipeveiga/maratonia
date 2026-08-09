@@ -6,6 +6,10 @@ import UniformTypeIdentifiers
 // ayuda). Cada parte del plan tiene su propia pantalla — nada de una
 // sola lista infinita.
 
+enum Pestana: Hashable {
+    case plan, correr, reloj, carreras, perfil
+}
+
 struct ContentView: View {
     @StateObject private var store = PlanStore()
     // Se declara DESPUÉS de PlanStore a propósito: PlanStore corre la
@@ -14,21 +18,30 @@ struct ContentView: View {
     @StateObject private var almacen = AlmacenStore()
     @State private var mostrandoTutorial = false
 
+    /// Selección programática: EMPEZAR desde Plan te lleva a Correr,
+    /// donde ya está el motor andando.
+    @State private var pestana: Pestana = .plan
+
     /// El tutorial se abre solo la primera vez que se abre la app.
     @AppStorage("vioTutorial") private var vioTutorial = false
 
     var body: some View {
-        TabView {
-            PlanTab(store: store, almacen: almacen)
+        TabView(selection: $pestana) {
+            PlanTab(store: store, almacen: almacen, pestana: $pestana)
                 .tabItem { Label("Plan", systemImage: "slider.horizontal.3") }
-            CorrerTab(store: store)
+                .tag(Pestana.plan)
+            CorrerTab(store: store, almacen: almacen)
                 .tabItem { Label("Correr", systemImage: "figure.run") }
+                .tag(Pestana.correr)
             RelojTab(store: store)
                 .tabItem { Label("Reloj", systemImage: "applewatch") }
+                .tag(Pestana.reloj)
             CarrerasTab()
                 .tabItem { Label("Carreras", systemImage: "map.fill") }
+                .tag(Pestana.carreras)
             PerfilTab(store: store, mostrandoTutorial: $mostrandoTutorial)
                 .tabItem { Label("Perfil", systemImage: "person.crop.circle") }
+                .tag(Pestana.perfil)
         }
         .sheet(isPresented: $mostrandoTutorial) {
             TutorialView()
@@ -47,6 +60,7 @@ struct ContentView: View {
 struct PlanTab: View {
     @ObservedObject var store: PlanStore
     @ObservedObject var almacen: AlmacenStore
+    @Binding var pestana: Pestana
     @AppStorage("horizonteCronograma") private var horizonteMinutos = 120
 
     var body: some View {
@@ -57,6 +71,21 @@ struct PlanTab: View {
                         Label(problema, systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote)
                             .foregroundStyle(.red)
+                    }
+                }
+
+                // El entrenamiento de HOY como acción principal de la
+                // app, no como una fila más del calendario.
+                if let hoy = almacen.almacen.entrenamientoDeHoy(DiaLocal(fecha: Date())) {
+                    Section {
+                        TarjetaEntrenamientoV2(programado: hoy) {
+                            LanzadorSesion.iniciar(definicion: hoy.definicion,
+                                                   programadoID: hoy.id,
+                                                   store: store, almacen: almacen)
+                            pestana = .correr
+                        }
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                     }
                 }
 

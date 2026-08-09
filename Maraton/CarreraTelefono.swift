@@ -801,6 +801,7 @@ extension CarreraCelu: CLLocationManagerDelegate {
 
 struct CorrerTab: View {
     @ObservedObject var store: PlanStore
+    @ObservedObject var almacen: AlmacenStore
     @ObservedObject private var carrera = CarreraCelu.compartida
     @AppStorage("autoPausaCelu") private var autoPausa = true
 
@@ -824,17 +825,29 @@ struct CorrerTab: View {
                     tarjetaResumen(resumen)
                 }
 
+                // Entrenamiento de hoy y Carrera Libre son dos acciones
+                // distintas que llegan al MISMO motor (LanzadorSesion).
+                if let hoy = almacen.almacen.entrenamientoDeHoy(DiaLocal(fecha: Date())) {
+                    TarjetaEntrenamientoV2(programado: hoy) {
+                        LanzadorSesion.iniciar(definicion: hoy.definicion,
+                                               programadoID: hoy.id,
+                                               store: store, almacen: almacen)
+                    }
+                    .padding(.horizontal)
+                }
+
                 VStack(spacing: 6) {
-                    Text(store.plan.nombre)
+                    Text("Carrera libre")
                         .font(.title3.bold())
                     Text(datosDelPlan)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-                .padding(.top, 8)
+                .padding(.top, 4)
 
                 Button {
-                    carrera.iniciar(plan: store.plan, urlDe: { store.urlDePista($0) })
+                    LanzadorSesion.iniciar(definicion: nil, programadoID: nil,
+                                           store: store, almacen: almacen)
                 } label: {
                     Image(systemName: "play.fill")
                         .font(.system(size: 40, weight: .heavy))
