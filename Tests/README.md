@@ -10,10 +10,11 @@ la misma lógica se valida con la simulación descripta en NIGHT_AUDIT.md.
 2. Menú **File → New → Target…**
 3. Buscá **Unit Testing Bundle** (pestaña iOS) → **Next**.
 4. Product Name: `MaratonTests` · Target to be Tested: **Maraton** → **Finish**.
-5. En el Finder, arrastrá `Tests/MaratonTests/LogicaDeportivaTests.swift`
-   adentro del grupo **MaratonTests** que apareció en la barra lateral de
-   Xcode. En el diálogo: destildá "Copy items if needed" y tildá SOLO el
-   target **MaratonTests**.
+5. En el Finder, arrastrá los DOS archivos de `Tests/MaratonTests/`
+   (`LogicaDeportivaTests.swift` y `DominioV2Tests.swift`) adentro del
+   grupo **MaratonTests** que apareció en la barra lateral de Xcode. En
+   el diálogo: destildá "Copy items if needed" y tildá SOLO el target
+   **MaratonTests**.
 6. Borrá el archivo `MaratonTests.swift` de ejemplo que creó Xcode.
 7. Menú **Product → Test** (Cmd+U). Tienen que pasar todos.
 

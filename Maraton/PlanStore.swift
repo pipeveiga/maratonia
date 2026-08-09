@@ -58,6 +58,32 @@ final class PlanStore: ObservableObject {
         try? FileManager.default.createDirectory(
             at: Self.urlCarpetaPistas, withIntermediateDirectories: true)
         recalcularDuraciones()
+        // Fase A del dominio V2: materializar el almacén nuevo como
+        // ensayo regenerable. La app sigue corriendo sobre el Plan
+        // legacy; nada lo consume hasta el cutover de Fase B.
+        Self.migrarADominioV2SiHaceFalta(planV1: plan, en: Self.urlDominioV2)
+    }
+
+    static var urlDominioV2: URL {
+        urlDocumentos.appendingPathComponent("dominio-v2.json")
+    }
+
+    /// Idempotente y segura: un almacén ACTIVADO (fuente de verdad
+    /// desde Fase B) no se toca jamás; mientras no esté activado es un
+    /// ensayo que se regenera desde el legacy para no quedar viejo.
+    /// La huella cumplida vive en el reloj (no acá): el programado
+    /// migrado nace pendiente; el puente de huella se resuelve en
+    /// Fase E del lado del watch.
+    static func migrarADominioV2SiHaceFalta(planV1: Plan, en url: URL, fecha: Date = Date()) {
+        if let datos = try? Data(contentsOf: url),
+           let existente = try? JSONDecoder().decode(AlmacenV2.self, from: datos),
+           existente.activado {
+            return
+        }
+        let almacen = MigracionV2.migrar(planV1: planV1, huellaCumplida: nil, fecha: fecha)
+        if let datos = try? JSONEncoder().encode(almacen) {
+            try? datos.write(to: url, options: .atomic)
+        }
     }
 
     private func guardar() {

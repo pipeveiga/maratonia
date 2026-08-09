@@ -1,0 +1,333 @@
+import Foundation
+
+// Modelo de dominio V2 (Fase A de ARCHITECTURE_V2.md).
+//
+// Separación central: QUÉ HAY QUE HACER (PlanUsuario → SemanaPlan →
+// EntrenamientoProgramado → DefinicionEntrenamiento) vs QUÉ SE HIZO
+// (RegistroSesion, cuyo id es el HKWorkout.uuid de Salud).
+//
+// Identidad ≠ contenido: cada entidad tiene un UUID estable que NO
+// cambia al editar contenido ni al mover fechas. La huellaEntrenamiento
+// de V1 queda como puente de migración (ver MigracionV2) y muere en
+// Fase E, cuando el reloj pase a la proyección del día.
+//
+// En Fase A este modelo todavía NO alimenta ninguna pantalla: la app
+// sigue corriendo sobre el Plan legacy. Acá viven el esquema, las
+// transiciones y la migración — la base de las Fases B en adelante.
+
+// MARK: - Día local
+
+/// Un día de calendario en la zona horaria del corredor. NUNCA usar
+/// `Date` para "el martes": un Date es un instante UTC y el
+/// entrenamiento del martes no debe volverse del lunes al cruzar un
+/// huso horario (regla de NIGHT_AUDIT).
+struct DiaLocal: Codable, Equatable, Hashable, Comparable {
+    var anio: Int
+    var mes: Int
+    var dia: Int
+
+    init(anio: Int, mes: Int, dia: Int) {
+        self.anio = anio
+        self.mes = mes
+        self.dia = dia
+    }
+
+    init(fecha: Date, calendario: Calendar = .current) {
+        let partes = calendario.dateComponents([.year, .month, .day], from: fecha)
+        anio = partes.year ?? 1970
+        mes = partes.month ?? 1
+        dia = partes.day ?? 1
+    }
+
+    static func < (lhs: DiaLocal, rhs: DiaLocal) -> Bool {
+        (lhs.anio, lhs.mes, lhs.dia) < (rhs.anio, rhs.mes, rhs.dia)
+    }
+}
+
+// MARK: - Definición (QUÉ es el entrenamiento)
+
+enum TipoEntrenamiento: String, Codable {
+    case facil, recuperacion, largo, tempo, umbral, series, ritmoCarrera
+    case testEvaluacion
+    case personalizado   // planes armados a mano / migrados de V1
+}
+
+/// Ritmo objetivo de un segmento. `.simbolico` se resuelve contra el
+/// baseline con una metodología versionada (Fase G); hasta entonces los
+/// planes usan `.absoluto` (compatible con los tramos de hoy).
+enum RitmoObjetivo: Codable, Equatable {
+    case libre
+    case absoluto(minSegKm: Int?, maxSegKm: Int?)
+    case simbolico(TipoRitmo)
+}
+
+enum TipoRitmo: String, Codable {
+    case facil, recuperacion, maraton, umbral, intervalo, repeticion
+}
+
+/// Un segmento del entrenamiento: por distancia O por duración (la
+/// ejecución por duración es extensión de motor de Fase D; el MODELO ya
+/// la representa para no re-migrar esquema).
+struct Segmento: Codable, Equatable, Identifiable {
+    var id = UUID()
+    var nombre: String
+    var distanciaKm: Double?
+    var duracionSegundos: Int?
+    var ritmo: RitmoObjetivo = .libre
+}
+
+struct DefinicionEntrenamiento: Codable, Equatable, Identifiable {
+    var id = UUID()                      // definicionID: estable ante ediciones
+    var tipo: TipoEntrenamiento
+    var nombre: String
+    var descripcion: String = ""
+    var segmentos: [Segmento] = []
+}
+
+// MARK: - Programado (CUÁNDO hay que hacerlo)
+
+/// Resolución PERSISTIDA de un programado. "Vencido" (overdue) NO se
+/// persiste: se deriva de la fecha — así el paso del tiempo jamás muta
+/// datos en silencio (decisión D3).
+enum ResolucionProgramado: String, Codable {
+    case pendiente
+    case cumplido    // estructura completa + sesión vinculada
+    case parcial     // sesión vinculada que no completó la estructura (D1)
+    case omitido     // resuelto explícitamente como "no lo hice"
+}
+
+/// Estado DERIVADO para UI y lógica: pendiente se abre en programado /
+/// vencido según la fecha. Reprogramar NO es un estado (decisión sobre
+/// `rescheduled`): es mover `dia` conservando `diaOriginal` — la
+/// historia queda y no hay estados contradictorios.
+enum EstadoProgramado: Equatable {
+    case programado
+    case vencido      // pendiente con fecha pasada, sin resolver
+    case cumplido
+    case parcial
+    case omitido
+}
+
+struct EntrenamientoProgramado: Codable, Equatable, Identifiable {
+    var id = UUID()                       // programadoID: estable ante TODO
+    var definicion: DefinicionEntrenamiento
+    var dia: DiaLocal?                    // nil = sin fecha (migrado de V1)
+    var diaOriginal: DiaLocal?            // primera fecha si fue reprogramado
+    var resolucion: ResolucionProgramado = .pendiente
+    var sesionVinculadaID: UUID?          // HKWorkout.uuid de la evidencia
+
+    func estado(hoy: DiaLocal) -> EstadoProgramado {
+        switch resolucion {
+        case .cumplido: return .cumplido
+        case .parcial: return .parcial
+        case .omitido: return .omitido
+        case .pendiente:
+            if let dia, dia < hoy { return .vencido }
+            return .programado
+        }
+    }
+
+    /// Mover de fecha conserva la identidad y la primera fecha original.
+    mutating func reprogramar(a nuevoDia: DiaLocal) {
+        if diaOriginal == nil { diaOriginal = dia }
+        dia = nuevoDia
+    }
+
+    /// Omitir solo tiene sentido sobre algo sin resolver.
+    mutating func omitir() {
+        guard resolucion == .pendiente else { return }
+        resolucion = .omitido
+    }
+}
+
+// MARK: - Plan del usuario (snapshot adoptado)
+
+enum OrigenPlan: Codable, Equatable {
+    case personalizado                      // armado a mano / migrado de V1
+    case catalogo(planBaseID: String)       // "primeros-5k@2": template + versión
+}
+
+/// La INSTANCIA del usuario: snapshot completo al adoptar. Actualizar
+/// un template del catálogo jamás toca un PlanUsuario existente
+/// (son structs copiados por valor y persistidos aparte).
+struct PlanUsuario: Codable, Equatable, Identifiable {
+    var id = UUID()                       // planUsuarioID
+    var nombre: String
+    var origen: OrigenPlan = .personalizado
+    var fechaAdopcion: Date
+    var semanas: [SemanaPlan] = []
+}
+
+struct SemanaPlan: Codable, Equatable, Identifiable {
+    var id = UUID()
+    var numero: Int
+    var programados: [EntrenamientoProgramado] = []
+}
+
+// MARK: - Sesión realizada (QUÉ se hizo)
+
+/// Registro liviano: las métricas, la ruta y la FC viven en Salud
+/// (HKWorkout es la fuente autoritativa de lo realizado). Acá solo el
+/// vínculo. `id` ES el HKWorkout.uuid. Una sesión con vínculo nil es
+/// Carrera Libre; el campo único garantiza por construcción que una
+/// sesión se vincula a lo sumo a UN programado.
+struct RegistroSesion: Codable, Equatable, Identifiable {
+    var id: UUID                          // = HKWorkout.uuid
+    var fecha: Date
+    var vinculoProgramadoID: UUID?
+
+    var esLibre: Bool { vinculoProgramadoID == nil }
+}
+
+// MARK: - Configuración de audio (separada del entrenamiento)
+
+/// El audio deja de ser parte del "workout": es configuración de la
+/// sesión (decisión 11). Los avisos por KM viven acá y no en la
+/// definición — son recordatorios del corredor ("gel en el km 5") que
+/// también valen en una Carrera Libre; los TRAMOS sí son entrenamiento.
+/// (Refinamiento sobre §11 del documento, anotado ahí.)
+struct ConfiguracionAudio: Codable, Equatable {
+    var pistas: [String] = []
+    var avisosFijos: [AvisoFijo] = []
+    var avisosRepetidos: [AvisoRepetido] = []
+    var avisosKm: [AvisoKm] = []
+}
+
+// MARK: - Referencia de rendimiento (baseline, se llena en Fase F)
+
+enum FuenteReferencia: String, Codable {
+    case test5K, carreraReal, marcaManual, estimacionInicial
+}
+
+/// Datos OBJETIVOS siempre (distancia+tiempo+fuente+fecha), nunca
+/// "nivel = intermedio". Un VDOT es derivable y recalculable (D4).
+struct ReferenciaRendimiento: Codable, Equatable, Identifiable {
+    var id = UUID()
+    var fecha: Date
+    var fuente: FuenteReferencia
+    var distanciaMetros: Double
+    var segundos: Int
+}
+
+// MARK: - Almacén raíz (lo que se persiste como dominio-v2.json)
+
+struct AlmacenV2: Codable, Equatable {
+    /// Versión del ESQUEMA (no de la app): sube solo con cambios
+    /// incompatibles, con migración explícita.
+    var versionEsquema = 1
+
+    /// false = ensayo de migración (Fase A): regenerable desde el plan
+    /// legacy en cada arranque, nadie lo consume todavía. true = fuente
+    /// de verdad (a partir del cutover de Fase B): intocable por la
+    /// migración. Así "migrar dos veces" jamás duplica ni pisa datos
+    /// reales.
+    var activado = false
+    var planActivo: PlanUsuario?
+    var audio = ConfiguracionAudio()
+    var sesiones: [RegistroSesion] = []
+    var referencias: [ReferenciaRendimiento] = []
+
+    /// Vincula una sesión a un programado (la base de D2). Reglas:
+    /// - idempotente: repetir el mismo vínculo no cambia nada;
+    /// - una sesión se vincula a lo sumo a UN programado: si ya está
+    ///   vinculada a otro, se RECHAZA (devuelve false) — deshacer un
+    ///   vínculo es una acción aparte y explícita, nunca un efecto;
+    /// - la resolución queda cumplido/parcial según `completo` (D1:
+    ///   estructura entera = cumplido; iniciada sin terminar = parcial).
+    @discardableResult
+    mutating func vincular(sesionID: UUID, fechaSesion: Date,
+                           aProgramado programadoID: UUID,
+                           completo: Bool) -> Bool {
+        // ¿La sesión ya está vinculada a OTRO programado?
+        for semana in planActivo?.semanas ?? [] {
+            for programado in semana.programados
+            where programado.sesionVinculadaID == sesionID && programado.id != programadoID {
+                return false
+            }
+        }
+        guard let (s, p) = indiceDe(programadoID: programadoID) else { return false }
+        planActivo?.semanas[s].programados[p].sesionVinculadaID = sesionID
+        planActivo?.semanas[s].programados[p].resolucion = completo ? .cumplido : .parcial
+        if let indice = sesiones.firstIndex(where: { $0.id == sesionID }) {
+            sesiones[indice].vinculoProgramadoID = programadoID
+        } else {
+            sesiones.append(RegistroSesion(id: sesionID, fecha: fechaSesion,
+                                           vinculoProgramadoID: programadoID))
+        }
+        return true
+    }
+
+    /// Registra una Carrera Libre (vínculo nil). Idempotente por id.
+    mutating func registrarSesionLibre(sesionID: UUID, fecha: Date) {
+        guard !sesiones.contains(where: { $0.id == sesionID }) else { return }
+        sesiones.append(RegistroSesion(id: sesionID, fecha: fecha, vinculoProgramadoID: nil))
+    }
+
+    private func indiceDe(programadoID: UUID) -> (Int, Int)? {
+        guard let semanas = planActivo?.semanas else { return nil }
+        for (s, semana) in semanas.enumerated() {
+            if let p = semana.programados.firstIndex(where: { $0.id == programadoID }) {
+                return (s, p)
+            }
+        }
+        return nil
+    }
+}
+
+// MARK: - Migración V1 → V2
+
+/// Transforma el modelo viejo (Plan con tramos+audio mezclados) en el
+/// almacén V2, sin perder nada:
+/// - pistas y avisos → ConfiguracionAudio;
+/// - tramos → un PlanUsuario "personalizado" de 1 semana con 1
+///   programado sin fecha;
+/// - la huellaEntrenamiento de V1 es el PUENTE DE MIGRACIÓN: si
+///   coincide con la huella cumplida guardada, el programado nace
+///   cumplido (sin sesión vinculada: la evidencia pre-V2 no existe).
+///   El puente muere en Fase E, cuando el reloj deje de usar huellas.
+///
+/// La función es pura (fechas inyectadas). La idempotencia de la
+/// migración REAL la da el llamador: solo se migra si dominio-v2.json
+/// no existe todavía (ver PlanStore).
+enum MigracionV2 {
+    static func migrar(planV1: Plan, huellaCumplida: String?, fecha: Date) -> AlmacenV2 {
+        var almacen = AlmacenV2()
+        almacen.audio = ConfiguracionAudio(
+            pistas: planV1.pistas,
+            avisosFijos: planV1.avisosFijos,
+            avisosRepetidos: planV1.avisosRepetidos,
+            avisosKm: planV1.avisosKmActivos)
+
+        let tramos = planV1.tramosActivos
+        guard !tramos.isEmpty else { return almacen }
+
+        let segmentos = tramos.map { tramo in
+            Segmento(nombre: tramo.nombre,
+                     distanciaKm: tramo.kilometros,
+                     duracionSegundos: nil,
+                     ritmo: ritmo(de: tramo))
+        }
+        let definicion = DefinicionEntrenamiento(
+            tipo: .personalizado,
+            nombre: planV1.nombre,
+            descripcion: "Migrado del plan original",
+            segmentos: segmentos)
+        var programado = EntrenamientoProgramado(definicion: definicion, dia: nil)
+        if let huellaCumplida, huellaCumplida == planV1.huellaEntrenamiento {
+            programado.resolucion = .cumplido
+        }
+        almacen.planActivo = PlanUsuario(
+            nombre: planV1.nombre,
+            origen: .personalizado,
+            fechaAdopcion: fecha,
+            semanas: [SemanaPlan(numero: 1, programados: [programado])])
+        return almacen
+    }
+
+    private static func ritmo(de tramo: Tramo) -> RitmoObjetivo {
+        if tramo.ritmoMinSegKm == nil && tramo.ritmoMaxSegKm == nil {
+            return .libre
+        }
+        return .absoluto(minSegKm: tramo.ritmoMinSegKm, maxSegKm: tramo.ritmoMaxSegKm)
+    }
+}
