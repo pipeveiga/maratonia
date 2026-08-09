@@ -635,6 +635,7 @@ struct PerfilTab: View {
     @ObservedObject var store: PlanStore
     @ObservedObject private var cuenta = CuentaStore.compartida
     @Binding var mostrandoTutorial: Bool
+    @State private var confirmandoRestaurar = false
 
     var body: some View {
         NavigationStack {
@@ -653,13 +654,25 @@ struct PerfilTab: View {
                     }
 
                     Button {
-                        cuenta.restaurar { plan in
-                            if let plan {
-                                store.plan = plan
-                            }
-                        }
+                        confirmandoRestaurar = true
                     } label: {
                         Label("Restaurar plan desde iCloud", systemImage: "icloud.and.arrow.down")
+                    }
+                    .confirmationDialog(
+                        "¿Restaurar desde iCloud?",
+                        isPresented: $confirmandoRestaurar,
+                        titleVisibility: .visible
+                    ) {
+                        Button("Reemplazar mi plan actual", role: .destructive) {
+                            cuenta.restaurar { plan in
+                                if let plan {
+                                    store.plan = plan
+                                }
+                            }
+                        }
+                        Button("Cancelar", role: .cancel) {}
+                    } message: {
+                        Text("El plan de este teléfono se reemplaza por el último respaldo de iCloud. No se puede deshacer.")
                     }
 
                     if let mensaje = cuenta.mensaje {

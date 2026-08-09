@@ -125,6 +125,92 @@ del reloj (requieren targets nuevos — hacerlo con Xcode), FC desde
 AirPods Pro 3 en modo celu, análisis post-carrera, inglés, modo día de
 carrera, recuperación de sesión tras crash.
 
+## Deep Audit — Pass 2
+
+Segunda pasada enfocada en estado, secuencia temporal, concurrencia,
+audio y persistencia. Complementada con una revisión multi-agente en
+paralelo (6 lentes) con verificación adversarial de cada hallazgo.
+
+### Corregido en Pass 2
+
+15. **`CarreraResumen.id` inestable (P2)**: era `UUID()` nuevo en cada
+    consulta a Salud; con el pull-to-refresh agregado ayer, refrescar
+    con el detalle abierto rompía la pantalla ("No encontré esta
+    carrera"). Ahora `id = workout.uuid` (estable entre recargas).
+16. **Fórmula de zonas duplicada (P2)**: existía en dos lugares (aviso
+    hablado y celda de métricas) — riesgo real de divergencia. Extraída
+    a `zonaCardiaca()` en `Shared/Plan.swift` (archivo ya compartido
+    por ambos targets: cero riesgo de pbxproj) y ahora testeable.
+17. **Persistencia del plan sin voz (P1)**: `guardar()` con `try?` mudo
+    → disco lleno = perder el plan al cerrar la app sin aviso;
+    `plan.json` corrupto → arranque vacío en silencio, pisando la
+    evidencia. Ahora: error visible en la pestaña Plan; el archivo
+    corrupto se preserva como `plan-corrupto.json` y el aviso apunta a
+    «Restaurar desde iCloud».
+18. **Recovery post-crash colgable (P1, bug propio de Pass 1)**: si el
+    crash ocurría justo después de que la sesión pasara a `.ended`, el
+    delegate `didChangeTo` no re-dispara; `finalizar()` esperaba un
+    evento que no llega, `activo` quedaba `true` y el guard
+    `sesion == nil` bloqueaba TODOS los Play futuros. El cierre se
+    extrajo a `cerrarYGuardar()` y la recuperación lo invoca directo
+    cuando la sesión recuperada ya está terminada. En el peor caso
+    (colección ya cerrada) muestra el error y LIMPIA el estado.
+19. Comentario engañoso de `kmTexto` (decía coma decimal; produce punto).
+
+### Escenarios trazados a mano (sin hallazgos nuevos)
+
+- **Normal** (play → pausa → reanudar → terminar): cascada de pausa
+  única vía `Reproductor` con guards (`estado == .reproduciendo` /
+  `!pausado`) — dobles pausas imposibles; el tiempo es SIEMPRE
+  timestamps (`acumuladoPrevio + fechaReanudacion`), ningún contador
+  de ticks; los 4 timers del proyecto (UI del reloj, muestras, tick
+  del celu, progreso de envíos) se invalidan antes de recrearse y al
+  terminar.
+- **Auto-pausa** (correr → parar → caminar → correr): trigger con
+  triple guard (GPS con puntos + 10 s ventana + >30 s de sesión);
+  resume por un único camino (el branch de GPS exige
+  `enPausaAutomatica && pausado` y `Reproductor.reanudar` tiene guard
+  de estado) — duplicados imposibles; dos updates de ubicación
+  seguidos: el segundo encuentra `enPausaAutomatica == false`.
+- **Interrupción de audio**: reloj y celu observan `.ended` +
+  `shouldResume` con guards de pausa/silencio/voz; en música externa
+  el reloj NO toca nada (Spotify se recupera solo) — correcto.
+- **Crash/kill**: reloj recupera y guarda (fix 12+18). Celu: iOS no
+  tiene API de recuperación de `HKWorkoutBuilder` — pérdida documentada
+  como pendiente P3.
+- **Hilos**: WCSession (hilo secundario) → todas las mutaciones
+  @Published van con `DispatchQueue.main.async`; HealthKit delegates →
+  ídem; CLLocationManager creado en main → callbacks en main;
+  AVSpeech/AVAudioPlayer delegates → despachados a main donde mutan
+  estado. Sin escrituras de @Published fuera de main detectadas.
+
+### Modelo de entrenamiento — capacidades y límites (documentado, no código)
+
+- **Representable hoy**: secuencias arbitrarias de segmentos por
+  DISTANCIA con rango de ritmo opcional (incluye series expandidas,
+  p. ej. 5×1K se modela como 11 tramos — funciona, aunque editar series
+  largas es tedioso).
+- **NO representable**: segmentos por TIEMPO ("2 min de recuperación",
+  "15 min easy") — solo aproximables por distancia; segmentos por zona
+  de FC; estructura de repetición de primera clase (N × bloque).
+  Diseño de extensión compatible ya pensado: `Tramo.duracionSegundos:
+  Int?` como alternativa a `kilometros` + avance por tiempo activo en
+  los dos entrenadores. NO implementado a ciegas: cambia el motor de
+  avance y necesita prueba en carrera real.
+- **Plan semanal**: inexistente por diseño actual (Plan = una sesión);
+  es la feature grande ya priorizada en el backlog. Regla para cuando
+  se construya: días como componentes de fecha LOCALES (nunca
+  `YYYY-MM-DD` interpretado UTC), historial de carreras inmutable (hoy
+  se cumple: vive en HealthKit y el plan no lo toca).
+
+### Bloqueado por entorno (documentado, no detiene nada)
+
+- Ejecutar XCTest (target por crear — `Tests/README.md`, 7 pasos).
+- Probar en hardware: llamada real, desconexión de BT (route change:
+  watchOS pausa solo con longForm; no se agregó auto-play a ciegas
+  para no sonar por parlante en la calle), crash recovery físico,
+  auto-pausa en semáforo real.
+
 ## Qué revisar manualmente (usuario)
 
 1. Archivar el **build 31** y correr con auto-pausa activada: verificar
