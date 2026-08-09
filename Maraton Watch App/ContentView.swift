@@ -279,15 +279,19 @@ struct ContentView: View {
 
     /// La música y los avisos arrancan siempre primero: son el corazón de
     /// la app y no deben depender de que Salud o el GPS estén disponibles.
-    /// El entrenamiento se suma después y, si falla, queda el error a la
-    /// vista sin cortar la sesión.
+    /// El entrenamiento se engancha al callback de arranque REAL del
+    /// audio: si el audio falla, no queda un workout fantasma grabando
+    /// con la app de vuelta en el lobby y sin botón para pararlo.
     private func arrancar(_ plan: Plan) {
+        let conGPS = rutaGPS
+        let entrenar = modoEntrenamiento
         reproductor.iniciar(plan: plan, urlDe: conectividad.urlDePista,
-                            musicaExterna: musicaExterna)
-        guard modoEntrenamiento else { return }
-        EntrenadorRitmo.compartido.iniciar(plan: plan)
-        Entrenamiento.compartido.pedirPermisos(conGPS: rutaGPS) {
-            Entrenamiento.compartido.iniciar(conGPS: rutaGPS)
+                            musicaExterna: musicaExterna) {
+            guard entrenar else { return }
+            EntrenadorRitmo.compartido.iniciar(plan: plan)
+            Entrenamiento.compartido.pedirPermisos(conGPS: conGPS) {
+                Entrenamiento.compartido.iniciar(conGPS: conGPS)
+            }
         }
     }
 

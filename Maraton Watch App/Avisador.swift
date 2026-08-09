@@ -70,6 +70,14 @@ final class Avisador: NSObject, ObservableObject {
 
     func detener() {
         cancelarNotificaciones()
+        // Si la voz estaba sonando con música externa, soltar la sesión
+        // de ducking ACÁ: el didCancel llega después, cuando el
+        // Reproductor ya limpió modoMusicaExterna, y Spotify quedaba
+        // con el volumen bajo para siempre.
+        if estaHablando, Reproductor.compartido.modoMusicaExterna {
+            try? AVAudioSession.sharedInstance().setActive(
+                false, options: .notifyOthersOnDeactivation)
+        }
         sintetizador.stopSpeaking(at: .immediate)
         colaPorHablar = []
         estaHablando = false

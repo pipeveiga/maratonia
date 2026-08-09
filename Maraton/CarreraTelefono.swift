@@ -412,7 +412,7 @@ final class CarreraCelu: NSObject, ObservableObject {
         musicaSilenciada.toggle()
         if musicaSilenciada {
             player?.pause()
-        } else if estado == .corriendo {
+        } else if estado == .corriendo, !voz.isSpeaking {
             player?.play()
         }
     }
@@ -445,7 +445,9 @@ final class CarreraCelu: NSObject, ObservableObject {
         estado = .corriendo
         enPausaAutomatica = false
         ubicacionPausa = nil
-        if !musicaSilenciada { player?.play() }
+        // Con la voz hablando, la música no arranca encima: la suelta
+        // el didFinish/didCancel de la voz al terminar.
+        if !musicaSilenciada, !voz.isSpeaking { player?.play() }
         ubicaciones.startUpdatingLocation()
         agregarEvento(.resume)
     }
@@ -498,6 +500,11 @@ final class CarreraCelu: NSObject, ObservableObject {
                         rutas.finishRoute(with: workout, metadata: nil) { _, _ in }
                     }
                     DispatchQueue.main.async {
+                        // Solo limpiar si seguimos en la MISMA carrera:
+                        // este completion puede llegar tarde, con la
+                        // siguiente carrera ya arrancada, y antes le
+                        // pisaba el builder (esa carrera no se guardaba).
+                        guard self?.builder === builder else { return }
                         if let error = errorFinal ?? errorColeccion {
                             self?.mensajeError = "La carrera NO se pudo guardar en Salud: \(error.localizedDescription)"
                             self?.resumen?.guardadaEnSalud = false
@@ -549,6 +556,14 @@ extension CarreraCelu: AVSpeechSynthesizerDelegate {
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
                            didFinish utterance: AVSpeechUtterance) {
         // Reanudar la música solo cuando no quedan frases en cola.
+        guard !synthesizer.isSpeaking, estado == .corriendo, !musicaSilenciada else { return }
+        player?.play()
+    }
+
+    /// Voz cancelada (interrupción, terminar): sin esto la música
+    /// quedaba muerta hasta el próximo aviso.
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
+                           didCancel utterance: AVSpeechUtterance) {
         guard !synthesizer.isSpeaking, estado == .corriendo, !musicaSilenciada else { return }
         player?.play()
     }

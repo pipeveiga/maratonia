@@ -222,7 +222,13 @@ final class Entrenamiento: NSObject, ObservableObject {
     }
 
     func iniciar(conGPS: Bool) {
-        guard sesion == nil else { return }
+        guard sesion == nil else {
+            // Puede pasar si la recuperación post-crash todavía está
+            // cerrando la sesión anterior: avisar en vez de dejar la
+            // carrera sin registro en silencio.
+            mensajeError = "Todavía estoy cerrando la sesión anterior. Esperá unos segundos y volvé a dar Play."
+            return
+        }
         usaGPS = conGPS
         descartarAlTerminar = false
         resumen = nil
@@ -514,6 +520,10 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
     }
 
     private func limpiarTrasFinal() {
+        // Por si .ended llegó sin pasar por finalizar() (fin externo):
+        // el timer de muestras no debe sobrevivir a la sesión.
+        timerMuestras?.invalidate()
+        timerMuestras = nil
         activo = false
         pausado = false
         enPausaAutomatica = false
@@ -529,6 +539,10 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
             self.mensajeError = "Entrenamiento: \(error.localizedDescription)"
             self.activo = false
             self.pausado = false
+            // Sin esto, morir durante una auto-pausa dejaba el cartel
+            // prometiendo una reanudación automática imposible.
+            self.enPausaAutomatica = false
+            self.ubicacionPausa = nil
             self.sesion = nil
             self.builder = nil
             self.routeBuilder = nil

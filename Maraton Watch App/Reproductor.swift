@@ -81,7 +81,14 @@ final class Reproductor: NSObject, ObservableObject {
 
     // MARK: - Control
 
-    func iniciar(plan: Plan, urlDe: @escaping (String) -> URL, musicaExterna: Bool = false) {
+    /// Se ejecuta UNA vez cuando la sesión de audio arrancó de verdad.
+    /// El entrenamiento se engancha acá: si el audio falla, no queda un
+    /// workout fantasma grabando sin interfaz para pararlo.
+    private var alArrancarPendiente: (() -> Void)?
+
+    func iniciar(plan: Plan, urlDe: @escaping (String) -> URL,
+                 musicaExterna: Bool = false, alArrancar: (() -> Void)? = nil) {
+        alArrancarPendiente = alArrancar
         if musicaExterna {
             // Sesión sin música propia: cronómetro + avisos nomás. La app
             // se mantiene viva en background gracias al workout activo.
@@ -96,6 +103,8 @@ final class Reproductor: NSObject, ObservableObject {
             fechaReanudacion = Date()
             estado = .reproduciendo
             iniciarTimerUI()
+            alArrancarPendiente?()
+            alArrancarPendiente = nil
             return
         }
 
@@ -105,6 +114,7 @@ final class Reproductor: NSObject, ObservableObject {
         }
         guard !disponibles.isEmpty else {
             mensajeError = "No hay ninguna pista en el reloj todavía."
+            alArrancarPendiente = nil
             return
         }
         pistas = disponibles
@@ -121,6 +131,8 @@ final class Reproductor: NSObject, ObservableObject {
             try sesion.setCategory(.playback, mode: .default, policy: .longFormAudio, options: [])
         } catch {
             mensajeError = "No pude configurar el audio: \(error.localizedDescription)"
+            preparando = false  // sin esto la UI quedaba clavada en "Activando audio…"
+            alArrancarPendiente = nil
             return
         }
 
@@ -143,6 +155,7 @@ final class Reproductor: NSObject, ObservableObject {
                 } catch {
                     self.preparando = false
                     self.mensajeError = "No pude activar el audio: \(error.localizedDescription)"
+                    self.alArrancarPendiente = nil
                 }
             }
         }
@@ -156,6 +169,8 @@ final class Reproductor: NSObject, ObservableObject {
         estado = .reproduciendo
         reproducirPistaActual()
         iniciarTimerUI()
+        alArrancarPendiente?()
+        alArrancarPendiente = nil
     }
 
     func alternarPlayPausa() {
@@ -182,7 +197,9 @@ final class Reproductor: NSObject, ObservableObject {
 
     func reanudar() {
         guard estado == .pausado else { return }
-        if !musicaSilenciada {
+        // Con la voz hablando (p. ej. "Seguimos" de la auto-pausa), la
+        // música no arranca encima: la suelta reanudarTrasVoz al final.
+        if !musicaSilenciada, !Avisador.compartido.estaHablando {
             player?.play()
         }
         fechaReanudacion = Date()
@@ -229,6 +246,7 @@ final class Reproductor: NSObject, ObservableObject {
 
     func detener() {
         Avisador.compartido.detener()
+        alArrancarPendiente = nil
         player?.stop()
         player = nil
         timerUI?.invalidate()
