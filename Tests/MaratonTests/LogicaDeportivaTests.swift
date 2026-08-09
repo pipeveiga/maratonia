@@ -331,3 +331,158 @@ final class ImportacionTramosTests: XCTestCase {
         XCTAssertTrue(plan.avisosKmActivos.isEmpty)
     }
 }
+
+// MARK: - Avance de tramos mixtos (distancia + tiempo)
+
+final class ProgresoTramosTests: XCTestCase {
+
+    private func porDistancia(_ km: Double, nombre: String = "D") -> Tramo {
+        Tramo(nombre: nombre, kilometros: km)
+    }
+
+    private func porTiempo(_ segundos: Int, nombre: String = "T") -> Tramo {
+        Tramo(nombre: nombre, kilometros: 0, duracionSegundos: segundos)
+    }
+
+    func testPlanSoloDistanciaMismaSemanticaQuePrefijos() {
+        var progreso = ProgresoTramos(tramos: [porDistancia(1), porDistancia(2)])
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 999, tiempoActivo: 300), [])
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 1000, tiempoActivo: 301),
+                       [.cambioTramo(indice: 1)])
+        // El fin del tramo 2 es 3000 m EXACTOS aunque el tick del cruce
+        // haya pasado de largo (el excedente cuenta para el siguiente).
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 2999, tiempoActivo: 900), [])
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 3004, tiempoActivo: 901),
+                       [.planCompletado])
+        XCTAssertTrue(progreso.terminado)
+    }
+
+    func testExcedenteDeDistanciaCuentaParaElSiguiente() {
+        var progreso = ProgresoTramos(tramos: [porDistancia(1), porDistancia(1)])
+        // El tick saltó de 900 a 1100: el tramo 2 arranca en 1000, no en 1100.
+        _ = progreso.avanzar(distanciaMetros: 900, tiempoActivo: 10)
+        _ = progreso.avanzar(distanciaMetros: 1100, tiempoActivo: 11)
+        XCTAssertEqual(progreso.inicioDistanciaMetros, 1000)
+        // Con 2100 m totales el tramo 2 ya cubrió sus 1000 m + excedente.
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 2000, tiempoActivo: 20),
+                       [.planCompletado])
+    }
+
+    func testPlanSoloTiempoAvanzaPorTiempoActivo() {
+        var progreso = ProgresoTramos(tramos: [porTiempo(120), porTiempo(60)])
+        // La distancia no importa: solo el tiempo activo.
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 5000, tiempoActivo: 119), [])
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 5010, tiempoActivo: 120),
+                       [.cambioTramo(indice: 1)])
+        // Fin exacto del tramo 2: 120 + 60 = 180 aunque el tick salte.
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 5500, tiempoActivo: 179.5), [])
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 5600, tiempoActivo: 183),
+                       [.planCompletado])
+    }
+
+    func testTiempoCongeladoNoAvanzaTramoPorTiempo() {
+        // En pausa el tiempo ACTIVO no corre: el tramo por tiempo tampoco.
+        var progreso = ProgresoTramos(tramos: [porTiempo(60)])
+        for _ in 0..<10 {
+            XCTAssertEqual(progreso.avanzar(distanciaMetros: 100, tiempoActivo: 30), [])
+        }
+        XCTAssertFalse(progreso.terminado)
+    }
+
+    func testPlanMixtoDistanciaLuegoTiempoLuegoDistancia() {
+        var progreso = ProgresoTramos(tramos: [porDistancia(1), porTiempo(120), porDistancia(1)])
+        // Cierra el km 1 a los 300 s con 1002 m.
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 1002, tiempoActivo: 300),
+                       [.cambioTramo(indice: 1)])
+        // El tramo por tiempo arranca en el tiempo del tick del cruce.
+        XCTAssertEqual(progreso.inicioTiempoActivo, 300)
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 1300, tiempoActivo: 419), [])
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 1405, tiempoActivo: 420),
+                       [.cambioTramo(indice: 2)])
+        // El tramo 3 (1 km) arranca en la distancia del tick del cruce:
+        // termina en 1405 + 1000.
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 2404, tiempoActivo: 900), [])
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 2405, tiempoActivo: 901),
+                       [.planCompletado])
+    }
+
+    func testUnTickPuedeCerrarVariosTramos() {
+        var progreso = ProgresoTramos(tramos: [porTiempo(10), porTiempo(10), porDistancia(5)])
+        let eventos = progreso.avanzar(distanciaMetros: 80, tiempoActivo: 25)
+        XCTAssertEqual(eventos, [.cambioTramo(indice: 1), .cambioTramo(indice: 2)])
+        XCTAssertEqual(progreso.indice, 2)
+        // El tramo 3 arranca con la distancia del tick (80 m ya corridos
+        // no le cuentan: son de los tramos por tiempo).
+        XCTAssertEqual(progreso.inicioDistanciaMetros, 80)
+    }
+
+    func testTramoDeCeroKilometrosSeCierraSolo() {
+        var progreso = ProgresoTramos(tramos: [porDistancia(0), porDistancia(1)])
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 0, tiempoActivo: 1),
+                       [.cambioTramo(indice: 1)])
+    }
+
+    func testPlanVacioNoHaceNada() {
+        var progreso = ProgresoTramos(tramos: [])
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 5000, tiempoActivo: 600), [])
+        XCTAssertFalse(progreso.terminado)   // sin plan no hay "completado"
+        XCTAssertNil(progreso.tramoActual)
+    }
+
+    func testProgresoYRestanteDelTramoActual() {
+        var progreso = ProgresoTramos(tramos: [porDistancia(2), porTiempo(120)])
+        XCTAssertEqual(progreso.progresoTramoActual(distanciaMetros: 500, tiempoActivo: 100), 0.25)
+        XCTAssertEqual(progreso.restanteTramoActual(distanciaMetros: 500, tiempoActivo: 100),
+                       "faltan 1.5 km")
+        XCTAssertEqual(progreso.restanteTramoActual(distanciaMetros: 1700, tiempoActivo: 400),
+                       "faltan 300 m")
+        _ = progreso.avanzar(distanciaMetros: 2000, tiempoActivo: 600)
+        XCTAssertEqual(progreso.progresoTramoActual(distanciaMetros: 2200, tiempoActivo: 660), 0.5)
+        XCTAssertEqual(progreso.restanteTramoActual(distanciaMetros: 2200, tiempoActivo: 660),
+                       "faltan 1:00")
+    }
+
+    func testCumplimientoConPlanMixto() {
+        var progreso = ProgresoTramos(tramos: [porDistancia(1), porTiempo(60)])
+        _ = progreso.avanzar(distanciaMetros: 1000, tiempoActivo: 240)
+        XCTAssertFalse(debeMarcarCumplido(tramosTotales: progreso.tramos.count,
+                                          indiceAlcanzado: progreso.indice))
+        _ = progreso.avanzar(distanciaMetros: 1200, tiempoActivo: 301)
+        XCTAssertTrue(debeMarcarCumplido(tramosTotales: progreso.tramos.count,
+                                         indiceAlcanzado: progreso.indice))
+    }
+
+    func testTramoViejoSinDuracionDecodifica() throws {
+        // plan.json guardado por versiones sin duracionSegundos.
+        let json = #"{"id":"11111111-1111-1111-1111-111111111111","nombre":"Bloque","kilometros":3}"#
+        let tramo = try JSONDecoder().decode(Tramo.self, from: Data(json.utf8))
+        XCTAssertNil(tramo.duracionSegundos)
+        XCTAssertFalse(tramo.esPorTiempo)
+    }
+
+    func testHuellaNoCambiaParaPlanesPorDistancia() {
+        // Actualizar la app no puede "des-cumplir" el entrenamiento del
+        // reloj: la huella de un plan por distancia queda IGUAL que la
+        // que generaba la versión anterior.
+        var plan = Plan.vacio
+        plan.tramos = [Tramo(nombre: "Bloque", kilometros: 3, ritmoMinSegKm: 230, ritmoMaxSegKm: 250)]
+        XCTAssertEqual(plan.huellaEntrenamiento, "Bloque|3.0|230|250")
+        plan.tramos![0].duracionSegundos = 120
+        plan.tramos![0].kilometros = 0
+        XCTAssertEqual(plan.huellaEntrenamiento, "Bloque|0.0|230|250|t120")
+    }
+
+    func testTextosDeMeta() {
+        XCTAssertEqual(duracionTexto(45), "45 s")
+        XCTAssertEqual(duracionTexto(120), "2 min")
+        XCTAssertEqual(duracionTexto(90), "1:30 min")
+        XCTAssertEqual(metaParaHablar(Tramo(nombre: "T", kilometros: 0, duracionSegundos: 150)),
+                       "2 minutos y 30 segundos")
+        XCTAssertEqual(metaParaHablar(Tramo(nombre: "T", kilometros: 0, duracionSegundos: 60)),
+                       "1 minuto")
+        XCTAssertEqual(metaParaHablar(Tramo(nombre: "D", kilometros: 1)), "1 kilómetro")
+        XCTAssertEqual(metaParaHablar(Tramo(nombre: "D", kilometros: 7.5)), "7.5 kilómetros")
+        XCTAssertEqual(Tramo(nombre: "T", kilometros: 0, duracionSegundos: 120).descripcion,
+                       "2 min libre")
+    }
+}

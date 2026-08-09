@@ -25,10 +25,13 @@ struct Plan: Codable, Equatable {
     static let vacio = Plan(nombre: "Mi plan", pistas: [], avisosFijos: [], avisosRepetidos: [])
 }
 
-/// Un tramo del plan de entrenamiento: una distancia con un rango de
-/// ritmo objetivo (en segundos por km). ritmoMinSegKm es el límite
-/// rápido (ej. 230 = 3:50/km) y ritmoMaxSegKm el lento (250 = 4:10/km).
-/// Ambos nil = tramo a ritmo libre.
+/// Un tramo del plan de entrenamiento. Su META es por distancia
+/// (`kilometros`) O por tiempo activo (`duracionSegundos`): si
+/// `duracionSegundos` tiene valor positivo, el tramo termina por
+/// TIEMPO y `kilometros` se ignora — nunca se traduce "2 minutos" a
+/// metros inventados. El rango de ritmo objetivo (segundos por km)
+/// aplica igual a los dos: ritmoMinSegKm es el límite rápido (230 =
+/// 3:50/km) y ritmoMaxSegKm el lento. Ambos nil = ritmo libre.
 struct Tramo: Codable, Equatable, Identifiable, Hashable {
     var id = UUID()
     var nombre: String
@@ -36,21 +39,40 @@ struct Tramo: Codable, Equatable, Identifiable, Hashable {
     var ritmoMinSegKm: Int?
     var ritmoMaxSegKm: Int?
 
-    var descripcion: String {
-        let distancia = kilometros == kilometros.rounded()
+    /// Meta por tiempo (opcional para que los planes guardados por
+    /// versiones viejas sigan decodificando).
+    var duracionSegundos: Int? = nil
+
+    var esPorTiempo: Bool { (duracionSegundos ?? 0) > 0 }
+
+    /// "3 km" o "12 min" según la meta del tramo.
+    var metaTexto: String {
+        if esPorTiempo { return duracionTexto(duracionSegundos ?? 0) }
+        return kilometros == kilometros.rounded()
             ? "\(Int(kilometros)) km"
             : String(format: "%.1f km", kilometros)
+    }
+
+    var descripcion: String {
+        let meta = metaTexto
         switch (ritmoMinSegKm, ritmoMaxSegKm) {
         case let (rapido?, lento?):
-            return "\(distancia) a \(formatearRitmo(rapido))–\(formatearRitmo(lento)) /km"
+            return "\(meta) a \(formatearRitmo(rapido))–\(formatearRitmo(lento)) /km"
         case let (nil, lento?):
-            return "\(distancia) a \(formatearRitmo(lento)) /km o mejor"
+            return "\(meta) a \(formatearRitmo(lento)) /km o mejor"
         case let (rapido?, nil):
-            return "\(distancia) sin pasar de \(formatearRitmo(rapido)) /km"
+            return "\(meta) sin pasar de \(formatearRitmo(rapido)) /km"
         default:
-            return "\(distancia) libre"
+            return "\(meta) libre"
         }
     }
+}
+
+/// 90 -> "1:30 min" · 120 -> "2 min" · 45 -> "45 s"
+func duracionTexto(_ segundos: Int) -> String {
+    if segundos < 60 { return "\(segundos) s" }
+    if segundos % 60 == 0 { return "\(segundos / 60) min" }
+    return "\(segundos / 60):" + String(format: "%02d", segundos % 60) + " min"
 }
 
 /// Un aviso disparado por distancia: suena al llegar a `kilometro`, y si
@@ -146,7 +168,14 @@ extension Plan {
         let tramos = tramosActivos
         guard !tramos.isEmpty else { return nil }
         return tramos
-            .map { "\($0.nombre)|\($0.kilometros)|\($0.ritmoMinSegKm ?? -1)|\($0.ritmoMaxSegKm ?? -1)" }
+            .map { tramo in
+                let base = "\(tramo.nombre)|\(tramo.kilometros)|\(tramo.ritmoMinSegKm ?? -1)|\(tramo.ritmoMaxSegKm ?? -1)"
+                // La duración se agrega SOLO si existe: las huellas de
+                // planes por distancia no cambian (lo ya cumplido en el
+                // reloj sigue cumplido tras actualizar la app).
+                guard let duracion = tramo.duracionSegundos else { return base }
+                return base + "|t\(duracion)"
+            }
             .joined(separator: ";")
     }
 }
@@ -172,6 +201,104 @@ func debeMarcarCumplido(tramosTotales: Int, indiceAlcanzado: Int) -> Bool {
     tramosTotales > 0 && indiceAlcanzado >= tramosTotales
 }
 
+// MARK: - Avance de tramos (lógica pura, compartida por los dos motores)
+
+/// Sigue un plan de tramos MIXTOS (por distancia y por tiempo) a partir
+/// de la distancia total y el TIEMPO ACTIVO (sin pausas) de la sesión.
+/// Los dos motores (reloj y celu) la alimentan una vez por segundo y
+/// reaccionan a los eventos; acá no hay Date(), ni audio, ni UI.
+///
+/// Contabilidad de límites:
+/// - Un tramo por DISTANCIA termina exactamente en
+///   `inicioDistancia + metros`: el excedente del tick cuenta para el
+///   tramo siguiente (misma semántica que la suma de prefijos vieja).
+/// - Un tramo por TIEMPO termina exactamente en
+///   `inicioTiempo + duración`: el excedente de tiempo pasa al
+///   siguiente.
+/// - El punto de arranque de la OTRA magnitud (el tiempo al cerrar un
+///   tramo por distancia, la distancia al cerrar uno por tiempo) se
+///   toma del tick en que se detectó el cruce: con ticks de ~1 s el
+///   error es despreciable y no se inventan interpolaciones.
+struct ProgresoTramos: Equatable {
+
+    enum Evento: Equatable {
+        /// Arrancó el tramo `indice` (anunciarlo, resetear filtros).
+        case cambioTramo(indice: Int)
+        /// Se recorrió el plan entero.
+        case planCompletado
+    }
+
+    private(set) var tramos: [Tramo]
+    private(set) var indice = 0
+    private(set) var inicioDistanciaMetros: Double = 0
+    private(set) var inicioTiempoActivo: Double = 0
+
+    init(tramos: [Tramo]) {
+        self.tramos = tramos
+    }
+
+    var tramoActual: Tramo? { indice < tramos.count ? tramos[indice] : nil }
+    var terminado: Bool { !tramos.isEmpty && indice >= tramos.count }
+
+    /// Un tick del motor. Puede cerrar VARIOS tramos (tramos muy cortos
+    /// dentro de un mismo tick); devuelve los eventos en orden.
+    mutating func avanzar(distanciaMetros: Double, tiempoActivo: Double) -> [Evento] {
+        var eventos: [Evento] = []
+        while let tramo = tramoActual {
+            if tramo.esPorTiempo {
+                let fin = inicioTiempoActivo + Double(tramo.duracionSegundos ?? 0)
+                guard tiempoActivo >= fin else { break }
+                inicioTiempoActivo = fin
+                inicioDistanciaMetros = distanciaMetros
+            } else {
+                // Un tramo por distancia con 0 km no puede sostenerse:
+                // se cierra en el primer tick (el while avanza igual).
+                let fin = inicioDistanciaMetros + max(0, tramo.kilometros) * 1000
+                guard distanciaMetros >= fin else { break }
+                inicioDistanciaMetros = fin
+                inicioTiempoActivo = tiempoActivo
+            }
+            indice += 1
+            eventos.append(indice < tramos.count
+                           ? .cambioTramo(indice: indice)
+                           : .planCompletado)
+        }
+        return eventos
+    }
+
+    /// Fracción 0...1 recorrida del tramo actual, para barras de
+    /// progreso. nil sin tramo actual o con meta inválida.
+    func progresoTramoActual(distanciaMetros: Double, tiempoActivo: Double) -> Double? {
+        guard let tramo = tramoActual else { return nil }
+        let hecho: Double
+        let meta: Double
+        if tramo.esPorTiempo {
+            hecho = tiempoActivo - inicioTiempoActivo
+            meta = Double(tramo.duracionSegundos ?? 0)
+        } else {
+            hecho = distanciaMetros - inicioDistanciaMetros
+            meta = tramo.kilometros * 1000
+        }
+        guard meta > 0 else { return nil }
+        return min(1, max(0, hecho / meta))
+    }
+
+    /// "faltan 400 m" / "faltan 1:20" del tramo actual, para la UI.
+    func restanteTramoActual(distanciaMetros: Double, tiempoActivo: Double) -> String? {
+        guard let tramo = tramoActual else { return nil }
+        if tramo.esPorTiempo {
+            let falta = max(0, inicioTiempoActivo + Double(tramo.duracionSegundos ?? 0) - tiempoActivo)
+            let segundos = Int(falta.rounded())
+            return "faltan \(segundos / 60):" + String(format: "%02d", segundos % 60)
+        }
+        let falta = max(0, inicioDistanciaMetros + tramo.kilometros * 1000 - distanciaMetros)
+        if falta >= 1000 {
+            return String(format: "faltan %.1f km", falta / 1000)
+        }
+        return "faltan \(Int(falta.rounded())) m"
+    }
+}
+
 /// Zona cardíaca 1...5 por reserva (Karvonen): dónde está `fc` en el
 /// camino entre la FC de reposo y la máxima. 0 = datos inválidos.
 /// ÚNICA fuente de la fórmula: la usan el aviso hablado y la celda de
@@ -191,6 +318,23 @@ func zonaCardiaca(fc: Int, reposo: Int, maxima: Int) -> Int {
 /// 230 -> "3 50", para que la voz lo lea natural.
 func ritmoParaHablar(_ segundosPorKm: Int) -> String {
     "\(segundosPorKm / 60) \(String(format: "%02d", segundosPorKm % 60))"
+}
+
+/// La meta del tramo para la voz: "5 kilómetros" / "2 minutos" /
+/// "2 minutos y 30 segundos". Compartida por los dos motores.
+func metaParaHablar(_ tramo: Tramo) -> String {
+    if tramo.esPorTiempo {
+        let total = tramo.duracionSegundos ?? 0
+        let minutos = total / 60
+        let segundos = total % 60
+        if minutos == 0 { return "\(segundos) segundos" }
+        let base = minutos == 1 ? "1 minuto" : "\(minutos) minutos"
+        return segundos == 0 ? base : base + " y \(segundos) segundos"
+    }
+    let km = tramo.kilometros == tramo.kilometros.rounded()
+        ? "\(Int(tramo.kilometros))"
+        : String(format: "%.1f", tramo.kilometros)
+    return km == "1" ? "1 kilómetro" : "\(km) kilómetros"
 }
 
 struct AvisoFijo: Codable, Equatable, Identifiable, Hashable {

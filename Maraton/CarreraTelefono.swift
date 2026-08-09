@@ -48,6 +48,10 @@ final class CarreraCelu: NSObject, ObservableObject {
     @Published var resumen: ResumenCelu?
     @Published var tramoActual: Tramo?
 
+    /// "1.24 / 3.0 km" o "1:12 / 2 min" del tramo en curso, refrescado
+    /// una vez por segundo (la UI no recalcula avances por su cuenta).
+    @Published var textoProgresoTramo: String?
+
     /// true mientras la auto-pausa tiene todo congelado; el GPS sigue
     /// vivo solo para detectar que arrancaste de nuevo.
     @Published var enPausaAutomatica = false
@@ -98,9 +102,10 @@ final class CarreraCelu: NSObject, ObservableObject {
     private var avisosKm: [AvisoKm] = []
     private var proximoDisparoKm: [UUID: Double] = [:]
 
-    // Tramos con objetivo de ritmo.
-    private var tramos: [Tramo] = []
-    private var indiceTramo = 0
+    // Tramos con objetivo de ritmo: el avance (por distancia o por
+    // tiempo) vive en ProgresoTramos, lógica pura compartida con el
+    // motor del reloj.
+    private var progreso = ProgresoTramos(tramos: [])
 
     // Sesión programada: el motor NO conoce el calendario — solo lleva
     // el ID opcional para la metadata de Salud y avisa por callback
@@ -210,9 +215,9 @@ final class CarreraCelu: NSObject, ObservableObject {
         avisosPendientes = plan.cronograma(duracionMaximaMinutos: 600)
         avisosKm = plan.avisosKmActivos
         proximoDisparoKm = Dictionary(uniqueKeysWithValues: avisosKm.map { ($0.id, $0.kilometro) })
-        tramos = plan.tramosActivos
-        indiceTramo = 0
-        tramoActual = tramos.first
+        progreso = ProgresoTramos(tramos: plan.tramosActivos)
+        tramoActual = progreso.tramoActual
+        textoProgresoTramo = nil
         fechaInicioTramo = nil
         fechaUltimaCorreccion = nil
         ultimoKmAnunciado = 0
@@ -401,28 +406,33 @@ final class CarreraCelu: NSObject, ObservableObject {
     }
 
     private func chequearTramos() {
-        guard !tramos.isEmpty, indiceTramo < tramos.count else { return }
+        guard !progreso.tramos.isEmpty, !progreso.terminado else { return }
 
         guard let inicioTramo = fechaInicioTramo else {
             fechaInicioTramo = Date()
-            anunciar(anuncio(de: tramos[indiceTramo], numero: indiceTramo + 1))
+            anunciar(anuncio(de: progreso.tramos[progreso.indice], numero: progreso.indice + 1))
             return
         }
 
-        let finTramoMetros = tramos.prefix(indiceTramo + 1).reduce(0) { $0 + $1.kilometros * 1000 }
-        if distanciaMetros >= finTramoMetros {
-            indiceTramo += 1
-            if indiceTramo < tramos.count {
-                tramoActual = tramos[indiceTramo]
-                fechaInicioTramo = Date()
-                fechaUltimaCorreccion = nil
-                anunciar(anuncio(de: tramos[indiceTramo], numero: indiceTramo + 1))
-            } else {
-                tramoActual = nil
-                anunciar("Plan de tramos completado. ¡Bien ahí!")
+        // ¿Se completó el tramo actual? (un tick puede cerrar varios)
+        let eventos = progreso.avanzar(distanciaMetros: distanciaMetros,
+                                       tiempoActivo: tiempoTranscurrido)
+        if !eventos.isEmpty {
+            tramoActual = progreso.tramoActual
+            for evento in eventos {
+                switch evento {
+                case .cambioTramo(let nuevo):
+                    fechaInicioTramo = Date()
+                    fechaUltimaCorreccion = nil
+                    anunciar(anuncio(de: progreso.tramos[nuevo], numero: nuevo + 1))
+                case .planCompletado:
+                    textoProgresoTramo = nil
+                    anunciar("Plan de tramos completado. ¡Bien ahí!")
+                }
             }
             return
         }
+        textoProgresoTramo = textoProgreso()
 
         guard let ritmo = ritmoActualSegKm, let tramo = tramoActual else { return }
         guard Date().timeIntervalSince(inicioTramo) >= 45 else { return }
@@ -437,11 +447,21 @@ final class CarreraCelu: NSObject, ObservableObject {
         }
     }
 
+    /// Progreso del tramo actual con la contabilidad real del avance.
+    private func textoProgreso() -> String? {
+        guard let tramo = progreso.tramoActual else { return nil }
+        if tramo.esPorTiempo {
+            let hecho = max(0, tiempoTranscurrido - progreso.inicioTiempoActivo)
+            let segundos = Int(hecho)
+            return "\(segundos / 60):" + String(format: "%02d", segundos % 60)
+                + " / \(duracionTexto(tramo.duracionSegundos ?? 0))"
+        }
+        let recorrido = max(0, distanciaMetros - progreso.inicioDistanciaMetros) / 1000
+        return String(format: "%.2f / %.1f km", recorrido, tramo.kilometros)
+    }
+
     private func anuncio(de tramo: Tramo, numero: Int) -> String {
-        let km = tramo.kilometros == tramo.kilometros.rounded()
-            ? "\(Int(tramo.kilometros))"
-            : String(format: "%.1f", tramo.kilometros)
-        var texto = "Tramo \(numero): \(tramo.nombre). \(km) kilómetros"
+        var texto = "Tramo \(numero): \(tramo.nombre). \(metaParaHablar(tramo))"
         switch (tramo.ritmoMinSegKm, tramo.ritmoMaxSegKm) {
         case let (rapido?, lento?):
             texto += ", entre \(ritmoParaHablar(rapido)) y \(ritmoParaHablar(lento)) por kilómetro."
@@ -612,8 +632,8 @@ final class CarreraCelu: NSObject, ObservableObject {
         let idProgramado = programadoID
         // D1 sobre la estructura REALMENTE ejecutada (misma regla que
         // el cumplimiento del reloj): todos los tramos recorridos.
-        let estructuraCompleta = debeMarcarCumplido(tramosTotales: tramos.count,
-                                                    indiceAlcanzado: indiceTramo)
+        let estructuraCompleta = debeMarcarCumplido(tramosTotales: progreso.tramos.count,
+                                                    indiceAlcanzado: progreso.indice)
         // La evidencia de origen viaja también en Salud (respaldo).
         if let idProgramado {
             builder.addMetadata(MetadatosSesion.metadata(programadoID: idProgramado)) { _, _ in }
@@ -687,6 +707,7 @@ final class CarreraCelu: NSObject, ObservableObject {
         nombrePistaActual = ""
         musicaSilenciada = false
         tramoActual = nil
+        textoProgresoTramo = nil
         fechaReanudacion = nil
         enPausaAutomatica = false
         ubicacionPausa = nil

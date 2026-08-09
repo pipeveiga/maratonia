@@ -28,11 +28,18 @@ final class EntrenadorRitmo: ObservableObject {
     @Published var tramosDelPlan: [Tramo] = []
     @Published var indiceActual = 0
 
+    /// "1.24 / 3.0 km" o "1:12 / 2 min" del tramo EN CURSO. Lo refresca
+    /// chequear() una vez por segundo; la UI lo muestra tal cual (antes
+    /// la UI recalculaba con suma de prefijos, que no sirve con tramos
+    /// por tiempo).
+    @Published var textoProgresoTramo: String?
+
     /// Parciales por kilómetro ya anunciados, para la tabla "PARCIALES".
     @Published var parciales: [ParcialKm] = []
 
-    private var tramos: [Tramo] = []
-    private var indice = 0
+    /// Avance de tramos mixtos (distancia/tiempo): lógica pura en
+    /// Shared, compartida con el motor del celu.
+    private var progreso = ProgresoTramos(tramos: [])
     private var fechaInicioTramo: Date?
     private var fechaUltimaCorreccion: Date?
     private let margenSegKm = 5
@@ -52,15 +59,15 @@ final class EntrenadorRitmo: ObservableObject {
 
     func iniciar(plan: Plan) {
         huellaSesion = plan.huellaEntrenamiento
-        tramos = plan.tramosActivos
-        indice = 0
+        progreso = ProgresoTramos(tramos: plan.tramosActivos)
         fechaInicioTramo = nil
         fechaUltimaCorreccion = nil
-        tramoActual = tramos.first
+        tramoActual = progreso.tramoActual
         ultimoKmAnunciado = 0
         tiempoAlUltimoKm = 0
-        tramosDelPlan = tramos
+        tramosDelPlan = progreso.tramos
         indiceActual = 0
+        textoProgresoTramo = nil
         parciales = []
         avisosKm = plan.avisosKmActivos
         proximoDisparoKm = Dictionary(uniqueKeysWithValues: avisosKm.map { ($0.id, $0.kilometro) })
@@ -79,16 +86,31 @@ final class EntrenadorRitmo: ObservableObject {
 
     func detener() {
         huellaSesion = nil
-        tramos = []
+        progreso = ProgresoTramos(tramos: [])
         tramoActual = nil
         fechaInicioTramo = nil
         ultimoKmAnunciado = 0
         tiempoAlUltimoKm = 0
         tramosDelPlan = []
         indiceActual = 0
+        textoProgresoTramo = nil
         parciales = []
         avisosKm = []
         proximoDisparoKm = [:]
+    }
+
+    /// Progreso del tramo actual con la contabilidad REAL del avance
+    /// (inicio del tramo según ProgresoTramos, no suma de prefijos).
+    private func textoProgreso(distanciaMetros: Double, tiempoActivo: TimeInterval) -> String? {
+        guard let tramo = progreso.tramoActual else { return nil }
+        if tramo.esPorTiempo {
+            let hecho = max(0, tiempoActivo - progreso.inicioTiempoActivo)
+            let segundos = Int(hecho)
+            return "\(segundos / 60):" + String(format: "%02d", segundos % 60)
+                + " / \(duracionTexto(tramo.duracionSegundos ?? 0))"
+        }
+        let recorrido = max(0, distanciaMetros - progreso.inicioDistanciaMetros) / 1000
+        return String(format: "%.2f / %.1f km", recorrido, tramo.kilometros)
     }
 
     /// Lo llama Entrenamiento una vez por segundo. tiempoActivo es el del
@@ -99,29 +121,34 @@ final class EntrenadorRitmo: ObservableObject {
         anunciarSplitSiCorresponde(distanciaMetros: distanciaMetros, tiempoActivo: tiempoActivo)
         dispararAvisosPorKm(kmActual: distanciaMetros / 1000)
 
-        guard !tramos.isEmpty, indice < tramos.count else { return }
+        guard !progreso.tramos.isEmpty, !progreso.terminado else { return }
+
+        textoProgresoTramo = textoProgreso(distanciaMetros: distanciaMetros,
+                                           tiempoActivo: tiempoActivo)
 
         // El anuncio del primer tramo sale acá (con la música ya sonando)
         // y no en iniciar(), donde el audio todavía se está activando.
         guard let inicioTramo = fechaInicioTramo else {
             fechaInicioTramo = Date()
-            Avisador.compartido.anunciar(anuncio(de: tramos[indice], numero: indice + 1))
+            Avisador.compartido.anunciar(anuncio(de: progreso.tramos[progreso.indice],
+                                                 numero: progreso.indice + 1))
             return
         }
 
-        // ¿Se completó el tramo actual?
-        let finTramoMetros = tramos.prefix(indice + 1).reduce(0) { $0 + $1.kilometros * 1000 }
-        if distanciaMetros >= finTramoMetros {
-            indice += 1
-            indiceActual = indice
-            if indice < tramos.count {
-                tramoActual = tramos[indice]
-                fechaInicioTramo = Date()
-                fechaUltimaCorreccion = nil
-                Avisador.compartido.anunciar(anuncio(de: tramos[indice], numero: indice + 1))
-            } else {
-                tramoActual = nil
-                Avisador.compartido.anunciar("Plan de tramos completado. ¡Bien ahí!")
+        // ¿Se completó el tramo actual? (un tick puede cerrar varios)
+        let eventos = progreso.avanzar(distanciaMetros: distanciaMetros, tiempoActivo: tiempoActivo)
+        if !eventos.isEmpty {
+            indiceActual = progreso.indice
+            tramoActual = progreso.tramoActual
+            for evento in eventos {
+                switch evento {
+                case .cambioTramo(let nuevo):
+                    fechaInicioTramo = Date()
+                    fechaUltimaCorreccion = nil
+                    Avisador.compartido.anunciar(anuncio(de: progreso.tramos[nuevo], numero: nuevo + 1))
+                case .planCompletado:
+                    Avisador.compartido.anunciar("Plan de tramos completado. ¡Bien ahí!")
+                }
             }
             return
         }
@@ -176,10 +203,7 @@ final class EntrenadorRitmo: ObservableObject {
     }
 
     private func anuncio(de tramo: Tramo, numero: Int) -> String {
-        let km = tramo.kilometros == tramo.kilometros.rounded()
-            ? "\(Int(tramo.kilometros))"
-            : String(format: "%.1f", tramo.kilometros)
-        var texto = "Tramo \(numero): \(tramo.nombre). \(km) kilómetros"
+        var texto = "Tramo \(numero): \(tramo.nombre). \(metaParaHablar(tramo))"
         switch (tramo.ritmoMinSegKm, tramo.ritmoMaxSegKm) {
         case let (rapido?, lento?):
             texto += ", entre \(ritmoParaHablar(rapido)) y \(ritmoParaHablar(lento)) por kilómetro."

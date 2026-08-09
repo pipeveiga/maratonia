@@ -252,22 +252,50 @@ final class EstructuraYMetadataTests: XCTestCase {
     }
 
     // Puente al motor: absoluto conserva ritmos, libre y simbólico van
-    // sin rango (nunca inventar números), duración-solo queda afuera
-    // hasta Fase D.
+    // sin rango (nunca inventar números); desde Fase D los segmentos
+    // por duración también son ejecutables (tramos por tiempo).
     func testTramosEjecutables() {
         let definicion = DefinicionEntrenamiento(tipo: .series, nombre: "Mixto", segmentos: [
             Segmento(nombre: "A", distanciaKm: 2),
             Segmento(nombre: "B", distanciaKm: 3, ritmo: .absoluto(minSegKm: 280, maxSegKm: 310)),
             Segmento(nombre: "C", distanciaKm: 1, ritmo: .simbolico(.umbral)),
             Segmento(nombre: "D", duracionSegundos: 120, ritmo: .libre),
+            Segmento(nombre: "E"),   // sin ninguna meta: no ejecutable
         ])
         let tramos = definicion.tramosEjecutables
-        XCTAssertEqual(tramos.count, 3)
+        XCTAssertEqual(tramos.count, 4)
         XCTAssertNil(tramos[0].ritmoMinSegKm)
         XCTAssertEqual(tramos[1].ritmoMinSegKm, 280)
         XCTAssertEqual(tramos[1].ritmoMaxSegKm, 310)
         XCTAssertNil(tramos[2].ritmoMinSegKm)  // simbólico → libre por ahora
-        XCTAssertEqual(tramos.map(\.nombre), ["A", "B", "C"])
+        XCTAssertEqual(tramos.map(\.nombre), ["A", "B", "C", "D"])
+        XCTAssertTrue(tramos[3].esPorTiempo)
+        XCTAssertEqual(tramos[3].duracionSegundos, 120)
+    }
+
+    // Un segmento con LAS DOS metas ejecuta por distancia (regla fija).
+    func testSegmentoConAmbasMetasPrioridadDistancia() {
+        let definicion = DefinicionEntrenamiento(tipo: .facil, nombre: "Ambas", segmentos: [
+            Segmento(nombre: "A", distanciaKm: 5, duracionSegundos: 600),
+        ])
+        let tramos = definicion.tramosEjecutables
+        XCTAssertEqual(tramos.count, 1)
+        XCTAssertFalse(tramos[0].esPorTiempo)
+        XCTAssertEqual(tramos[0].kilometros, 5)
+    }
+
+    func testResumenEstructuraConTiempo() {
+        let mixto = DefinicionEntrenamiento(tipo: .series, nombre: "Mixto", segmentos: [
+            Segmento(nombre: "A", distanciaKm: 6),
+            Segmento(nombre: "B", duracionSegundos: 720),
+        ])
+        XCTAssertEqual(mixto.resumenEstructura, "6 km + 12 min · 2 segmentos")
+        let soloTiempo = DefinicionEntrenamiento(tipo: .recuperacion, nombre: "Trote", segmentos: [
+            Segmento(nombre: "A", duracionSegundos: 1800),
+        ])
+        XCTAssertEqual(soloTiempo.resumenEstructura, "30 min · 1 segmento")
+        XCTAssertNil(soloTiempo.distanciaTotalKm)
+        XCTAssertEqual(soloTiempo.duracionPorTiempoSegundos, 1800)
     }
 
     func testMetadataProgramadoIDIdaYVuelta() {

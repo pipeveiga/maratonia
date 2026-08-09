@@ -536,20 +536,12 @@ struct PantallaReproduccion: View {
                 Text(tramo.nombre)
                     .font(.footnote.weight(esActual ? .semibold : .regular))
                     .lineLimit(1)
-                Text(esActual ? progresoDelTramo(indice, tramo) : tramo.descripcion)
+                Text(esActual ? (entrenador.textoProgresoTramo ?? tramo.descripcion) : tramo.descripcion)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
         }
-    }
-
-    /// "1.24 / 3.0 km" del tramo en curso.
-    private func progresoDelTramo(_ indice: Int, _ tramo: Tramo) -> String {
-        let inicioMetros = entrenador.tramosDelPlan.prefix(indice)
-            .reduce(0.0) { $0 + $1.kilometros * 1000 }
-        let recorrido = max(0, entrenamiento.distanciaMetros - inicioMetros) / 1000
-        return String(format: "%.2f / %.1f km", recorrido, tramo.kilometros)
     }
 
     @ViewBuilder

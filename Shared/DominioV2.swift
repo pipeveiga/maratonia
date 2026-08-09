@@ -109,33 +109,54 @@ extension DefinicionEntrenamiento {
         return kms.reduce(0, +)
     }
 
-    /// "8 km · 1 segmento" / "10 km · 3 segmentos" para tarjetas.
+    /// Duración total prevista de los segmentos POR TIEMPO (nil si no
+    /// hay ninguno). No estima tiempo de los segmentos por distancia.
+    var duracionPorTiempoSegundos: Int? {
+        let duraciones = segmentos.filter { $0.distanciaKm == nil }.compactMap(\.duracionSegundos)
+        guard !duraciones.isEmpty else { return nil }
+        return duraciones.reduce(0, +)
+    }
+
+    /// "8 km · 1 segmento" / "6 km + 12 min · 5 segmentos" para tarjetas.
     var resumenEstructura: String {
-        var partes: [String] = []
+        var medidas: [String] = []
         if let km = distanciaTotalKm {
-            partes.append(km == km.rounded() ? "\(Int(km)) km" : String(format: "%.1f km", km))
+            medidas.append(km == km.rounded() ? "\(Int(km)) km" : String(format: "%.1f km", km))
         }
+        if let segundos = duracionPorTiempoSegundos {
+            medidas.append(duracionTexto(segundos))
+        }
+        var partes: [String] = []
+        if !medidas.isEmpty { partes.append(medidas.joined(separator: " + ")) }
         partes.append(segmentos.count == 1 ? "1 segmento" : "\(segmentos.count) segmentos")
         return partes.joined(separator: " · ")
     }
 
-    /// Puente al motor actual, que ejecuta Tramos POR DISTANCIA: los
-    /// segmentos por duración quedan afuera hasta la extensión de motor
-    /// de Fase D (los planes del catálogo y los migrados son todos por
-    /// distancia, así que hoy no se pierde nada).
+    /// Puente al motor: cada segmento se vuelve un Tramo ejecutable.
+    /// DISTANCIA tiene prioridad si un segmento trae las dos metas; un
+    /// segmento sin ninguna meta no es ejecutable y se descarta.
     var tramosEjecutables: [Tramo] {
         segmentos.compactMap { segmento in
-            guard let km = segmento.distanciaKm else { return nil }
+            let minimo: Int?
+            let maximo: Int?
             switch segmento.ritmo {
             case .libre, .simbolico:
                 // Simbólico se resuelve recién en Fase G: hasta entonces
                 // se ejecuta libre (nunca inventar números).
-                return Tramo(nombre: segmento.nombre, kilometros: km,
-                             ritmoMinSegKm: nil, ritmoMaxSegKm: nil)
-            case .absoluto(let minimo, let maximo):
+                (minimo, maximo) = (nil, nil)
+            case .absoluto(let rapido, let lento):
+                (minimo, maximo) = (rapido, lento)
+            }
+            if let km = segmento.distanciaKm {
                 return Tramo(nombre: segmento.nombre, kilometros: km,
                              ritmoMinSegKm: minimo, ritmoMaxSegKm: maximo)
             }
+            if let segundos = segmento.duracionSegundos, segundos > 0 {
+                return Tramo(nombre: segmento.nombre, kilometros: 0,
+                             ritmoMinSegKm: minimo, ritmoMaxSegKm: maximo,
+                             duracionSegundos: segundos)
+            }
+            return nil
         }
     }
 }
