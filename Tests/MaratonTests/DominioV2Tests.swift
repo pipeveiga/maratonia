@@ -215,6 +215,85 @@ final class SerializacionV2Tests: XCTestCase {
     }
 }
 
+final class EstructuraYMetadataTests: XCTestCase {
+
+    func testDistanciaTotalYResumen() {
+        var definicion = DefinicionEntrenamiento(tipo: .series, nombre: "Series")
+        XCTAssertNil(definicion.distanciaTotalKm)
+        definicion.segmentos = [
+            Segmento(nombre: "Calentamiento", distanciaKm: 2),
+            Segmento(nombre: "Bloque", distanciaKm: 5,
+                     ritmo: .absoluto(minSegKm: 300, maxSegKm: 330)),
+            Segmento(nombre: "Pausa", duracionSegundos: 120),
+        ]
+        XCTAssertEqual(definicion.distanciaTotalKm, 7)
+        XCTAssertEqual(definicion.resumenEstructura, "7 km · 3 segmentos")
+    }
+
+    // Puente al motor: absoluto conserva ritmos, libre y simbólico van
+    // sin rango (nunca inventar números), duración-solo queda afuera
+    // hasta Fase D.
+    func testTramosEjecutables() {
+        let definicion = DefinicionEntrenamiento(tipo: .series, nombre: "Mixto", segmentos: [
+            Segmento(nombre: "A", distanciaKm: 2),
+            Segmento(nombre: "B", distanciaKm: 3, ritmo: .absoluto(minSegKm: 280, maxSegKm: 310)),
+            Segmento(nombre: "C", distanciaKm: 1, ritmo: .simbolico(.umbral)),
+            Segmento(nombre: "D", duracionSegundos: 120, ritmo: .libre),
+        ])
+        let tramos = definicion.tramosEjecutables
+        XCTAssertEqual(tramos.count, 3)
+        XCTAssertNil(tramos[0].ritmoMinSegKm)
+        XCTAssertEqual(tramos[1].ritmoMinSegKm, 280)
+        XCTAssertEqual(tramos[1].ritmoMaxSegKm, 310)
+        XCTAssertNil(tramos[2].ritmoMinSegKm)  // simbólico → libre por ahora
+        XCTAssertEqual(tramos.map(\.nombre), ["A", "B", "C"])
+    }
+
+    func testMetadataProgramadoIDIdaYVuelta() {
+        let id = UUID()
+        let metadata = MetadatosSesion.metadata(programadoID: id)
+        XCTAssertEqual(MetadatosSesion.programadoID(en: metadata), id)
+        XCTAssertNil(MetadatosSesion.programadoID(en: nil))
+        XCTAssertNil(MetadatosSesion.programadoID(en: ["otra": "cosa"]))
+        XCTAssertNil(MetadatosSesion.programadoID(
+            en: [MetadatosSesion.claveProgramadoID: "no-es-uuid"]))
+    }
+
+    // Editar la definición DESPUÉS de vincular no rompe el historial.
+    func testEditarDefinicionConservaVinculo() throws {
+        var almacen = AlmacenV2()
+        let programado = EntrenamientoProgramado(
+            definicion: DefinicionEntrenamiento(tipo: .facil, nombre: "Rodaje"),
+            dia: DiaLocal(anio: 2026, mes: 8, dia: 10))
+        almacen.planActivo = PlanUsuario(nombre: "P", fechaAdopcion: Date(timeIntervalSince1970: 0),
+                                         semanas: [SemanaPlan(numero: 1, programados: [programado])])
+        let sesion = UUID()
+        almacen.vincular(sesionID: sesion, fechaSesion: Date(timeIntervalSince1970: 1),
+                         aProgramado: programado.id, completo: true)
+        almacen.planActivo!.semanas[0].programados[0].definicion.nombre = "Editado"
+        let releido = try JSONDecoder().decode(AlmacenV2.self,
+                                               from: JSONEncoder().encode(almacen))
+        XCTAssertEqual(releido.planActivo!.semanas[0].programados[0].sesionVinculadaID, sesion)
+        XCTAssertEqual(releido.planActivo!.semanas[0].programados[0].resolucion, .cumplido)
+        XCTAssertEqual(releido.sesiones.first?.vinculoProgramadoID, programado.id)
+    }
+
+    // Si HealthKit falla, NADIE llama vincular: el programado queda
+    // pendiente también tras serializar (sin cumplidos fantasma).
+    func testSinVinculoNoHayCumplidoFantasma() throws {
+        var almacen = AlmacenV2()
+        let programado = EntrenamientoProgramado(
+            definicion: DefinicionEntrenamiento(tipo: .facil, nombre: "Rodaje"),
+            dia: DiaLocal(anio: 2026, mes: 8, dia: 10))
+        almacen.planActivo = PlanUsuario(nombre: "P", fechaAdopcion: Date(timeIntervalSince1970: 0),
+                                         semanas: [SemanaPlan(numero: 1, programados: [programado])])
+        let releido = try JSONDecoder().decode(AlmacenV2.self,
+                                               from: JSONEncoder().encode(almacen))
+        XCTAssertEqual(releido.planActivo!.semanas[0].programados[0].resolucion, .pendiente)
+        XCTAssertNil(releido.planActivo!.semanas[0].programados[0].sesionVinculadaID)
+    }
+}
+
 final class CatalogoTests: XCTestCase {
 
     // El JSON embebido decodifica: si un template está roto, esto

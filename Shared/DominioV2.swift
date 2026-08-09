@@ -100,6 +100,65 @@ struct DefinicionEntrenamiento: Codable, Equatable, Identifiable {
     var segmentos: [Segmento] = []
 }
 
+extension DefinicionEntrenamiento {
+
+    /// Distancia total prevista (nil si ningún segmento es por distancia).
+    var distanciaTotalKm: Double? {
+        let kms = segmentos.compactMap(\.distanciaKm)
+        guard !kms.isEmpty else { return nil }
+        return kms.reduce(0, +)
+    }
+
+    /// "8 km · 1 segmento" / "10 km · 3 segmentos" para tarjetas.
+    var resumenEstructura: String {
+        var partes: [String] = []
+        if let km = distanciaTotalKm {
+            partes.append(km == km.rounded() ? "\(Int(km)) km" : String(format: "%.1f km", km))
+        }
+        partes.append(segmentos.count == 1 ? "1 segmento" : "\(segmentos.count) segmentos")
+        return partes.joined(separator: " · ")
+    }
+
+    /// Puente al motor actual, que ejecuta Tramos POR DISTANCIA: los
+    /// segmentos por duración quedan afuera hasta la extensión de motor
+    /// de Fase D (los planes del catálogo y los migrados son todos por
+    /// distancia, así que hoy no se pierde nada).
+    var tramosEjecutables: [Tramo] {
+        segmentos.compactMap { segmento in
+            guard let km = segmento.distanciaKm else { return nil }
+            switch segmento.ritmo {
+            case .libre, .simbolico:
+                // Simbólico se resuelve recién en Fase G: hasta entonces
+                // se ejecuta libre (nunca inventar números).
+                return Tramo(nombre: segmento.nombre, kilometros: km,
+                             ritmoMinSegKm: nil, ritmoMaxSegKm: nil)
+            case .absoluto(let minimo, let maximo):
+                return Tramo(nombre: segmento.nombre, kilometros: km,
+                             ritmoMinSegKm: minimo, ritmoMaxSegKm: maximo)
+            }
+        }
+    }
+}
+
+// MARK: - Metadata de sesión en HealthKit
+
+/// El programadoID viaja también como metadata del HKWorkout: si el
+/// almacén local se pierde, Salud conserva la evidencia de qué
+/// entrenamiento produjo cada sesión. Es respaldo, no fuente diaria:
+/// el iPhone sigue siendo el dueño del calendario.
+enum MetadatosSesion {
+    static let claveProgramadoID = "com.pipeveiga.maraton.programadoID"
+
+    static func metadata(programadoID: UUID) -> [String: Any] {
+        [claveProgramadoID: programadoID.uuidString]
+    }
+
+    static func programadoID(en metadata: [String: Any]?) -> UUID? {
+        guard let crudo = metadata?[claveProgramadoID] as? String else { return nil }
+        return UUID(uuidString: crudo)
+    }
+}
+
 // MARK: - Programado (CUÁNDO hay que hacerlo)
 
 /// Resolución PERSISTIDA de un programado. "Vencido" (overdue) NO se
