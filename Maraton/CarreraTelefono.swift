@@ -315,13 +315,15 @@ final class CarreraCelu: NSObject, ObservableObject {
         while let primero = avisosPendientes.first, primero.minuto <= minuto {
             vencidos.append(avisosPendientes.removeFirst())
         }
-        // Tras una suspensión larga en background pueden vencer varios de
-        // golpe: leerlos todos era una ráfaga de voz insufrible. Con más
-        // de dos, suena solo el más reciente.
-        if vencidos.count > 2, let ultimo = vencidos.last {
-            anunciar(ultimo.texto)
+        // Tras una suspensión larga pueden vencer varios de golpe. Solo
+        // se descartan los VIEJOS (de minutos ya pasados): los del
+        // minuto en curso suenan todos — tres avisos configurados para
+        // el mismo minuto son legítimos, no una ráfaga de catch-up.
+        let frescos = vencidos.filter { $0.minuto >= minuto - 1 }
+        if frescos.isEmpty, let ultimo = vencidos.last {
+            anunciar(ultimo.texto)  // todo era viejo: solo el más reciente
         } else {
-            vencidos.forEach { anunciar($0.texto) }
+            frescos.forEach { anunciar($0.texto) }
         }
     }
 

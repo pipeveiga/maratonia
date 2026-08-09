@@ -75,7 +75,15 @@ final class CuentaStore: ObservableObject {
             && plan.avisosKmActivos.isEmpty
         guard !esVacio else { return }
 
-        guard case .conectada = estado else {
+        switch estado {
+        case .conectada:
+            break
+        case .verificando:
+            // Aún resolviendo la cuenta: no acusar "sin iCloud" en falso.
+            // El próximo cambio del plan reintenta (verificar ya corre
+            // en cada respaldarConDemora).
+            return
+        default:
             // Que se sepa: antes el respaldo se descartaba mudo.
             mensaje = "El plan no se está respaldando: no hay sesión de iCloud activa."
             return

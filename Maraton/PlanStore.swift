@@ -79,10 +79,6 @@ final class PlanStore: ObservableObject {
         Self.urlCarpetaPistas.appendingPathComponent(nombre)
     }
 
-    func pistaExiste(_ nombre: String) -> Bool {
-        FileManager.default.fileExists(atPath: urlDePista(nombre).path)
-    }
-
     var duracionTotal: TimeInterval {
         plan.pistas.compactMap { duraciones[$0] }.reduce(0, +)
     }

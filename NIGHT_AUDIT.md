@@ -295,6 +295,65 @@ agente principal antes de tocar nada. Los aplicados (build 32):
   para no sonar por parlante en la calle), crash recovery físico,
   auto-pausa en semáforo real.
 
+## Adversarial Review — Pass 3
+
+Revisión adversarial del diff completo de la sesión (18 archivos,
+~1.180 líneas) como reviewer externo hostil: ataques de estado, de
+secuencia, de concurrencia, de tiempo y de cálculo contra MI propio
+código. Metodología: cada cambio de la sesión re-derivado desde cero y
+atacado con secuencias de eventos (doble pausa, callbacks tardíos,
+interrupciones encadenadas, kill a mitad de guardado).
+
+### Defectos propios encontrados y corregidos
+
+1. **MAJOR — regresión del colapso de avisos (celu, introducida en
+   Pass 2)**: el "anti-ráfaga tras suspensión" descartaba avisos
+   LEGÍTIMOS cuando el corredor configuró 3+ avisos en el mismo minuto
+   (fijo + repetidos alineados): sonaba solo el último. *Final
+   approach*: se descartan únicamente los vencidos de minutos YA
+   pasados; los del minuto en curso suenan todos. Verificado por
+   simulación con ambos escenarios.
+2. **MINOR — mensaje falso de iCloud (introducido en Pass 2)**:
+   `respaldar` acusaba "no hay sesión de iCloud activa" también durante
+   `.verificando` (arranque en frío + edición rápida). Ahora el estado
+   en verificación se salta en silencio (el próximo cambio reintenta,
+   y `verificar()` ya corre en cada intento).
+3. **NIT — código muerto**: `PlanStore.pistaExiste` sin ningún
+   llamador (previo a la sesión). Eliminado.
+
+### Ataques que NO encontraron defecto (los importantes)
+
+- *Terminar en modo solo-avisos con la voz sonando*: el `didCancel`
+  diferido llega con `modoSoloAvisos` ya reseteado, pero
+  `detenerComponentes` ya soltó la sesión de audio él mismo — sin fuga.
+- *Play nuevo antes del completion de guardado del anterior (celu)*:
+  la comparación de identidad del builder y las capturas locales de
+  ruta/puntos aíslan cada carrera; secuencia trazada dos veces.
+- *`.began` de interrupción con música propia*: el `play()` del
+  didCancel durante la interrupción es no-op del sistema; la vuelta
+  real la hace el `.ended` con `shouldResume`. Benigno.
+- *Doble `.ended` de HKWorkoutSession / cerrarYGuardar re-entrante*:
+  el segundo endCollection erroría y limpia igual — sin doble guardado.
+- *Cascada de auto-pausa vs comandos del Now Playing*: todos los
+  caminos pasan por los guards de estado del Reproductor; no existe
+  secuencia que produzca doble pausa o doble "Seguimos".
+- *Reserva cardíaca negativa (FC < reposo)*: cae en Z1 por diseño del
+  switch; sin NaN ni crash (el assert adversarial que "falló" era una
+  expectativa mía equivocada, no el código).
+- *Tests*: re-leídos contra la implementación — fallarían ante el bug
+  que protegen (límites de zona en 0.6 exacto, orden fijo-primero,
+  comillas curvas) y no están acoplados a detalles internos.
+
+### Riesgos aceptados y documentados (no solucionables acá)
+
+- `consultaEnCurso` de Mis carreras quedaría trabado si HealthKit no
+  llamara nunca el callback (no observado en la práctica; el reinicio
+  de la app lo limpia).
+- `mensajeProblema` de una importación fallida persiste hasta el
+  próximo problema o reinicio (banner informativo, no bloqueante).
+- Todo el trabajo de audio/interrupciones/recovery de esta sesión
+  necesita el Archive + prueba física para considerarse validado.
+
 ## Qué revisar manualmente (usuario)
 
 1. Archivar el **build 31** y correr con auto-pausa activada: verificar
