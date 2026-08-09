@@ -19,6 +19,19 @@ struct ResumenCelu {
     var guardadaEnSalud: Bool
 }
 
+/// Evidencia de que la sesión SE GUARDÓ en Salud: solo se emite con el
+/// HKWorkout real en mano. Es lo único que el calendario acepta para
+/// marcar cumplido/parcial — si Salud falla, esto no se emite y el
+/// programado queda pendiente (nada de cumplidos fantasma).
+struct SesionGuardada {
+    let hkUUID: UUID
+    let fecha: Date
+    /// D1: estructura completa = TODOS los tramos ejecutables del plan
+    /// de la sesión fueron recorridos (misma regla debeMarcarCumplido
+    /// del reloj). Sin tramos no hay estructura que completar → false.
+    let estructuraCompleta: Bool
+}
+
 final class CarreraCelu: NSObject, ObservableObject {
     static let compartida = CarreraCelu()
 
@@ -88,6 +101,12 @@ final class CarreraCelu: NSObject, ObservableObject {
     // Tramos con objetivo de ritmo.
     private var tramos: [Tramo] = []
     private var indiceTramo = 0
+
+    // Sesión programada: el motor NO conoce el calendario — solo lleva
+    // el ID opcional para la metadata de Salud y avisa por callback
+    // cuando la sesión quedó guardada de verdad.
+    private var programadoID: UUID?
+    private var alGuardarSesion: ((SesionGuardada) -> Void)?
     private var fechaInicioTramo: Date?
     private var fechaUltimaCorreccion: Date?
     private let margenSegKm = 5
@@ -171,8 +190,12 @@ final class CarreraCelu: NSObject, ObservableObject {
 
     // MARK: - Arranque
 
-    func iniciar(plan: Plan, urlDe: @escaping (String) -> URL?) {
+    func iniciar(plan: Plan, urlDe: @escaping (String) -> URL?,
+                 programadoID: UUID? = nil,
+                 alGuardar: ((SesionGuardada) -> Void)? = nil) {
         guard estado == .detenida else { return }
+        self.programadoID = programadoID
+        alGuardarSesion = alGuardar
         resumen = nil
         mensajeError = nil
         // Aislar la corrida nueva de la anterior: si la cadena de
@@ -580,15 +603,36 @@ final class CarreraCelu: NSObject, ObservableObject {
         guard let builder else { return }
         // Capturas locales: el completion puede llegar con la carrera
         // SIGUIENTE ya andando — no debe atarle la ruta equivocada al
-        // workout viejo ni tocarle sus builders.
+        // workout viejo, tocarle sus builders ni avisarle al calendario
+        // con datos ajenos.
         let rutas = routeBuilder
         let puntos = puntosRuta
         let fin = Date()
+        let callback = alGuardarSesion
+        let idProgramado = programadoID
+        // D1 sobre la estructura REALMENTE ejecutada (misma regla que
+        // el cumplimiento del reloj): todos los tramos recorridos.
+        let estructuraCompleta = debeMarcarCumplido(tramosTotales: tramos.count,
+                                                    indiceAlcanzado: indiceTramo)
+        // La evidencia de origen viaja también en Salud (respaldo).
+        if let idProgramado {
+            builder.addMetadata(MetadatosSesion.metadata(programadoID: idProgramado)) { _, _ in }
+        }
         let cerrar: () -> Void = { [weak self] in
             builder.endCollection(withEnd: fin) { _, errorColeccion in
                 builder.finishWorkout { workout, errorFinal in
                     if let workout, let rutas, puntos > 0 {
                         rutas.finishRoute(with: workout, metadata: nil) { _, _ in }
+                    }
+                    // El vínculo con el calendario SOLO con el workout
+                    // real en mano: si Salud falló, no se emite nada y
+                    // el programado sigue pendiente.
+                    if let workout {
+                        DispatchQueue.main.async {
+                            callback?(SesionGuardada(hkUUID: workout.uuid,
+                                                     fecha: fin,
+                                                     estructuraCompleta: estructuraCompleta))
+                        }
                     }
                     DispatchQueue.main.async {
                         // El error se reporta SIEMPRE (aunque ya haya
@@ -648,6 +692,8 @@ final class CarreraCelu: NSObject, ObservableObject {
         ubicacionPausa = nil
         modoSoloAvisos = false
         eventosPendientes = []
+        programadoID = nil
+        alGuardarSesion = nil  // guardarEnSalud ya capturó su copia local
     }
 }
 

@@ -243,6 +243,18 @@ final class AlmacenStore: ObservableObject {
         almacen.adoptarPlan(nuevo)  // archiva el anterior, no lo pisa
     }
 
+    /// El calendario se entera de una sesión guardada (el didSet
+    /// persiste y la UI se refresca sola — sin reiniciar nada).
+    func registrar(_ sesion: SesionGuardada, programadoID: UUID?) {
+        if let programadoID {
+            almacen.vincular(sesionID: sesion.hkUUID, fechaSesion: sesion.fecha,
+                             aProgramado: programadoID,
+                             completo: sesion.estructuraCompleta)
+        } else {
+            almacen.registrarSesionLibre(sesionID: sesion.hkUUID, fecha: sesion.fecha)
+        }
+    }
+
     private func guardar() {
         Self.escribir(almacen, en: url)
     }
@@ -250,6 +262,43 @@ final class AlmacenStore: ObservableObject {
     private static func escribir(_ almacen: AlmacenV2, en url: URL) {
         if let datos = try? JSONEncoder().encode(almacen) {
             try? datos.write(to: url, options: .atomic)
+        }
+    }
+}
+
+// MARK: - Lanzador de sesiones (un solo camino al motor)
+
+/// El ÚNICO camino para arrancar el motor del iPhone, desde cualquier
+/// pantalla (Plan hoy, Correr programado, Correr libre): así el
+/// entrenamiento del día y la carrera libre llegan al mismo motor sin
+/// caminos paralelos. El audio sale de la config legacy (pistas y
+/// avisos del PlanStore) hasta que la UI de audio migre a V2.
+enum LanzadorSesion {
+    static func iniciar(definicion: DefinicionEntrenamiento?,
+                        programadoID: UUID?,
+                        store: PlanStore,
+                        almacen: AlmacenStore) {
+        let legacy = store.plan
+        let planSesion: Plan
+        if let definicion {
+            let tramos = definicion.tramosEjecutables
+            planSesion = Plan(nombre: definicion.nombre,
+                              pistas: legacy.pistas,
+                              avisosFijos: legacy.avisosFijos,
+                              avisosRepetidos: legacy.avisosRepetidos,
+                              tramos: tramos.isEmpty ? nil : tramos,
+                              avisosKm: legacy.avisosKm)
+        } else {
+            // Carrera libre: comportamiento actual intacto (el plan
+            // legacy completo, incluidos sus tramos manuales si los hay).
+            planSesion = legacy
+        }
+        CarreraCelu.compartida.iniciar(
+            plan: planSesion,
+            urlDe: { store.urlDePista($0) },
+            programadoID: programadoID
+        ) { sesion in
+            almacen.registrar(sesion, programadoID: programadoID)
         }
     }
 }
