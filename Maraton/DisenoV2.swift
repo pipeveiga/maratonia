@@ -141,6 +141,9 @@ struct ChipTipoV2: View {
 struct TarjetaEntrenamientoV2: View {
     let programado: EntrenamientoProgramado
     var etiqueta: String = "HOY"
+    /// true = además de los números, la lista de segmentos (la pestaña
+    /// Correr la muestra; el calendario no, para no saturar).
+    var mostrarEstructura = false
     var alEmpezar: (() -> Void)?
 
     private var estado: EstadoProgramado {
@@ -176,6 +179,9 @@ struct TarjetaEntrenamientoV2: View {
                                     ? "\(Int(km)) km"
                                     : String(format: "%.1f km", km))
                     }
+                    if let segundos = programado.definicion.duracionPorTiempoSegundos {
+                        MetricaV2(titulo: "por tiempo", valor: duracionTexto(segundos))
+                    }
                     MetricaV2(titulo: "estructura",
                               valor: programado.definicion.segmentos.count == 1
                                 ? "1 segmento"
@@ -183,6 +189,30 @@ struct TarjetaEntrenamientoV2: View {
                     if estado != .programado {
                         MetricaV2(titulo: "estado", valor: nombreDeEstado)
                     }
+                }
+
+                if mostrarEstructura, programado.definicion.segmentos.count > 1 {
+                    VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
+                        ForEach(Array(programado.definicion.tramosEjecutables.enumerated()),
+                                id: \.element.id) { indice, tramo in
+                            HStack(spacing: DV2.Espacio.s) {
+                                Text("\(indice + 1)")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 16)
+                                Text(tramo.nombre)
+                                    .font(.caption)
+                                    .lineLimit(1)
+                                Spacer()
+                                Text(tramo.descripcion)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding(DV2.Espacio.m)
+                    .background(Color(.tertiarySystemGroupedBackground),
+                                in: RoundedRectangle(cornerRadius: DV2.radioBoton))
                 }
 
                 if let alEmpezar, estado == .programado || estado == .vencido {

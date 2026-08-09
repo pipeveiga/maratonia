@@ -52,6 +52,14 @@ final class CarreraCelu: NSObject, ObservableObject {
     /// una vez por segundo (la UI no recalcula avances por su cuenta).
     @Published var textoProgresoTramo: String?
 
+    /// Fracción 0...1 del tramo en curso, para la barra de progreso.
+    @Published var fraccionTramo: Double?
+
+    /// El plan completo y por cuál tramo vas (panel de estructura de la
+    /// pantalla de carrera).
+    @Published var tramosDelPlan: [Tramo] = []
+    @Published var indiceTramoUI = 0
+
     /// true mientras la auto-pausa tiene todo congelado; el GPS sigue
     /// vivo solo para detectar que arrancaste de nuevo.
     @Published var enPausaAutomatica = false
@@ -218,6 +226,9 @@ final class CarreraCelu: NSObject, ObservableObject {
         progreso = ProgresoTramos(tramos: plan.tramosActivos)
         tramoActual = progreso.tramoActual
         textoProgresoTramo = nil
+        fraccionTramo = nil
+        tramosDelPlan = progreso.tramos
+        indiceTramoUI = 0
         fechaInicioTramo = nil
         fechaUltimaCorreccion = nil
         ultimoKmAnunciado = 0
@@ -419,6 +430,7 @@ final class CarreraCelu: NSObject, ObservableObject {
                                        tiempoActivo: tiempoTranscurrido)
         if !eventos.isEmpty {
             tramoActual = progreso.tramoActual
+            indiceTramoUI = progreso.indice
             for evento in eventos {
                 switch evento {
                 case .cambioTramo(let nuevo):
@@ -427,12 +439,15 @@ final class CarreraCelu: NSObject, ObservableObject {
                     anunciar(anuncio(de: progreso.tramos[nuevo], numero: nuevo + 1))
                 case .planCompletado:
                     textoProgresoTramo = nil
+                    fraccionTramo = nil
                     anunciar("Plan de tramos completado. ¡Bien ahí!")
                 }
             }
             return
         }
         textoProgresoTramo = textoProgreso()
+        fraccionTramo = progreso.progresoTramoActual(distanciaMetros: distanciaMetros,
+                                                     tiempoActivo: tiempoTranscurrido)
 
         guard let ritmo = ritmoActualSegKm, let tramo = tramoActual else { return }
         guard Date().timeIntervalSince(inicioTramo) >= 45 else { return }
@@ -708,6 +723,9 @@ final class CarreraCelu: NSObject, ObservableObject {
         musicaSilenciada = false
         tramoActual = nil
         textoProgresoTramo = nil
+        fraccionTramo = nil
+        tramosDelPlan = []
+        indiceTramoUI = 0
         fechaReanudacion = nil
         enPausaAutomatica = false
         ubicacionPausa = nil
@@ -839,45 +857,49 @@ struct CorrerTab: View {
         }
     }
 
+    /// El lobby responde UNA pregunta: ¿qué puedo correr AHORA? Con
+    /// entrenamiento pendiente hoy, ESE es el protagonista y Carrera
+    /// Libre queda como alternativa. Sin entrenamiento hoy, Carrera
+    /// Libre es la principal y el próximo programado aparece como
+    /// contexto (nunca como traba).
     private var lobbyCelu: some View {
-        ScrollView {
-            VStack(spacing: 18) {
+        let hoy = DiaLocal(fecha: Date())
+        let deHoy = almacen.almacen.entrenamientoDeHoy(hoy)
+        return ScrollView {
+            VStack(spacing: DV2.Espacio.l) {
                 if let resumen = carrera.resumen {
                     tarjetaResumen(resumen)
                 }
 
-                // Entrenamiento de hoy y Carrera Libre son dos acciones
-                // distintas que llegan al MISMO motor (LanzadorSesion).
-                if let hoy = almacen.almacen.entrenamientoDeHoy(DiaLocal(fecha: Date())) {
-                    TarjetaEntrenamientoV2(programado: hoy) {
-                        LanzadorSesion.iniciar(definicion: hoy.definicion,
-                                               programadoID: hoy.id,
+                if let deHoy {
+                    // Entrenamiento de hoy y Carrera Libre son dos
+                    // acciones distintas que llegan al MISMO motor.
+                    TarjetaEntrenamientoV2(programado: deHoy, mostrarEstructura: true) {
+                        LanzadorSesion.iniciar(definicion: deHoy.definicion,
+                                               programadoID: deHoy.id,
                                                store: store, almacen: almacen)
                     }
                     .padding(.horizontal)
-                }
 
-                VStack(spacing: 6) {
-                    Text("Carrera libre")
-                        .font(.title3.bold())
-                    Text(datosDelPlan)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.top, 4)
+                    botonCarreraLibre(protagonista: false)
+                        .padding(.horizontal)
+                } else {
+                    if let cumplidoHoy = almacen.almacen.programadoDelDia(hoy),
+                       cumplidoHoy.resolucion != .pendiente {
+                        TarjetaEntrenamientoV2(programado: cumplidoHoy)
+                            .padding(.horizontal)
+                    }
 
-                Button {
-                    LanzadorSesion.iniciar(definicion: nil, programadoID: nil,
-                                           store: store, almacen: almacen)
-                } label: {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 40, weight: .heavy))
-                        .foregroundStyle(.white)
-                        .frame(width: 104, height: 104)
-                        .background(Circle().fill(Color.green.gradient))
+                    botonCarreraLibre(protagonista: true)
+                        .padding(.horizontal)
+
+                    if let proximo = almacen.almacen
+                        .proximosEntrenamientos(despuesDe: hoy, maximo: 1).first {
+                        TarjetaEntrenamientoV2(programado: proximo,
+                                               etiqueta: etiquetaProxima(proximo))
+                            .padding(.horizontal)
+                    }
                 }
-                .buttonStyle(.plain)
-                .padding(.vertical, 6)
 
                 Toggle(isOn: $autoPausa) {
                     Label("Auto-pausa en las paradas", systemImage: "pause.circle.fill")
@@ -906,6 +928,58 @@ struct CorrerTab: View {
         }
     }
 
+    /// Carrera Libre como tarjeta: grande y verde cuando es LA acción
+    /// del día, sobria cuando el protagonista es el entrenamiento.
+    private func botonCarreraLibre(protagonista: Bool) -> some View {
+        TarjetaV2 {
+            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                HStack {
+                    Text(protagonista ? "AHORA" : "TAMBIÉN PODÉS")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(protagonista ? Color.green : Color.secondary)
+                        .tracking(1)
+                    Spacer()
+                }
+                Text("Carrera libre")
+                    .font(protagonista ? .title3.weight(.bold) : .headline)
+                Text(datosDelPlan)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Button {
+                    LanzadorSesion.iniciar(definicion: nil, programadoID: nil,
+                                           store: store, almacen: almacen)
+                } label: {
+                    if protagonista {
+                        Label("Empezar", systemImage: "play.fill")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, DV2.Espacio.m)
+                            .background(Color.green,
+                                        in: RoundedRectangle(cornerRadius: DV2.radioBoton))
+                    } else {
+                        Label("Correr libre", systemImage: "play.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, DV2.Espacio.s)
+                            .background(Color(.tertiarySystemGroupedBackground),
+                                        in: RoundedRectangle(cornerRadius: DV2.radioBoton))
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    /// "PRÓXIMO · MAR 12/8" para la tarjeta de contexto.
+    private func etiquetaProxima(_ programado: EntrenamientoProgramado) -> String {
+        guard let fecha = programado.dia?.fecha() else { return "PRÓXIMO" }
+        let formato = DateFormatter()
+        formato.locale = Locale(identifier: "es")
+        formato.dateFormat = "EEE d/M"
+        return "PRÓXIMO · " + formato.string(from: fecha).uppercased()
+    }
+
     private var datosDelPlan: String {
         var partes: [String] = []
         if !store.plan.pistas.isEmpty { partes.append("\(store.plan.pistas.count) pistas") }
@@ -913,7 +987,7 @@ struct CorrerTab: View {
             + store.plan.avisosKmActivos.count
         if avisos > 0 { partes.append("\(avisos) avisos") }
         if !store.plan.tramosActivos.isEmpty { partes.append("\(store.plan.tramosActivos.count) tramos") }
-        return partes.isEmpty ? "Plan vacío: igual podés correr con GPS." : partes.joined(separator: " · ")
+        return partes.isEmpty ? "Solo GPS: distancia, ritmo y mapa." : partes.joined(separator: " · ")
     }
 
     private func tarjetaResumen(_ resumen: ResumenCelu) -> some View {
@@ -973,6 +1047,8 @@ struct PantallaCarreraCelu: View {
                 }
                 .padding(.horizontal)
 
+                tarjetaTramo
+
                 infoSecundaria
 
                 controles
@@ -1001,6 +1077,57 @@ struct PantallaCarreraCelu: View {
         }
     }
 
+    /// El tramo EN CURSO como tarjeta con barra de progreso y el
+    /// siguiente a la vista: durante la carrera importa "qué estoy
+    /// haciendo y qué viene", no la lista entera.
+    @ViewBuilder
+    private var tarjetaTramo: some View {
+        if let tramo = carrera.tramoActual {
+            TarjetaV2 {
+                VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+                    HStack {
+                        Text("TRAMO \(carrera.indiceTramoUI + 1) DE \(carrera.tramosDelPlan.count)")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Color.accentColor)
+                            .tracking(1)
+                        Spacer()
+                        if let texto = carrera.textoProgresoTramo {
+                            Text(texto)
+                                .font(.caption.weight(.semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Text(tramo.nombre)
+                        .font(.headline)
+                    Text(tramo.descripcion)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    if let fraccion = carrera.fraccionTramo {
+                        ProgressView(value: fraccion)
+                            .tint(.green)
+                    }
+                    if carrera.indiceTramoUI + 1 < carrera.tramosDelPlan.count {
+                        let siguiente = carrera.tramosDelPlan[carrera.indiceTramoUI + 1]
+                        Text("Siguiente: \(siguiente.nombre) · \(siguiente.descripcion)")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Último tramo del plan")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.horizontal)
+        } else if !carrera.tramosDelPlan.isEmpty,
+                  carrera.indiceTramoUI >= carrera.tramosDelPlan.count {
+            Label("Plan de tramos completado", systemImage: "checkmark.seal.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.green)
+        }
+    }
+
     @ViewBuilder
     private var infoSecundaria: some View {
         if !carrera.nombrePistaActual.isEmpty {
@@ -1008,12 +1135,6 @@ struct PantallaCarreraCelu: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-        }
-        if let tramo = carrera.tramoActual {
-            Text("\(tramo.nombre): \(tramo.descripcion)")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
         }
         if carrera.estado == .corriendo, carrera.puntosRuta == 0 {
             Label("GPS: buscando señal…", systemImage: "location.slash")

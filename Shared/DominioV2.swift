@@ -391,6 +391,13 @@ struct AlmacenV2: Codable, Equatable {
         todosLosProgramados.first { $0.dia == hoy && $0.resolucion == .pendiente }
     }
 
+    /// El programado de un día CON CUALQUIER resolución (para mostrar
+    /// "hoy ya entrenaste" como contexto; entrenamientoDeHoy solo ve
+    /// pendientes porque decide la acción principal).
+    func programadoDelDia(_ dia: DiaLocal) -> EntrenamientoProgramado? {
+        todosLosProgramados.first { $0.dia == dia }
+    }
+
     /// Pendientes con fecha FUTURA, en orden.
     func proximosEntrenamientos(despuesDe hoy: DiaLocal, maximo: Int = 5) -> [EntrenamientoProgramado] {
         todosLosProgramados
