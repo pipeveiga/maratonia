@@ -1222,17 +1222,6 @@
         }
       }
     },
-    "Guardá tu perfil y tu plan con tu identidad": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Keep your profile and plan under your identity"
-          }
-        }
-      }
-    },
     "HOY": {
       "extractionState": "manual",
       "localizations": {
@@ -1834,6 +1823,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skip"
+          }
+        }
+      }
+    },
+    "Opcional — tu identidad en Maratonia": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional — your identity in Maratonia"
           }
         }
       }
@@ -2751,17 +2751,6 @@
         }
       }
     },
-    "Tu cuenta guarda tu perfil, tu plan y tu progreso para que puedas recuperarlos en cualquier teléfono.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Your account keeps your profile, plan and progress so you can recover them on any phone."
-          }
-        }
-      }
-    },
     "Tu cuenta y tus datos siguen acá — solo cerraste la sesión.": {
       "extractionState": "manual",
       "localizations": {
@@ -2769,6 +2758,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your account and data are still here — you only signed out."
+          }
+        }
+      }
+    },
+    "Tu identidad en Maratonia. Tus datos se respaldan en tu iCloud privado y tus entrenamientos viven en Apple Health.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your identity in Maratonia. Your data is backed up to your private iCloud and your workouts live in Apple Health."
           }
         }
       }

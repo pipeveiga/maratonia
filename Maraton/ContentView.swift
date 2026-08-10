@@ -100,6 +100,10 @@ struct ContentView: View {
               dominio.sesiones.isEmpty,
               dominio.referencias.isEmpty,
               store.plan.pistas.isEmpty else { return false }
+        // El usuario nuevo entra por bienvenida → onboarding deportivo;
+        // el tutorial legacy de audio queda disponible en Perfil →
+        // Ayuda (mostrarlo TAMBIÉN en el segundo arranque era ruido).
+        vioTutorial = true
         mostrandoBienvenida = true
         return true
     }

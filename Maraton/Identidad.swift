@@ -225,7 +225,7 @@ struct LoginView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16))
             Text("Maratonia")
                 .font(.largeTitle.bold())
-            Text("Tu cuenta guarda tu perfil, tu plan y tu progreso para que puedas recuperarlos en cualquier teléfono.")
+            Text("Tu identidad en Maratonia. Tus datos se respaldan en tu iCloud privado y tus entrenamientos viven en Apple Health.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -356,7 +356,7 @@ struct SeccionCuentaMaratonia: View {
                                  ? String(localized: "Crear cuenta o iniciar sesión")
                                  : String(localized: "Iniciar sesión"))
                                 .foregroundStyle(.primary)
-                            Text("Guardá tu perfil y tu plan con tu identidad")
+                            Text("Opcional — tu identidad en Maratonia")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

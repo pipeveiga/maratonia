@@ -563,3 +563,17 @@ reproducción controlada mañana** (caminata/carrera real con el fix de
 SupervisorReanudacion + vigilante de GPS). NO tocar AutoPausa,
 SupervisorReanudacion, thresholds ni Core Location hasta tener esa
 evidencia.
+
+## 24. Build 42 — RELEASE CANDIDATE 1
+
+Sprint integral: (A) localización es/en con String Catalogs en ambos
+targets + InfoPlist + voz según idioma; (B) MetricasSesion — historial
+completo, marcas con elegibilidad conservadora, guards NaN/cero/
+absurdos; (C-E) identidad Maratonia (userID interno, SIWA nativo
+funcional, Google/email tras gating de configuración — AUTH_SETUP.md;
+cuenta OPCIONAL, migración por asociación, eliminar cuenta con
+respaldo iCloud incluido); (F) PRIVACIDAD.md + hardening. P3
+documentados: EN de strings compuestos menores; "Repetir
+entrenamiento"; próximo entrenamiento en el reloj; pluralización
+formal de los catálogos. AUTO-PAUSA sin tocar (pendiente prueba
+física, §23).
