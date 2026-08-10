@@ -4,10 +4,16 @@
     "NSHealthShareUsageDescription": {
       "extractionState": "manual",
       "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maratonia lee tus entrenamientos y tu frecuencia cardíaca de Apple Health para registrar tus carreras y mostrar tu progreso y tus marcas."
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "To show your heart rate and record your run."
+            "value": "Maratonia reads your workouts and heart rate from Apple Health to log your runs and show your progress and personal bests."
           }
         }
       }
@@ -15,10 +21,16 @@
     "NSHealthUpdateUsageDescription": {
       "extractionState": "manual",
       "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maratonia guarda cada carrera como entrenamiento en Apple Health, con distancia, ritmo y frecuencia cardíaca."
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "To save your run as a workout in Health."
+            "value": "Maratonia saves each run as a workout in Apple Health, with distance, pace, and heart rate."
           }
         }
       }
@@ -26,10 +38,16 @@
     "NSLocationWhenInUseUsageDescription": {
       "extractionState": "manual",
       "localizations": {
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maratonia usa tu ubicación mientras corrés para medir distancia y ritmo y dibujar el recorrido en el mapa."
+          }
+        },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "To draw your run's route on the map."
+            "value": "Maratonia uses your location while you run to measure distance and pace and draw your route on the map."
           }
         }
       }
