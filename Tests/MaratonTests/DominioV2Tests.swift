@@ -2056,3 +2056,36 @@ final class UXSprintTests: XCTestCase {
         XCTAssertEqual(almacen.sesiones.count, 1)   // historial intacto
     }
 }
+
+// MARK: - Quitar plan sin reemplazo
+
+final class AbandonarPlanTests: XCTestCase {
+
+    func testAbandonarArchivaYNoBorraNada() {
+        var almacen = AlmacenV2()
+        almacen.activado = true
+        almacen.planActivo = PlanUsuario(nombre: "De prueba", origen: .personalizado,
+                                         fechaAdopcion: Date(timeIntervalSince1970: 0), semanas: [])
+        almacen.sesiones = [RegistroSesion(id: UUID(), fecha: Date(), vinculoProgramadoID: nil)]
+        almacen.abandonarPlan()
+        XCTAssertNil(almacen.planActivo)
+        XCTAssertEqual(almacen.historialDePlanes.map(\.nombre), ["De prueba"])
+        XCTAssertEqual(almacen.sesiones.count, 1)          // nada borrado
+        // HOY queda vacío: la app pasa a modo libre.
+        XCTAssertNil(almacen.entrenamientoDeHoy(DiaLocal(fecha: Date())))
+        // Sin plan, abandonar de nuevo es inocuo.
+        almacen.abandonarPlan()
+        XCTAssertEqual(almacen.historialDePlanes.count, 1)
+    }
+
+    func testAbandonarYAdoptarDespuesConservaHistorialDePlanes() {
+        var almacen = AlmacenV2()
+        almacen.planActivo = PlanUsuario(nombre: "A", origen: .personalizado,
+                                         fechaAdopcion: Date(), semanas: [])
+        almacen.abandonarPlan()
+        almacen.adoptarPlan(PlanUsuario(nombre: "B", origen: .personalizado,
+                                        fechaAdopcion: Date(), semanas: []))
+        XCTAssertEqual(almacen.planActivo?.nombre, "B")
+        XCTAssertEqual(almacen.historialDePlanes.map(\.nombre), ["A"])
+    }
+}

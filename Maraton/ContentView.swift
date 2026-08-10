@@ -133,6 +133,7 @@ struct PlanTab: View {
     @ObservedObject var store: PlanStore
     @ObservedObject var almacen: AlmacenStore
     @Binding var pestana: Pestana
+    @State private var confirmandoQuitarPlan = false
 
     private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
 
@@ -185,6 +186,23 @@ struct PlanTab: View {
                     } label: {
                         filaNavegacion(icono: "sparkles", color: .purple,
                                        titulo: "Explorar planes", subtitulo: subtituloCatalogo)
+                    }
+                    if almacen.almacen.planActivo != nil {
+                        Button(role: .destructive) {
+                            confirmandoQuitarPlan = true
+                        } label: {
+                            Label("Quitar plan", systemImage: "minus.circle")
+                        }
+                        .confirmationDialog("¿Quitar el plan actual?",
+                                            isPresented: $confirmandoQuitarPlan,
+                                            titleVisibility: .visible) {
+                            Button("Quitar plan (queda archivado)", role: .destructive) {
+                                almacen.almacen.abandonarPlan()
+                            }
+                            Button("Cancelar", role: .cancel) {}
+                        } message: {
+                            Text("El plan se archiva — no se borra nada: tus carreras, historial y tramos personalizados quedan intactos. La app pasa a modo libre y podés adoptar otro plan cuando quieras.")
+                        }
                     }
                 }
 

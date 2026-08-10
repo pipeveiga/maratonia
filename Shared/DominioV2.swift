@@ -735,6 +735,16 @@ struct AlmacenV2: Codable, Equatable {
         }
         planActivo = nuevo
     }
+
+    /// Quitar el plan SIN reemplazo: se archiva igual que en un cambio
+    /// de plan (nada se borra — sesiones, carreras y referencias
+    /// intactas) y la app queda en modo libre: HOY vacío, el reloj cae
+    /// a Carrera Libre y los tramos personalizados siguen mandando.
+    mutating func abandonarPlan() {
+        guard let actual = planActivo else { return }
+        planesAnteriores = historialDePlanes + [actual]
+        planActivo = nil
+    }
 }
 
 // MARK: - Proyección del día y resultado (Watch V2, Fase E)

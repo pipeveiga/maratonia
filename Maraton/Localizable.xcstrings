@@ -859,6 +859,17 @@
         }
       }
     },
+    "Corre con tu estructura personalizada: el reloj anuncia cada tramo y corrige por voz.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runs with your custom structure: the watch announces each interval and coaches you by voice."
+          }
+        }
+      }
+    },
     "Correo electrónico": {
       "extractionState": "manual",
       "localizations": {
@@ -1251,6 +1262,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "This phone's plan is replaced by the latest iCloud backup. This cannot be undone."
+          }
+        }
+      }
+    },
+    "El plan se archiva — no se borra nada: tus carreras, historial y tramos personalizados quedan intactos. La app pasa a modo libre y podés adoptar otro plan cuando quieras.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The plan is archived — nothing is deleted: your runs, history and custom intervals stay intact. The app switches to free mode and you can adopt another plan whenever you want."
           }
         }
       }
@@ -3070,6 +3092,28 @@
         }
       }
     },
+    "Quitar plan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove plan"
+          }
+        }
+      }
+    },
+    "Quitar plan (queda archivado)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove plan (it stays archived)"
+          }
+        }
+      }
+    },
     "Reanudar": {
       "extractionState": "manual",
       "localizations": {
@@ -4331,6 +4375,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skip this workout?"
+          }
+        }
+      }
+    },
+    "¿Quitar el plan actual?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove the current plan?"
           }
         }
       }

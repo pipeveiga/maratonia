@@ -971,6 +971,13 @@ struct CorrerTab: View {
                 }
                 Text("Carrera libre")
                     .font(protagonista ? .title3.weight(.bold) : .headline)
+                if !store.plan.tramosActivos.isEmpty {
+                    // El camino personalizado, dicho con todas las
+                    // letras: acá corren TUS tramos importados.
+                    Text("Corre con tu estructura personalizada: el reloj anuncia cada tramo y corrige por voz.")
+                        .font(.caption)
+                        .foregroundStyle(DV2.Marca.primario)
+                }
                 Text(datosDelPlan)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
