@@ -28,12 +28,12 @@
 		A10000000000000000000045 /* Carreras.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000044 /* Carreras.swift */; };
 		A10000000000000000000047 /* Diseno.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000046 /* Diseno.swift */; };
 		A10000000000000000000048 /* Diseno.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000046 /* Diseno.swift */; };
-		A10000000000000000000052 /* DominioV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000051 /* DominioV2.swift */; };
-		A10000000000000000000053 /* DominioV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000051 /* DominioV2.swift */; };
 		A1000000000000000000004A /* TramosEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000049 /* TramosEditor.swift */; };
 		A1000000000000000000004C /* Tutorial.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000004B /* Tutorial.swift */; };
 		A1000000000000000000004E /* Cuenta.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000004D /* Cuenta.swift */; };
 		A10000000000000000000050 /* CarreraTelefono.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000004F /* CarreraTelefono.swift */; };
+		A10000000000000000000052 /* DominioV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000051 /* DominioV2.swift */; };
+		A10000000000000000000053 /* DominioV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000051 /* DominioV2.swift */; };
 		A10000000000000000000055 /* PlanV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000054 /* PlanV2.swift */; };
 		A10000000000000000000057 /* DisenoV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000056 /* DisenoV2.swift */; };
 		A10000000000000000000059 /* Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000058 /* Onboarding.swift */; };
@@ -75,6 +75,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		3D716CDD302A14D100245555 /* Maraton.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = Maraton.xcodeproj; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000004 /* Maraton.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Maraton.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000005 /* Maraton Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Maraton Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000020 /* MaratonApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaratonApp.swift; sourceTree = "<group>"; };
@@ -97,11 +98,11 @@
 		A10000000000000000000041 /* EntrenadorRitmo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntrenadorRitmo.swift; sourceTree = "<group>"; };
 		A10000000000000000000044 /* Carreras.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Carreras.swift; sourceTree = "<group>"; };
 		A10000000000000000000046 /* Diseno.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diseno.swift; sourceTree = "<group>"; };
-		A10000000000000000000051 /* DominioV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DominioV2.swift; sourceTree = "<group>"; };
 		A10000000000000000000049 /* TramosEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TramosEditor.swift; sourceTree = "<group>"; };
 		A1000000000000000000004B /* Tutorial.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tutorial.swift; sourceTree = "<group>"; };
 		A1000000000000000000004D /* Cuenta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cuenta.swift; sourceTree = "<group>"; };
 		A1000000000000000000004F /* CarreraTelefono.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarreraTelefono.swift; sourceTree = "<group>"; };
+		A10000000000000000000051 /* DominioV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DominioV2.swift; sourceTree = "<group>"; };
 		A10000000000000000000054 /* PlanV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanV2.swift; sourceTree = "<group>"; };
 		A10000000000000000000056 /* DisenoV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisenoV2.swift; sourceTree = "<group>"; };
 		A10000000000000000000058 /* Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Onboarding.swift; sourceTree = "<group>"; };
@@ -159,6 +160,7 @@
 		A10000000000000000000008 /* Maraton */ = {
 			isa = PBXGroup;
 			children = (
+				3D716CDD302A14D100245555 /* Maraton.xcodeproj */,
 				A10000000000000000000020 /* MaratonApp.swift */,
 				A10000000000000000000021 /* ContentView.swift */,
 				A10000000000000000000027 /* PlanStore.swift */,
@@ -536,7 +538,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 44;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
-
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Maraton/Info.plist";
@@ -574,7 +575,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 44;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
-
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Maraton/Info.plist";
@@ -613,7 +613,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 44;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
-
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Maratonia;
@@ -651,7 +650,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 44;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
-
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Maratonia;
