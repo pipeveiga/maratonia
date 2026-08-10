@@ -78,12 +78,14 @@ final class ServicioAuth: ObservableObject {
     }
 
     /// ¿Hay backend de identidad? (plist presente y Firebase arriba).
-    static var disponible: Bool { FirebaseApp.app() != nil }
+    /// nonisolated: consulta thread-safe a FirebaseApp, y se lee desde
+    /// contextos no aislados (ProveedoresDisponibles).
+    nonisolated static var disponible: Bool { FirebaseApp.app() != nil }
 
     /// ¿El URL scheme del callback de Google está configurado de
     /// verdad? (Sin esto el login de Google no puede volver a la app:
-    /// el botón no se muestra.)
-    static var esquemaGoogleConfigurado: Bool {
+    /// el botón no se muestra.) nonisolated: solo lee Bundle.main.
+    nonisolated static var esquemaGoogleConfigurado: Bool {
         let tipos = Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes")
             as? [[String: Any]] ?? []
         return tipos.contains { tipo in
@@ -92,7 +94,7 @@ final class ServicioAuth: ObservableObject {
         }
     }
 
-    static func manejarURL(_ url: URL) {
+    nonisolated static func manejarURL(_ url: URL) {
         _ = GIDSignIn.sharedInstance.handle(url)
     }
 

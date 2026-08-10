@@ -1305,6 +1305,9 @@ final class CuentaRegresivaTests: XCTestCase {
 
 // MARK: - RC1: identidad y cuenta
 
+// @MainActor: IdentidadStore está aislado a MainActor (build 45);
+// XCTest ejecuta estos tests en el hilo principal.
+@MainActor
 final class IdentidadTests: XCTestCase {
 
     private func urlTemporal() -> URL {
@@ -1620,6 +1623,8 @@ final class MotorPlanesTests: XCTestCase {
 
 // MARK: - Build 44: auth real (Firebase) — lógica testeable sin red
 
+// @MainActor por IdentidadStore (ver IdentidadTests).
+@MainActor
 final class AuthSprintTests: XCTestCase {
 
     // Validación local de credenciales (la UI se apoya en esto para

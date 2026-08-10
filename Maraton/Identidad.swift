@@ -80,6 +80,11 @@ enum ProveedoresDisponibles {
 
 // MARK: - Store
 
+/// @MainActor: todo el estado de cuenta vive en el hilo principal (es
+/// un ObservableObject de UI). Además lo hace Sendable, así los
+/// completion handlers @Sendable de los SDKs (GoogleSignIn/Firebase)
+/// pueden capturarlo y saltar a MainActor sin warnings de concurrencia.
+@MainActor
 final class IdentidadStore: ObservableObject {
 
     @Published private(set) var cuenta: CuentaUsuario?
@@ -112,7 +117,9 @@ final class IdentidadStore: ObservableObject {
         }
     }
 
-    static var urlPorDefecto: URL {
+    /// nonisolated: FileManager es thread-safe y esto se usa como valor
+    /// por defecto del init.
+    nonisolated static var urlPorDefecto: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("cuenta.json")
     }
@@ -157,7 +164,9 @@ final class IdentidadStore: ObservableObject {
         guard let vinculo = cuenta?.vinculo(de: .apple), haySesion else { return }
         ASAuthorizationAppleIDProvider().getCredentialState(forUserID: vinculo.subjectID) {
             [weak self] estado, _ in
-            DispatchQueue.main.async {
+            // El callback llega en un hilo cualquiera: saltar a MainActor
+            // (self es Sendable por el aislamiento de la clase).
+            Task { @MainActor in
                 if estado == .revoked {
                     self?.cerrarSesion()
                 }
