@@ -167,11 +167,12 @@ struct ProgresoTab: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: DV2.Espacio.l) {
+                VStack(spacing: DV2.Espacio.xl) {
                     let semanas = CalculoProgreso.semanas(sesiones: lector.sesiones,
                                                           cuantas: 8, hoy: Date())
-                    tarjetaSemana(semanas)
+                    heroSemana(semanas)
                     tarjetaVolumen(semanas)
+                    tarjetaPlan
                     tarjetaConsistencia(semanas)
                     tarjetaDestacados
 
@@ -191,29 +192,65 @@ struct ProgresoTab: View {
         }
     }
 
-    // MARK: Resumen semanal
+    // MARK: Esta semana (hero tipográfico: números grandes, sin caja)
 
-    private func tarjetaSemana(_ semanas: [ResumenSemana]) -> some View {
+    private func heroSemana(_ semanas: [ResumenSemana]) -> some View {
         let actual = semanas.last ?? ResumenSemana(inicio: Date())
         let anterior = semanas.dropLast().last
-        return TarjetaV2 {
-            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
-                EncabezadoSeccionV2(texto: "Esta semana")
-                HStack(spacing: DV2.Espacio.xl) {
-                    MetricaV2(titulo: "kilómetros",
-                              valor: String(format: "%.1f", actual.km))
-                    MetricaV2(titulo: "tiempo",
-                              valor: formatearDuracion(actual.segundos))
-                    MetricaV2(titulo: "carreras", valor: "\(actual.carreras)")
-                }
-                if let anterior, anterior.metros > 0 || actual.metros > 0 {
-                    Text(comparacion(actual: actual, anterior: anterior))
-                        .font(.footnote)
+        return VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+            EncabezadoSeccionV2(texto: "Esta semana")
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(String(format: "%.1f", actual.km))
+                    .font(.system(size: 52, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.6)
+                Text("km")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: DV2.Espacio.xl) {
+                MetricaV2(titulo: "tiempo", valor: formatearDuracion(actual.segundos))
+                MetricaV2(titulo: actual.carreras == 1 ? "carrera" : "carreras",
+                          valor: "\(actual.carreras)")
+            }
+            if let anterior, anterior.metros > 0 || actual.metros > 0 {
+                Text(comparacion(actual: actual, anterior: anterior))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal)
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: Plan (cumplimiento)
+
+    @ViewBuilder
+    private var tarjetaPlan: some View {
+        let (hechos, total) = CalculoProgreso.cumplimiento(almacen: almacen.almacen,
+                                                           hoy: DiaLocal(fecha: Date()))
+        if total > 0 {
+            TarjetaV2 {
+                VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                    EncabezadoSeccionV2(texto: "Plan")
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("\(hechos) de \(total)")
+                            .font(.title2.weight(.bold))
+                            .monospacedDigit()
+                        Text("entrenamientos hechos")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    ProgressView(value: Double(hechos), total: Double(total))
+                        .tint(.green)
+                    Text("Cumplidos o parciales, sobre los que ya vencieron.")
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }
+            .padding(.horizontal)
         }
-        .padding(.horizontal)
     }
 
     private func comparacion(actual: ResumenSemana, anterior: ResumenSemana) -> String {
@@ -266,32 +303,29 @@ struct ProgresoTab: View {
         return formato.string(from: inicio)
     }
 
-    // MARK: Consistencia
+    // MARK: Consistencia (racha)
 
+    @ViewBuilder
     private func tarjetaConsistencia(_ semanas: [ResumenSemana]) -> some View {
         let racha = CalculoProgreso.rachaSemanas(semanas)
-        let (hechos, total) = CalculoProgreso.cumplimiento(almacen: almacen.almacen,
-                                                           hoy: DiaLocal(fecha: Date()))
-        return TarjetaV2 {
-            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
-                EncabezadoSeccionV2(texto: "Consistencia")
-                HStack(spacing: DV2.Espacio.xl) {
-                    MetricaV2(titulo: racha == 1 ? "semana seguida" : "semanas seguidas",
-                              valor: "\(racha)")
-                    if total > 0 {
-                        MetricaV2(titulo: "plan cumplido", valor: "\(hechos)/\(total)")
+        if racha > 0 {
+            TarjetaV2 {
+                HStack(spacing: DV2.Espacio.m) {
+                    Image(systemName: "flame.fill")
+                        .font(.title2)
+                        .foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(racha == 1 ? "1 semana seguida corriendo"
+                                        : "\(racha) semanas seguidas corriendo")
+                            .font(.headline)
+                        Text("La semana en curso todavía no corta la racha.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
-                if total > 0 {
-                    ProgressView(value: Double(hechos), total: Double(total))
-                        .tint(.green)
-                    Text("Entrenamientos del plan hechos (cumplidos o parciales) sobre los que ya vencieron.")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
             }
+            .padding(.horizontal)
         }
-        .padding(.horizontal)
     }
 
     // MARK: Destacados
@@ -302,7 +336,7 @@ struct ProgresoTab: View {
         if masLarga != nil || mejorRitmo != nil || almacen.almacen.referenciaVigente != nil {
             TarjetaV2 {
                 VStack(alignment: .leading, spacing: DV2.Espacio.m) {
-                    EncabezadoSeccionV2(texto: "Destacados · 12 semanas")
+                    EncabezadoSeccionV2(texto: "Marcas · 12 semanas")
                     HStack(spacing: DV2.Espacio.xl) {
                         if let masLarga {
                             MetricaV2(titulo: "salida más larga",

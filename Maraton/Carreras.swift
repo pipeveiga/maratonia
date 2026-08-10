@@ -202,32 +202,31 @@ struct CarrerasView: View {
                 NavigationLink {
                     CarreraDetalleView(store: store, id: carrera.id)
                 } label: {
+                    // La DISTANCIA manda; fecha y detalle acompañan.
                     HStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(LinearGradient(colors: [.blue, .teal],
-                                                     startPoint: .topLeading,
-                                                     endPoint: .bottomTrailing))
-                            Image(systemName: "figure.run")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(.white)
-                        }
-                        .frame(width: 44, height: 44)
+                        Image(systemName: "figure.run")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
+                            .frame(width: 34, height: 34)
+                            .background(Color.accentColor.opacity(0.12), in: Circle())
 
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(carrera.fecha.formatted(date: .abbreviated, time: .shortened))
-                                .font(.headline)
-                            HStack(spacing: 6) {
-                                Chip(texto: String(format: "%.2f km", carrera.distanciaMetros / 1000))
-                                Chip(texto: formatearDuracion(carrera.duracion))
-                                if let ritmo = carrera.ritmoPromedioSegKm {
-                                    Chip(texto: "\(formatearRitmo(ritmo)) /km")
-                                }
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text(String(format: "%.2f", carrera.distanciaMetros / 1000))
+                                    .font(.title3.weight(.bold))
+                                    .monospacedDigit()
+                                Text("km")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
                             }
+                            Text(subtituloCarrera(carrera))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     }
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 3)
                 }
+                .accessibilityLabel(etiquetaCarrera(carrera))
             }
         }
         .navigationTitle("Mis carreras")
@@ -235,42 +234,38 @@ struct CarrerasView: View {
         .refreshable { await store.recargar() }
     }
 
-    /// Tarjeta de progreso: la película de tu semana arriba de las fotos
-    /// (las carreras sueltas).
+    /// La semana arriba de las carreras sueltas — mismo lenguaje visual
+    /// que Progreso (sin degradados: tipografía y métricas).
     private var seccionProgreso: some View {
         let semana = resumenSemanal
         return Section {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("ESTA SEMANA", systemImage: "chart.line.uptrend.xyaxis")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.85))
-                HStack(spacing: 0) {
-                    estadisticaSemana(String(format: "%.1f", semana.km), "km")
-                    estadisticaSemana("\(semana.carreras)",
-                                      semana.carreras == 1 ? "carrera" : "carreras")
-                    estadisticaSemana(semana.ritmo.map { "\(formatearRitmo($0))" } ?? "–:––",
-                                      "ritmo /km")
+            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                EncabezadoSeccionV2(texto: "Esta semana")
+                HStack(spacing: DV2.Espacio.xl) {
+                    MetricaV2(titulo: "km", valor: String(format: "%.1f", semana.km))
+                    MetricaV2(titulo: semana.carreras == 1 ? "carrera" : "carreras",
+                              valor: "\(semana.carreras)")
+                    MetricaV2(titulo: "ritmo /km",
+                              valor: semana.ritmo.map { formatearRitmo($0) } ?? "–:––")
                 }
             }
-            .padding(16)
-            .background(
-                LinearGradient(colors: [Color.accentColor, .teal],
-                               startPoint: .topLeading, endPoint: .bottomTrailing))
-            .listRowInsets(EdgeInsets())
+            .padding(.vertical, DV2.Espacio.xs)
         }
     }
 
-    private func estadisticaSemana(_ valor: String, _ nombre: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(valor)
-                .font(.title3.weight(.bold))
-                .monospacedDigit()
-                .foregroundStyle(.white)
-            Text(nombre)
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.75))
+    private func subtituloCarrera(_ carrera: CarreraResumen) -> String {
+        var partes = [carrera.fecha.formatted(date: .abbreviated, time: .shortened),
+                      formatearDuracion(carrera.duracion)]
+        if let ritmo = carrera.ritmoPromedioSegKm {
+            partes.append("\(formatearRitmo(ritmo)) /km")
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        return partes.joined(separator: " · ")
+    }
+
+    private func etiquetaCarrera(_ carrera: CarreraResumen) -> String {
+        "Carrera del \(carrera.fecha.formatted(date: .long, time: .omitted)): "
+            + String(format: "%.1f kilómetros", carrera.distanciaMetros / 1000)
+            + ", \(formatearDuracion(carrera.duracion))"
     }
 
     private var resumenSemanal: (km: Double, carreras: Int, ritmo: Int?) {
