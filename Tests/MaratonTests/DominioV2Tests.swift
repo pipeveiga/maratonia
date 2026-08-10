@@ -904,3 +904,56 @@ final class FaseFTests: XCTestCase {
         try? FileManager.default.removeItem(at: directorio)
     }
 }
+
+// MARK: - Fase G (infraestructura): baseline, metodologías, Riegel
+
+final class FaseGTests: XCTestCase {
+
+    func testBaselineDerivaDeReferenciaConLinaje() {
+        let referencia = ReferenciaRendimiento(fecha: Date(timeIntervalSince1970: 100),
+                                               fuente: .test5K,
+                                               distanciaMetros: 5000, segundos: 1500)
+        let baseline = PerformanceBaseline(referencia: referencia)
+        XCTAssertEqual(baseline?.referenciaID, referencia.id)
+        XCTAssertEqual(baseline?.fuente, .test5K)
+        XCTAssertEqual(baseline?.ritmoSegKm, 300)   // 25:00 al 5K = 5:00/km
+
+        XCTAssertNil(PerformanceBaseline(referencia: nil))
+        XCTAssertNil(PerformanceBaseline(referencia: ReferenciaRendimiento(
+            fecha: Date(), fuente: .marcaManual, distanciaMetros: 0, segundos: 100)))
+    }
+
+    func testSinMetodologiaTodoQuedaPendiente() {
+        // REGLA DURA de Fase G: sin fuente pública citable no hay
+        // metodología activa — nada inventa números deportivos.
+        XCTAssertNil(Metodologias.activa)
+        let baseline = PerformanceBaseline(referencia: ReferenciaRendimiento(
+            fecha: Date(), fuente: .test5K, distanciaMetros: 5000, segundos: 1500))
+        XCTAssertEqual(Metodologias.resolver(.umbral, baseline: baseline),
+                       .pendiente(.umbral))
+        XCTAssertEqual(Metodologias.resolver(.facil, baseline: nil), .pendiente(.facil))
+    }
+
+    func testRiegelValoresConocidos() {
+        // 5K en 25:00 → 10K ≈ 25:00 × 2^1.06 = 52:07 (3127 s).
+        XCTAssertEqual(Riegel.tiempoEquivalente(segundos: 1500, deMetros: 5000,
+                                                aMetros: 10000), 3127)
+        // Identidad: misma distancia, mismo tiempo.
+        XCTAssertEqual(Riegel.tiempoEquivalente(segundos: 1500, deMetros: 5000,
+                                                aMetros: 5000), 1500)
+        // Hacia abajo: 10K en 52:07 → 5K ≈ 25:00 (redondeo ±1 s).
+        let cincoK = Riegel.tiempoEquivalente(segundos: 3127, deMetros: 10000, aMetros: 5000)!
+        XCTAssertLessThanOrEqual(abs(cincoK - 1500), 1)
+    }
+
+    func testRiegelRechazaExtrapolacionesAbusivas() {
+        // 5K → maratón es factor 8.4x: fuera del rango honesto.
+        XCTAssertNil(Riegel.tiempoEquivalente(segundos: 1500, deMetros: 5000,
+                                              aMetros: 42195))
+        XCTAssertNil(Riegel.tiempoEquivalente(segundos: 1500, deMetros: 5000, aMetros: 1000))
+        XCTAssertNil(Riegel.tiempoEquivalente(segundos: 0, deMetros: 5000, aMetros: 10000))
+        // 21K → 42K (factor 2) sí.
+        XCTAssertNotNil(Riegel.tiempoEquivalente(segundos: 6600, deMetros: 21097.5,
+                                                 aMetros: 42195))
+    }
+}

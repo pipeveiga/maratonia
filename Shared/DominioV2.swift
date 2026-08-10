@@ -327,6 +327,106 @@ struct ReferenciaRendimiento: Codable, Equatable, Identifiable {
     var segundos: Int
 }
 
+// MARK: - Baseline y metodologías de ritmo (Fase G — INFRAESTRUCTURA)
+
+/// La foto de rendimiento que consumen las metodologías: derivada de la
+/// referencia vigente, con TODO su linaje (fecha, fuente). No se
+/// persiste: es recalculable siempre desde ReferenciaRendimiento.
+struct PerformanceBaseline: Equatable {
+    var referenciaID: UUID
+    var fecha: Date
+    var fuente: FuenteReferencia
+    var distanciaMetros: Double
+    var segundos: Int
+
+    init?(referencia: ReferenciaRendimiento?) {
+        guard let referencia, referencia.distanciaMetros > 0, referencia.segundos > 0
+        else { return nil }
+        referenciaID = referencia.id
+        fecha = referencia.fecha
+        fuente = referencia.fuente
+        distanciaMetros = referencia.distanciaMetros
+        segundos = referencia.segundos
+    }
+
+    /// Ritmo promedio de la referencia, en seg/km.
+    var ritmoSegKm: Int {
+        Int((Double(segundos) / (distanciaMetros / 1000)).rounded())
+    }
+}
+
+/// Rango de ritmo concreto (seg/km): lo que una metodología produce.
+struct RangoRitmo: Equatable {
+    var minSegKm: Int   // límite rápido
+    var maxSegKm: Int   // límite lento
+}
+
+/// Cómo quedó un ritmo simbólico al intentar resolverlo. La UI DEBE
+/// saber mostrar `.pendiente` con dignidad ("se personaliza con tu
+/// referencia") — un ritmo sin resolver NO es un error.
+enum ResolucionRitmo: Equatable {
+    case resuelto(RangoRitmo, metodologiaID: String)
+    case pendiente(TipoRitmo)
+}
+
+/// Una metodología de ritmos de entrenamiento: resuelve los ritmos
+/// SIMBÓLICOS (.facil/.umbral/…) contra un baseline. Identificada y
+/// versionada (`id` tipo "nombre@versión") para que un plan pueda decir
+/// CON QUÉ se calcularon sus ritmos; `fuentePublica` es la cita
+/// verificable — sin fuente citable no hay metodología.
+protocol MetodologiaRitmos {
+    static var id: String { get }
+    static var nombre: String { get }
+    static var fuentePublica: String { get }
+    func resolver(_ tipo: TipoRitmo, baseline: PerformanceBaseline) -> RangoRitmo?
+}
+
+/// Registro de metodologías. HOY NO HAY NINGUNA ACTIVA — deliberado:
+/// las tablas de Daniels/VDOT son material propietario y no se copian,
+/// y acá no se inventan números deportivos (regla dura de Fase G). El
+/// día que exista una metodología con fuente pública verificable, se
+/// implementa el protocolo, se registra acá, y TODA la resolución de
+/// la app pasa por este único punto.
+enum Metodologias {
+    /// nil = los ritmos simbólicos quedan pendientes (se ejecutan
+    /// libres, se muestran como "a personalizar").
+    static var activa: MetodologiaRitmos? { nil }
+
+    static func resolver(_ tipo: TipoRitmo, baseline: PerformanceBaseline?) -> ResolucionRitmo {
+        guard let metodologia = activa, let baseline,
+              let rango = metodologia.resolver(tipo, baseline: baseline) else {
+            return .pendiente(tipo)
+        }
+        return .resuelto(rango, metodologiaID: type(of: metodologia).id)
+    }
+}
+
+/// Equivalencias de tiempos de CARRERA (no de entrenamiento) por la
+/// fórmula de Riegel: t2 = t1 · (d2/d1)^1.06. Fuente pública y
+/// citable: Peter S. Riegel, "Athletic Records and Human Endurance",
+/// American Scientist 69(3), 1981 (la fórmula con exponente 1.06 es
+/// del propio autor; uso extendido y verificable). Predice el tiempo
+/// equivalente en otra distancia — NO prescribe ritmos de
+/// entrenamiento, así que no reemplaza a la metodología pendiente.
+enum Riegel {
+    static let exponente = 1.06
+    static let fuente = "P. S. Riegel, American Scientist 69(3), 1981"
+
+    /// Tiempo equivalente en `aMetros` partiendo de una marca. nil si
+    /// la extrapolación es abusiva (fuera de 1/4x–4x de la distancia
+    /// de origen, la fórmula pierde sentido — el propio paper la
+    /// valida para esfuerzos de resistencia comparables).
+    static func tiempoEquivalente(segundos: Int,
+                                  deMetros: Double,
+                                  aMetros: Double) -> Int? {
+        guard segundos > 0, deMetros > 0, aMetros > 0 else { return nil }
+        let factor = aMetros / deMetros
+        guard factor >= 0.25, factor <= 4 else { return nil }
+        let equivalente = Double(segundos) * pow(factor, exponente)
+        return Int(equivalente.rounded())
+    }
+}
+
 // MARK: - Almacén raíz (lo que se persiste como dominio-v2.json)
 
 struct AlmacenV2: Codable, Equatable {

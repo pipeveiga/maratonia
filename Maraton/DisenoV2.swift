@@ -46,6 +46,43 @@ enum DV2 {
         }
     }
 
+    /// El ritmo de un segmento para la UI, incluida la resolución
+    /// simbólica (Fase G): un ritmo pendiente NO es un error — se
+    /// muestra con nombre propio y la promesa honesta de personalizarse
+    /// cuando haya baseline + metodología.
+    static func textoRitmo(de segmento: Segmento,
+                           baseline: PerformanceBaseline? = nil) -> String {
+        switch segmento.ritmo {
+        case .libre:
+            return "libre"
+        case .absoluto(let rapido, let lento):
+            switch (rapido, lento) {
+            case let (r?, l?): return "\(formatearRitmo(r))–\(formatearRitmo(l)) /km"
+            case let (nil, l?): return "\(formatearRitmo(l)) /km o mejor"
+            case let (r?, nil): return "sin pasar de \(formatearRitmo(r)) /km"
+            default: return "libre"
+            }
+        case .simbolico(let tipo):
+            switch Metodologias.resolver(tipo, baseline: baseline) {
+            case .resuelto(let rango, _):
+                return "\(formatearRitmo(rango.minSegKm))–\(formatearRitmo(rango.maxSegKm)) /km"
+            case .pendiente:
+                return "ritmo \(nombre(de: tipo).lowercased()) · a personalizar"
+            }
+        }
+    }
+
+    static func nombre(de tipo: TipoRitmo) -> String {
+        switch tipo {
+        case .facil: return "Fácil"
+        case .recuperacion: return "Recuperación"
+        case .maraton: return "Maratón"
+        case .umbral: return "Umbral"
+        case .intervalo: return "Intervalo"
+        case .repeticion: return "Repetición"
+        }
+    }
+
     static func nombre(de tipo: TipoEntrenamiento) -> String {
         switch tipo {
         case .facil: return "Fácil"
@@ -193,18 +230,18 @@ struct TarjetaEntrenamientoV2: View {
 
                 if mostrarEstructura, programado.definicion.segmentos.count > 1 {
                     VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
-                        ForEach(Array(programado.definicion.tramosEjecutables.enumerated()),
-                                id: \.element.id) { indice, tramo in
+                        ForEach(Array(programado.definicion.segmentos.enumerated()),
+                                id: \.element.id) { indice, segmento in
                             HStack(spacing: DV2.Espacio.s) {
                                 Text("\(indice + 1)")
                                     .font(.caption2.weight(.bold))
                                     .foregroundStyle(.secondary)
                                     .frame(width: 16)
-                                Text(tramo.nombre)
+                                Text(segmento.nombre)
                                     .font(.caption)
                                     .lineLimit(1)
                                 Spacer()
-                                Text(tramo.descripcion)
+                                Text(metaDeSegmento(segmento))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -231,6 +268,20 @@ struct TarjetaEntrenamientoV2: View {
                 }
             }
         }
+    }
+
+    /// "3 km · ritmo umbral · a personalizar" — la meta y el ritmo del
+    /// segmento, con simbólicos sin resolver mostrados con dignidad.
+    private func metaDeSegmento(_ segmento: Segmento) -> String {
+        var partes: [String] = []
+        if let km = segmento.distanciaKm {
+            partes.append(km == km.rounded() ? "\(Int(km)) km" : String(format: "%.1f km", km))
+        } else if let segundos = segmento.duracionSegundos {
+            partes.append(duracionTexto(segundos))
+        }
+        let ritmo = DV2.textoRitmo(de: segmento)
+        if ritmo != "libre" { partes.append(ritmo) }
+        return partes.joined(separator: " · ")
     }
 
     private var nombreDeEstado: String {

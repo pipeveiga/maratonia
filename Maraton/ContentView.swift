@@ -894,6 +894,15 @@ struct PerfilTab: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    if let equivalencias = textoEquivalencias(referencia) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(equivalencias)
+                                .font(.footnote)
+                            Text("Tiempos equivalentes estimados (fórmula de Riegel, \(Riegel.fuente)).")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 } else if perfil.testPendiente {
                     Label("Test 5K pendiente — está en la pestaña Correr",
                           systemImage: "flag.checkered")
@@ -955,6 +964,20 @@ struct PerfilTab: View {
         default: distancia = String(format: "%.1f km", referencia.distanciaMetros / 1000)
         }
         return "\(distancia) en \(formatearDuracion(TimeInterval(referencia.segundos)))"
+    }
+
+    /// "10K ≈ 52:07 · 21K ≈ 1:55:30" — solo distancias DISTINTAS a la
+    /// de la referencia y dentro del rango donde Riegel tiene sentido.
+    private func textoEquivalencias(_ referencia: ReferenciaRendimiento) -> String? {
+        let objetivos: [(String, Double)] = [("5K", 5000), ("10K", 10000), ("21K", 21097.5)]
+        let partes = objetivos.compactMap { nombre, metros -> String? in
+            guard abs(metros - referencia.distanciaMetros) > 1,
+                  let segundos = Riegel.tiempoEquivalente(segundos: referencia.segundos,
+                                                          deMetros: referencia.distanciaMetros,
+                                                          aMetros: metros) else { return nil }
+            return "\(nombre) ≈ \(formatearDuracion(TimeInterval(segundos)))"
+        }
+        return partes.isEmpty ? nil : partes.joined(separator: " · ")
     }
 
     private func origenReferencia(_ referencia: ReferenciaRendimiento) -> String {
