@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // Design System V2 — FUNDACIÓN (Fase C). No es un rediseño global:
 // es el lenguaje visual compartido que las pantallas nuevas usan desde
@@ -33,13 +34,34 @@ enum DV2 {
     // por pantalla. Los semánticos siguen siendo del sistema (verde/
     // naranja/rojo) para no perder significado nativo.
     enum Marca {
-        /// Azur del logo: acciones y protagonismo (variante clara/
-        /// oscura vía Assets).
+        /// PRIMARY — azur del logo: acciones, tint global, links.
         static let primario = Color("MaratoniaPrimario")
-        /// Azul profundo del logo: titulares y fondos de énfasis.
+        /// SECONDARY — azul profundo del logo: titulares numéricos y
+        /// el extremo oscuro del CTA de marca.
         static let profundo = Color("MaratoniaProfundo")
-        /// Lima del logo: highlights puntuales (racha, chips de HOY).
-        static let lima = Color("MaratoniaLima")
+        /// ACCENT — "volt" deportivo refinado del oliva del logo
+        /// (#606030 saturado hacia energía). REGLA DE USO: solo como
+        /// RELLENO de chips/badges con texto oscuro encima o como
+        /// glyph sobre superficie oscura — jamás texto volt sobre
+        /// blanco (contraste insuficiente).
+        static let energia = Color("MaratoniaLima")
+    }
+
+    /// BACKGROUND/SURFACE/TEXT: deliberadamente los del sistema — es
+    /// lo que mantiene a Maratonia nativa y correcta en Light/Dark sin
+    /// mantenimiento. Tokens con nombre para no repetir literales.
+    enum Superficie {
+        static let fondo = Color(.systemGroupedBackground)
+        static let tarjeta = Color(.secondarySystemGroupedBackground)
+        static let elevada = Color(.tertiarySystemGroupedBackground)
+    }
+
+    /// SUCCESS/WARNING/DESTRUCTIVE: system colors (superiores en
+    /// accesibilidad y significado nativo).
+    enum Semantico {
+        static let exito = Color.green
+        static let advertencia = Color.orange
+        static let destructivo = Color.red
     }
 
     // Escala de espaciado única (basta de números mágicos por pantalla).
@@ -297,18 +319,25 @@ struct TarjetaV2<Contenido: View>: View {
 }
 
 /// Etiqueta del botón de acción principal (se usa dentro de Button).
+/// EL botón de Maratonia: azur → azul profundo del logo. Es el ÚNICO
+/// gradiente de la app (identidad concentrada en la acción principal,
+/// no decoración repartida). Blanco sobre azul: contraste AA en ambos
+/// modos.
 struct EtiquetaBotonPrimarioV2: View {
     var titulo: String
     var icono: String = "play.fill"
 
     var body: some View {
         Label(titulo, systemImage: icono)
-            .font(.headline)
+            .font(.headline.weight(.bold))
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, DV2.Espacio.m)
-            .background(Color.accentColor,
-                        in: RoundedRectangle(cornerRadius: DV2.radioBoton))
+            .background(
+                LinearGradient(colors: [DV2.Marca.primario, DV2.Marca.profundo],
+                               startPoint: .topLeading, endPoint: .bottomTrailing),
+                in: RoundedRectangle(cornerRadius: DV2.radioBoton))
+            .shadow(color: DV2.Marca.profundo.opacity(0.25), radius: 6, y: 3)
     }
 }
 
@@ -375,17 +404,23 @@ struct TarjetaEntrenamientoV2: View {
         TarjetaV2 {
             VStack(alignment: .leading, spacing: DV2.Espacio.m) {
                 HStack {
+                    // El sello de HOY: volt de marca como RELLENO con
+                    // texto oscuro (regla de uso de Marca.energia).
                     Text(etiqueta)
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Color.accentColor)
-                        .tracking(1)
+                        .font(.caption.weight(.heavy))
+                        .tracking(1.5)
+                        .foregroundStyle(.black.opacity(0.8))
+                        .padding(.horizontal, DV2.Espacio.s)
+                        .padding(.vertical, 3)
+                        .background(DV2.Marca.energia, in: Capsule())
                     Spacer()
                     ChipTipoV2(tipo: programado.definicion.tipo)
                 }
 
                 VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
                     Text(programado.definicion.nombre)
-                        .font(.title3.weight(.bold))
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(DV2.Marca.profundo)
                     if !programado.definicion.descripcion.isEmpty {
                         Text(programado.definicion.descripcion)
                             .font(.subheadline)
@@ -437,7 +472,12 @@ struct TarjetaEntrenamientoV2: View {
                 }
 
                 if let alEmpezar, estado == .programado || estado == .vencido {
-                    Button(action: alEmpezar) {
+                    Button {
+                        // Haptic: arrancar un entrenamiento es EL
+                        // momento de la app.
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        alEmpezar()
+                    } label: {
                         EtiquetaBotonPrimarioV2(titulo: "Empezar")
                     }
                     .buttonStyle(.plain)

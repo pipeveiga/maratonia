@@ -1321,6 +1321,17 @@
         }
       }
     },
+    "Elegí un objetivo y armá tu plan — o explorá el catálogo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a goal and build your plan — or browse the catalog."
+          }
+        }
+      }
+    },
     "Eliminar cuenta": {
       "extractionState": "manual",
       "localizations": {
@@ -3473,6 +3484,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "No tracks in the plan yet."
+          }
+        }
+      }
+    },
+    "Sin plan activo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No active plan"
           }
         }
       }

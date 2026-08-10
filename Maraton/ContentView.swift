@@ -150,6 +150,22 @@ struct PlanTab: View {
                     }
                 }
 
+                if almacen.almacen.planActivo == nil {
+                    Section {
+                        ContentUnavailableView {
+                            Label("Sin plan activo", systemImage: "figure.run.square.stack")
+                        } description: {
+                            Text("Elegí un objetivo y armá tu plan — o explorá el catálogo.")
+                        } actions: {
+                            NavigationLink("Explorar planes") {
+                                CatalogoView(almacen: almacen)
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                        .listRowBackground(Color.clear)
+                    }
+                }
+
                 seccionHoy
                 seccionSemana
                 seccionProximos
@@ -260,30 +276,40 @@ struct PlanTab: View {
                                                  programadoID: programado.id)
                     } label: {
                         HStack(spacing: 12) {
-                            Circle()
-                                .fill(DV2.color(de: programado.definicion.tipo))
-                                .frame(width: 8, height: 8)
+                            // Fila deportiva: el tipo como bloque de
+                            // color con su inicial de día, no un punto.
+                            VStack(spacing: 0) {
+                                if let fecha = programado.dia?.fecha() {
+                                    Text(FormatoFecha.diaYMes(fecha).prefix(6))
+                                        .font(.caption2.weight(.bold))
+                                }
+                            }
+                            .frame(width: 52, height: 40)
+                            .background(DV2.color(de: programado.definicion.tipo).opacity(0.15),
+                                        in: RoundedRectangle(cornerRadius: 10))
+                            .foregroundStyle(DV2.color(de: programado.definicion.tipo))
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(programado.definicion.nombre)
-                                Text(subtituloProximo(programado))
+                                    .font(.subheadline.weight(.semibold))
+                                Text(programado.definicion.resumenEstructura)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                            Spacer()
+                            if let km = programado.definicion.distanciaTotalKm {
+                                Text(km == km.rounded()
+                                     ? "\(Int(km)) km"
+                                     : String(format: "%.1f km", km))
+                                    .font(.subheadline.weight(.bold))
+                                    .monospacedDigit()
+                                    .foregroundStyle(DV2.Marca.profundo)
+                            }
                         }
-                        .padding(.vertical, 1)
+                        .padding(.vertical, 2)
                     }
                 }
             }
         }
-    }
-
-    private func subtituloProximo(_ programado: EntrenamientoProgramado) -> String {
-        var partes: [String] = []
-        if let fecha = programado.dia?.fecha() {
-            partes.append(FormatoFecha.corta(fecha))
-        }
-        partes.append(programado.definicion.resumenEstructura)
-        return partes.joined(separator: " · ")
     }
 
     /// El objetivo con countdown en semanas — motivación, nunca presión.

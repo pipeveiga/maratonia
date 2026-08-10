@@ -291,7 +291,10 @@ struct CarrerasView: View {
                                                set: { if !$0 { aOcultar = nil } }),
                             titleVisibility: .visible) {
             Button("Ocultar de Maratonia") {
-                if let id = aOcultar { store.ocultar(id) }
+                if let id = aOcultar {
+                    store.ocultar(id)
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                }
                 aOcultar = nil
             }
             Button("Cancelar", role: .cancel) { aOcultar = nil }
