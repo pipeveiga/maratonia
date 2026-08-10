@@ -486,3 +486,110 @@ final class ProgresoTramosTests: XCTestCase {
                        "2 min libre")
     }
 }
+
+// MARK: - Auto-resume (bug 1 de build 39)
+
+final class SupervisorReanudacionTests: XCTestCase {
+
+    private let base = Date(timeIntervalSince1970: 1000)
+    private func t(_ segundos: Double) -> Date { base.addingTimeInterval(segundos) }
+
+    func testAutoPausaLuegoMovimientoReanuda() {
+        // running → autoPause → caminar alejándose → autoResume (camino
+        // de desplazamiento, la semántica de siempre).
+        var supervisor = AutoPausa.SupervisorReanudacion()
+        XCTAssertFalse(supervisor.procesar(desplazamiento: 5, velocidad: nil,
+                                           umbral: 15, fecha: t(0)))
+        XCTAssertFalse(supervisor.procesar(desplazamiento: 18, velocidad: nil,
+                                           umbral: 15, fecha: t(1)))   // arma
+        XCTAssertTrue(supervisor.procesar(desplazamiento: 22, velocidad: nil,
+                                          umbral: 15, fecha: t(3)))    // sostenido → reanuda
+    }
+
+    func testVelocidadSostenidaReanudaAunSinDesplazamiento() {
+        // El caso de build 38: umbral inflado por mala precisión o
+        // referencia ruidosa — la velocidad Doppler reanuda igual.
+        var supervisor = AutoPausa.SupervisorReanudacion()
+        XCTAssertFalse(supervisor.procesar(desplazamiento: 4, velocidad: 1.3,
+                                           umbral: 40, fecha: t(0)))   // arma velocidad
+        XCTAssertFalse(supervisor.procesar(desplazamiento: 6, velocidad: 1.2,
+                                           umbral: 40, fecha: t(1)))   // < 1.5 s
+        XCTAssertTrue(supervisor.procesar(desplazamiento: 8, velocidad: 1.4,
+                                          umbral: 40, fecha: t(2)))    // sostenida → reanuda
+        // Y también funciona SIN punto de referencia todavía (primer fix).
+        var sinReferencia = AutoPausa.SupervisorReanudacion()
+        XCTAssertFalse(sinReferencia.procesar(desplazamiento: nil, velocidad: 1.2,
+                                              umbral: 15, fecha: t(0)))
+        XCTAssertTrue(sinReferencia.procesar(desplazamiento: nil, velocidad: 1.2,
+                                             umbral: 15, fecha: t(2)))
+    }
+
+    func testRuidoAlrededorDelUmbralNoReanuda() {
+        // Lecturas saltarinas paradas al lado del umbral: nunca dos
+        // sostenidas — no oscila.
+        var supervisor = AutoPausa.SupervisorReanudacion()
+        for (i, despl) in [16.0, 4.0, 17.0, 3.0, 18.0, 5.0].enumerated() {
+            XCTAssertFalse(supervisor.procesar(desplazamiento: despl,
+                                               velocidad: 0.2,
+                                               umbral: 15, fecha: t(Double(i) * 2)),
+                           "reanudó con ruido en la lectura \(i)")
+        }
+        // Velocidad ruidosa bajo el umbral de caminata tampoco arma.
+        var porVelocidad = AutoPausa.SupervisorReanudacion()
+        for (i, vel) in [0.8, 0.3, 0.85, 0.1, 0.7].enumerated() {
+            XCTAssertFalse(porVelocidad.procesar(desplazamiento: 2, velocidad: vel,
+                                                 umbral: 15, fecha: t(Double(i) * 2)))
+        }
+    }
+
+    func testPausaManualNoEsElegibleParaAutoResume() {
+        // running → manualPause → movimiento → sigue pausada: la regla
+        // vive en la capa compartida y los dos delegates la consultan.
+        XCTAssertFalse(AutoPausa.puedeAutoReanudar(pausada: true, enPausaAutomatica: false))
+        XCTAssertTrue(AutoPausa.puedeAutoReanudar(pausada: true, enPausaAutomatica: true))
+        XCTAssertFalse(AutoPausa.puedeAutoReanudar(pausada: false, enPausaAutomatica: false))
+        // Estado imposible (auto sin pausa): tampoco habilita.
+        XCTAssertFalse(AutoPausa.puedeAutoReanudar(pausada: false, enPausaAutomatica: true))
+    }
+
+    func testInteraccionManualDejaEstadoConsistente() {
+        // autoPause → el corredor toca Reanudar a mano → reiniciar():
+        // el supervisor no arrastra candidatos armados a la próxima.
+        var supervisor = AutoPausa.SupervisorReanudacion()
+        _ = supervisor.procesar(desplazamiento: 18, velocidad: 1.2, umbral: 15, fecha: t(0))
+        supervisor.reiniciar()
+        // Tras el reset, una lectura sostenida sola NO reanuda: hay que
+        // volver a armar de cero.
+        XCTAssertFalse(supervisor.procesar(desplazamiento: 20, velocidad: 1.2,
+                                           umbral: 15, fecha: t(10)))
+        XCTAssertTrue(supervisor.procesar(desplazamiento: 22, velocidad: 1.3,
+                                          umbral: 15, fecha: t(12)))
+    }
+
+    func testVigilanteDeGPS() {
+        // Sin señal y sin empujón reciente → despertar. Con señal
+        // fresca o empujón reciente → no molestar.
+        XCTAssertTrue(AutoPausa.debeDespertarGPS(edadUltimaSenal: 11, edadUltimoEmpujon: nil))
+        XCTAssertTrue(AutoPausa.debeDespertarGPS(edadUltimaSenal: nil, edadUltimoEmpujon: 12))
+        XCTAssertFalse(AutoPausa.debeDespertarGPS(edadUltimaSenal: 3, edadUltimoEmpujon: nil))
+        XCTAssertFalse(AutoPausa.debeDespertarGPS(edadUltimaSenal: 30, edadUltimoEmpujon: 5))
+        XCTAssertTrue(AutoPausa.debeDespertarGPS(edadUltimaSenal: nil, edadUltimoEmpujon: nil))
+    }
+
+    func testTramoPorTiempoCongeladoYContinuaTrasResume() {
+        // El tiempo ACTIVO no corre en pausa: el tramo no avanza; al
+        // reanudar, completa con su duración exacta.
+        var progreso = ProgresoTramos(tramos: [Tramo(nombre: "T", kilometros: 0,
+                                                     duracionSegundos: 120)])
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 200, tiempoActivo: 60), [])
+        // Pausa de 5 minutos: el tiempo activo queda clavado en 60.
+        for _ in 0..<300 {
+            XCTAssertEqual(progreso.avanzar(distanciaMetros: 200, tiempoActivo: 60), [])
+        }
+        // Reanuda: 59 s más de tiempo activo aún no cierra…
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 350, tiempoActivo: 119), [])
+        // …y al llegar a los 120 s ACTIVOS exactos, cierra.
+        XCTAssertEqual(progreso.avanzar(distanciaMetros: 360, tiempoActivo: 120),
+                       [.planCompletado])
+    }
+}

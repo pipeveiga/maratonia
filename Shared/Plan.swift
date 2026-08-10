@@ -155,6 +155,80 @@ enum AutoPausa {
             fechaPrimerMovimiento = nil
         }
     }
+
+    /// ¿Corresponde evaluar reanudación AUTOMÁTICA? Solamente si la
+    /// pausa vigente la produjo la auto-pausa: la pausa MANUAL es una
+    /// orden del corredor y moverse no la levanta jamás (bug 1 de
+    /// build 38: la regla queda en la capa compartida y testeable).
+    static func puedeAutoReanudar(pausada: Bool, enPausaAutomatica: Bool) -> Bool {
+        pausada && enPausaAutomatica
+    }
+
+    /// Decisión de reanudación durante la auto-pausa, con DOS caminos
+    /// independientes (cualquiera reanuda):
+    /// - DESPLAZAMIENTO sostenido desde el punto de pausa: el
+    ///   DetectorReanudacion de siempre, mismos umbrales e histéresis;
+    /// - VELOCIDAD GPS sostenida (Doppler, mucho menos ruidosa que la
+    ///   posición): dos lecturas ≥ 0,9 m/s separadas ≥ 1,5 s.
+    /// El segundo camino cubre el caso real de build 38: con precisión
+    /// pobre el umbral de desplazamiento se infla (max(15, precisión))
+    /// y un punto de referencia ruidoso podía dejar la sesión pausada
+    /// para siempre aunque el corredor ya estuviera moviéndose.
+    struct SupervisorReanudacion {
+        private var detectorDesplazamiento = DetectorReanudacion()
+        private var fechaPrimeraVelocidad: Date?
+
+        /// Caminar decidido; el braceo parado no llega a esto.
+        static let velocidadReanuda = 0.9
+        /// Por debajo de esto, el candidato de velocidad se desarma.
+        static let velocidadDesarma = 0.4
+
+        /// - desplazamiento: distancia al punto de pausa (nil si el
+        ///   punto de referencia todavía no existe — el camino de
+        ///   velocidad funciona igual).
+        /// - velocidad: m/s del GPS (nil si el fix no trae velocidad).
+        mutating func procesar(desplazamiento: Double?, velocidad: Double?,
+                               umbral: Double, fecha: Date) -> Bool {
+            if let desplazamiento,
+               detectorDesplazamiento.procesar(desplazamiento: desplazamiento,
+                                               umbral: umbral, fecha: fecha) {
+                return true
+            }
+            guard let velocidad, velocidad >= Self.velocidadReanuda else {
+                if let velocidad, velocidad < Self.velocidadDesarma {
+                    fechaPrimeraVelocidad = nil
+                }
+                return false
+            }
+            guard let primera = fechaPrimeraVelocidad else {
+                fechaPrimeraVelocidad = fecha
+                return false
+            }
+            if fecha.timeIntervalSince(primera) >= 1.5 {
+                fechaPrimeraVelocidad = nil
+                return true
+            }
+            return false
+        }
+
+        mutating func reiniciar() {
+            detectorDesplazamiento.reiniciar()
+            fechaPrimeraVelocidad = nil
+        }
+    }
+
+    /// Vigilancia del GPS DURANTE la auto-pausa: la reanudación depende
+    /// de que el GPS siga entregando, y Core Location puede frenar la
+    /// entrega con el usuario quieto (throttling de estacionario). Si
+    /// pasaron más de 10 s sin fix y más de 10 s desde el último
+    /// empujón, hay que volver a pedir startUpdatingLocation(). Función
+    /// pura: los motores le preguntan una vez por segundo.
+    static func debeDespertarGPS(edadUltimaSenal: Double?,
+                                 edadUltimoEmpujon: Double?) -> Bool {
+        let senalVieja = edadUltimaSenal.map { $0 > 10 } ?? true
+        let empujonViejo = edadUltimoEmpujon.map { $0 > 10 } ?? true
+        return senalVieja && empujonViejo
+    }
 }
 
 // MARK: - Cumplimiento del entrenamiento planificado

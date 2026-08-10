@@ -61,7 +61,13 @@ final class Entrenamiento: NSObject, ObservableObject {
     /// o ante un hipo del sensor aunque te estés moviendo); el GPS
     /// confirma la detención y detecta señal vieja.
     private var ubicacionesRecientes: [(fecha: Date, ubicacion: CLLocation)] = []
-    private var detectorReanudacion = AutoPausa.DetectorReanudacion()
+    private var supervisorReanudacion = AutoPausa.SupervisorReanudacion()
+
+    /// Vigilancia del GPS durante la auto-pausa (bug 1 de build 38):
+    /// Core Location puede dejar de entregar con el usuario quieto y la
+    /// reanudación dependía de ese stream sin que nadie lo vigilara.
+    private var fechaUltimaSenalPausa: Date?
+    private var fechaUltimoEmpujonGPS: Date?
 
     // Aviso hablado al cambiar de zona (sostenida, sin spam). La
     // candidata evita que un pulso oscilando entre dos zonas sume
@@ -315,7 +321,7 @@ final class Entrenamiento: NSObject, ObservableObject {
             enPausaAutomatica = false
             ubicacionPausa = nil
             ubicacionesRecientes = []
-            detectorReanudacion.reiniciar()
+            supervisorReanudacion.reiniciar()
             zonaAnunciada = 0
             zonaCandidata = 0
             segundosEnZonaCandidata = 0
@@ -350,7 +356,7 @@ final class Entrenamiento: NSObject, ObservableObject {
         pausado = false
         enPausaAutomatica = false
         ubicacionPausa = nil
-        detectorReanudacion.reiniciar()
+        supervisorReanudacion.reiniciar()
         ubicacionesRecientes = []  // sin restos: la próxima pausa junta datos frescos
         sesion?.resume()
         if usaGPS { ubicaciones.startUpdatingLocation() }
@@ -366,8 +372,11 @@ final class Entrenamiento: NSObject, ObservableObject {
         guard Reproductor.compartido.estado == .reproduciendo else { return }
         enPausaAutomatica = true
         ubicacionPausa = nil
-        detectorReanudacion.reiniciar()
+        supervisorReanudacion.reiniciar()
         ubicacionesRecientes = []
+        // Gracia de 10 s antes del primer empujón del vigilante de GPS.
+        fechaUltimaSenalPausa = Date()
+        fechaUltimoEmpujonGPS = nil
         Reproductor.compartido.pausar()  // cascada: avisos + entrenamiento
         ubicaciones.startUpdatingLocation()
         Avisador.compartido.anunciar("Pausa automática.")
@@ -429,6 +438,21 @@ final class Entrenamiento: NSObject, ObservableObject {
     /// Una vez por segundo: agrega la muestra, recalcula el ritmo
     /// suavizado y el promedio, y le pasa el estado al entrenador de ritmo.
     private func registrarMuestra() {
+        // En auto-pausa el timer no registra nada — pero VIGILA el GPS:
+        // si Core Location dejó de entregar (throttling de
+        // estacionario), la reanudación automática moría con él. Un
+        // empujón cada 10 s lo despierta.
+        if AutoPausa.puedeAutoReanudar(pausada: pausado, enPausaAutomatica: enPausaAutomatica) {
+            let ahora = Date()
+            if AutoPausa.debeDespertarGPS(
+                edadUltimaSenal: fechaUltimaSenalPausa.map { ahora.timeIntervalSince($0) },
+                edadUltimoEmpujon: fechaUltimoEmpujonGPS.map { ahora.timeIntervalSince($0) }) {
+                fechaUltimoEmpujonGPS = ahora
+                ubicaciones.stopUpdatingLocation()
+                ubicaciones.startUpdatingLocation()
+            }
+            return
+        }
         guard activo, !pausado else { return }
         let ahora = Date()
         muestras.append((ahora, distanciaMetros))
@@ -651,24 +675,21 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
 
 extension Entrenamiento: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        // En auto-pausa el GPS queda vivo SOLO para esto: si te alejaste
-        // más de 15 m del punto donde frenaste, la sesión sigue sola.
-        if enPausaAutomatica, pausado {
-            // Precisión hasta 50 m con umbral dinámico, y con HISTÉRESIS:
-            // hacen falta dos lecturas sostenidas que superen el umbral
-            // (ver AutoPausa.DetectorReanudacion) — una única lectura
-            // saltarina del GPS ya no dispara el "Seguimos".
+        // Auto-pausa → reanudación automática por desplazamiento
+        // sostenido O velocidad GPS sostenida (SupervisorReanudacion en
+        // Shared). La pausa MANUAL nunca entra acá (puedeAutoReanudar).
+        if AutoPausa.puedeAutoReanudar(pausada: pausado, enPausaAutomatica: enPausaAutomatica) {
             guard let ubicacion = locations.last,
                   ubicacion.horizontalAccuracy > 0, ubicacion.horizontalAccuracy <= 50 else { return }
-            if let referencia = ubicacionPausa {
-                let umbral = max(15, ubicacion.horizontalAccuracy)
-                if detectorReanudacion.procesar(
-                    desplazamiento: ubicacion.distance(from: referencia),
-                    umbral: umbral, fecha: Date()) {
-                    autoReanudar()
-                }
-            } else {
-                ubicacionPausa = ubicacion
+            fechaUltimaSenalPausa = Date()
+            let desplazamiento = ubicacionPausa.map { ubicacion.distance(from: $0) }
+            if ubicacionPausa == nil { ubicacionPausa = ubicacion }
+            if supervisorReanudacion.procesar(
+                desplazamiento: desplazamiento,
+                velocidad: ubicacion.speed >= 0 ? ubicacion.speed : nil,
+                umbral: max(15, ubicacion.horizontalAccuracy),
+                fecha: Date()) {
+                autoReanudar()
             }
             return
         }

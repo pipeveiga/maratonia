@@ -73,7 +73,13 @@ final class CarreraCelu: NSObject, ObservableObject {
     /// Shared): perder señal congela la distancia, y eso NO es estar
     /// parado — sin esto, un túnel o un mal fix disparaba pausas falsas.
     private var fechaUltimoGPS: Date?
-    private var detectorReanudacion = AutoPausa.DetectorReanudacion()
+    private var supervisorReanudacion = AutoPausa.SupervisorReanudacion()
+
+    /// Vigilancia del GPS durante la auto-pausa (bug 1 de build 38):
+    /// Core Location puede dejar de entregar con el usuario quieto y la
+    /// reanudación dependía de ese stream sin que nadie lo vigilara.
+    private var fechaUltimaSenalPausa: Date?
+    private var fechaUltimoEmpujonGPS: Date?
 
     private var autoPausaActiva: Bool {
         UserDefaults.standard.object(forKey: "autoPausaCelu") as? Bool ?? true
@@ -246,7 +252,7 @@ final class CarreraCelu: NSObject, ObservableObject {
         muestras = []
         ultimaUbicacion = nil
         fechaUltimoGPS = nil
-        detectorReanudacion.reiniciar()
+        supervisorReanudacion.reiniciar()
         musicaSilenciada = false
         acumuladoPrevio = 0
         fechaReanudacion = Date()
@@ -336,6 +342,21 @@ final class CarreraCelu: NSObject, ObservableObject {
     // MARK: - Tick (una vez por segundo)
 
     private func tick() {
+        // En auto-pausa el tick no corre nada — pero VIGILA el GPS: si
+        // Core Location dejó de entregar (throttling de estacionario),
+        // la reanudación automática moría con él. Un empujón cada 10 s
+        // lo despierta.
+        if estado == .pausada, enPausaAutomatica {
+            let ahora = Date()
+            if AutoPausa.debeDespertarGPS(
+                edadUltimaSenal: fechaUltimaSenalPausa.map { ahora.timeIntervalSince($0) },
+                edadUltimoEmpujon: fechaUltimoEmpujonGPS.map { ahora.timeIntervalSince($0) }) {
+                fechaUltimoEmpujonGPS = ahora
+                ubicaciones.stopUpdatingLocation()
+                ubicaciones.startUpdatingLocation()
+            }
+            return
+        }
         guard estado == .corriendo, let reanudacion = fechaReanudacion else { return }
         tiempoTranscurrido = acumuladoPrevio + Date().timeIntervalSince(reanudacion)
 
@@ -578,7 +599,10 @@ final class CarreraCelu: NSObject, ObservableObject {
         estado = .pausada
         enPausaAutomatica = automatica
         ubicacionPausa = nil
-        detectorReanudacion.reiniciar()
+        supervisorReanudacion.reiniciar()
+        // Gracia de 10 s antes del primer empujón al GPS.
+        fechaUltimaSenalPausa = Date()
+        fechaUltimoEmpujonGPS = nil
         player?.pause()
         // En auto-pausa el GPS queda vivo para detectar el arranque.
         if !automatica { ubicaciones.stopUpdatingLocation() }
@@ -790,23 +814,23 @@ extension CarreraCelu: AVSpeechSynthesizerDelegate {
 
 extension CarreraCelu: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        // Auto-pausa: si te alejaste más de 15 m del punto donde
-        // frenaste, la carrera sigue sola.
-        if estado == .pausada, enPausaAutomatica {
-            // Precisión hasta 50 m con umbral dinámico y con HISTÉRESIS:
-            // dos lecturas sostenidas sobre el umbral, no una aislada.
+        // Auto-pausa → reanudación automática por desplazamiento
+        // sostenido O velocidad GPS sostenida (SupervisorReanudacion en
+        // Shared). La pausa MANUAL nunca entra acá (puedeAutoReanudar).
+        if estado == .pausada,
+           AutoPausa.puedeAutoReanudar(pausada: true, enPausaAutomatica: enPausaAutomatica) {
             guard let ubicacion = locations.last,
                   ubicacion.horizontalAccuracy > 0, ubicacion.horizontalAccuracy <= 50 else { return }
-            if let referencia = ubicacionPausa {
-                let umbral = max(15, ubicacion.horizontalAccuracy)
-                if detectorReanudacion.procesar(
-                    desplazamiento: ubicacion.distance(from: referencia),
-                    umbral: umbral, fecha: Date()) {
-                    reanudar()
-                    anunciar("Seguimos.")
-                }
-            } else {
-                ubicacionPausa = ubicacion
+            fechaUltimaSenalPausa = Date()
+            let desplazamiento = ubicacionPausa.map { ubicacion.distance(from: $0) }
+            if ubicacionPausa == nil { ubicacionPausa = ubicacion }
+            if supervisorReanudacion.procesar(
+                desplazamiento: desplazamiento,
+                velocidad: ubicacion.speed >= 0 ? ubicacion.speed : nil,
+                umbral: max(15, ubicacion.horizontalAccuracy),
+                fecha: Date()) {
+                reanudar()
+                anunciar("Seguimos.")
             }
             return
         }
