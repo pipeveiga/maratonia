@@ -5,18 +5,16 @@
 	<!-- Este archivo se MERGEA con el Info.plist generado por Xcode
 	     (GENERATE_INFOPLIST_FILE=YES + INFOPLIST_FILE): acá viven solo
 	     las claves que no se pueden expresar como build settings. -->
-	<!-- URL scheme del callback de Google Sign-In. CONFIGURACIÓN
-	     EXTERNA: reemplazar el string de abajo por el valor de
-	     REVERSED_CLIENT_ID que figura en GoogleService-Info.plist
-	     (formato com.googleusercontent.apps.XXXX). Mientras tenga el
-	     placeholder, el botón de Google NO aparece (gate de runtime en
-	     ServicioAuth.esquemaGoogleConfigurado) — cero botones muertos. -->
+	<!-- URL scheme del callback de Google Sign-In: es el
+	     REVERSED_CLIENT_ID de Maraton/GoogleService-Info.plist. Si el
+	     proyecto de Firebase cambia, este valor debe cambiar con él
+	     (ServicioAuth.esquemaGoogleConfigurado lo valida en runtime). -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>REVERSED-CLIENT-ID-PENDIENTE</string>
+				<string>com.googleusercontent.apps.893452062976-5j0iu9jfin9cualml466kb8hbpq363a2</string>
 			</array>
 		</dict>
 	</array>
