@@ -1,71 +1,97 @@
-# AUTH_SETUP — Autenticación de Maratonia
+# AUTH_SETUP — Autenticación de Maratonia (IMPLEMENTADA, build 44)
 
-## Decisión de proveedor
+## Arquitectura final de identidad
 
-**Elegido: Firebase Auth** para Google + email/contraseña (cuando se
-configure), con **Sign in with Apple NATIVO** (AuthenticationServices,
-sin SDK externo). Justificación:
-- SIWA nativo no necesita backend: subject ID estable, private relay,
-  revocación — funciona hoy y no agrega dependencias al build.
-- Firebase Auth es la vía más rápida y probada en iOS para email +
-  Google: registro, login, reset de contraseña, borrado de cuenta y
-  vinculación multi-proveedor ya resueltos (nada de auth casera).
-- Alternativa evaluada: Supabase Auth — válida, pero su SDK iOS y el
-  flujo de vinculación multi-proveedor están menos maduros que los de
-  Firebase para este caso.
+**Firebase Authentication es la ÚNICA autoridad de identidad remota.**
+Los tres proveedores terminan en la misma cuenta de Firebase:
 
-## Lo que YA está implementado (en el repo)
+- **Apple**: botón nativo (AuthenticationServices, HIG) y FEDERADO
+  contra Firebase con `OAuthProvider.appleCredential(withIDToken:
+  rawNonce:fullName:)` + nonce SHA-256 (CryptoKit). Si Firebase no
+  está configurado (falta el plist), Apple sigue funcionando en modo
+  nativo puro — cero regresión.
+- **Google**: GoogleSignIn-iOS → `GoogleAuthProvider.credential` →
+  Firebase. El `clientID` sale de `FirebaseApp.app()!.options` —
+  ningún ID hardcodeado.
+- **Email/contraseña**: `createUser` / `signIn` / `sendPasswordReset`
+  de FirebaseAuth. La contraseña vive SOLO en Firebase; la app jamás
+  la guarda ni implementa auth casera.
 
-- `CuentaUsuario` con **userID (UUID) como identidad interna** —
-  separado de Apple subject, Google subject y email; el email jamás es
-  clave primaria; multi-proveedor por diseño (`vincular` idempotente).
-- `AlmacenV2.usuarioID`: el dominio deportivo pertenece al userID.
-  Crear cuenta ASOCIA los datos existentes (migración sin duplicados;
-  HealthKit intacto).
-- **Sign in with Apple completo**: botón oficial (HIG), nombre/email
-  capturados solo la primera vez, chequeo de revocación al abrir,
-  sesión persistida localmente.
-- LoginView / BienvenidaView (instalación limpia, cuenta OPCIONAL con
-  "Más adelante") / sección de cuenta en Perfil con **Cerrar sesión**
-  y **Eliminar cuenta** (borra cuenta + respaldo iCloud propio;
-  explica que Apple Health no se toca).
-- Gating por configuración: los botones de Google y email **no
-  aparecen** hasta que exista `GoogleService-Info.plist` en el bundle.
-- Entitlement `com.apple.developer.applesignin` agregado.
+**La identidad del DOMINIO sigue siendo interna**: `CuentaUsuario.
+userID` (UUID) es la clave de `AlmacenV2.usuarioID`. El UID de
+Firebase es un ATRIBUTO del proveedor vinculado
+(`ProveedorVinculado.firebaseUID`), nunca clave del dominio. Cambiar,
+agregar o quitar proveedores no toca plan, calendario, referencias,
+carreras, preferencias ni HealthKit.
 
-## Lo que FALTA configurar EXTERNAMENTE (lo hace el usuario)
+**No se auto-fusionan cuentas por email coincidente**: si un email ya
+entra por otro proveedor, Firebase devuelve el error 17012 y la app
+lo explica ("usá ese botón") — decisión explícita, sin merges mágicos.
 
-### 1. Sign in with Apple (para que funcione el botón YA implementado)
-1. developer.apple.com → Certificates, Identifiers & Profiles →
-   Identifiers → `com.pipeveiga.maraton` → activar capability
-   **Sign In with Apple** → Save.
-2. En Xcode (MacinCloud): target Maraton → Signing & Capabilities —
-   con automatic signing, al detectar la entitlement regenera el
-   perfil solo. Si el Archive falla por provisioning: borrar la clave
-   `com.apple.developer.applesignin` de `Maraton/Maraton.entitlements`
-   y archivar sin cuentas (todo lo demás sigue funcionando).
+## Qué hay en el código (todo real, sin mocks)
 
-### 2. Firebase (para habilitar Google + email en 1.1)
-1. console.firebase.google.com → crear proyecto "Maratonia".
-2. Agregar app iOS con bundle ID `com.pipeveiga.maraton`.
-3. Descargar `GoogleService-Info.plist` → agregarlo al target Maraton
-   en Xcode (con eso los botones aparecen solos).
-4. Authentication → Sign-in method → habilitar **Email/Password**,
-   **Google** y **Apple**.
-5. Plantillas → email de **reset de contraseña** (es automático de
-   Firebase; solo revisar el remitente).
-6. Xcode → target Maraton → agregar paquetes SPM:
-   `https://github.com/firebase/firebase-ios-sdk` (producto
-   FirebaseAuth) y `https://github.com/google/GoogleSignIn-iOS`.
-7. Info del target → URL Types → agregar el `REVERSED_CLIENT_ID` del
-   plist como URL scheme (lo pide Google Sign-In).
-8. Borrado de cuenta: Firebase expone `currentUser.delete()` — el
-   botón "Eliminar cuenta" ya existe; al integrar el SDK se le suma
-   esa llamada (hoy borra cuenta local + respaldo iCloud).
-9. Avisarme ("Firebase configurado") y conecto los providers reales
-   detrás del protocolo existente — la UI no cambia.
+| Pieza | Archivo |
+|---|---|
+| Servicio de auth (configure, Apple federado, Google, email, reset, signOut, delete + revocación Apple, mapeo de errores ES/EN) | `Maraton/ServicioAuth.swift` |
+| Identidad de dominio + LoginView + EmailAuthView + sección Cuenta en Perfil | `Maraton/Identidad.swift` |
+| `FirebaseApp.configure()` al arrancar + `onOpenURL` para el callback de Google | `Maraton/MaratonApp.swift` |
+| URL scheme del callback de Google (merge de Info.plist) | `Maraton/Info.plist` |
+| SPM: firebase-ios-sdk (solo FirebaseAuth) 11.x + GoogleSignIn-iOS 8.x, SOLO target iOS | `project.pbxproj` |
+
+El Watch NO enlaza Firebase ni GoogleSignIn y funciona sin sesión.
+No hay Analytics, Firestore, Crashlytics, Messaging ni RemoteConfig.
+
+Gating de runtime (cero botones muertos):
+- Sin `GoogleService-Info.plist` en el bundle → no se configura
+  Firebase; solo aparece Apple (nativo).
+- Sin URL scheme real de Google en Info.plist → el botón de Google no
+  aparece aunque Firebase esté configurado.
+
+## Lo que FALTA hacer a mano (Felipe, en orden)
+
+1. **Subir el plist**: poner el `GoogleService-Info.plist` descargado
+   de Firebase en `Maraton/GoogleService-Info.plist` del repo (ya
+   está referenciado en el proyecto; hasta que exista, el build FALLA
+   en la fase de recursos del target iOS — es intencional, no un bug).
+   ⚠️ Verificar en Xcode que su Target Membership sea SOLO "Maraton"
+   (no el Watch App).
+2. **URL scheme de Google**: abrir `Maraton/Info.plist` y reemplazar
+   `REVERSED-CLIENT-ID-PENDIENTE` por el valor de `REVERSED_CLIENT_ID`
+   que figura DENTRO del GoogleService-Info.plist (formato
+   `com.googleusercontent.apps.XXXX`).
+3. **Resolver SPM**: al abrir el proyecto en Xcode (MacinCloud),
+   File → Packages → Resolve Package Versions (primera vez tarda:
+   firebase-ios-sdk es grande). No agregar productos extra.
+4. **Firebase console** (ya hecho según confirmaste): Email/Password
+   habilitado, Email Link deshabilitado, Google habilitado. Para que
+   el login con Apple federado funcione, habilitar también **Apple**
+   en Authentication → Sign-in method (no pide clave privada para
+   apps iOS nativas; solo activarlo).
+5. **Probar físico** con la checklist del informe de build 44.
+
+## Borrado de cuenta (App Store 5.1.1(v)) — semántica exacta
+
+1. Confirmación explícita con texto honesto de alcance.
+2. Se revoca el token de Apple (`revokeToken(withAuthorizationCode:)`)
+   si hay código fresco de esta sesión de app — requisito de Apple
+   para apps con SIWA + borrado de cuenta.
+3. `currentUser.delete()` en Firebase. Si Firebase exige login
+   reciente (error 17014), la app NO borra nada local: guía a
+   reautenticarse y reintentar.
+4. Solo con el remoto borrado: se elimina `cuenta.json`, se desasocia
+   el dominio y se borra el respaldo propio en iCloud (CloudKit).
+5. Apple Health NO se toca (los workouts son del usuario; se
+   administran desde la app Salud) — la app lo dice en el diálogo.
+
+Limitación documentada (no simulada): sin backend propio no podemos
+borrar server-side logs de Firebase Auth más allá de lo que borra
+`delete()` — que elimina el usuario y sus datos de auth. Es el
+mecanismo oficial de Firebase y cumple el requisito de App Store.
 
 ## Reglas que NO se negocian
 - Sin contraseñas guardadas localmente, jamás.
-- Sin tokens persistidos de más (SIWA usa credential state, no tokens).
+- Sin client IDs / API keys hardcodeados en código.
+- **Ninguna API key de OpenAI en la app** — la futura integración GPT
+  va por backend/proxy seguro, nunca dentro del binario iOS.
 - El userID interno nunca cambia al agregar/quitar proveedores.
+- El Watch jamás enlaza Firebase.
