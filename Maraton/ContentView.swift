@@ -903,10 +903,29 @@ struct PerfilTab: View {
     @State private var confirmandoRestaurar = false
     @State private var mostrandoOnboarding = false
 
+    // Orden con intención: primero EL CORREDOR (objetivo, plan,
+    // referencia, disponibilidad, carrera), después el hardware
+    // (Watch), después la infraestructura (iCloud) y al final la ayuda.
     var body: some View {
         NavigationStack {
             List {
                 seccionObjetivo
+
+                Section("Apple Watch") {
+                    NavigationLink {
+                        RelojTab(store: store)
+                    } label: {
+                        HStack(spacing: 10) {
+                            IconoAjuste(sistema: "applewatch", color: .black)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Reloj")
+                                Text("Enviar plan y música, estado de la conexión")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
 
                 Section {
                     HStack(spacing: 10) {
@@ -954,22 +973,6 @@ struct PerfilTab: View {
                     Text("Tu plan se respalda automáticamente en tu iCloud privado — sin registro ni contraseñas. Al reinstalar o cambiar de teléfono: «Restaurar plan».")
                 }
 
-                Section("Apple Watch") {
-                    NavigationLink {
-                        RelojTab(store: store)
-                    } label: {
-                        HStack(spacing: 10) {
-                            IconoAjuste(sistema: "applewatch", color: .black)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Reloj")
-                                Text("Enviar plan y música, estado de la conexión")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-
                 Section("Ayuda") {
                     Button {
                         mostrandoTutorial = true
@@ -996,9 +999,9 @@ struct PerfilTab: View {
         }
     }
 
-    /// El corredor y su meta: objetivo, disponibilidad, fecha, plan
-    /// activo y referencia vigente (Fase F). Todo opcional: sin
-    /// onboarding la sección invita a hacerlo, nada se rompe.
+    /// El corredor y su meta: objetivo, plan activo, referencia,
+    /// disponibilidad y fecha, en filas propias (Fase F/build 40).
+    /// Todo opcional: sin onboarding la sección invita, nada se rompe.
     @ViewBuilder
     private var seccionObjetivo: some View {
         let perfil = almacen.almacen.perfilDeportivo
@@ -1008,16 +1011,25 @@ struct PerfilTab: View {
                     IconoAjuste(sistema: "target", color: .red)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(nombreObjetivo(objetivo))
-                        Text(subtituloPerfil(perfil))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        if let cuenta = TextosObjetivo.cuentaRegresiva(
+                            hasta: perfil.fechaObjetivo, hoy: DiaLocal(fecha: Date())) {
+                            Text(cuenta)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                if let plan = almacen.almacen.planActivo {
+                    HStack(spacing: 10) {
+                        IconoAjuste(sistema: "calendar", color: .green)
+                        LabeledContent("Plan activo", value: plan.nombre)
                     }
                 }
                 if let referencia = almacen.almacen.referenciaVigente {
                     HStack(spacing: 10) {
                         IconoAjuste(sistema: "stopwatch.fill", color: .teal)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Referencia: \(textoReferencia(referencia))")
+                            LabeledContent("Referencia", value: textoReferencia(referencia))
                             Text(origenReferencia(referencia))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -1038,10 +1050,17 @@ struct PerfilTab: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-                if let plan = almacen.almacen.planActivo {
+                if let dias = perfil.diasPorSemana {
                     HStack(spacing: 10) {
-                        IconoAjuste(sistema: "calendar", color: .green)
-                        Text("Plan activo: \(plan.nombre)")
+                        IconoAjuste(sistema: "repeat", color: .indigo)
+                        LabeledContent("Disponibilidad", value: "\(dias) días por semana")
+                    }
+                }
+                if let fecha = perfil.fechaObjetivo?.fecha() {
+                    HStack(spacing: 10) {
+                        IconoAjuste(sistema: "flag.checkered", color: .orange)
+                        LabeledContent("Tu carrera",
+                                       value: fecha.formatted(date: .abbreviated, time: .omitted))
                     }
                 }
                 Button("Cambiar objetivo") { mostrandoOnboarding = true }
@@ -1066,15 +1085,6 @@ struct PerfilTab: View {
 
     private func nombreObjetivo(_ objetivo: ObjetivoDeportivo) -> String {
         TextosObjetivo.nombre(de: objetivo)
-    }
-
-    private func subtituloPerfil(_ perfil: PerfilDeportivo) -> String {
-        var partes: [String] = []
-        if let dias = perfil.diasPorSemana { partes.append("\(dias) días/semana") }
-        if let fecha = perfil.fechaObjetivo?.fecha() {
-            partes.append("carrera el \(fecha.formatted(date: .abbreviated, time: .omitted))")
-        }
-        return partes.isEmpty ? "Sin más datos" : partes.joined(separator: " · ")
     }
 
     private func textoReferencia(_ referencia: ReferenciaRendimiento) -> String {

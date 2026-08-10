@@ -426,10 +426,59 @@ enum LanzadorSesion {
 struct CatalogoView: View {
     @ObservedObject var almacen: AlmacenStore
 
+    /// Filtros listos para cuando el catálogo crezca (hoy: 2 planes
+    /// provisionales — el vacío se dice con honestidad, no se rellena
+    /// con contenido deportivo inventado).
+    @State private var filtroDistancia: Double?   // metros; nil = todas
+    @State private var filtroDias: Int?           // nil = todos
+
+    private static let distancias: [(nombre: String, metros: Double)] =
+        [("5K", 5000), ("10K", 10000), ("21K", 21097.5), ("42K", 42195)]
+
+    private var filtrados: [PlanBase] {
+        Catalogo.planesDisponibles().filter { base in
+            if let filtroDistancia,
+               abs(base.distanciaObjetivoKm * 1000 - filtroDistancia) > 500 { return false }
+            if let filtroDias, base.diasPorSemana != filtroDias { return false }
+            return true
+        }
+    }
+
     var body: some View {
         List {
             Section {
-                ForEach(Catalogo.planesDisponibles()) { base in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: DV2.Espacio.s) {
+                        chip("Todas", activo: filtroDistancia == nil) { filtroDistancia = nil }
+                        ForEach(Self.distancias, id: \.metros) { distancia in
+                            chip(distancia.nombre,
+                                 activo: filtroDistancia == distancia.metros) {
+                                filtroDistancia = distancia.metros
+                            }
+                        }
+                        Divider().frame(height: 20)
+                        ForEach([2, 3, 4, 5], id: \.self) { dias in
+                            chip("\(dias) días",
+                                 activo: filtroDias == dias) {
+                                filtroDias = (filtroDias == dias) ? nil : dias
+                            }
+                        }
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                .listRowBackground(Color.clear)
+            }
+
+            Section {
+                if filtrados.isEmpty {
+                    ContentUnavailableView {
+                        Label("Todavía no hay planes acá", systemImage: "hourglass")
+                    } description: {
+                        Text("Los planes de esta distancia están en camino — no vamos a inventar contenido deportivo para llenar tarjetas. Probá con 5K o 10K.")
+                    }
+                    .listRowBackground(Color.clear)
+                }
+                ForEach(filtrados) { base in
                     NavigationLink {
                         PlanBaseDetalleView(almacen: almacen, base: base)
                     } label: {
@@ -445,10 +494,26 @@ struct CatalogoView: View {
                     }
                 }
             } footer: {
-                Text("Planes iniciales para validar la experiencia — el contenido es provisional y con ritmos libres. Los planes con ritmos personalizados llegan con la evaluación inicial.")
+                if !filtrados.isEmpty {
+                    Text("Planes iniciales para validar la experiencia — el contenido es provisional y con ritmos libres. Los planes con ritmos personalizados llegan con la evaluación inicial.")
+                }
             }
         }
         .navigationTitle("Explorar planes")
+    }
+
+    private func chip(_ texto: String, activo: Bool, accion: @escaping () -> Void) -> some View {
+        Button(action: accion) {
+            Text(texto)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(activo ? Color.white : Color.primary)
+                .padding(.horizontal, DV2.Espacio.m)
+                .padding(.vertical, 6)
+                .background(activo ? Color.accentColor : Color(.secondarySystemGroupedBackground),
+                            in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(activo ? .isSelected : [])
     }
 }
 

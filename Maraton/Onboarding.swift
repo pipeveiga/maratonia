@@ -34,15 +34,24 @@ struct OnboardingDeportivo: View {
     @State private var tieneFechaObjetivo = false
     @State private var fechaObjetivo = Date().addingTimeInterval(90 * 24 * 3600)
 
+    @State private var mostrandoPlanRecomendado = false
+
     private let totalPasos = 4
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                ProgressView(value: Double(paso + 1), total: Double(totalPasos))
-                    .tint(.accentColor)
-                    .padding(.horizontal)
-                    .padding(.top, DV2.Espacio.s)
+                // Progreso SIEMPRE visible: barra + "Paso X de 4".
+                VStack(spacing: 4) {
+                    ProgressView(value: Double(paso + 1), total: Double(totalPasos))
+                        .tint(.accentColor)
+                    Text("Paso \(paso + 1) de \(totalPasos)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .padding(.horizontal)
+                .padding(.top, DV2.Espacio.s)
 
                 TabView(selection: $paso) {
                     pasoObjetivo.tag(0)
@@ -56,8 +65,25 @@ struct OnboardingDeportivo: View {
             .navigationTitle("Tu objetivo")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // Atrás NO pierde respuestas: todo el estado vive en la
+                // vista y cada paso muestra lo ya elegido.
+                ToolbarItem(placement: .topBarLeading) {
+                    if paso > 0 {
+                        Button {
+                            withAnimation { paso -= 1 }
+                        } label: {
+                            Label("Atrás", systemImage: "chevron.backward")
+                        }
+                        .accessibilityLabel("Volver al paso anterior")
+                    }
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Ahora no") { dismiss() }
+                }
+            }
+            .navigationDestination(isPresented: $mostrandoPlanRecomendado) {
+                if let base = planRecomendado {
+                    PlanBaseDetalleView(almacen: almacen, base: base)
                 }
             }
         }
@@ -70,7 +96,7 @@ struct OnboardingDeportivo: View {
         pantalla(titulo: "¿Qué querés lograr?",
                  subtitulo: "El plan se arma alrededor de esto.") {
             ForEach(ObjetivoDeportivo.allCases, id: \.self) { opcion in
-                tarjetaOpcion(titulo: nombre(de: opcion),
+                tarjetaOpcion(titulo: TextosObjetivo.nombre(de: opcion),
                               subtitulo: detalle(de: opcion),
                               icono: icono(de: opcion),
                               elegida: objetivo == opcion) {
@@ -184,23 +210,56 @@ struct OnboardingDeportivo: View {
                 }
             }
 
-            if let resumen = textoResumen {
+            if objetivo != nil {
                 TarjetaV2 {
                     VStack(alignment: .leading, spacing: DV2.Espacio.s) {
                         EncabezadoSeccionV2(texto: "Tu punto de partida")
-                        Text(resumen)
-                            .font(.subheadline)
+                        filaResumen("target", "Objetivo",
+                                    objetivo.map(TextosObjetivo.nombre(de:)) ?? "—")
+                        filaResumen("stopwatch", "Referencia", textoReferencia)
+                        filaResumen("calendar", "Disponibilidad",
+                                    diasPorSemana.map { "\($0) días por semana" } ?? "A definir")
+                        filaResumen("flag.checkered", "Carrera",
+                                    tieneFechaObjetivo
+                                    ? fechaObjetivo.formatted(date: .abbreviated, time: .omitted)
+                                    : "Sin fecha — se avanza por progresión")
                     }
                 }
             }
 
-            Button {
-                terminar()
-            } label: {
-                EtiquetaBotonPrimarioV2(titulo: "Listo", icono: "checkmark")
+            // Recomendación DETERMINÍSTICA del catálogo (por distancia
+            // del objetivo). Sin plan compatible: se dice, no se inventa.
+            if let base = planRecomendado {
+                Button {
+                    guardarPerfil()
+                    mostrandoPlanRecomendado = true
+                } label: {
+                    EtiquetaBotonPrimarioV2(titulo: "Preparar mi plan",
+                                            icono: "figure.run")
+                }
+                .buttonStyle(.plain)
+                .disabled(objetivo == nil)
+                Text("Para tu objetivo te recomendamos «\(base.nombre)»: \(base.semanasTotales) semanas, \(base.diasPorSemana) días por semana.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button("Guardar y cerrar") { terminar() }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .disabled(objetivo == nil)
+            } else {
+                Button {
+                    terminar()
+                } label: {
+                    EtiquetaBotonPrimarioV2(titulo: "Listo", icono: "checkmark")
+                }
+                .buttonStyle(.plain)
+                .disabled(objetivo == nil)
+                if objetivo != nil {
+                    Text("Todavía no hay un plan de esa distancia en el catálogo — está en camino. Tu perfil queda guardado y podés explorar los planes disponibles cuando quieras.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .buttonStyle(.plain)
-            .disabled(objetivo == nil)
 
             if objetivo == nil {
                 Text("Falta elegir el objetivo (paso 1).")
@@ -210,30 +269,54 @@ struct OnboardingDeportivo: View {
         }
     }
 
+    private func filaResumen(_ icono: String, _ titulo: String, _ valor: String) -> some View {
+        HStack(spacing: DV2.Espacio.s) {
+            Image(systemName: icono)
+                .font(.footnote)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 18)
+            Text(titulo)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(valor)
+                .font(.footnote.weight(.semibold))
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    private var textoReferencia: String {
+        switch experiencia {
+        case .marcaReciente:
+            return "\(nombreDistancia(marcaDistanciaMetros)) en \(formatearDuracion(TimeInterval(segundosDeMarca)))"
+        case .hacerTest:
+            return "Test 5K pendiente"
+        case .empezando:
+            return "Arrancando de cero"
+        case nil:
+            return "A definir"
+        }
+    }
+
+    /// El plan del catálogo cuya distancia coincide con el objetivo.
+    private var planRecomendado: PlanBase? {
+        guard let objetivo else { return nil }
+        let metros = TextosObjetivo.distanciaMetros(de: objetivo)
+        return Catalogo.planesDisponibles().first {
+            abs($0.distanciaObjetivoKm * 1000 - metros) <= 500
+        }
+    }
+
     // MARK: Cierre
 
     private var segundosDeMarca: Int {
         marcaHoras * 3600 + marcaMinutos * 60 + marcaSegundos
     }
 
-    private var textoResumen: String? {
-        guard let objetivo else { return nil }
-        var partes = [nombre(de: objetivo)]
-        if let dias = diasPorSemana { partes.append("\(dias) días/semana") }
-        switch experiencia {
-        case .marcaReciente:
-            partes.append("marca de \(nombreDistancia(marcaDistanciaMetros)) en \(formatearDuracion(TimeInterval(segundosDeMarca)))")
-        case .hacerTest:
-            partes.append("test de 5K pendiente")
-        case .empezando:
-            partes.append("arrancando de cero")
-        case nil:
-            break
-        }
-        return partes.joined(separator: " · ")
-    }
-
-    private func terminar() {
+    /// Guardar es idempotente: se llama tanto al cerrar como ANTES de
+    /// saltar al plan recomendado — así el perfil no se pierde aunque
+    /// el usuario adopte el plan y no vuelva a tocar "cerrar".
+    private func guardarPerfil() {
         var perfil = almacen.almacen.perfilDeportivo
         perfil.objetivo = objetivo
         perfil.diasPorSemana = diasPorSemana
@@ -249,6 +332,10 @@ struct OnboardingDeportivo: View {
                                           segundos: segundosDeMarca)
         }
         almacen.guardarOnboarding(perfil, marca: marca)
+    }
+
+    private func terminar() {
+        guardarPerfil()
         dismiss()
     }
 
@@ -310,16 +397,6 @@ struct OnboardingDeportivo: View {
     }
 
     // MARK: Textos
-
-    private func nombre(de objetivo: ObjetivoDeportivo) -> String {
-        switch objetivo {
-        case .primeros5K: return "Mis primeros 5K"
-        case .mejorar5K: return "Mejorar mis 5K"
-        case .diez: return "Correr 10K"
-        case .mediaMaraton: return "Media maratón"
-        case .maraton: return "Maratón"
-        }
-    }
 
     private func detalle(de objetivo: ObjetivoDeportivo) -> String {
         switch objetivo {
