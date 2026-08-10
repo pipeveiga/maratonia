@@ -467,6 +467,14 @@ struct SeccionCuentaMaratonia: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                // Ancla del login de REAUTENTICACIÓN (eliminar cuenta
+                // puede pedir re-login). Va en una FILA y no en el
+                // Section: los modificadores de presentación colgados
+                // de un Section dentro de List se auto-descartan en la
+                // primera presentación (bug clásico de SwiftUI).
+                .sheet(isPresented: $mostrandoLogin) {
+                    LoginView(identidad: identidad)
+                }
                 Button("Cerrar sesión") {
                     servicio.cerrarSesion(identidad: identidad)
                 }
@@ -506,6 +514,12 @@ struct SeccionCuentaMaratonia: View {
                         }
                     }
                 }
+                // Misma ancla de fila que arriba: nunca coexisten (las
+                // ramas son excluyentes), así que hay UN solo sheet en
+                // el árbol a la vez.
+                .sheet(isPresented: $mostrandoLogin) {
+                    LoginView(identidad: identidad)
+                }
             }
         } header: {
             Text("Cuenta Maratonia")
@@ -513,9 +527,6 @@ struct SeccionCuentaMaratonia: View {
             if identidad.cuenta != nil && !identidad.haySesion {
                 Text("Tu cuenta y tus datos siguen acá — solo cerraste la sesión.")
             }
-        }
-        .sheet(isPresented: $mostrandoLogin) {
-            LoginView(identidad: identidad)
         }
     }
 
