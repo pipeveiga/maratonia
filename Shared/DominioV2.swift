@@ -474,6 +474,12 @@ struct AlmacenV2: Codable, Equatable {
     /// decodificando. Leer siempre vía `perfilDeportivo`.
     var perfil: PerfilDeportivo? = nil
 
+    /// La cuenta Maratonia dueña de estos datos (RC1). nil = datos
+    /// locales sin cuenta (estado válido: la cuenta es opcional).
+    /// Asociar datos existentes a una cuenta nueva es SOLO poner este
+    /// campo — cero duplicación, el contenido no se toca.
+    var usuarioID: UUID? = nil
+
     var historialDePlanes: [PlanUsuario] { planesAnteriores ?? [] }
     var perfilDeportivo: PerfilDeportivo { perfil ?? PerfilDeportivo() }
 

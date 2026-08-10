@@ -322,6 +322,16 @@ final class AlmacenStore: ObservableObject {
         }
     }
 
+    // MARK: Cuenta (RC1)
+
+    /// Asocia (o desasocia) el dominio deportivo a una cuenta. Es LA
+    /// migración de usuario existente: sus datos pasan a pertenecer al
+    /// userID sin duplicarse ni moverse; HealthKit no se toca.
+    func asociarUsuario(_ usuarioID: UUID?) {
+        guard almacen.usuarioID != usuarioID else { return }
+        almacen.usuarioID = usuarioID
+    }
+
     // MARK: Perfil deportivo y referencias (Fase F)
 
     /// El onboarding terminó: se guarda el perfil y, si trajo una marca,

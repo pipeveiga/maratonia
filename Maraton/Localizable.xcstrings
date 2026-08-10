@@ -518,6 +518,17 @@
         }
       }
     },
+    "Cerrar sesión": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign out"
+          }
+        }
+      }
+    },
     "Con minuto límite": {
       "extractionState": "manual",
       "localizations": {
@@ -573,6 +584,28 @@
         }
       }
     },
+    "Continuar con Google": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue with Google"
+          }
+        }
+      }
+    },
+    "Continuar con email": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue with email"
+          }
+        }
+      }
+    },
     "Correr": {
       "extractionState": "manual",
       "localizations": {
@@ -606,6 +639,17 @@
         }
       }
     },
+    "Crear cuenta o iniciar sesión": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create account or sign in"
+          }
+        }
+      }
+    },
     "Cronograma": {
       "extractionState": "manual",
       "localizations": {
@@ -635,6 +679,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Account"
+          }
+        }
+      }
+    },
+    "Cuenta Maratonia": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maratonia account"
           }
         }
       }
@@ -804,6 +859,17 @@
         }
       }
     },
+    "El registro con email estará disponible muy pronto.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email sign-up will be available very soon."
+          }
+        }
+      }
+    },
     "El siguiente escalón de distancia": {
       "extractionState": "manual",
       "localizations": {
@@ -822,6 +888,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Choose your goal"
+          }
+        }
+      }
+    },
+    "Eliminar cuenta": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete account"
           }
         }
       }
@@ -1101,6 +1178,17 @@
         }
       }
     },
+    "Google estará disponible muy pronto.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google will be available very soon."
+          }
+        }
+      }
+    },
     "Guardar": {
       "extractionState": "manual",
       "localizations": {
@@ -1130,6 +1218,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Save and close"
+          }
+        }
+      }
+    },
+    "Guardá tu perfil y tu plan con tu identidad": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keep your profile and plan under your identity"
           }
         }
       }
@@ -1262,6 +1361,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Import your MP3s to build your running queue."
+          }
+        }
+      }
+    },
+    "Iniciar sesión": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in"
           }
         }
       }
@@ -1541,6 +1651,17 @@
         }
       }
     },
+    "Más adelante": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Later"
+          }
+        }
+      }
+    },
     "Más lento": {
       "extractionState": "manual",
       "localizations": {
@@ -1607,6 +1728,17 @@
         }
       }
     },
+    "No pude leer la credencial de Apple.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't read the Apple credential."
+          }
+        }
+      }
+    },
     "No se guarda nada. No se puede deshacer.": {
       "extractionState": "manual",
       "localizations": {
@@ -1614,6 +1746,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nothing is saved. This cannot be undone."
+          }
+        }
+      }
+    },
+    "No se pudo iniciar sesión con Apple. Probá de nuevo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't sign in with Apple. Please try again."
           }
         }
       }
@@ -2168,6 +2311,17 @@
         }
       }
     },
+    "Se borran tu cuenta y el respaldo de Maratonia en iCloud. Tus entrenamientos guardados en Apple Health NO se tocan: siguen siendo tuyos y se administran desde la app Salud.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your account and Maratonia's iCloud backup are deleted. Your workouts saved in Apple Health are NOT touched: they remain yours and are managed from the Health app."
+          }
+        }
+      }
+    },
     "Seguimos.": {
       "extractionState": "manual",
       "localizations": {
@@ -2340,6 +2494,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "No active plan. Adopt one from “Explore plans”."
+          }
+        }
+      }
+    },
+    "Sin proveedores vinculados": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No linked providers"
           }
         }
       }
@@ -2575,6 +2740,39 @@
         }
       }
     },
+    "Tu cuenta": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your account"
+          }
+        }
+      }
+    },
+    "Tu cuenta guarda tu perfil, tu plan y tu progreso para que puedas recuperarlos en cualquier teléfono.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your account keeps your profile, plan and progress so you can recover them on any phone."
+          }
+        }
+      }
+    },
+    "Tu cuenta y tus datos siguen acá — solo cerraste la sesión.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your account and data are still here — you only signed out."
+          }
+        }
+      }
+    },
     "Tu marca": {
       "extractionState": "manual",
       "localizations": {
@@ -2637,6 +2835,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your week"
+          }
+        }
+      }
+    },
+    "Tus entrenamientos viven en Apple Health y tu respaldo en tu iCloud privado. La cuenta es opcional.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your workouts live in Apple Health and your backup in your private iCloud. The account is optional."
           }
         }
       }
@@ -2967,6 +3176,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "How many days per week can you run?"
+          }
+        }
+      }
+    },
+    "¿Eliminar tu cuenta de Maratonia?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete your Maratonia account?"
           }
         }
       }

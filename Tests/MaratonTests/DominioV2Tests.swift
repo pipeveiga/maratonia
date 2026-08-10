@@ -1302,3 +1302,114 @@ final class CuentaRegresivaTests: XCTestCase {
                        "La fecha de tu carrera ya pasó — actualizala cuando quieras")
     }
 }
+
+// MARK: - RC1: identidad y cuenta
+
+final class IdentidadTests: XCTestCase {
+
+    private func urlTemporal() -> URL {
+        let directorio = FileManager.default.temporaryDirectory
+            .appendingPathComponent("test-cuenta-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: directorio, withIntermediateDirectories: true)
+        return directorio.appendingPathComponent("cuenta.json")
+    }
+
+    func testUserIDEstableYSeparadoDeProveedores() {
+        let url = urlTemporal()
+        var dominioAsociado: UUID?
+        let identidad = IdentidadStore(url: url) { dominioAsociado = $0 }
+
+        identidad.iniciarSesion(con: ProveedorVinculado(
+            tipo: .apple, subjectID: "apple-subject-1",
+            email: "relay@privaterelay.appleid.com", fechaVinculacion: Date()),
+            nombre: "Felipe")
+        let userID = identidad.cuenta!.userID
+        XCTAssertNotNil(userID)
+        XCTAssertEqual(dominioAsociado, userID)
+
+        // Vincular OTRO proveedor no cambia el userID (multi-proveedor).
+        identidad.iniciarSesion(con: ProveedorVinculado(
+            tipo: .email, subjectID: "pipe@gmail.com",
+            email: "pipe@gmail.com", fechaVinculacion: Date()))
+        XCTAssertEqual(identidad.cuenta!.userID, userID)
+        XCTAssertEqual(identidad.cuenta!.proveedores.count, 2)
+
+        // Reiniciar la app (nuevo store, mismo archivo): la cuenta y el
+        // userID persisten.
+        let recargada = IdentidadStore(url: url)
+        XCTAssertEqual(recargada.cuenta?.userID, userID)
+        XCTAssertTrue(recargada.haySesion)
+    }
+
+    func testVincularEsIdempotente() {
+        var cuenta = CuentaUsuario(nombre: nil, fechaCreacion: Date())
+        let apple = ProveedorVinculado(tipo: .apple, subjectID: "s1",
+                                       email: nil, fechaVinculacion: Date())
+        cuenta.vincular(apple)
+        cuenta.vincular(apple)   // doble tap / doble callback
+        XCTAssertEqual(cuenta.proveedores.count, 1)
+        // Mismo TIPO con otro subject sí entra (cuenta re-creada en Apple).
+        cuenta.vincular(ProveedorVinculado(tipo: .apple, subjectID: "s2",
+                                           email: nil, fechaVinculacion: Date()))
+        XCTAssertEqual(cuenta.proveedores.count, 2)
+    }
+
+    func testMigracionUsuarioExistenteSinDuplicados() {
+        // Usuario con datos y SIN cuenta crea una: los datos se asocian
+        // al userID y NADA se duplica ni se pierde.
+        let directorio = FileManager.default.temporaryDirectory
+            .appendingPathComponent("test-merge-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: directorio, withIntermediateDirectories: true)
+        var dominio = AlmacenV2()
+        dominio.activado = true
+        dominio.planActivo = PlanUsuario(nombre: "Mi plan", origen: .personalizado,
+                                         fechaAdopcion: Date(timeIntervalSince1970: 0), semanas: [])
+        dominio.sesiones = [RegistroSesion(id: UUID(), fecha: Date(), vinculoProgramadoID: nil)]
+        let urlDominio = directorio.appendingPathComponent("dominio-v2.json")
+        try? JSONEncoder().encode(dominio).write(to: urlDominio)
+        let almacen = AlmacenStore(url: urlDominio,
+                                   urlLegacy: directorio.appendingPathComponent("plan.json"),
+                                   conectadoAlReloj: false)
+        XCTAssertNil(almacen.almacen.usuarioID)
+
+        let identidad = IdentidadStore(url: directorio.appendingPathComponent("cuenta.json"))
+        IdentidadStore.conectar(identidad, con: almacen)
+        identidad.iniciarSesion(con: ProveedorVinculado(
+            tipo: .apple, subjectID: "s1", email: nil, fechaVinculacion: Date()))
+
+        XCTAssertEqual(almacen.almacen.usuarioID, identidad.cuenta?.userID)
+        XCTAssertEqual(almacen.almacen.planActivo?.nombre, "Mi plan")   // intacto
+        XCTAssertEqual(almacen.almacen.sesiones.count, 1)               // sin duplicar
+        try? FileManager.default.removeItem(at: directorio)
+    }
+
+    func testCerrarSesionNoEsEliminar() {
+        let url = urlTemporal()
+        let identidad = IdentidadStore(url: url)
+        identidad.iniciarSesion(con: ProveedorVinculado(
+            tipo: .apple, subjectID: "s1", email: nil, fechaVinculacion: Date()))
+        identidad.cerrarSesion()
+        XCTAssertFalse(identidad.haySesion)
+        XCTAssertNotNil(identidad.cuenta)   // la cuenta y los datos quedan
+
+        // Eliminar sí borra la cuenta local y desasocia el dominio.
+        var dominioAsociado: UUID? = UUID()
+        identidad.asociarDominio = { dominioAsociado = $0 }
+        identidad.eliminarCuenta(borrandoRespaldo: nil)
+        XCTAssertNil(identidad.cuenta)
+        XCTAssertNil(dominioAsociado)
+        XCTAssertNil(IdentidadStore(url: url).cuenta)   // no revive al reabrir
+    }
+
+    func testUsuarioNuevoYViejosDecodifican() throws {
+        // dominio-v2.json anterior a RC1 (sin usuarioID) sigue cargando.
+        var viejo = AlmacenV2()
+        viejo.activado = true
+        var json = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(viejo)) as! [String: Any]
+        json.removeValue(forKey: "usuarioID")
+        let datos = try JSONSerialization.data(withJSONObject: json)
+        let cargado = try JSONDecoder().decode(AlmacenV2.self, from: datos)
+        XCTAssertNil(cargado.usuarioID)
+    }
+}

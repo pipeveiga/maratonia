@@ -30,6 +30,13 @@ struct ContentView: View {
     @AppStorage("ofrecioOnboarding") private var ofrecioOnboarding = false
     @State private var mostrandoOnboarding = false
 
+    /// Identidad Maratonia (RC1): la bienvenida con cuenta OPCIONAL se
+    /// muestra una única vez y SOLO en instalaciones limpias — un
+    /// usuario con datos jamás la ve (su cuenta vive en Perfil).
+    @AppStorage("vioBienvenida") private var vioBienvenida = false
+    @State private var mostrandoBienvenida = false
+    @StateObject private var identidad = IdentidadStore()
+
     var body: some View {
         TabView(selection: $pestana) {
             PlanTab(store: store, almacen: almacen, pestana: $pestana)
@@ -47,7 +54,8 @@ struct ContentView: View {
             CarrerasTab()
                 .tabItem { Label("Carreras", systemImage: "map.fill") }
                 .tag(Pestana.carreras)
-            PerfilTab(store: store, almacen: almacen, mostrandoTutorial: $mostrandoTutorial)
+            PerfilTab(store: store, almacen: almacen, identidad: identidad,
+                      mostrandoTutorial: $mostrandoTutorial)
                 .tabItem { Label("Perfil", systemImage: "person.crop.circle") }
                 .tag(Pestana.perfil)
         }
@@ -57,7 +65,18 @@ struct ContentView: View {
         .sheet(isPresented: $mostrandoOnboarding) {
             OnboardingDeportivo(almacen: almacen)
         }
+        .fullScreenCover(isPresented: $mostrandoBienvenida) {
+            BienvenidaView(identidad: identidad) {
+                mostrandoBienvenida = false
+                ofrecerOnboardingSiCorresponde()
+            }
+        }
         .onAppear {
+            // Cableado cuenta ↔ dominio: crear cuenta asocia los datos
+            // existentes al userID (migración sin duplicados).
+            IdentidadStore.conectar(identidad, con: almacen)
+            identidad.verificarRevocacionApple()
+            if ofrecerBienvenidaSiCorresponde() { return }
             if !vioTutorial {
                 vioTutorial = true
                 mostrandoTutorial = true
@@ -68,6 +87,21 @@ struct ContentView: View {
         .onChange(of: mostrandoTutorial) { _, abierto in
             if !abierto { ofrecerOnboardingSiCorresponde() }
         }
+    }
+
+    /// Bienvenida (cuenta opcional): una sola vez, SOLO instalación
+    /// limpia — sin plan, sin sesiones, sin referencias y sin cuenta.
+    private func ofrecerBienvenidaSiCorresponde() -> Bool {
+        guard !vioBienvenida else { return false }
+        vioBienvenida = true
+        let dominio = almacen.almacen
+        guard identidad.cuenta == nil,
+              dominio.planActivo == nil,
+              dominio.sesiones.isEmpty,
+              dominio.referencias.isEmpty,
+              store.plan.pistas.isEmpty else { return false }
+        mostrandoBienvenida = true
+        return true
     }
 
     /// El onboarding se OFRECE solo (una única vez) a quien no tiene
@@ -898,6 +932,7 @@ struct CarrerasTab: View {
 struct PerfilTab: View {
     @ObservedObject var store: PlanStore
     @ObservedObject var almacen: AlmacenStore
+    @ObservedObject var identidad: IdentidadStore
     @ObservedObject private var cuenta = CuentaStore.compartida
     @Binding var mostrandoTutorial: Bool
     @State private var confirmandoRestaurar = false
@@ -910,6 +945,8 @@ struct PerfilTab: View {
         NavigationStack {
             List {
                 seccionObjetivo
+
+                SeccionCuentaMaratonia(identidad: identidad, cuentaCloud: cuenta)
 
                 Section("Apple Watch") {
                     NavigationLink {
