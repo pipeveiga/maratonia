@@ -34,7 +34,10 @@ struct OnboardingDeportivo: View {
     @State private var tieneFechaObjetivo = false
     @State private var fechaObjetivo = Date().addingTimeInterval(90 * 24 * 3600)
 
-    @State private var mostrandoPlanRecomendado = false
+    /// El resultado del MOTOR de planes (§39): "Preparar mi plan" dejó
+    /// de ser navegación — corre la planificación real.
+    @State private var resultadoMotor: ResultadoPlanificacion?
+    @State private var mostrandoPropuesta = false
 
     private let totalPasos = 4
 
@@ -81,9 +84,11 @@ struct OnboardingDeportivo: View {
                     Button("Ahora no") { dismiss() }
                 }
             }
-            .navigationDestination(isPresented: $mostrandoPlanRecomendado) {
-                if let base = planRecomendado {
-                    PlanBaseDetalleView(almacen: almacen, base: base)
+            .navigationDestination(isPresented: $mostrandoPropuesta) {
+                if let resultado = resultadoMotor {
+                    PropuestaPlanView(almacen: almacen, resultado: resultado) {
+                        dismiss()
+                    }
                 }
             }
         }
@@ -227,39 +232,21 @@ struct OnboardingDeportivo: View {
                 }
             }
 
-            // Recomendación DETERMINÍSTICA del catálogo (por distancia
-            // del objetivo). Sin plan compatible: se dice, no se inventa.
-            if let base = planRecomendado {
-                Button {
-                    guardarPerfil()
-                    mostrandoPlanRecomendado = true
-                } label: {
-                    EtiquetaBotonPrimarioV2(titulo: "Preparar mi plan",
-                                            icono: "figure.run")
-                }
-                .buttonStyle(.plain)
-                .disabled(objetivo == nil)
-                Text("Para tu objetivo te recomendamos «\(base.nombre)»: \(base.semanasTotales) semanas, \(base.diasPorSemana) días por semana.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Button("Guardar y cerrar") { terminar() }
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .disabled(objetivo == nil)
-            } else {
-                Button {
-                    terminar()
-                } label: {
-                    EtiquetaBotonPrimarioV2(titulo: "Listo", icono: "checkmark")
-                }
-                .buttonStyle(.plain)
-                .disabled(objetivo == nil)
-                if objetivo != nil {
-                    Text("Todavía no hay un plan de esa distancia en el catálogo — está en camino. Tu perfil queda guardado y podés explorar los planes disponibles cuando quieras.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+            // "PREPARAR MI PLAN" corre el MOTOR real (§39): guarda el
+            // perfil, arma el pedido y muestra la propuesta (o el
+            // motivo honesto por el que no hay plan).
+            Button {
+                prepararMiPlan()
+            } label: {
+                EtiquetaBotonPrimarioV2(titulo: "Preparar mi plan",
+                                        icono: "figure.run")
             }
+            .buttonStyle(.plain)
+            .disabled(objetivo == nil)
+            Button("Guardar y cerrar") { terminar() }
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .disabled(objetivo == nil)
 
             if objetivo == nil {
                 Text("Falta elegir el objetivo (paso 1).")
@@ -298,14 +285,6 @@ struct OnboardingDeportivo: View {
         }
     }
 
-    /// El plan del catálogo cuya distancia coincide con el objetivo.
-    private var planRecomendado: PlanBase? {
-        guard let objetivo else { return nil }
-        let metros = TextosObjetivo.distanciaMetros(de: objetivo)
-        return Catalogo.planesDisponibles().first {
-            abs($0.distanciaObjetivoKm * 1000 - metros) <= 500
-        }
-    }
 
     // MARK: Cierre
 
@@ -337,6 +316,22 @@ struct OnboardingDeportivo: View {
     private func terminar() {
         guardarPerfil()
         dismiss()
+    }
+
+    /// El flujo real de §39: perfil guardado → pedido → motor →
+    /// propuesta navegable. La referencia sale de lo recién guardado
+    /// (la marca del paso 2 ya quedó registrada como referencia).
+    private func prepararMiPlan() {
+        guard let objetivo else { return }
+        guardarPerfil()
+        let pedido = PedidoDePlan(
+            objetivo: objetivo,
+            fechaObjetivo: tieneFechaObjetivo ? DiaLocal(fecha: fechaObjetivo) : nil,
+            diasPorSemana: diasPorSemana ?? 3,
+            referencia: almacen.almacen.referenciaVigente,
+            hoy: DiaLocal(fecha: Date()))
+        resultadoMotor = MotorPlanificacion.proponer(pedido)
+        mostrandoPropuesta = true
     }
 
     private func avanzar() {

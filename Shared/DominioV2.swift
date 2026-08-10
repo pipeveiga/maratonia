@@ -261,6 +261,12 @@ struct PlanUsuario: Codable, Equatable, Identifiable {
     var origen: OrigenPlan = .personalizado
     var fechaAdopcion: Date
     var semanas: [SemanaPlan] = []
+
+    /// Con qué referencia de rendimiento se armó este plan (RC1,
+    /// motor de planes). Opcional y retrocompatible: los planes
+    /// anteriores no la tienen. La versión del arquetipo/metodología
+    /// ya viaja en `origen` ("id@versión").
+    var referenciaUsadaID: UUID? = nil
 }
 
 struct SemanaPlan: Codable, Equatable, Identifiable {
