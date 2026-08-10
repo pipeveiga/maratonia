@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 // sola lista infinita.
 
 enum Pestana: Hashable {
-    case plan, correr, reloj, carreras, perfil
+    case plan, correr, progreso, carreras, perfil
 }
 
 struct ContentView: View {
@@ -38,9 +38,12 @@ struct ContentView: View {
             CorrerTab(store: store, almacen: almacen)
                 .tabItem { Label("Correr", systemImage: "figure.run") }
                 .tag(Pestana.correr)
-            RelojTab(store: store)
-                .tabItem { Label("Reloj", systemImage: "applewatch") }
-                .tag(Pestana.reloj)
+            // El Reloj dejó de ser pestaña (decisión D5): vive en
+            // Perfil. Su lugar lo ocupa PROGRESO — correr, ver cómo
+            // venís, correr de nuevo.
+            ProgresoTab(almacen: almacen)
+                .tabItem { Label("Progreso", systemImage: "chart.bar.fill") }
+                .tag(Pestana.progreso)
             CarrerasTab()
                 .tabItem { Label("Carreras", systemImage: "map.fill") }
                 .tag(Pestana.carreras)
@@ -145,30 +148,16 @@ struct PlanTab: View {
                     }
                 }
 
-                Section("Armá tu entrenamiento") {
+                // La configuración de la SESIÓN (música, avisos, tramos
+                // manuales) baja de jerarquía: una sola entrada. El
+                // protagonismo del Plan es HOY + calendario + explorar.
+                Section("Configuración del entrenamiento") {
                     NavigationLink {
-                        MusicaScreen(store: store)
+                        ConfiguracionEntrenamientoScreen(store: store)
                     } label: {
-                        filaNavegacion(icono: "music.note", color: .blue,
-                                       titulo: "Música", subtitulo: subtituloMusica)
-                    }
-                    NavigationLink {
-                        AvisosScreen(store: store)
-                    } label: {
-                        filaNavegacion(icono: "bell.fill", color: .orange,
-                                       titulo: "Avisos por voz", subtitulo: subtituloAvisos)
-                    }
-                    NavigationLink {
-                        TramosScreen(store: store)
-                    } label: {
-                        filaNavegacion(icono: "speedometer", color: .green,
-                                       titulo: "Tramos y ritmo", subtitulo: subtituloTramos)
-                    }
-                    NavigationLink {
-                        CronogramaScreen(store: store)
-                    } label: {
-                        filaNavegacion(icono: "clock.fill", color: .teal,
-                                       titulo: "Cronograma", subtitulo: "Todos los avisos, en orden")
+                        filaNavegacion(icono: "slider.horizontal.3", color: .blue,
+                                       titulo: "Audio, avisos y tramos",
+                                       subtitulo: subtituloConfiguracion)
                     }
                 }
             }
@@ -299,6 +288,79 @@ struct PlanTab: View {
             : "Cambiar de plan (el actual se archiva)"
     }
 
+    private var subtituloConfiguracion: String {
+        var partes: [String] = []
+        if !store.plan.pistas.isEmpty { partes.append("\(store.plan.pistas.count) pistas") }
+        let avisos = store.plan.avisosFijos.count + store.plan.avisosRepetidos.count
+            + store.plan.avisosKmActivos.count
+        if avisos > 0 { partes.append("\(avisos) avisos") }
+        if !store.plan.tramosActivos.isEmpty {
+            partes.append("\(store.plan.tramosActivos.count) tramos")
+        }
+        return partes.isEmpty ? "Música, avisos por voz y tramos manuales"
+                              : partes.joined(separator: " · ")
+    }
+
+}
+
+// MARK: - Configuración del entrenamiento (legacy, un nivel abajo)
+
+/// Las cuatro pantallas de siempre (música, avisos, tramos manuales,
+/// cronograma), intactas pero un nivel abajo del Plan: la configuración
+/// de la SESIÓN no compite con el calendario del entrenamiento.
+struct ConfiguracionEntrenamientoScreen: View {
+    @ObservedObject var store: PlanStore
+
+    var body: some View {
+        List {
+            Section("Audio de la sesión") {
+                NavigationLink {
+                    MusicaScreen(store: store)
+                } label: {
+                    filaConfiguracion(icono: "music.note", color: .blue,
+                                      titulo: "Música", subtitulo: subtituloMusica)
+                }
+                NavigationLink {
+                    AvisosScreen(store: store)
+                } label: {
+                    filaConfiguracion(icono: "bell.fill", color: .orange,
+                                      titulo: "Avisos por voz", subtitulo: subtituloAvisos)
+                }
+                NavigationLink {
+                    CronogramaScreen(store: store)
+                } label: {
+                    filaConfiguracion(icono: "clock.fill", color: .teal,
+                                      titulo: "Cronograma", subtitulo: "Todos los avisos, en orden")
+                }
+            }
+            Section {
+                NavigationLink {
+                    TramosScreen(store: store)
+                } label: {
+                    filaConfiguracion(icono: "speedometer", color: .green,
+                                      titulo: "Tramos manuales", subtitulo: subtituloTramos)
+                }
+            } footer: {
+                Text("Los tramos manuales aplican a la Carrera Libre. Los entrenamientos del plan traen su propia estructura.")
+            }
+        }
+        .navigationTitle("Configuración")
+    }
+
+    private func filaConfiguracion(icono: String, color: Color,
+                                   titulo: String, subtitulo: String) -> some View {
+        HStack(spacing: 12) {
+            IconoAjuste(sistema: icono, color: color)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titulo)
+                Text(subtitulo)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
     private var subtituloMusica: String {
         store.plan.pistas.isEmpty
             ? "Importá tus MP3"
@@ -314,7 +376,7 @@ struct PlanTab: View {
 
     private var subtituloTramos: String {
         store.plan.tramosActivos.isEmpty
-            ? "Elegí un plan sugerido o armá el tuyo"
+            ? "Armá bloques con objetivo de ritmo"
             : "\(store.plan.tramosActivos.count) tramos con objetivo"
     }
 }
@@ -677,13 +739,14 @@ struct CronogramaScreen: View {
 
 // MARK: - Pestaña Reloj
 
+// Ya no es pestaña: se navega desde Perfil (decisión D5), así que la
+// NavigationStack la pone el padre.
 struct RelojTab: View {
     @ObservedObject var store: PlanStore
     @ObservedObject private var conectividad = Conectividad.compartida
 
     var body: some View {
-        NavigationStack {
-            List {
+        List {
                 Section {
                     filaEstado("Reloj emparejado", ok: conectividad.relojEmparejado)
                     filaEstado("Maratonia instalada en el reloj", ok: conectividad.appInstaladaEnReloj)
@@ -752,9 +815,8 @@ struct RelojTab: View {
                         .font(.callout)
                     }
                 }
-            }
-            .navigationTitle("Reloj")
         }
+        .navigationTitle("Reloj")
     }
 
     private func filaEstado(_ texto: String, ok: Bool) -> some View {
@@ -839,6 +901,22 @@ struct PerfilTab: View {
                     Text("Cuenta")
                 } footer: {
                     Text("Tu plan se respalda automáticamente en tu iCloud privado — sin registro ni contraseñas. Al reinstalar o cambiar de teléfono: «Restaurar plan».")
+                }
+
+                Section("Apple Watch") {
+                    NavigationLink {
+                        RelojTab(store: store)
+                    } label: {
+                        HStack(spacing: 10) {
+                            IconoAjuste(sistema: "applewatch", color: .black)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Reloj")
+                                Text("Enviar plan y música, estado de la conexión")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                 }
 
                 Section("Ayuda") {

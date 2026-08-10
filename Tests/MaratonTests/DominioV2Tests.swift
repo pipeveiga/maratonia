@@ -957,3 +957,99 @@ final class FaseGTests: XCTestCase {
                                                  aMetros: 42195))
     }
 }
+
+// MARK: - Progreso v1 (lógica pura)
+
+final class CalculoProgresoTests: XCTestCase {
+
+    /// Calendario FIJO (semana arranca lunes) para que el test no
+    /// dependa del locale de la máquina.
+    private var calendario: Calendar = {
+        var calendario = Calendar(identifier: .gregorian)
+        calendario.firstWeekday = 2
+        return calendario
+    }()
+
+    private func fecha(_ dia: Int, _ mes: Int, _ anio: Int, hora: Int = 12) -> Date {
+        calendario.date(from: DateComponents(year: anio, month: mes, day: dia, hour: hora))!
+    }
+
+    func testSemanasIncluyeLasVacias() {
+        // Lunes 10/8/2026. Semanas (lunes a domingo):
+        // idx0 = 20-26/7 · idx1 = 27/7-2/8 · idx2 = 3-9/8 · idx3 = 10-16/8
+        let hoy = fecha(10, 8, 2026)
+        let sesiones = [
+            SesionMetrica(fecha: hoy, metros: 5000, segundos: 1500),           // idx3
+            SesionMetrica(fecha: fecha(9, 8, 2026), metros: 3000, segundos: 1000),  // domingo, idx2
+            SesionMetrica(fecha: fecha(20, 7, 2026), metros: 8000, segundos: 2400), // idx0
+        ]
+        let semanas = CalculoProgreso.semanas(sesiones: sesiones, cuantas: 4,
+                                              hoy: hoy, calendario: calendario)
+        XCTAssertEqual(semanas.count, 4)
+        XCTAssertEqual(semanas.map(\.carreras), [1, 0, 1, 1])  // la vacía existe con cero
+        XCTAssertEqual(semanas[0].metros, 8000)
+        XCTAssertEqual(semanas[3].metros, 5000)
+        // Orden: más vieja primero, la actual al final.
+        XCTAssertLessThan(semanas[0].inicio, semanas[3].inicio)
+        // Una sesión fuera de la ventana no aparece.
+        let corta = CalculoProgreso.semanas(sesiones: sesiones, cuantas: 2,
+                                            hoy: hoy, calendario: calendario)
+        XCTAssertEqual(corta.reduce(0) { $0 + $1.carreras }, 2)
+    }
+
+    func testRachaNoSeCortaPorLaSemanaActualVacia() {
+        let hoy = fecha(10, 8, 2026)   // lunes: semana actual recién arranca
+        // 3 semanas corridas, la actual todavía sin carreras.
+        let sesiones = [
+            SesionMetrica(fecha: fecha(3, 8, 2026), metros: 5000, segundos: 1500),
+            SesionMetrica(fecha: fecha(27, 7, 2026), metros: 5000, segundos: 1500),
+            SesionMetrica(fecha: fecha(20, 7, 2026), metros: 5000, segundos: 1500),
+        ]
+        let semanas = CalculoProgreso.semanas(sesiones: sesiones, cuantas: 6,
+                                              hoy: hoy, calendario: calendario)
+        XCTAssertEqual(CalculoProgreso.rachaSemanas(semanas), 3)
+
+        // Un agujero de una semana ANTES sí corta.
+        let conAgujero = [
+            SesionMetrica(fecha: fecha(3, 8, 2026), metros: 5000, segundos: 1500),
+            SesionMetrica(fecha: fecha(13, 7, 2026), metros: 5000, segundos: 1500),
+        ]
+        let semanas2 = CalculoProgreso.semanas(sesiones: conAgujero, cuantas: 6,
+                                               hoy: hoy, calendario: calendario)
+        XCTAssertEqual(CalculoProgreso.rachaSemanas(semanas2), 1)
+    }
+
+    func testCumplimientoSoloCuentaVencidosOHoy() {
+        var almacen = AlmacenV2()
+        let hoy = DiaLocal(anio: 2026, mes: 8, dia: 10)
+        let definicion = DefinicionEntrenamiento(tipo: .facil, nombre: "R", segmentos: [])
+        var cumplido = EntrenamientoProgramado(definicion: definicion, dia: hoy.sumando(dias: -3))
+        cumplido.resolucion = .cumplido
+        var parcial = EntrenamientoProgramado(definicion: definicion, dia: hoy.sumando(dias: -2))
+        parcial.resolucion = .parcial
+        let vencido = EntrenamientoProgramado(definicion: definicion, dia: hoy.sumando(dias: -1))
+        let futuro = EntrenamientoProgramado(definicion: definicion, dia: hoy.sumando(dias: 2))
+        let sinFecha = EntrenamientoProgramado(definicion: definicion, dia: nil)
+        almacen.planActivo = PlanUsuario(
+            nombre: "P", origen: .personalizado, fechaAdopcion: Date(timeIntervalSince1970: 0),
+            semanas: [SemanaPlan(numero: 1,
+                                 programados: [cumplido, parcial, vencido, futuro, sinFecha])])
+        let (hechos, total) = CalculoProgreso.cumplimiento(almacen: almacen, hoy: hoy)
+        XCTAssertEqual(hechos, 2)   // cumplido + parcial
+        XCTAssertEqual(total, 3)    // el futuro y el sin-fecha no cuentan
+    }
+
+    func testDestacadosIgnoraSprintsCortos() {
+        let sesiones = [
+            SesionMetrica(fecha: Date(), metros: 200, segundos: 40),      // sprint: afuera
+            SesionMetrica(fecha: Date(), metros: 5000, segundos: 1500),   // 5:00/km
+            SesionMetrica(fecha: Date(), metros: 12000, segundos: 4200),  // 5:50/km, más larga
+        ]
+        let (masLarga, mejorRitmo) = CalculoProgreso.destacados(sesiones)
+        XCTAssertEqual(masLarga?.metros, 12000)
+        XCTAssertEqual(mejorRitmo?.metros, 5000)
+        let vacio = CalculoProgreso.destacados([])
+        XCTAssertNil(vacio.masLarga)
+        XCTAssertNil(vacio.mejorRitmo)
+    }
+}
