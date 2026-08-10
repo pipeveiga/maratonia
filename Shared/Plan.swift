@@ -395,6 +395,42 @@ func ritmoParaHablar(_ segundosPorKm: Int) -> String {
     "\(segundosPorKm / 60) \(String(format: "%02d", segundosPorKm % 60))"
 }
 
+// MARK: - Calidad de métricas (RC1)
+
+/// Reglas de CALIDAD para métricas derivadas, en un solo lugar.
+/// Separación deliberada: el HISTORIAL cuenta todo (una salida de
+/// 200 m sigue sumando kilómetros a la semana y nada se borra de
+/// Salud); las MARCAS y los ritmos MOSTRADOS exigen muestras
+/// suficientes. No es ciencia deportiva: son pisos de sanidad para no
+/// mostrar jamás un "0:15/km" salido de una sesión de prueba.
+enum MetricasSesion {
+
+    /// Ritmo en seg/km con TODOS los guards: división por cero, NaN,
+    /// infinito, distancia insuficiente y ritmos físicamente absurdos
+    /// (más rápido que 2:00/km o más lento que 20:00/km es error de
+    /// sensor, no una carrera). nil = "sin ritmo fiable" — la UI
+    /// muestra un guion, nunca un número absurdo.
+    static func ritmoSegKm(metros: Double, segundos: Double,
+                           metrosMinimos: Double = 500) -> Int? {
+        guard metros.isFinite, segundos.isFinite,
+              metros >= metrosMinimos, segundos > 0 else { return nil }
+        let ritmo = segundos / metros * 1000
+        guard ritmo.isFinite, ritmo >= 120, ritmo <= 1200 else { return nil }
+        return Int(ritmo.rounded())
+    }
+
+    /// ¿La sesión puede producir MARCAS (mejor ritmo, salida más
+    /// larga)? Conservador: al menos 1 km, al menos 5 minutos y un
+    /// ritmo plausible sostenido (2:30–15:00 /km). Ante la duda, no
+    /// hay marca — "sin marca fiable" gana siempre a un récord falso.
+    static func elegibleParaMarcas(metros: Double, segundos: Double) -> Bool {
+        guard metros.isFinite, segundos.isFinite,
+              metros >= 1000, segundos >= 300 else { return false }
+        let ritmo = segundos / metros * 1000
+        return ritmo >= 150 && ritmo <= 900
+    }
+}
+
 /// La meta del tramo para la voz: "5 kilómetros" / "2 minutos" /
 /// "2 minutos y 30 segundos". Compartida por los dos motores y
 /// localizada (el catálogo de cada target trae las claves).

@@ -628,9 +628,8 @@ final class CarreraCelu: NSObject, ObservableObject {
             acumuladoPrevio += Date().timeIntervalSince(reanudacion)
         }
         let duracion = acumuladoPrevio
-        let ritmoPromedio = distanciaMetros > 100
-            ? Int(duracion / distanciaMetros * 1000)
-            : nil
+        let ritmoPromedio = MetricasSesion.ritmoSegKm(metros: distanciaMetros,
+                                                      segundos: duracion)
         resumen = ResumenCelu(duracion: duracion,
                               distanciaMetros: distanciaMetros,
                               ritmoPromedioSegKm: ritmoPromedio,

@@ -96,13 +96,18 @@ enum CalculoProgreso {
         return (hechos, computables.count)
     }
 
-    /// La salida más larga y la de mejor ritmo promedio (mínimo 1 km
-    /// para que un sprint de 200 m no figure como "mejor ritmo").
+    /// MARCAS con elegibilidad conservadora (MetricasSesion): solo
+    /// sesiones de ≥ 1 km, ≥ 5 min y ritmo plausible pueden producir
+    /// "salida más larga" o "mejor ritmo" — una sesión de prueba de
+    /// 200 m jamás vuelve a figurar como récord. El HISTORIAL (km,
+    /// tiempo, cantidad) sigue contando todo.
     static func destacados(_ sesiones: [SesionMetrica])
         -> (masLarga: SesionMetrica?, mejorRitmo: SesionMetrica?) {
-        let masLarga = sesiones.max { $0.metros < $1.metros }
-        let conRitmo = sesiones.filter { $0.metros >= 1000 && $0.segundos > 0 }
-        let mejorRitmo = conRitmo.min {
+        let elegibles = sesiones.filter {
+            MetricasSesion.elegibleParaMarcas(metros: $0.metros, segundos: $0.segundos)
+        }
+        let masLarga = elegibles.max { $0.metros < $1.metros }
+        let mejorRitmo = elegibles.min {
             $0.segundos / $0.metros < $1.segundos / $1.metros
         }
         return (masLarga, mejorRitmo)
@@ -339,9 +344,11 @@ struct ProgresoTab: View {
                             MetricaV2(titulo: "salida más larga",
                                       valor: String(format: "%.1f km", masLarga.metros / 1000))
                         }
-                        if let mejorRitmo, mejorRitmo.metros > 0 {
+                        if let mejorRitmo,
+                           let ritmo = MetricasSesion.ritmoSegKm(metros: mejorRitmo.metros,
+                                                                 segundos: mejorRitmo.segundos) {
                             MetricaV2(titulo: "mejor ritmo",
-                                      valor: formatearRitmo(Int(mejorRitmo.segundos / mejorRitmo.metros * 1000)) + " /km")
+                                      valor: formatearRitmo(ritmo) + " /km")
                         }
                     }
                     if let referencia = almacen.almacen.referenciaVigente {

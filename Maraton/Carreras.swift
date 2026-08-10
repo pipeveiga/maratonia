@@ -29,8 +29,7 @@ struct CarreraResumen: Identifiable {
         workout.totalEnergyBurned?.doubleValue(for: .kilocalorie())
     }
     var ritmoPromedioSegKm: Int? {
-        guard distanciaMetros > 100 else { return nil }
-        return Int(duracion / distanciaMetros * 1000)
+        MetricasSesion.ritmoSegKm(metros: distanciaMetros, segundos: duracion)
     }
 }
 
@@ -276,7 +275,7 @@ struct CarrerasView: View {
         }
         let metros = delaSemana.reduce(0.0) { $0 + $1.distanciaMetros }
         let duracion = delaSemana.reduce(0.0) { $0 + $1.duracion }
-        let ritmo = metros > 100 ? Int(duracion / metros * 1000) : nil
+        let ritmo = MetricasSesion.ritmoSegKm(metros: metros, segundos: duracion)
         return (metros / 1000, delaSemana.count, ritmo)
     }
 }

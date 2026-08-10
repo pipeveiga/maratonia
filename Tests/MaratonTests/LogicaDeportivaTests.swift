@@ -667,3 +667,58 @@ final class FormatoFechaTests: XCTestCase {
         XCTAssertEqual(DiaLocal(fecha: fecha), dia)   // mismo día local
     }
 }
+
+// MARK: - Calidad de métricas (RC1)
+
+final class MetricasSesionTests: XCTestCase {
+
+    func testRitmoConGuardsCompletos() {
+        // El caso real de build 40: sesión de prueba diminuta → 0:15/km.
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: 80, segundos: 20))
+        // División por cero / duración cero / distancia cero.
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: 0, segundos: 100))
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: 1000, segundos: 0))
+        // NaN e infinito jamás pasan.
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: .nan, segundos: 100))
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: 1000, segundos: .infinity))
+        // Absurdo rápido (1:00/km) y absurdo lento (33:20/km).
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: 5000, segundos: 300))
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: 500, segundos: 1000000))
+        // Uno real: 5 km en 25:00 → 5:00/km.
+        XCTAssertEqual(MetricasSesion.ritmoSegKm(metros: 5000, segundos: 1500), 300)
+        // El piso es configurable (el reloj usa 100 m para el resumen).
+        XCTAssertNotNil(MetricasSesion.ritmoSegKm(metros: 150, segundos: 60,
+                                                  metrosMinimos: 100))
+    }
+
+    func testElegibilidadParaMarcas() {
+        // Elegible: 5 km en 25 min.
+        XCTAssertTrue(MetricasSesion.elegibleParaMarcas(metros: 5000, segundos: 1500))
+        // Corta en distancia o en tiempo: historial sí, marca no.
+        XCTAssertFalse(MetricasSesion.elegibleParaMarcas(metros: 900, segundos: 600))
+        XCTAssertFalse(MetricasSesion.elegibleParaMarcas(metros: 2000, segundos: 200))
+        // Ritmo implausible (más rápido que 2:30/km sostenido).
+        XCTAssertFalse(MetricasSesion.elegibleParaMarcas(metros: 5000, segundos: 700))
+        // Caminata muy lenta (> 15:00/km): sin marca.
+        XCTAssertFalse(MetricasSesion.elegibleParaMarcas(metros: 1000, segundos: 1000))
+        XCTAssertFalse(MetricasSesion.elegibleParaMarcas(metros: .nan, segundos: 600))
+    }
+
+    func testDestacadosIgnoranSesionesDePrueba() {
+        let sesiones = [
+            SesionMetrica(fecha: Date(), metros: 80, segundos: 20),      // prueba: 0:15/km
+            SesionMetrica(fecha: Date(), metros: 12000, segundos: 90),   // sensor roto
+            SesionMetrica(fecha: Date(), metros: 5000, segundos: 1500),  // real, 5:00/km
+            SesionMetrica(fecha: Date(), metros: 8000, segundos: 2800),  // real, más larga
+        ]
+        let (masLarga, mejorRitmo) = CalculoProgreso.destacados(sesiones)
+        // La "salida" del sensor roto (12 km en 90 s) no es la más larga.
+        XCTAssertEqual(masLarga?.metros, 8000)
+        XCTAssertEqual(mejorRitmo?.metros, 5000)
+        // Solo basura → sin marcas, jamás un número absurdo.
+        let vacio = CalculoProgreso.destacados([
+            SesionMetrica(fecha: Date(), metros: 80, segundos: 20)])
+        XCTAssertNil(vacio.masLarga)
+        XCTAssertNil(vacio.mejorRitmo)
+    }
+}
