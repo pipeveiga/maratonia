@@ -555,3 +555,11 @@ HKWorkout → resultado → vínculo → parcial en calendario). Tres fixes:
    programadoID corrido no se vuelve a ofrecer.
 3. **Layout del lobby del reloj**: título inline (barra compacta con
    material del sistema) — el Play ya no atraviesa el encabezado.
+
+## 23. Pendiente abierto
+
+**Auto-resume build 39: todavía falla en prueba física; pendiente
+reproducción controlada mañana** (caminata/carrera real con el fix de
+SupervisorReanudacion + vigilante de GPS). NO tocar AutoPausa,
+SupervisorReanudacion, thresholds ni Core Location hasta tener esa
+evidencia.

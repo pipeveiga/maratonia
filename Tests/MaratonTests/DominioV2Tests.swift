@@ -1181,3 +1181,100 @@ final class EstadoPostEntrenamientoWatchTests: XCTestCase {
         XCTAssertNotNil(decodificada.programadoID)
     }
 }
+
+// MARK: - Build 40: gestión del programado y semana actual
+
+final class GestionProgramadoTests: XCTestCase {
+
+    private let hoy = DiaLocal(anio: 2026, mes: 8, dia: 10)   // lunes
+
+    private func almacenConTres() -> (AlmacenV2, UUID, UUID, UUID) {
+        var almacen = AlmacenV2()
+        almacen.activado = true
+        let definicion = DefinicionEntrenamiento(tipo: .facil, nombre: "Rodaje", segmentos: [])
+        let lunes = EntrenamientoProgramado(definicion: definicion, dia: hoy)
+        let miercoles = EntrenamientoProgramado(definicion: definicion, dia: hoy.sumando(dias: 2))
+        var viernes = EntrenamientoProgramado(definicion: definicion, dia: hoy.sumando(dias: 4))
+        viernes.resolucion = .cumplido
+        viernes.sesionVinculadaID = UUID()
+        almacen.planActivo = PlanUsuario(nombre: "P", origen: .personalizado,
+                                         fechaAdopcion: Date(timeIntervalSince1970: 0),
+                                         semanas: [SemanaPlan(numero: 1,
+                                                              programados: [lunes, miercoles, viernes])])
+        return (almacen, lunes.id, miercoles.id, viernes.id)
+    }
+
+    func testReprogramarConservaIdentidadYOriginal() {
+        var (almacen, lunesID, _, _) = almacenConTres()
+        let nuevoDia = hoy.sumando(dias: 1)
+        XCTAssertTrue(almacen.reprogramar(programadoID: lunesID, a: nuevoDia))
+        let movido = almacen.todosLosProgramados.first { $0.id == lunesID }!
+        XCTAssertEqual(movido.id, lunesID)              // MISMO programadoID
+        XCTAssertEqual(movido.dia, nuevoDia)
+        XCTAssertEqual(movido.diaOriginal, hoy)         // la historia queda
+        XCTAssertEqual(movido.resolucion, .pendiente)   // no es un estado
+        XCTAssertEqual(almacen.todosLosProgramados.count, 3)  // nada nuevo
+
+        // Segundo movimiento: diaOriginal NO se pisa (sigue la primera).
+        almacen.reprogramar(programadoID: lunesID, a: hoy.sumando(dias: 3))
+        XCTAssertEqual(almacen.todosLosProgramados.first { $0.id == lunesID }?.diaOriginal, hoy)
+    }
+
+    func testReprogramarSoloPendientes() {
+        var (almacen, _, _, viernesID) = almacenConTres()
+        XCTAssertFalse(almacen.reprogramar(programadoID: viernesID, a: hoy))
+        XCTAssertFalse(almacen.reprogramar(programadoID: UUID(), a: hoy))  // inexistente
+    }
+
+    func testConflictoEnDia() {
+        let (almacen, lunesID, miercolesID, _) = almacenConTres()
+        // Mover el lunes al miércoles choca con el de miércoles.
+        XCTAssertEqual(almacen.conflictoEnDia(hoy.sumando(dias: 2), salvo: lunesID)?.id,
+                       miercolesID)
+        // El propio día no choca consigo mismo.
+        XCTAssertNil(almacen.conflictoEnDia(hoy, salvo: lunesID))
+        // Un día vacío no choca.
+        XCTAssertNil(almacen.conflictoEnDia(hoy.sumando(dias: 1), salvo: lunesID))
+    }
+
+    func testOmitirYDeshacer() {
+        var (almacen, lunesID, _, viernesID) = almacenConTres()
+        XCTAssertTrue(almacen.omitir(programadoID: lunesID))
+        XCTAssertEqual(almacen.todosLosProgramados.first { $0.id == lunesID }?.resolucion,
+                       .omitido)
+        // Sigue existiendo (no se borra) y no se puede re-omitir.
+        XCTAssertEqual(almacen.todosLosProgramados.count, 3)
+        XCTAssertFalse(almacen.omitir(programadoID: lunesID))
+        // Un cumplido no se omite.
+        XCTAssertFalse(almacen.omitir(programadoID: viernesID))
+
+        // Deshacer: omitido sin sesión → pendiente.
+        XCTAssertTrue(almacen.deshacerOmision(programadoID: lunesID))
+        XCTAssertEqual(almacen.todosLosProgramados.first { $0.id == lunesID }?.resolucion,
+                       .pendiente)
+        // Un cumplido con sesión jamás se "deshace".
+        XCTAssertFalse(almacen.deshacerOmision(programadoID: viernesID))
+    }
+
+    func testSemanaActualLunesADomingo() {
+        let (almacen, lunesID, miercolesID, viernesID) = almacenConTres()
+        let semana = almacen.semanaActual(hoy: hoy.sumando(dias: 2))  // miércoles
+        XCTAssertEqual(semana.count, 7)
+        XCTAssertEqual(semana[0].dia, hoy)                       // arranca el lunes
+        XCTAssertEqual(semana[6].dia, hoy.sumando(dias: 6))      // termina el domingo
+        XCTAssertTrue(semana[2].esHoy)
+        XCTAssertEqual(semana.filter(\.esHoy).count, 1)
+        XCTAssertEqual(semana[0].programado?.id, lunesID)
+        XCTAssertEqual(semana[2].programado?.id, miercolesID)
+        XCTAssertEqual(semana[4].programado?.id, viernesID)
+        XCTAssertNil(semana[1].programado)                       // descanso
+    }
+
+    func testLunesDeLaSemanaDesdeCualquierDia() {
+        // 10/8/2026 es lunes; el domingo 16 sigue siendo de ESA semana.
+        XCTAssertEqual(hoy.lunesDeLaSemana(), hoy)
+        XCTAssertEqual(hoy.sumando(dias: 6).lunesDeLaSemana(), hoy)   // domingo
+        XCTAssertEqual(hoy.sumando(dias: 7).lunesDeLaSemana(), hoy.sumando(dias: 7))
+        XCTAssertEqual(hoy.sumando(dias: 3).lunesDeLaSemana(), hoy)   // jueves
+    }
+}

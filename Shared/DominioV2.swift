@@ -49,6 +49,15 @@ struct DiaLocal: Codable, Equatable, Hashable, Comparable {
         calendario.date(from: DateComponents(year: anio, month: mes, day: dia))
     }
 
+    /// El LUNES de la semana de este día (semana deportiva L-D, sin
+    /// depender del firstWeekday del locale).
+    func lunesDeLaSemana(calendario: Calendar = .current) -> DiaLocal {
+        guard let fecha = fecha(calendario: calendario) else { return self }
+        let diaDeSemana = calendario.component(.weekday, from: fecha)  // 1 = domingo
+        let atras = (diaDeSemana + 5) % 7
+        return sumando(dias: -atras, calendario: calendario)
+    }
+
     /// Aritmética de calendario real (meses de 28-31 días, años
     /// bisiestos): siempre vía Calendar, jamás sumando a mano.
     func sumando(dias: Int, calendario: Calendar = .current) -> DiaLocal {
@@ -327,6 +336,16 @@ struct ReferenciaRendimiento: Codable, Equatable, Identifiable {
     var segundos: Int
 }
 
+/// Un día de la vista semanal: el día calendario, si es hoy, y el
+/// programado que lo ocupa (nil = descanso).
+struct DiaDeSemana: Identifiable, Equatable {
+    var dia: DiaLocal
+    var esHoy: Bool
+    var programado: EntrenamientoProgramado?
+
+    var id: DiaLocal { dia }
+}
+
 // MARK: - Baseline y metodologías de ritmo (Fase G — INFRAESTRUCTURA)
 
 /// La foto de rendimiento que consumen las metodologías: derivada de la
@@ -543,6 +562,19 @@ struct AlmacenV2: Codable, Equatable {
         todosLosProgramados.first { $0.dia == dia }
     }
 
+    /// Los 7 días (L a D) de la semana de `hoy`, cada uno con su
+    /// programado si existe. La base de la vista "semana actual".
+    func semanaActual(hoy: DiaLocal,
+                      calendario: Calendar = .current) -> [DiaDeSemana] {
+        let lunes = hoy.lunesDeLaSemana(calendario: calendario)
+        return (0..<7).map { desplazamiento in
+            let dia = lunes.sumando(dias: desplazamiento, calendario: calendario)
+            return DiaDeSemana(dia: dia,
+                               esHoy: dia == hoy,
+                               programado: programadoDelDia(dia))
+        }
+    }
+
     /// Pendientes con fecha FUTURA, en orden.
     func proximosEntrenamientos(despuesDe hoy: DiaLocal, maximo: Int = 5) -> [EntrenamientoProgramado] {
         todosLosProgramados
@@ -558,6 +590,47 @@ struct AlmacenV2: Codable, Equatable {
     /// Pendientes cuya fecha ya pasó (derivado, ver D3).
     func vencidos(_ hoy: DiaLocal) -> [EntrenamientoProgramado] {
         todosLosProgramados.filter { $0.estado(hoy: hoy) == .vencido }
+    }
+
+    // MARK: Gestión del programado (reprogramar / omitir / deshacer)
+
+    /// ¿Qué otro entrenamiento ya ocupa ese día? Para avisar ANTES de
+    /// reprogramar — la app nunca decide sola qué hacer con el choque.
+    func conflictoEnDia(_ dia: DiaLocal, salvo programadoID: UUID) -> EntrenamientoProgramado? {
+        todosLosProgramados.first { $0.dia == dia && $0.id != programadoID }
+    }
+
+    /// Mueve el programado de fecha CONSERVANDO identidad e historia
+    /// (programadoID intacto, diaOriginal guarda la primera fecha).
+    /// Solo un pendiente se puede mover: lo resuelto ya es historia.
+    @discardableResult
+    mutating func reprogramar(programadoID: UUID, a nuevoDia: DiaLocal) -> Bool {
+        guard let (s, p) = indiceDe(programadoID: programadoID),
+              planActivo?.semanas[s].programados[p].resolucion == .pendiente else { return false }
+        planActivo?.semanas[s].programados[p].reprogramar(a: nuevoDia)
+        return true
+    }
+
+    /// Marca explícitamente "no lo hice". No borra nada: el programado
+    /// sigue visible en calendario e historial como omitido.
+    @discardableResult
+    mutating func omitir(programadoID: UUID) -> Bool {
+        guard let (s, p) = indiceDe(programadoID: programadoID),
+              planActivo?.semanas[s].programados[p].resolucion == .pendiente else { return false }
+        planActivo?.semanas[s].programados[p].omitir()
+        return true
+    }
+
+    /// Vuelve un omitido a pendiente — SOLO si no tiene sesión
+    /// vinculada (con evidencia real, el estado no se pisa a mano).
+    @discardableResult
+    mutating func deshacerOmision(programadoID: UUID) -> Bool {
+        guard let (s, p) = indiceDe(programadoID: programadoID),
+              let programado = planActivo?.semanas[s].programados[p],
+              programado.resolucion == .omitido,
+              programado.sesionVinculadaID == nil else { return false }
+        planActivo?.semanas[s].programados[p].resolucion = .pendiente
+        return true
     }
 
     /// Adoptar un plan nuevo archiva el activo (read-only): nada se
