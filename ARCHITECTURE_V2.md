@@ -534,3 +534,24 @@ deuda), destacados. Todo recalculado al vuelo desde Salud y el
 calendario V2; cero derivados persistidos, cero métricas fisiológicas
 inventadas. Plan reorganizado: música/avisos/tramos/cronograma bajo
 "Configuración del entrenamiento".
+
+## 22. Build 39 — saneamiento post-prueba física de build 38
+
+Circuito Watch V2 VALIDADO EN DISPOSITIVO (proyección → correr →
+HKWorkout → resultado → vínculo → parcial en calendario). Tres fixes:
+
+1. **Auto-resume**: la reanudación dependía de un stream de GPS que
+   nadie vigilaba (Core Location frena la entrega con el usuario
+   quieto) y de un umbral de desplazamiento inflable por mala
+   precisión. Ahora: `SupervisorReanudacion` (desplazamiento sostenido
+   O velocidad Doppler sostenida ≥ 0,9 m/s ×2 lecturas), vigilante
+   `debeDespertarGPS` (empujón cada 10 s sin fix) y regla compartida
+   `puedeAutoReanudar` (la pausa MANUAL jamás se auto-reanuda).
+2. **Estado post-entrenamiento en el reloj**: `ProyeccionDia` lleva
+   también el RESULTADO de hoy (resolucionDeHoy/nombreDeHoy/tipoDeHoy,
+   opcionales, retrocompatibles); la Home muestra ✓/◐ con Carrera
+   libre, con respaldo LOCAL mientras el resultado viaja. Decisión
+   pura en `entrenamientoOfrecible`/`resultadoDeHoy` (Shared): un
+   programadoID corrido no se vuelve a ofrecer.
+3. **Layout del lobby del reloj**: título inline (barra compacta con
+   material del sistema) — el Play ya no atraviesa el encabezado.
