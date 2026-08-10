@@ -113,7 +113,7 @@ struct OnboardingDeportivo: View {
         pantalla(titulo: "¿Tenés una referencia de ritmo?",
                  subtitulo: "Sirve para que los ritmos del plan sean TUYOS, no genéricos.") {
             tarjetaOpcion(titulo: "Tengo una marca reciente",
-                          subtitulo: "Una carrera o un esfuerzo medido de los últimos meses",
+                          subtitulo: String(localized: "Una carrera o un esfuerzo medido de los últimos meses"),
                           icono: "stopwatch.fill",
                           elegida: experiencia == .marcaReciente) {
                 withAnimation { experiencia = .marcaReciente }
@@ -122,14 +122,14 @@ struct OnboardingDeportivo: View {
                 formularioMarca
             }
             tarjetaOpcion(titulo: "Prefiero hacer una prueba",
-                          subtitulo: "Test de 5K: fuerte pero controlado, cuando quieras",
+                          subtitulo: String(localized: "Test de 5K: fuerte pero controlado, cuando quieras"),
                           icono: "flag.checkered",
                           elegida: experiencia == .hacerTest) {
                 experiencia = .hacerTest
                 avanzar()
             }
             tarjetaOpcion(titulo: "Estoy empezando",
-                          subtitulo: "Sin referencia — el plan arranca suave y aprende con vos",
+                          subtitulo: String(localized: "Sin referencia — el plan arranca suave y aprende con vos"),
                           icono: "leaf.fill",
                           elegida: experiencia == .empezando) {
                 experiencia = .empezando
@@ -400,11 +400,11 @@ struct OnboardingDeportivo: View {
 
     private func detalle(de objetivo: ObjetivoDeportivo) -> String {
         switch objetivo {
-        case .primeros5K: return "De cero a completar 5 km corriendo"
-        case .mejorar5K: return "Ya los corrés — ahora, más rápido"
-        case .diez: return "El siguiente escalón de distancia"
-        case .mediaMaraton: return "21,1 km con una preparación seria"
-        case .maraton: return "Los 42,2 km — el grande"
+        case .primeros5K: return String(localized: "De cero a completar 5 km corriendo")
+        case .mejorar5K: return String(localized: "Ya los corrés — ahora, más rápido")
+        case .diez: return String(localized: "El siguiente escalón de distancia")
+        case .mediaMaraton: return String(localized: "21,1 km con una preparación seria")
+        case .maraton: return String(localized: "Los 42,2 km — el grande")
         }
     }
 
@@ -420,10 +420,10 @@ struct OnboardingDeportivo: View {
 
     private func subtituloDias(_ dias: Int) -> String {
         switch dias {
-        case 2: return "Lo mínimo para progresar"
-        case 3: return "El equilibrio clásico"
-        case 4: return "Progreso sólido"
-        default: return "Volumen alto — para semanas ordenadas"
+        case 2: return String(localized: "Lo mínimo para progresar")
+        case 3: return String(localized: "El equilibrio clásico")
+        case 4: return String(localized: "Progreso sólido")
+        default: return String(localized: "Volumen alto — para semanas ordenadas")
         }
     }
 

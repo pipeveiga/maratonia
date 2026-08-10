@@ -205,13 +205,8 @@ final class CarreraCelu: NSObject, ObservableObject {
         return modos.contains("location")
     }
 
-    /// La voz en español más cercana: es-AR, si no es-MX, si no es-ES.
-    private static var vozEnEspanol: AVSpeechSynthesisVoice? {
-        for idioma in ["es-AR", "es-MX", "es-ES"] {
-            if let voz = AVSpeechSynthesisVoice(language: idioma) { return voz }
-        }
-        return nil
-    }
+    /// La voz sigue el idioma de la app (ver vozDeLaApp en Shared).
+    private static var vozEnEspanol: AVSpeechSynthesisVoice? { vozDeLaApp() }
 
     // MARK: - Arranque
 
@@ -377,7 +372,7 @@ final class CarreraCelu: NSObject, ObservableObject {
                desplazamientoGPSMetros: nil,
                edadUltimoGPSSegundos: fechaUltimoGPS.map { ahora.timeIntervalSince($0) }) {
             pausar(automatica: true)
-            anunciar("Pausa automática.")
+            anunciar(String(localized: "Pausa automática."))
             return
         }
         if let referencia = muestras.first(where: { ahora.timeIntervalSince($0.fecha) <= 45 }) {
@@ -425,9 +420,9 @@ final class CarreraCelu: NSObject, ObservableObject {
         ultimoKmAnunciado = km
         tiempoAlUltimoKm = tiempoTranscurrido
         if cubiertos == 1, parcial > 60, parcial < 30 * 60 {
-            anunciar("Kilómetro \(km): \(ritmoParaHablar(Int(parcial))) el último.")
+            anunciar(String(localized: "Kilómetro \(km): \(ritmoParaHablar(Int(parcial))) el último."))
         } else {
-            anunciar("Kilómetro \(km).")
+            anunciar(String(localized: "Kilómetro \(km)."))
         }
     }
 
@@ -469,7 +464,7 @@ final class CarreraCelu: NSObject, ObservableObject {
                     textoProgresoTramo = nil
                     fraccionTramo = nil
                     tiempoAlCompletarEstructura = tiempoTranscurrido
-                    anunciar("Plan de tramos completado. ¡Bien ahí!")
+                    anunciar(String(localized: "Plan de tramos completado. ¡Bien ahí!"))
                 }
             }
             return
@@ -484,10 +479,10 @@ final class CarreraCelu: NSObject, ObservableObject {
 
         if let rapido = tramo.ritmoMinSegKm, ritmo < rapido - margenSegKm {
             fechaUltimaCorreccion = Date()
-            anunciar("Vas a \(ritmoParaHablar(ritmo)). Objetivo \(ritmoParaHablar(rapido)). Aflojá un poco.")
+            anunciar(String(localized: "Vas a \(ritmoParaHablar(ritmo)). Objetivo \(ritmoParaHablar(rapido)). Aflojá un poco."))
         } else if let lento = tramo.ritmoMaxSegKm, ritmo > lento + margenSegKm {
             fechaUltimaCorreccion = Date()
-            anunciar("Vas a \(ritmoParaHablar(ritmo)). Objetivo \(ritmoParaHablar(lento)). Apurá un poco.")
+            anunciar(String(localized: "Vas a \(ritmoParaHablar(ritmo)). Objetivo \(ritmoParaHablar(lento)). Apurá un poco."))
         }
     }
 
@@ -505,18 +500,7 @@ final class CarreraCelu: NSObject, ObservableObject {
     }
 
     private func anuncio(de tramo: Tramo, numero: Int) -> String {
-        var texto = "Tramo \(numero): \(tramo.nombre). \(metaParaHablar(tramo))"
-        switch (tramo.ritmoMinSegKm, tramo.ritmoMaxSegKm) {
-        case let (rapido?, lento?):
-            texto += ", entre \(ritmoParaHablar(rapido)) y \(ritmoParaHablar(lento)) por kilómetro."
-        case let (nil, lento?):
-            texto += ", a \(ritmoParaHablar(lento)) por kilómetro o mejor."
-        case let (rapido?, nil):
-            texto += ", sin pasar de \(ritmoParaHablar(rapido)) por kilómetro."
-        default:
-            texto += ", a ritmo libre."
-        }
-        return texto
+        anuncioDeTramo(tramo, numero: numero)
     }
 
     // MARK: - Voz (pausa la música, habla, y la música sigue)
@@ -538,7 +522,7 @@ final class CarreraCelu: NSObject, ObservableObject {
 
     /// Para probar el volumen y la voz antes de salir.
     func probarAviso() {
-        anunciar("Probando, probando. Así se escuchan los avisos.")
+        anunciar(String(localized: "Probando, probando. Así se escuchan los avisos."))
     }
 
     // MARK: - Música
@@ -830,7 +814,7 @@ extension CarreraCelu: CLLocationManagerDelegate {
                 umbral: max(15, ubicacion.horizontalAccuracy),
                 fecha: Date()) {
                 reanudar()
-                anunciar("Seguimos.")
+                anunciar(String(localized: "Seguimos."))
             }
             return
         }

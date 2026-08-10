@@ -379,7 +379,7 @@ final class Entrenamiento: NSObject, ObservableObject {
         fechaUltimoEmpujonGPS = nil
         Reproductor.compartido.pausar()  // cascada: avisos + entrenamiento
         ubicaciones.startUpdatingLocation()
-        Avisador.compartido.anunciar("Pausa automática.")
+        Avisador.compartido.anunciar(String(localized: "Pausa automática."))
     }
 
     /// Desplazamiento GPS (primer a último punto bueno) en la ventana.
@@ -397,7 +397,7 @@ final class Entrenamiento: NSObject, ObservableObject {
     private func autoReanudar() {
         guard enPausaAutomatica else { return }
         Reproductor.compartido.reanudar()  // limpia enPausaAutomatica
-        Avisador.compartido.anunciar("Seguimos.")
+        Avisador.compartido.anunciar(String(localized: "Seguimos."))
     }
 
     /// Termina la sesión y guarda el workout en Salud. La limpieza final
@@ -526,7 +526,7 @@ final class Entrenamiento: NSObject, ObservableObject {
         guard !esLaPrimera else { return }
         if let ultimo = fechaUltimoAvisoZona, Date().timeIntervalSince(ultimo) < 45 { return }
         fechaUltimoAvisoZona = Date()
-        Avisador.compartido.anunciar("Zona \(zona).")
+        Avisador.compartido.anunciar(String(localized: "Zona \(zona)."))
     }
 
     private func actualizarEstadisticas(con tipos: Set<HKSampleType>) {

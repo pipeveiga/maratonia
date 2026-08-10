@@ -54,20 +54,20 @@ enum DV2 {
                            baseline: PerformanceBaseline? = nil) -> String {
         switch segmento.ritmo {
         case .libre:
-            return "libre"
+            return String(localized: "libre")
         case .absoluto(let rapido, let lento):
             switch (rapido, lento) {
             case let (r?, l?): return "\(formatearRitmo(r))–\(formatearRitmo(l)) /km"
-            case let (nil, l?): return "\(formatearRitmo(l)) /km o mejor"
-            case let (r?, nil): return "sin pasar de \(formatearRitmo(r)) /km"
-            default: return "libre"
+            case let (nil, l?): return String(localized: "\(formatearRitmo(l)) /km o mejor")
+            case let (r?, nil): return String(localized: "sin pasar de \(formatearRitmo(r)) /km")
+            default: return String(localized: "libre")
             }
         case .simbolico(let tipo):
             switch Metodologias.resolver(tipo, baseline: baseline) {
             case .resuelto(let rango, _):
                 return "\(formatearRitmo(rango.minSegKm))–\(formatearRitmo(rango.maxSegKm)) /km"
             case .pendiente:
-                return "ritmo \(nombre(de: tipo).lowercased()) · a personalizar"
+                return String(localized: "ritmo \(nombre(de: tipo).lowercased()) · a personalizar")
             }
         }
     }
@@ -81,33 +81,41 @@ enum DV2 {
         } else if let segundos = segmento.duracionSegundos {
             partes.append(duracionTexto(segundos))
         }
-        let ritmo = textoRitmo(de: segmento)
-        if ritmo != "libre" { partes.append(ritmo) }
+        // Comparación SEMÁNTICA (no contra el string "libre"): con la
+        // app en inglés el texto es "open" y la comparación textual
+        // agregaba "open" a cada segmento libre.
+        let esLibre: Bool
+        switch segmento.ritmo {
+        case .libre: esLibre = true
+        case .absoluto(nil, nil): esLibre = true
+        default: esLibre = false
+        }
+        if !esLibre { partes.append(textoRitmo(de: segmento)) }
         return partes.joined(separator: " · ")
     }
 
     static func nombre(de tipo: TipoRitmo) -> String {
         switch tipo {
-        case .facil: return "Fácil"
-        case .recuperacion: return "Recuperación"
-        case .maraton: return "Maratón"
-        case .umbral: return "Umbral"
-        case .intervalo: return "Intervalo"
-        case .repeticion: return "Repetición"
+        case .facil: return String(localized: "Fácil")
+        case .recuperacion: return String(localized: "Recuperación")
+        case .maraton: return String(localized: "Maratón")
+        case .umbral: return String(localized: "Umbral")
+        case .intervalo: return String(localized: "Intervalo")
+        case .repeticion: return String(localized: "Repetición")
         }
     }
 
     static func nombre(de tipo: TipoEntrenamiento) -> String {
         switch tipo {
-        case .facil: return "Fácil"
-        case .recuperacion: return "Recuperación"
-        case .largo: return "Larga"
-        case .tempo: return "Tempo"
-        case .umbral: return "Umbral"
-        case .series: return "Series"
-        case .ritmoCarrera: return "Ritmo de carrera"
-        case .testEvaluacion: return "Evaluación"
-        case .personalizado: return "Personalizado"
+        case .facil: return String(localized: "Fácil")
+        case .recuperacion: return String(localized: "Recuperación")
+        case .largo: return String(localized: "Larga")
+        case .tempo: return String(localized: "Tempo")
+        case .umbral: return String(localized: "Umbral")
+        case .series: return String(localized: "Series")
+        case .ritmoCarrera: return String(localized: "Ritmo de carrera")
+        case .testEvaluacion: return String(localized: "Evaluación")
+        case .personalizado: return String(localized: "Personalizado")
         }
     }
 }
@@ -197,11 +205,11 @@ enum TextosObjetivo {
 
     static func nombre(de objetivo: ObjetivoDeportivo) -> String {
         switch objetivo {
-        case .primeros5K: return "Mis primeros 5K"
-        case .mejorar5K: return "Mejorar mis 5K"
-        case .diez: return "Correr 10K"
-        case .mediaMaraton: return "Media maratón"
-        case .maraton: return "Maratón"
+        case .primeros5K: return String(localized: "Mis primeros 5K")
+        case .mejorar5K: return String(localized: "Mejorar mis 5K")
+        case .diez: return String(localized: "Correr 10K")
+        case .mediaMaraton: return String(localized: "Media maratón")
+        case .maraton: return String(localized: "Maratón")
         }
     }
 
@@ -227,17 +235,17 @@ enum TextosObjetivo {
         else { return nil }
         switch dias {
         case ..<0:
-            return "La fecha de tu carrera ya pasó — actualizala cuando quieras"
+            return String(localized: "La fecha de tu carrera ya pasó — actualizala cuando quieras")
         case 0:
-            return "¡Tu carrera es hoy!"
+            return String(localized: "¡Tu carrera es hoy!")
         case 1:
-            return "Tu carrera es mañana"
+            return String(localized: "Tu carrera es mañana")
         case 2...13:
-            return "Faltan \(dias) días para tu carrera"
+            return String(localized: "Faltan \(dias) días para tu carrera")
         default:
             let semanas = dias / 7
-            return semanas == 1 ? "Falta 1 semana para tu carrera"
-                                : "Faltan \(semanas) semanas para tu carrera"
+            return semanas == 1 ? String(localized: "Falta 1 semana para tu carrera")
+                                : String(localized: "Faltan \(semanas) semanas para tu carrera")
         }
     }
 }
