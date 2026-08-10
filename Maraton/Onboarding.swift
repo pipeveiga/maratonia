@@ -221,7 +221,7 @@ struct OnboardingDeportivo: View {
                                     diasPorSemana.map { "\($0) días por semana" } ?? "A definir")
                         filaResumen("flag.checkered", "Carrera",
                                     tieneFechaObjetivo
-                                    ? fechaObjetivo.formatted(date: .abbreviated, time: .omitted)
+                                    ? FormatoFecha.media(fechaObjetivo)
                                     : "Sin fecha — se avanza por progresión")
                     }
                 }

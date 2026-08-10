@@ -297,10 +297,7 @@ struct ProgresoTab: View {
     }
 
     private func etiquetaSemana(_ inicio: Date) -> String {
-        let formato = DateFormatter()
-        formato.locale = Locale(identifier: "es")
-        formato.dateFormat = "d/M"
-        return formato.string(from: inicio)
+        FormatoFecha.numerica(inicio)
     }
 
     // MARK: Consistencia (racha)

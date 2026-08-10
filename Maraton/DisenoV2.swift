@@ -112,6 +112,85 @@ enum DV2 {
     }
 }
 
+/// Formateo de FECHAS de cara al usuario — UN solo lugar (build 41).
+///
+/// El bug real: el bundle declaraba INGLÉS como único idioma
+/// (developmentRegion/knownRegions), así que la localización resuelta
+/// de la app era inglés y Locale.current adentro de la app formateaba
+/// "Tuesday, 11 Aug" con toda la UI en español. La causa se arregló
+/// declarando `es` en el proyecto; esto además centraliza los formatos
+/// que Maratonia usa de verdad — nada de nombres de días hardcodeados
+/// ni diccionarios: Foundation con el Locale correcto.
+enum FormatoFecha {
+
+    /// El idioma de la APP (localización resuelta del bundle) combinado
+    /// con la región del usuario (reloj de 12/24 h, etc.). Si algún día
+    /// Maratonia se localiza a otro idioma, esto lo sigue solo.
+    static var locale: Locale {
+        let idioma = Bundle.main.preferredLocalizations.first ?? "es"
+        var componentes = Locale.Components(locale: .current)
+        componentes.languageComponents = Locale.Language.Components(identifier: idioma)
+        return Locale(components: componentes)
+    }
+
+    /// "martes, 11 ago" — Próximos, filas del calendario, hojas.
+    static func corta(_ fecha: Date, locale: Locale = FormatoFecha.locale) -> String {
+        fecha.formatted(Date.FormatStyle(locale: locale)
+            .weekday(.wide).day().month(.abbreviated))
+    }
+
+    /// "martes, 11 de agosto" — detalle del entrenamiento.
+    static func larga(_ fecha: Date, locale: Locale = FormatoFecha.locale) -> String {
+        fecha.formatted(Date.FormatStyle(locale: locale)
+            .weekday(.wide).day().month(.wide))
+    }
+
+    /// "9 ago 2026" — referencias, fechas sueltas con año.
+    static func media(_ fecha: Date, locale: Locale = FormatoFecha.locale) -> String {
+        fecha.formatted(Date.FormatStyle(locale: locale)
+            .day().month(.abbreviated).year())
+    }
+
+    /// "9 de agosto de 2026" — la postal para compartir y encabezados.
+    static func completa(_ fecha: Date, locale: Locale = FormatoFecha.locale) -> String {
+        fecha.formatted(Date.FormatStyle(locale: locale)
+            .day().month(.wide).year())
+    }
+
+    /// "21:54" (o "9:54 p. m." según la región del usuario).
+    static func hora(_ fecha: Date, locale: Locale = FormatoFecha.locale) -> String {
+        fecha.formatted(Date.FormatStyle(locale: locale).hour().minute())
+    }
+
+    /// "9 ago 2026 · 21:54" — carreras (sin el "at"/"a las").
+    static func fechaYHora(_ fecha: Date, locale: Locale = FormatoFecha.locale) -> String {
+        media(fecha, locale: locale) + " · " + hora(fecha, locale: locale)
+    }
+
+    /// "11 ago" — compactas ("era el 11 ago").
+    static func diaYMes(_ fecha: Date, locale: Locale = FormatoFecha.locale) -> String {
+        fecha.formatted(Date.FormatStyle(locale: locale)
+            .day().month(.abbreviated))
+    }
+
+    /// "11/8" — etiquetas mínimas (barras de volumen).
+    static func numerica(_ fecha: Date, locale: Locale = FormatoFecha.locale) -> String {
+        fecha.formatted(Date.FormatStyle(locale: locale)
+            .day().month(.defaultDigits))
+    }
+
+    /// "mar 11/8" — chips ultra compactos (tarjeta PRÓXIMO de Correr).
+    static func diaCorto(_ fecha: Date, locale: Locale = FormatoFecha.locale) -> String {
+        fecha.formatted(Date.FormatStyle(locale: locale).weekday(.abbreviated))
+            + " " + numerica(fecha, locale: locale)
+    }
+
+    /// "martes" — para etiquetas de accesibilidad.
+    static func diaDeSemana(_ fecha: Date, locale: Locale = FormatoFecha.locale) -> String {
+        fecha.formatted(Date.FormatStyle(locale: locale).weekday(.wide))
+    }
+}
+
 /// Textos del objetivo deportivo — un solo lugar (los usaban Perfil,
 /// Plan y onboarding por separado y ya estaban divergiendo).
 enum TextosObjetivo {

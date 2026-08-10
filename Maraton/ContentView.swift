@@ -242,7 +242,7 @@ struct PlanTab: View {
     private func subtituloProximo(_ programado: EntrenamientoProgramado) -> String {
         var partes: [String] = []
         if let fecha = programado.dia?.fecha() {
-            partes.append(fecha.formatted(.dateTime.weekday(.wide).day().month()))
+            partes.append(FormatoFecha.corta(fecha))
         }
         partes.append(programado.definicion.resumenEstructura)
         return partes.joined(separator: " · ")
@@ -933,7 +933,7 @@ struct PerfilTab: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(textoCuenta)
                             if let fecha = cuenta.ultimoRespaldo {
-                                Text("Último respaldo: \(fecha.formatted(date: .omitted, time: .shortened))")
+                                Text("Último respaldo: \(FormatoFecha.hora(fecha))")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -1059,8 +1059,7 @@ struct PerfilTab: View {
                 if let fecha = perfil.fechaObjetivo?.fecha() {
                     HStack(spacing: 10) {
                         IconoAjuste(sistema: "flag.checkered", color: .orange)
-                        LabeledContent("Tu carrera",
-                                       value: fecha.formatted(date: .abbreviated, time: .omitted))
+                        LabeledContent("Tu carrera", value: FormatoFecha.media(fecha))
                     }
                 }
                 Button("Cambiar objetivo") { mostrandoOnboarding = true }
@@ -1114,7 +1113,7 @@ struct PerfilTab: View {
     }
 
     private func origenReferencia(_ referencia: ReferenciaRendimiento) -> String {
-        let fecha = referencia.fecha.formatted(date: .abbreviated, time: .omitted)
+        let fecha = FormatoFecha.media(referencia.fecha)
         switch referencia.fuente {
         case .test5K: return "Test 5K · \(fecha)"
         case .carreraReal: return "Carrera real · \(fecha)"

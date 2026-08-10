@@ -1020,10 +1020,7 @@ struct CorrerTab: View {
     /// "PRÓXIMO · MAR 12/8" para la tarjeta de contexto.
     private func etiquetaProxima(_ programado: EntrenamientoProgramado) -> String {
         guard let fecha = programado.dia?.fecha() else { return "PRÓXIMO" }
-        let formato = DateFormatter()
-        formato.locale = Locale(identifier: "es")
-        formato.dateFormat = "EEE d/M"
-        return "PRÓXIMO · " + formato.string(from: fecha).uppercased()
+        return "PRÓXIMO · " + FormatoFecha.diaCorto(fecha).uppercased()
     }
 
     private var datosDelPlan: String {

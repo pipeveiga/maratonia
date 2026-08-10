@@ -593,3 +593,77 @@ final class SupervisorReanudacionTests: XCTestCase {
                        [.planCompletado])
     }
 }
+
+// MARK: - Localización de fechas (build 41)
+
+final class FormatoFechaTests: XCTestCase {
+
+    private let es = Locale(identifier: "es_AR")
+    private let en = Locale(identifier: "en_US")
+
+    /// martes 11 de agosto de 2026, 21:54 hora local.
+    private var fecha: Date {
+        Calendar.current.date(from: DateComponents(
+            year: 2026, month: 8, day: 11, hour: 21, minute: 54))!
+    }
+
+    func testFechaCortaDeEntrenamiento() {
+        let texto = FormatoFecha.corta(fecha, locale: es).lowercased()
+        XCTAssertTrue(texto.contains("martes"), texto)
+        XCTAssertTrue(texto.contains("11"), texto)
+        XCTAssertTrue(texto.contains("ago"), texto)
+        XCTAssertFalse(texto.contains("tuesday"), texto)
+        XCTAssertFalse(texto.contains("aug"), texto)
+    }
+
+    func testFechaLargaDeDetalle() {
+        let texto = FormatoFecha.larga(fecha, locale: es).lowercased()
+        XCTAssertTrue(texto.contains("martes"), texto)
+        XCTAssertTrue(texto.contains("de agosto"), texto)   // "11 de agosto"
+        XCTAssertFalse(texto.contains("august"), texto)
+    }
+
+    func testFechaYHoraDeCarrera() {
+        let texto = FormatoFecha.fechaYHora(fecha, locale: es).lowercased()
+        XCTAssertTrue(texto.contains("ago"), texto)
+        XCTAssertTrue(texto.contains("2026"), texto)
+        XCTAssertTrue(texto.contains(" · "), texto)         // sin "at"/"a las"
+        XCTAssertTrue(texto.contains("54"), texto)
+        XCTAssertFalse(texto.contains(" at "), texto)
+    }
+
+    func testCambioDeLocale() {
+        // La MISMA arquitectura formatea en el idioma que se le pida:
+        // el bug era que el bundle resolvía inglés, no los formatos.
+        let esCorta = FormatoFecha.corta(fecha, locale: es).lowercased()
+        let enCorta = FormatoFecha.corta(fecha, locale: en).lowercased()
+        XCTAssertTrue(esCorta.contains("martes"))
+        XCTAssertTrue(enCorta.contains("tuesday"))
+        XCTAssertTrue(FormatoFecha.larga(fecha, locale: en).contains("August"))
+        XCTAssertTrue(FormatoFecha.media(fecha, locale: en).contains("2026"))
+    }
+
+    func testFormatosCompactos() {
+        XCTAssertEqual(FormatoFecha.numerica(fecha, locale: es), "11/8")
+        let corto = FormatoFecha.diaCorto(fecha, locale: es).lowercased()
+        XCTAssertTrue(corto.contains("mar"), corto)         // "mar 11/8"
+        XCTAssertTrue(corto.contains("11/8"), corto)
+        XCTAssertEqual(FormatoFecha.diaDeSemana(fecha, locale: es).lowercased(), "martes")
+    }
+
+    func testFormatearNoAlteraLaFecha() {
+        // Presentación pura: ni el Date ni el día calendario cambian
+        // por formatear (en ningún locale).
+        let dia = DiaLocal(anio: 2026, mes: 8, dia: 11)
+        let fecha = dia.fecha()!
+        let antes = fecha.timeIntervalSince1970
+        for locale in [es, en] {
+            _ = FormatoFecha.corta(fecha, locale: locale)
+            _ = FormatoFecha.larga(fecha, locale: locale)
+            _ = FormatoFecha.fechaYHora(fecha, locale: locale)
+            _ = FormatoFecha.completa(fecha, locale: locale)
+        }
+        XCTAssertEqual(fecha.timeIntervalSince1970, antes)
+        XCTAssertEqual(DiaLocal(fecha: fecha), dia)   // mismo día local
+    }
+}

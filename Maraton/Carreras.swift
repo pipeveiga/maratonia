@@ -254,7 +254,7 @@ struct CarrerasView: View {
     }
 
     private func subtituloCarrera(_ carrera: CarreraResumen) -> String {
-        var partes = [carrera.fecha.formatted(date: .abbreviated, time: .shortened),
+        var partes = [FormatoFecha.fechaYHora(carrera.fecha),
                       formatearDuracion(carrera.duracion)]
         if let ritmo = carrera.ritmoPromedioSegKm {
             partes.append("\(formatearRitmo(ritmo)) /km")
@@ -263,7 +263,7 @@ struct CarrerasView: View {
     }
 
     private func etiquetaCarrera(_ carrera: CarreraResumen) -> String {
-        "Carrera del \(carrera.fecha.formatted(date: .long, time: .omitted)): "
+        "Carrera del \(FormatoFecha.completa(carrera.fecha)): "
             + String(format: "%.1f kilómetros", carrera.distanciaMetros / 1000)
             + ", \(formatearDuracion(carrera.duracion))"
     }
@@ -337,7 +337,7 @@ struct CarreraDetalleView: View {
                     .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                     .listRowBackground(Color.clear)
                 } header: {
-                    Text(carrera.fecha.formatted(date: .long, time: .shortened))
+                    Text("\(FormatoFecha.completa(carrera.fecha)) · \(FormatoFecha.hora(carrera.fecha))")
                 }
             }
             .navigationTitle("Carrera")
@@ -477,7 +477,7 @@ struct TarjetaCompartir: View {
                     .font(.headline)
                     .foregroundStyle(.white.opacity(0.9))
             }
-            Text(carrera.fecha.formatted(date: .long, time: .omitted))
+            Text(FormatoFecha.completa(carrera.fecha))
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.75))
 

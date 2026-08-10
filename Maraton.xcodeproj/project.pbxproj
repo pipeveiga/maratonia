@@ -244,10 +244,10 @@
 			};
 			buildConfigurationList = A10000000000000000000015 /* Build configuration list for PBXProject "Maraton" */;
 			compatibilityVersion = "Xcode 14.0";
-			developmentRegion = en;
+			developmentRegion = es;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
+				es,
 				Base,
 			);
 			mainGroup = A10000000000000000000006;
