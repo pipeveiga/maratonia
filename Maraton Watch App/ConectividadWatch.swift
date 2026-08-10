@@ -56,7 +56,13 @@ final class ConectividadWatch: NSObject, ObservableObject {
     /// instante, sin esperar la re-proyección. Se persiste acotado.
     @Published private(set) var programadosCompletados: [UUID] = []
 
+    /// Cómo terminó cada uno LOCALMENTE (true = estructura completa):
+    /// mientras el resultado viaja al iPhone, la Home ya puede mostrar
+    /// "Completado"/"Parcial" en vez de caer a la vista legacy.
+    @Published private(set) var estructuraCompletaLocal: [UUID: Bool] = [:]
+
     private static let claveCompletados = "programadosCompletadosWatch"
+    private static let claveEstructuras = "estructurasCompletasWatch"
 
     private static var urlDocumentos: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -104,20 +110,20 @@ final class ConectividadWatch: NSObject, ObservableObject {
         programadosCompletados = (UserDefaults.standard
             .stringArray(forKey: Self.claveCompletados) ?? [])
             .compactMap(UUID.init(uuidString:))
+        let crudas = UserDefaults.standard
+            .dictionary(forKey: Self.claveEstructuras) as? [String: Bool] ?? [:]
+        estructuraCompletaLocal = Dictionary(uniqueKeysWithValues:
+            crudas.compactMap { clave, valor in UUID(uuidString: clave).map { ($0, valor) } })
         refrescarArchivosLocales()
     }
 
     // MARK: Fase E — proyección y resultados
 
-    /// El entrenamiento que la Home puede ofrecer HOY: proyección
-    /// vigente (mismo día local, versión conocida), con definición, y
-    /// que este reloj no haya corrido ya.
+    /// El entrenamiento que la Home puede ofrecer HOY (la decisión pura
+    /// vive en ProyeccionDia.entrenamientoOfrecible, en Shared).
     func entrenamientoDeHoy(_ hoy: DiaLocal) -> (id: UUID, definicion: DefinicionEntrenamiento)? {
-        guard let proyeccion, proyeccion.vigente(hoy: hoy),
-              let id = proyeccion.programadoID,
-              let definicion = proyeccion.definicion,
-              !programadosCompletados.contains(id) else { return nil }
-        return (id, definicion)
+        proyeccion?.entrenamientoOfrecible(hoy: hoy,
+                                           completadosLocal: Set(programadosCompletados))
     }
 
     private func guardarProyeccion(_ nueva: ProyeccionDia, datos: Data) {
@@ -127,14 +133,30 @@ final class ConectividadWatch: NSObject, ObservableObject {
         }
     }
 
+    /// El resultado de HOY para la Home (la decisión pura vive en
+    /// ProyeccionDia.resultadoDeHoy, en Shared).
+    func resultadoDeHoy(_ hoy: DiaLocal) -> (nombre: String, resolucion: ResolucionProgramado)? {
+        proyeccion?.resultadoDeHoy(hoy: hoy,
+                                   completadosLocal: Set(programadosCompletados),
+                                   estructuraLocal: estructuraCompletaLocal)
+    }
+
     /// El reloj corrió y guardó este programado: dejar de ofrecerlo ya
     /// mismo. Acotado a los últimos 50 (no crece para siempre).
-    func marcarCompletadoLocal(_ programadoID: UUID) {
+    func marcarCompletadoLocal(_ programadoID: UUID, estructuraCompleta: Bool) {
         var lista = programadosCompletados.filter { $0 != programadoID }
         lista.append(programadoID)
         programadosCompletados = Array(lista.suffix(50))
         UserDefaults.standard.set(programadosCompletados.map(\.uuidString),
                                   forKey: Self.claveCompletados)
+        var estructuras = estructuraCompletaLocal
+        estructuras[programadoID] = estructuraCompleta
+        // Mismo tope que la lista: lo que salió de la lista, sale acá.
+        let vigentes = Set(programadosCompletados)
+        estructuraCompletaLocal = estructuras.filter { vigentes.contains($0.key) }
+        UserDefaults.standard.set(
+            Dictionary(uniqueKeysWithValues: estructuraCompletaLocal.map { ($0.key.uuidString, $0.value) }),
+            forKey: Self.claveEstructuras)
     }
 
     /// Manda el resultado por transferUserInfo: la cola es confiable,

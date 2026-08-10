@@ -235,16 +235,25 @@ final class AlmacenStore: ObservableObject {
 
     /// La foto de HOY para el reloj: el pendiente del día si existe.
     /// También se manda "vacía" (sin definición) — así el reloj se
-    /// entera de que hoy NO hay nada pendiente (p. ej. recién cumplido
-    /// desde el iPhone).
+    /// entera de que hoy NO hay nada pendiente. Y si el programado de
+    /// hoy ya se RESOLVIÓ, viaja como resultado para que el reloj lo
+    /// muestre como estado del día (bug 2 de build 38).
     func proyeccionDeHoy(fecha: Date = Date()) -> ProyeccionDia {
         let hoy = DiaLocal(fecha: fecha)
         let deHoy = almacen.entrenamientoDeHoy(hoy)
-        return ProyeccionDia(generadaEl: fecha,
-                             dia: hoy,
-                             programadoID: deHoy?.id,
-                             definicion: deHoy?.definicion,
-                             nombrePlan: almacen.planActivo?.nombre)
+        var proyeccion = ProyeccionDia(generadaEl: fecha,
+                                       dia: hoy,
+                                       programadoID: deHoy?.id,
+                                       definicion: deHoy?.definicion,
+                                       nombrePlan: almacen.planActivo?.nombre)
+        if deHoy == nil,
+           let resuelto = almacen.programadoDelDia(hoy),
+           resuelto.resolucion != .pendiente {
+            proyeccion.resolucionDeHoy = resuelto.resolucion
+            proyeccion.nombreDeHoy = resuelto.definicion.nombre
+            proyeccion.tipoDeHoy = resuelto.definicion.tipo
+        }
+        return proyeccion
     }
 
     // MARK: Resultados del reloj (Fase E)

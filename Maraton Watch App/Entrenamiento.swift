@@ -618,7 +618,8 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
                             programadoID: idProgramado,
                             estructuraCompleta: estructuraCompleta))
                         if let idProgramado {
-                            ConectividadWatch.compartida.marcarCompletadoLocal(idProgramado)
+                            ConectividadWatch.compartida.marcarCompletadoLocal(
+                                idProgramado, estructuraCompleta: estructuraCompleta)
                         }
                         UserDefaults.standard.removeObject(forKey: Self.claveProgramadoActivo)
                     }

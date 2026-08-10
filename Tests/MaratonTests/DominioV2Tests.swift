@@ -1062,3 +1062,122 @@ final class CalculoProgresoTests: XCTestCase {
         XCTAssertNil(vacio.mejorRitmo)
     }
 }
+
+// MARK: - Build 39, bug 2: estado post-entrenamiento en el reloj
+
+final class EstadoPostEntrenamientoWatchTests: XCTestCase {
+
+    private let hoy = DiaLocal(anio: 2026, mes: 8, dia: 10)
+
+    private func definicion() -> DefinicionEntrenamiento {
+        DefinicionEntrenamiento(tipo: .facil, nombre: "Rodaje", segmentos: [
+            Segmento(nombre: "Rodaje", distanciaKm: 5),
+        ])
+    }
+
+    func testProyeccionLlevaElResultadoDeHoyResuelto() {
+        // iPhone: el programado de hoy quedó parcial → la proyección
+        // deja de ofrecerlo y lleva el RESULTADO.
+        var almacen = AlmacenV2()
+        almacen.activado = true
+        var programado = EntrenamientoProgramado(definicion: definicion(), dia: hoy)
+        programado.resolucion = .parcial
+        almacen.planActivo = PlanUsuario(nombre: "Plan", origen: .personalizado,
+                                         fechaAdopcion: Date(timeIntervalSince1970: 0),
+                                         semanas: [SemanaPlan(numero: 1, programados: [programado])])
+        let directorio = FileManager.default.temporaryDirectory
+            .appendingPathComponent("test-b39-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: directorio, withIntermediateDirectories: true)
+        let url = directorio.appendingPathComponent("dominio-v2.json")
+        try? JSONEncoder().encode(almacen).write(to: url)
+        let store = AlmacenStore(url: url,
+                                 urlLegacy: directorio.appendingPathComponent("plan.json"),
+                                 conectadoAlReloj: false)
+
+        let proyeccion = store.proyeccionDeHoy(fecha: hoy.fecha()!)
+        XCTAssertNil(proyeccion.programadoID)      // ya no se ofrece
+        XCTAssertNil(proyeccion.definicion)
+        XCTAssertEqual(proyeccion.resolucionDeHoy, .parcial)
+        XCTAssertEqual(proyeccion.nombreDeHoy, "Rodaje")
+        XCTAssertEqual(proyeccion.tipoDeHoy, .facil)
+
+        // Con el programado PENDIENTE, los campos de resultado van vacíos.
+        var pendiente = almacen
+        pendiente.planActivo!.semanas[0].programados[0].resolucion = .pendiente
+        try? JSONEncoder().encode(pendiente).write(to: url)
+        let store2 = AlmacenStore(url: url,
+                                  urlLegacy: directorio.appendingPathComponent("plan.json"),
+                                  conectadoAlReloj: false)
+        let proyeccion2 = store2.proyeccionDeHoy(fecha: hoy.fecha()!)
+        XCTAssertNotNil(proyeccion2.programadoID)
+        XCTAssertNil(proyeccion2.resolucionDeHoy)
+        try? FileManager.default.removeItem(at: directorio)
+    }
+
+    func testHomeDelRelojNoOfreceDosVecesElMismoProgramado() {
+        // Proyección con pendiente; el reloj YA lo corrió localmente:
+        // no se ofrece de nuevo y se muestra el resultado local.
+        let id = UUID()
+        let proyeccion = ProyeccionDia(generadaEl: Date(), dia: hoy,
+                                       programadoID: id, definicion: definicion(),
+                                       nombrePlan: "Plan")
+        // Antes de correr: se ofrece, no hay resultado.
+        XCTAssertNotNil(proyeccion.entrenamientoOfrecible(hoy: hoy, completadosLocal: []))
+        XCTAssertNil(proyeccion.resultadoDeHoy(hoy: hoy, completadosLocal: [],
+                                               estructuraLocal: [:]))
+        // Después de correrlo (parcial, local): no se ofrece; resultado ◐.
+        XCTAssertNil(proyeccion.entrenamientoOfrecible(hoy: hoy, completadosLocal: [id]))
+        let parcial = proyeccion.resultadoDeHoy(hoy: hoy, completadosLocal: [id],
+                                                estructuraLocal: [id: false])
+        XCTAssertEqual(parcial?.nombre, "Rodaje")
+        XCTAssertEqual(parcial?.resolucion, .parcial)
+        // Estructura completa local → ✓ Completado.
+        let completo = proyeccion.resultadoDeHoy(hoy: hoy, completadosLocal: [id],
+                                                 estructuraLocal: [id: true])
+        XCTAssertEqual(completo?.resolucion, .cumplido)
+    }
+
+    func testElIPhoneManda_SobreElEstadoLocal() {
+        // Cuando la proyección YA trae la resolución del iPhone, esa
+        // gana sobre lo local (el iPhone es el dueño del calendario).
+        let id = UUID()
+        var proyeccion = ProyeccionDia(generadaEl: Date(), dia: hoy,
+                                       programadoID: nil, definicion: nil,
+                                       nombrePlan: "Plan")
+        proyeccion.resolucionDeHoy = .cumplido
+        proyeccion.nombreDeHoy = "Rodaje"
+        let resultado = proyeccion.resultadoDeHoy(hoy: hoy, completadosLocal: [id],
+                                                  estructuraLocal: [id: false])
+        XCTAssertEqual(resultado?.resolucion, .cumplido)
+    }
+
+    func testResultadoDeAyerNoContamina() {
+        // La proyección de AYER con resultado no muestra nada hoy.
+        var proyeccion = ProyeccionDia(generadaEl: Date(),
+                                       dia: hoy.sumando(dias: -1),
+                                       programadoID: nil, definicion: nil,
+                                       nombrePlan: "Plan")
+        proyeccion.resolucionDeHoy = .cumplido
+        proyeccion.nombreDeHoy = "Rodaje"
+        XCTAssertNil(proyeccion.resultadoDeHoy(hoy: hoy, completadosLocal: [],
+                                               estructuraLocal: [:]))
+    }
+
+    func testProyeccionViejaSinCamposNuevosDecodifica() throws {
+        // Un iPhone build 38 manda la proyección SIN los campos de
+        // resultado: el reloj 39 la decodifica igual (retrocompatible,
+        // misma versión de esquema).
+        let vieja = ProyeccionDia(generadaEl: Date(timeIntervalSince1970: 50),
+                                  dia: hoy, programadoID: UUID(),
+                                  definicion: definicion(), nombrePlan: "Plan")
+        var json = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(vieja)) as! [String: Any]
+        json.removeValue(forKey: "resolucionDeHoy")
+        json.removeValue(forKey: "nombreDeHoy")
+        json.removeValue(forKey: "tipoDeHoy")
+        let datos = try JSONSerialization.data(withJSONObject: json)
+        let decodificada = try JSONDecoder().decode(ProyeccionDia.self, from: datos)
+        XCTAssertNil(decodificada.resolucionDeHoy)
+        XCTAssertNotNil(decodificada.programadoID)
+    }
+}

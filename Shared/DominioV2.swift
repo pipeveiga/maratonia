@@ -589,11 +589,52 @@ struct ProyeccionDia: Codable, Equatable {
     var definicion: DefinicionEntrenamiento?
     var nombrePlan: String?
 
+    /// Si el programado de HOY ya se RESOLVIÓ (cumplido/parcial/
+    /// omitido), viaja como resultado: el reloj lo muestra como estado
+    /// del día y no vuelve a ofrecerlo como pendiente (bug 2 de build
+    /// 38: al terminar, la Home caía a la experiencia legacy). Campos
+    /// opcionales — un receptor viejo simplemente los ignora, así que
+    /// la versión de esquema no cambia.
+    var resolucionDeHoy: ResolucionProgramado? = nil
+    var nombreDeHoy: String? = nil
+    var tipoDeHoy: TipoEntrenamiento? = nil
+
     /// Una proyección de ayer NO ofrece el entrenamiento de ayer como
     /// si fuera de hoy: si el día no coincide, el reloj cae a Carrera
     /// Libre (y el iPhone re-proyecta cuando se abra).
     func vigente(hoy: DiaLocal) -> Bool {
         version <= Self.versionActual && dia == hoy
+    }
+
+    /// Qué puede OFRECER la Home del reloj hoy: el pendiente proyectado,
+    /// salvo que este reloj ya lo haya corrido (garantía de que un mismo
+    /// programadoID no se ejecuta dos veces desde la pantalla principal).
+    func entrenamientoOfrecible(hoy: DiaLocal,
+                                completadosLocal: Set<UUID>) -> (id: UUID, definicion: DefinicionEntrenamiento)? {
+        guard vigente(hoy: hoy),
+              let id = programadoID,
+              let definicion,
+              !completadosLocal.contains(id) else { return nil }
+        return (id, definicion)
+    }
+
+    /// Qué RESULTADO muestra la Home del reloj hoy, con esta prioridad:
+    /// 1. lo que dice el iPhone (dueño del calendario): resolucionDeHoy;
+    /// 2. lo corrido LOCALMENTE mientras el resultado viaja al iPhone.
+    /// nil = hoy no hay nada resuelto que mostrar.
+    func resultadoDeHoy(hoy: DiaLocal,
+                        completadosLocal: Set<UUID>,
+                        estructuraLocal: [UUID: Bool]) -> (nombre: String, resolucion: ResolucionProgramado)? {
+        guard vigente(hoy: hoy) else { return nil }
+        if let resolucion = resolucionDeHoy, let nombre = nombreDeHoy {
+            return (nombre, resolucion)
+        }
+        if let id = programadoID, let definicion,
+           completadosLocal.contains(id) {
+            let completa = estructuraLocal[id] ?? false
+            return (definicion.nombre, completa ? .cumplido : .parcial)
+        }
+        return nil
     }
 }
 

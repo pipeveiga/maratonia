@@ -72,11 +72,17 @@ struct ContentView: View {
                     }
                     // Fase E: si el iPhone proyectó un entrenamiento
                     // para HOY, ese es el protagonista (identidad por
-                    // programadoID, no por huella). Sin proyección
-                    // vigente, el reloj se comporta como siempre — un
-                    // iPhone viejo no rompe nada.
-                    if let hoy = conectividad.entrenamientoDeHoy(DiaLocal(fecha: Date())) {
+                    // programadoID, no por huella). Si HOY ya se corrió
+                    // (dice el iPhone, o lo corrió este reloj y el
+                    // resultado está viajando), se muestra el RESULTADO
+                    // — nunca se vuelve a ofrecer ni se cae a la vista
+                    // legacy. Sin proyección vigente, el reloj se
+                    // comporta como siempre — un iPhone viejo no rompe.
+                    let hoyDia = DiaLocal(fecha: Date())
+                    if let hoy = conectividad.entrenamientoDeHoy(hoyDia) {
                         vistaEntrenamientoHoy(hoy.id, hoy.definicion)
+                    } else if let resultado = conectividad.resultadoDeHoy(hoyDia) {
+                        vistaHoyResuelto(resultado.nombre, resultado.resolucion)
                     } else if let plan = conectividad.plan {
                         vistaPlan(plan)
                     } else {
@@ -189,6 +195,44 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
+
+        piePlan(planAudio)
+    }
+
+    /// HOY ya corrido: el resultado del día, simple, con Carrera libre
+    /// disponible. El entrenamiento NO se vuelve a ofrecer (bug 2 de
+    /// build 38: la Home caía a la experiencia legacy).
+    @ViewBuilder
+    private func vistaHoyResuelto(_ nombre: String,
+                                  _ resolucion: ResolucionProgramado) -> some View {
+        let planAudio = conectividad.plan ?? .vacio
+        VStack(spacing: 3) {
+            Text("HOY")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.green)
+                .tracking(1)
+            Text(nombre)
+                .font(.headline)
+                .multilineTextAlignment(.center)
+            switch resolucion {
+            case .cumplido:
+                Label("Completado", systemImage: "checkmark.seal.fill")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.green)
+            case .parcial:
+                Label("Parcial — quedó guardado", systemImage: "circle.bottomhalf.filled")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.yellow)
+            case .omitido:
+                Label("Omitido", systemImage: "minus.circle")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            case .pendiente:
+                EmptyView()   // no llega acá: pendiente se ofrece, no se muestra
+            }
+        }
+
+        botonPlay(planAudio, libre: true, titulo: "Carrera libre")
 
         piePlan(planAudio)
     }
