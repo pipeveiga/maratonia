@@ -46,6 +46,26 @@
 - Con "Ocultar mi correo" de Apple, Firebase solo ve la dirección
   relay de Apple, nunca el email real.
 
+## BACKEND MARATONIA (Cloud Functions — solo Maratonia Coach)
+- **Existe solo si el usuario usa el Coach** (acción explícita; sin
+  backend configurado la sección ni aparece). Autenticado con Firebase.
+- **Qué recibe**: el DTO mínimo de `ContextoCoach` — objetivo, fecha de
+  carrera, días elegidos, baseline (distancia+tiempo), resumen del plan
+  y de sesiones (fecha/tipo/km/ritmo/cumplida).
+- **Qué NO recibe jamás**: rutas GPS, coordenadas, frecuencia cardíaca
+  cruda, datos de HealthKit sin resumir, contactos, nada del Watch.
+  (Un test automatizado verifica que el DTO no serializa esos campos.)
+- Guarda: contadores de uso por usuario/día (rate limit) y cache de
+  respuestas por 24 h (idempotencia), en Firestore del proyecto —
+  inaccesible desde clientes (reglas: deny all).
+
+## OPENAI (procesador del Coach)
+- El backend reenvía a OpenAI SOLO el DTO anterior + la pregunta del
+  usuario, para generar la respuesta estructurada del Coach.
+- La API key es secret del backend: jamás está en la app ni en git.
+- Sin Coach no hay ningún dato hacia OpenAI. El plan de entrenamiento
+  se genera SIEMPRE en el dispositivo con el motor determinístico.
+
 ## Para el formulario App Privacy (App Store Connect)
 - Health & Fitness: SÍ se usa, vinculado al usuario, solo
   funcionalidad de la app, NO tracking, NO se comparte con terceros.
