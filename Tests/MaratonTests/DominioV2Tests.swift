@@ -1617,3 +1617,110 @@ final class MotorPlanesTests: XCTestCase {
             .omitir(programadoID: UUID()), en: almacen, hoy: hoy).permitido)
     }
 }
+
+// MARK: - Build 44: auth real (Firebase) — lógica testeable sin red
+
+final class AuthSprintTests: XCTestCase {
+
+    // Validación local de credenciales (la UI se apoya en esto para
+    // habilitar botones; el veredicto final siempre es de Firebase).
+    func testEmailValido() {
+        XCTAssertTrue(ValidacionCredenciales.emailValido("pipe@gmail.com"))
+        XCTAssertTrue(ValidacionCredenciales.emailValido("  pipe@gmail.com  "))   // trim
+        XCTAssertTrue(ValidacionCredenciales.emailValido("a@b.co"))
+        XCTAssertFalse(ValidacionCredenciales.emailValido(""))
+        XCTAssertFalse(ValidacionCredenciales.emailValido("sin-arroba"))
+        XCTAssertFalse(ValidacionCredenciales.emailValido("@dominio.com"))
+        XCTAssertFalse(ValidacionCredenciales.emailValido("pipe@sinpunto"))
+        XCTAssertFalse(ValidacionCredenciales.emailValido("pipe@.com"))
+        XCTAssertFalse(ValidacionCredenciales.emailValido("pipe@dominio."))
+        XCTAssertFalse(ValidacionCredenciales.emailValido("dos@arro@bas.com"))
+        XCTAssertFalse(ValidacionCredenciales.emailValido("con espacio@x.com"))
+    }
+
+    func testPasswordValidaYCoincidencia() {
+        XCTAssertTrue(ValidacionCredenciales.passwordValida("12345678"))
+        XCTAssertFalse(ValidacionCredenciales.passwordValida("1234567"))
+        XCTAssertTrue(ValidacionCredenciales.passwordsCoinciden("abcd1234", "abcd1234"))
+        XCTAssertFalse(ValidacionCredenciales.passwordsCoinciden("abcd1234", "abcd1235"))
+        XCTAssertFalse(ValidacionCredenciales.passwordsCoinciden("", ""))   // vacías no "coinciden"
+    }
+
+    // cuenta.json anterior al build 44 (sin firebaseUID) sigue cargando:
+    // el campo es opcional con default nil.
+    func testProveedorSinFirebaseUIDDecodifica() throws {
+        let proveedor = ProveedorVinculado(
+            tipo: .apple, subjectID: "s1", email: nil, fechaVinculacion: Date())
+        var json = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(proveedor)) as! [String: Any]
+        json.removeValue(forKey: "firebaseUID")
+        let datos = try JSONSerialization.data(withJSONObject: json)
+        let cargado = try JSONDecoder().decode(ProveedorVinculado.self, from: datos)
+        XCTAssertNil(cargado.firebaseUID)
+        XCTAssertEqual(cargado.subjectID, "s1")
+    }
+
+    func testFirebaseUIDViajaEnElVinculoNoEnLaCuenta() throws {
+        // El UID de Firebase es atributo del vínculo y sobrevive el
+        // round-trip; el userID del dominio es independiente de él.
+        var cuenta = CuentaUsuario(nombre: nil, fechaCreacion: Date())
+        var vinculo = ProveedorVinculado(
+            tipo: .google, subjectID: "g-sub", email: "pipe@gmail.com",
+            fechaVinculacion: Date())
+        vinculo.firebaseUID = "fb-uid-123"
+        cuenta.vincular(vinculo)
+
+        let recargada = try JSONDecoder().decode(
+            CuentaUsuario.self, from: JSONEncoder().encode(cuenta))
+        XCTAssertEqual(recargada.proveedores.first?.firebaseUID, "fb-uid-123")
+        XCTAssertEqual(recargada.userID, cuenta.userID)
+        XCTAssertNotEqual(recargada.userID.uuidString, "fb-uid-123")
+    }
+
+    // Logout → login con el MISMO proveedor no duplica vínculos ni
+    // cambia la identidad del dominio (flujo real de la UI).
+    func testLogoutLoginNoDuplicaNiCambiaUserID() {
+        let directorio = FileManager.default.temporaryDirectory
+            .appendingPathComponent("test-auth-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: directorio, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directorio) }
+        let identidad = IdentidadStore(url: directorio.appendingPathComponent("cuenta.json"))
+
+        var vinculo = ProveedorVinculado(
+            tipo: .google, subjectID: "g-sub", email: "pipe@gmail.com",
+            fechaVinculacion: Date())
+        vinculo.firebaseUID = "fb-uid-123"
+        identidad.iniciarSesion(con: vinculo)
+        let userID = identidad.cuenta!.userID
+
+        identidad.cerrarSesion()
+        XCTAssertFalse(identidad.haySesion)
+
+        identidad.iniciarSesion(con: vinculo)   // vuelve a entrar
+        XCTAssertTrue(identidad.haySesion)
+        XCTAssertEqual(identidad.cuenta!.userID, userID)
+        XCTAssertEqual(identidad.cuenta!.proveedores.count, 1)
+    }
+
+    // Apple + Google + email sobre la misma cuenta local: tres vínculos,
+    // un solo userID (la autoridad remota es Firebase; acá se protege
+    // que el dominio no se fragmente).
+    func testTresProveedoresUnaIdentidad() {
+        let directorio = FileManager.default.temporaryDirectory
+            .appendingPathComponent("test-auth-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: directorio, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directorio) }
+        let identidad = IdentidadStore(url: directorio.appendingPathComponent("cuenta.json"))
+
+        for (tipo, subject) in [(ProveedorVinculado.Tipo.apple, "a-sub"),
+                                (.google, "g-sub"),
+                                (.email, "pipe@gmail.com")] {
+            var v = ProveedorVinculado(tipo: tipo, subjectID: subject,
+                                       email: nil, fechaVinculacion: Date())
+            v.firebaseUID = "fb-uid-unico"
+            identidad.iniciarSesion(con: v)
+        }
+        XCTAssertEqual(identidad.cuenta?.proveedores.count, 3)
+        XCTAssertEqual(Set(identidad.cuenta!.proveedores.map(\.tipo)).count, 3)
+    }
+}
