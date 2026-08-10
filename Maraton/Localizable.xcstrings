@@ -276,6 +276,17 @@
         }
       }
     },
+    "Ajuste de volumen": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume adjustment"
+          }
+        }
+      }
+    },
     "Al confirmar, tu plan actual (si existe) queda archivado con su historial.": {
       "extractionState": "manual",
       "localizations": {
@@ -283,6 +294,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "When you confirm, your current plan (if any) is archived with its history."
+          }
+        }
+      }
+    },
+    "Aplicar cambios": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply changes"
           }
         }
       }
@@ -485,6 +507,17 @@
         }
       }
     },
+    "Cambios aplicados": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Changes applied"
+          }
+        }
+      }
+    },
     "Cancelar": {
       "extractionState": "manual",
       "localizations": {
@@ -562,6 +595,17 @@
         }
       }
     },
+    "Coach": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coach"
+          }
+        }
+      }
+    },
     "Con minuto límite": {
       "extractionState": "manual",
       "localizations": {
@@ -624,6 +668,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Confirm plan"
+          }
+        }
+      }
+    },
+    "Contale qué pasó (ej.: no puedo correr el jueves)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tell it what happened (e.g.: I can't run on Thursday)"
           }
         }
       }
@@ -936,6 +991,50 @@
         }
       }
     },
+    "El Coach está apagado por mantenimiento. Tu plan sigue funcionando normal.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Coach is down for maintenance. Your plan keeps working as usual."
+          }
+        }
+      }
+    },
+    "El Coach explica y propone; tu plan lo decide el motor de Maratonia y lo confirmás vos. Nada cambia sin tu OK.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Coach explains and proposes; your plan is decided by Maratonia's engine and confirmed by you. Nothing changes without your OK."
+          }
+        }
+      }
+    },
+    "El Coach necesita sesión iniciada.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Coach needs you to be signed in."
+          }
+        }
+      }
+    },
+    "El Coach no pudo responder. Tu plan no depende de él: seguí entrenando.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Coach couldn't answer. Your plan doesn't depend on it: keep training."
+          }
+        }
+      }
+    },
     "El contenido de %@ todavía no está listo — no vamos a inventarlo. Tu perfil queda guardado; mientras tanto podés usar los planes de 5K y 10K.": {
       "extractionState": "manual",
       "localizations": {
@@ -965,6 +1064,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "The horizon only affects this preview."
+          }
+        }
+      }
+    },
+    "El motor rechazó todos los cambios propuestos — no se aplica nada.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The engine rejected every proposed change — nothing is applied."
           }
         }
       }
@@ -1156,6 +1266,17 @@
         }
       }
     },
+    "Entrenamiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout"
+          }
+        }
+      }
+    },
     "Enviar al reloj": {
       "extractionState": "manual",
       "localizations": {
@@ -1328,6 +1449,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Assessment"
+          }
+        }
+      }
+    },
+    "Explicaciones y ajustes sobre tu plan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Explanations and adjustments for your plan"
+          }
+        }
+      }
+    },
+    "Explicame mi próximo entrenamiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Explain my next workout"
           }
         }
       }
@@ -1816,6 +1959,17 @@
         }
       }
     },
+    "Llegaste al límite de consultas de hoy. El plan sigue igual — mañana el Coach vuelve.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You reached today's query limit. Your plan is unchanged — the Coach is back tomorrow."
+          }
+        }
+      }
+    },
     "Lo mínimo para progresar": {
       "extractionState": "manual",
       "localizations": {
@@ -1878,6 +2032,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Maratonia"
+          }
+        }
+      }
+    },
+    "Maratonia Coach": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maratonia Coach"
           }
         }
       }
@@ -2234,6 +2399,17 @@
         }
       }
     },
+    "Omitir: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip: %@"
+          }
+        }
+      }
+    },
     "Opcional — tu identidad en Maratonia": {
       "extractionState": "manual",
       "localizations": {
@@ -2542,6 +2718,17 @@
         }
       }
     },
+    "Preguntale al Coach": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask the Coach"
+          }
+        }
+      }
+    },
     "Preparar mi plan": {
       "extractionState": "manual",
       "localizations": {
@@ -2608,6 +2795,28 @@
         }
       }
     },
+    "Proponer cambios": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Propose changes"
+          }
+        }
+      }
+    },
+    "Propuesta del Coach": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coach's proposal"
+          }
+        }
+      }
+    },
     "Próximos": {
       "extractionState": "manual",
       "localizations": {
@@ -2648,6 +2857,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Resume"
+          }
+        }
+      }
+    },
+    "Rechazado por el motor.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rejected by the engine."
           }
         }
       }
@@ -2703,6 +2923,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Watch"
+          }
+        }
+      }
+    },
+    "Reorganizar mi semana": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reorganize my week"
           }
         }
       }
@@ -2956,6 +3187,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "No runs yet"
+          }
+        }
+      }
+    },
+    "Sin conexión con el Coach. Tu plan funciona igual sin internet.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No connection to the Coach. Your plan works fine without internet."
           }
         }
       }
@@ -3770,6 +4012,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "How many days per week can you run?"
+          }
+        }
+      }
+    },
+    "¿Cómo vengo para mi objetivo?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How am I doing for my goal?"
           }
         }
       }

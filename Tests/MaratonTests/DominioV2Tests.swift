@@ -1932,3 +1932,63 @@ final class MetodologiaTests: XCTestCase {
         XCTAssertFalse(simbolicos.isEmpty, "sin baseline los ritmos deben quedar simbólicos")
     }
 }
+
+// MARK: - Sprint final: Coach — schemas estrictos y privacidad del DTO
+
+@MainActor
+final class CoachTests: XCTestCase {
+
+    func testDTONoFiltraGPSNiHealthKit() throws {
+        var almacen = AlmacenV2()
+        almacen.activado = true
+        let contexto = ContextoCoach.desde(almacen, hoy: DiaLocal(anio: 2026, mes: 8, dia: 10))
+        let json = String(data: try JSONEncoder().encode(contexto), encoding: .utf8)!.lowercased()
+        for prohibido in ["lat", "lon", "coord", "ruta", "route", "heartrate", "workoutuuid"] {
+            XCTAssertFalse(json.contains(prohibido), "el DTO filtra: \(prohibido)")
+        }
+    }
+
+    func testAjusteParseaSoloCambiosValidos() throws {
+        let id = UUID().uuidString.lowercased()
+        let json = """
+        {"explicacion":"x","cambios":[
+          {"tipo":"reprogramar","programadoID":"\(id)","nuevoDia":"2026-08-13"},
+          {"tipo":"omitir","programadoID":"\(id)","nuevoDia":null},
+          {"tipo":"reprogramar","programadoID":"no-es-uuid","nuevoDia":"2026-08-14"},
+          {"tipo":"reprogramar","programadoID":"\(id)","nuevoDia":"fecha-rota"},
+          {"tipo":"borrarTodo","programadoID":"\(id)","nuevoDia":null}
+        ]}
+        """
+        let ajuste = try JSONDecoder().decode(CoachWeekAdjustment.self, from: Data(json.utf8))
+        // De 5 cambios, solo 2 sobreviven la traducción estricta.
+        XCTAssertEqual(ajuste.propuestas.count, 2)
+        if case .reprogramar(_, let dia) = ajuste.propuestas[0] {
+            XCTAssertEqual(dia, DiaLocal(anio: 2026, mes: 8, dia: 13))
+        } else { XCTFail() }
+    }
+
+    func testFechaIdaYVuelta() {
+        let dia = DiaLocal(anio: 2026, mes: 12, dia: 5)
+        XCTAssertEqual(ContextoCoach.dia(desde: ContextoCoach.texto(dia)), dia)
+        XCTAssertNil(ContextoCoach.dia(desde: "2026-13-40"))
+        XCTAssertNil(ContextoCoach.dia(desde: "ayer"))
+    }
+
+    func testValidadorFrenaPropuestasSobreNoExistentes() {
+        // El coach propone tocar un programado que no existe: rechazado.
+        let almacen = AlmacenV2()
+        let cambio = CambioPropuesto.omitir(programadoID: UUID())
+        XCTAssertFalse(ValidadorDeCoach.validar(cambio, en: almacen,
+                                                hoy: DiaLocal(anio: 2026, mes: 8, dia: 10)).permitido)
+    }
+
+    func testGateDelCoachEsConsistente() {
+        // disponible == (URL configurada Y Firebase arriba) — el gate
+        // jamás muestra un Coach que no puede responder.
+        XCTAssertEqual(ServicioCoach.disponible,
+                       ServicioCoach.urlBase != nil && ServicioAuth.disponible)
+        if let url = ServicioCoach.urlBase {
+            XCTAssertEqual(url.scheme, "https")
+        }
+    }
+}

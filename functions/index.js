@@ -1,0 +1,140 @@
+// Maratonia Coach — backend. iPhone → Firebase Auth (ID token) → esta
+// función → OpenAI. La API key vive como SECRET de Cloud Functions:
+// jamás en el binario iOS, jamás en git.
+//
+// Seguridad y costos:
+// - verifyIdToken en CADA request (sin token válido → 401);
+// - rate limit por usuario/día (Firestore, transaccional);
+// - idempotencia por requestID (cache 24 h: repetir un request no
+//   quema tokens);
+// - feature flags server-side (config/coach en Firestore): apagar el
+//   Coach o cambiar de modelo sin tocar la app;
+// - logging SIN contenido del usuario: uid, acción, tokens, latencia.
+
+const { onRequest } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
+const admin = require("firebase-admin");
+const OpenAI = require("openai");
+const { Peticion, salidas } = require("./schemas");
+
+admin.initializeApp();
+const db = admin.firestore();
+const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
+
+const DEFAULTS = {
+  habilitado: true,
+  modelo: "gpt-4o-mini",          // configurable server-side
+  maxRequestsPorDia: 20,
+  maxTokensSalida: 700,
+};
+
+async function flags() {
+  try {
+    const doc = await db.doc("config/coach").get();
+    return { ...DEFAULTS, ...(doc.exists ? doc.data() : {}) };
+  } catch { return DEFAULTS; }
+}
+
+/// Rate limit transaccional: contador por uid por día UTC.
+async function permitido(uid, limite) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const ref = db.doc(`uso/${uid}-${hoy}`);
+  return db.runTransaction(async (tx) => {
+    const doc = await tx.get(ref);
+    const usados = doc.exists ? doc.data().requests : 0;
+    if (usados >= limite) return false;
+    tx.set(ref, { requests: usados + 1, actualizado: new Date() }, { merge: true });
+    return true;
+  });
+}
+
+const SISTEMA = `Sos el coach de Maratonia, una app de entrenamiento de running.
+Reglas duras:
+- Respondés SOLO con el JSON del schema pedido, en el idioma indicado.
+- No inventás datos que no estén en el contexto.
+- No prescribís cargas nuevas: solo podés proponer reprogramar u omitir
+  sesiones EXISTENTES (por su programadoID), y el nuevoDia debe ser uno
+  de los días elegidos del corredor (o la fecha de otro día de ESA
+  semana). El motor determinístico de la app valida todo después.
+- Tono: directo, cercano, honesto. Nada de promesas médicas.`;
+
+exports.coach = onRequest(
+  { secrets: [OPENAI_API_KEY], region: "us-central1", cors: false,
+    memory: "256MiB", timeoutSeconds: 60, maxInstances: 5 },
+  async (req, res) => {
+    const inicio = Date.now();
+    if (req.method !== "POST") return res.status(405).json({ error: "method" });
+
+    // ---- Auth: Firebase ID token, sin excepciones.
+    const token = (req.headers.authorization || "").replace(/^Bearer /, "");
+    let uid;
+    try {
+      uid = (await admin.auth().verifyIdToken(token)).uid;
+    } catch {
+      return res.status(401).json({ error: "no-auth" });
+    }
+
+    // ---- Flags server-side.
+    const config = await flags();
+    if (!config.habilitado) return res.status(503).json({ error: "coach-off" });
+
+    // ---- Validación estricta de entrada.
+    const parseo = Peticion.safeParse(req.body);
+    if (!parseo.success) {
+      console.warn("peticion-invalida", { uid });
+      return res.status(400).json({ error: "schema" });
+    }
+    const peticion = parseo.data;
+
+    // ---- Idempotencia: mismo requestID → misma respuesta, 0 tokens.
+    const cacheRef = db.doc(`respuestas/${uid}-${peticion.requestID}`);
+    const cacheada = await cacheRef.get();
+    if (cacheada.exists) {
+      return res.json(cacheada.data().respuesta);
+    }
+
+    // ---- Rate limit por usuario/día.
+    if (!(await permitido(uid, config.maxRequestsPorDia))) {
+      return res.status(429).json({ error: "rate-limit" });
+    }
+
+    // ---- OpenAI con salida estructurada estricta.
+    const salida = salidas[peticion.accion];
+    const openai = new OpenAI({ apiKey: OPENAI_API_KEY.value() });
+    let respuesta;
+    try {
+      const completion = await openai.chat.completions.create({
+        model: config.modelo,
+        max_tokens: config.maxTokensSalida,
+        response_format: { type: "json_schema", json_schema: salida },
+        messages: [
+          { role: "system", content: SISTEMA },
+          { role: "user", content: JSON.stringify({
+              accion: peticion.accion,
+              detalle: peticion.detalle ?? null,
+              programadoID: peticion.programadoID ?? null,
+              contexto: peticion.contexto,
+            }) },
+        ],
+      });
+      const texto = completion.choices[0]?.message?.content;
+      respuesta = JSON.parse(texto);   // el schema estricto ya lo garantiza
+      console.log("coach-ok", {
+        uid, accion: peticion.accion,
+        tokens: completion.usage?.total_tokens ?? 0,
+        ms: Date.now() - inicio,
+      });
+    } catch (error) {
+      console.error("coach-fallo", { uid, accion: peticion.accion,
+                                     tipo: error?.constructor?.name });
+      return res.status(502).json({ error: "upstream" });
+    }
+
+    // Cache de idempotencia con TTL implícito (limpieza por Firestore
+    // TTL policy sobre `expira` — ver DEPLOY.md).
+    await cacheRef.set({
+      respuesta,
+      expira: new Date(Date.now() + 24 * 3600 * 1000),
+    });
+    return res.json(respuesta);
+  });

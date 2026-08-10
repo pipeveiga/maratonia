@@ -1,0 +1,18 @@
+{
+  "name": "maratonia-functions",
+  "description": "Backend de Maratonia Coach: Firebase Auth + OpenAI, la API key jamás toca el cliente",
+  "engines": { "node": "20" },
+  "main": "index.js",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^5.0.0",
+    "openai": "^4.50.0",
+    "zod": "^3.23.0"
+  },
+  "private": true
+}

@@ -952,6 +952,27 @@ struct PerfilTab: View {
 
                 SeccionCuentaMaratonia(identidad: identidad, cuentaCloud: cuenta)
 
+                // Maratonia Coach: solo con backend configurado
+                // (MaratoniaBackendURL en Info.plist) y sesión iniciada
+                // — sin eso no aparece, cero botones muertos.
+                if ServicioCoach.disponible && identidad.haySesion {
+                    Section("Coach") {
+                        NavigationLink {
+                            CoachView(almacen: almacen)
+                        } label: {
+                            HStack(spacing: 10) {
+                                IconoAjuste(sistema: "figure.run.circle.fill", color: .purple)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Maratonia Coach")
+                                    Text("Explicaciones y ajustes sobre tu plan")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Section("Apple Watch") {
                     NavigationLink {
                         RelojTab(store: store)
