@@ -509,3 +509,28 @@ Corresponde) cuando: (1) la proyección esté validada en dispositivo
 físico, (2) el flujo Tramos manuales se ejecute vía definiciones V2
 (reorganización del Plan), y (3) no queden usuarios con app iPhone
 pre-Fase E (hoy: un solo usuario — condición trivial).
+
+## 21. Fases F, G-infra y Progreso — IMPLEMENTADAS (build 38)
+
+**Fase F.** `PerfilDeportivo` (opcional en AlmacenV2 — retrocompatible),
+onboarding de 4 pasos NO destructivo (se ofrece una única vez y solo a
+quien no tiene nada; siempre en Perfil), marcas crudas como
+`ReferenciaRendimiento` (idempotencia por contenido; `referenciaVigente`
+= la más reciente), Test 5K como entrenamiento real cuyo tiempo es el
+ACTIVO al completar la estructura (evento planCompletado).
+
+**Fase G (solo infraestructura).** `PerformanceBaseline` (derivado con
+linaje, nunca persistido), protocolo `MetodologiaRitmos` (id versionado
++ fuente pública OBLIGATORIA), `Metodologias.resolver` como único punto
+de resolución con `.pendiente` como estado digno de UI. SIN metodología
+activa: VDOT/Daniels no se copia y no se inventan números. Riegel
+(fórmula pública citada, 1981) SOLO para equivalencias de tiempos de
+carrera en Perfil, con rechazo fuera de 0.25x–4x.
+
+**Progreso v1.** Pestaña nueva (reemplaza al Reloj, que pasó a Perfil,
+decisión D5): resumen semanal, volumen 8 semanas, consistencia (racha +
+cumplimiento hechos/vencidos — el pendiente de HOY no cuenta como
+deuda), destacados. Todo recalculado al vuelo desde Salud y el
+calendario V2; cero derivados persistidos, cero métricas fisiológicas
+inventadas. Plan reorganizado: música/avisos/tramos/cronograma bajo
+"Configuración del entrenamiento".

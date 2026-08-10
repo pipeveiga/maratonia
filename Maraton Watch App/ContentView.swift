@@ -293,9 +293,11 @@ struct ContentView: View {
                     .background(Circle().fill(Color.green.gradient))
             }
             .buttonStyle(.plain)
-            // La carrera libre nunca se bloquea: sin música local
-            // arranca igual, en modo sin música propia.
-            .disabled(!libre && !musicaExterna && listas == 0)
+            // La carrera libre y el entrenamiento PROYECTADO nunca se
+            // bloquean: sin música local arrancan igual, sin música
+            // propia. Solo el entrenamiento V1 (de tramos manuales,
+            // pensado alrededor de las pistas) espera su música.
+            .disabled(!libre && programadoID == nil && !musicaExterna && listas == 0)
             Text(titulo)
                 .font(.footnote.weight(.semibold))
         }
@@ -398,8 +400,9 @@ struct ContentView: View {
         if libre { planSesion.tramos = nil }
 
         let hayMusicaLocal = planSesion.pistas.contains { conectividad.archivosLocales.contains($0) }
-        // Libre sin música en el reloj: arranca igual, sin música propia.
-        let externa = musicaExterna || (libre && !hayMusicaLocal)
+        // Libre o programado sin música en el reloj: arrancan igual,
+        // sin música propia (el workout mantiene viva la app).
+        let externa = musicaExterna || ((libre || programadoID != nil) && !hayMusicaLocal)
         // "Registrar carrera" se respeta también en libre (convivencia
         // con Runna); se fuerza cuando no hay música propia (sin audio,
         // el workout mantiene viva la app) y SIEMPRE en un programado:

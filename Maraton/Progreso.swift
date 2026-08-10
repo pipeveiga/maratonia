@@ -80,19 +80,20 @@ enum CalculoProgreso {
         return racha
     }
 
-    /// Cumplimiento del plan hasta HOY inclusive: de los programados
-    /// cuya fecha ya pasó (o es hoy), cuántos quedaron cumplidos o
-    /// parciales. Los futuros no cuentan (no se puede cumplir el
-    /// martes que viene).
+    /// Cumplimiento del plan: de los programados cuya fecha YA PASÓ,
+    /// cuántos quedaron cumplidos o parciales. El de HOY solo cuenta si
+    /// ya se resolvió — un pendiente de hoy a la mañana no es deuda.
+    /// Los futuros no cuentan (no se puede cumplir el martes que viene).
     static func cumplimiento(almacen: AlmacenV2, hoy: DiaLocal) -> (hechos: Int, total: Int) {
-        let vencidosOHoy = almacen.todosLosProgramados.filter { programado in
+        let computables = almacen.todosLosProgramados.filter { programado in
             guard let dia = programado.dia else { return false }
-            return dia <= hoy
+            if dia < hoy { return true }
+            return dia == hoy && programado.resolucion != .pendiente
         }
-        let hechos = vencidosOHoy.filter {
+        let hechos = computables.filter {
             $0.resolucion == .cumplido || $0.resolucion == .parcial
         }.count
-        return (hechos, vencidosOHoy.count)
+        return (hechos, computables.count)
     }
 
     /// La salida más larga y la de mejor ritmo promedio (mínimo 1 km

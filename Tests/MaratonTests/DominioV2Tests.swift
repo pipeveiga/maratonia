@@ -1028,15 +1028,24 @@ final class CalculoProgresoTests: XCTestCase {
         var parcial = EntrenamientoProgramado(definicion: definicion, dia: hoy.sumando(dias: -2))
         parcial.resolucion = .parcial
         let vencido = EntrenamientoProgramado(definicion: definicion, dia: hoy.sumando(dias: -1))
+        let hoyPendiente = EntrenamientoProgramado(definicion: definicion, dia: hoy)
         let futuro = EntrenamientoProgramado(definicion: definicion, dia: hoy.sumando(dias: 2))
         let sinFecha = EntrenamientoProgramado(definicion: definicion, dia: nil)
         almacen.planActivo = PlanUsuario(
             nombre: "P", origen: .personalizado, fechaAdopcion: Date(timeIntervalSince1970: 0),
             semanas: [SemanaPlan(numero: 1,
-                                 programados: [cumplido, parcial, vencido, futuro, sinFecha])])
+                                 programados: [cumplido, parcial, vencido, hoyPendiente,
+                                               futuro, sinFecha])])
         let (hechos, total) = CalculoProgreso.cumplimiento(almacen: almacen, hoy: hoy)
         XCTAssertEqual(hechos, 2)   // cumplido + parcial
-        XCTAssertEqual(total, 3)    // el futuro y el sin-fecha no cuentan
+        // El futuro, el sin-fecha y el PENDIENTE DE HOY no cuentan
+        // (hoy a la mañana no es deuda); el de hoy entra al resolverse.
+        XCTAssertEqual(total, 3)
+        var almacen2 = almacen
+        almacen2.planActivo!.semanas[0].programados[3].resolucion = .cumplido
+        let (hechos2, total2) = CalculoProgreso.cumplimiento(almacen: almacen2, hoy: hoy)
+        XCTAssertEqual(hechos2, 3)
+        XCTAssertEqual(total2, 4)
     }
 
     func testDestacadosIgnoraSprintsCortos() {
