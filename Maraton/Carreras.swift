@@ -314,8 +314,13 @@ struct CarrerasView: View {
                     MetricaV2(titulo: "km", valor: String(format: "%.1f", semana.km))
                     MetricaV2(titulo: semana.carreras == 1 ? "carrera" : "carreras",
                               valor: "\(semana.carreras)")
-                    MetricaV2(titulo: "ritmo /km",
-                              valor: semana.ritmo.map { formatearRitmo($0) } ?? "–:––")
+                    if let ritmo = semana.ritmo {
+                        MetricaV2(titulo: "ritmo /km", valor: formatearRitmo(ritmo))
+                    } else {
+                        // Sin carreras esta semana: estado semántico,
+                        // no un "–:––" que parece un error.
+                        MetricaV2(titulo: "ritmo", valor: String(localized: "aún sin datos"))
+                    }
                 }
             }
             .padding(.vertical, DV2.Espacio.xs)
@@ -648,6 +653,7 @@ struct CarrerasOcultasView: View {
                     Spacer()
                     Button("Restaurar") {
                         store.restaurar(carrera.id)
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                     }
                     .buttonStyle(.bordered)
                 }

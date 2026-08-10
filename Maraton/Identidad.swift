@@ -502,7 +502,9 @@ struct SeccionCuentaMaratonia: View {
                     mostrandoLogin = true
                 } label: {
                     HStack(spacing: 10) {
-                        IconoAjuste(sistema: "person.crop.circle.badge.plus", color: .blue)
+                        // Discreto a propósito: la cuenta es OPCIONAL y
+                        // no compite con plan/Watch/entrenamiento.
+                        IconoAjuste(sistema: "person.crop.circle.badge.plus", color: .gray)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(identidad.cuenta == nil
                                  ? String(localized: "Crear cuenta o iniciar sesión")

@@ -309,9 +309,14 @@ struct PlanTab: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(programado.definicion.nombre)
                                     .font(.subheadline.weight(.semibold))
-                                Text(programado.definicion.resumenEstructura)
+                                // Los km ya tienen jerarquía propia a
+                                // la derecha: acá va lo complementario.
+                                Text(programado.definicion.descripcion.isEmpty
+                                     ? Plurales.segmentos(programado.definicion.segmentos.count)
+                                     : programado.definicion.descripcion)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                    .lineLimit(1)
                             }
                             Spacer()
                             if let km = programado.definicion.distanciaTotalKm {
@@ -982,6 +987,7 @@ struct PerfilTab: View {
     @ObservedObject var almacen: AlmacenStore
     @ObservedObject var identidad: IdentidadStore
     @ObservedObject private var cuenta = CuentaStore.compartida
+    @ObservedObject private var conectividad = Conectividad.compartida
     @Binding var mostrandoTutorial: Bool
     @State private var confirmandoRestaurar = false
     @State private var mostrandoOnboarding = false
@@ -1025,10 +1031,19 @@ struct PerfilTab: View {
                             IconoAjuste(sistema: "applewatch", color: .black)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Apple Watch")
-                                Text("Enviar plan y música, estado de la conexión")
+                                // Estado REAL de WCSession — no texto
+                                // genérico (isPaired/isWatchAppInstalled
+                                // ya vivían en Conectividad).
+                                Text(estadoDelReloj)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
+                            Spacer()
+                            Circle()
+                                .fill(conectividad.relojEmparejado && conectividad.appInstaladaEnReloj
+                                      ? DV2.Semantico.exito : Color(.systemGray3))
+                                .frame(width: 8, height: 8)
+                                .accessibilityHidden(true)
                         }
                     }
                 }
@@ -1090,7 +1105,7 @@ struct PerfilTab: View {
                 } header: {
                     Text("Datos y sincronización")
                 } footer: {
-                    Text("Esto es tu iCloud PRIVADO (respaldo del plan de audio), distinto de la Cuenta Maratonia de arriba. Al reinstalar o cambiar de teléfono: «Restaurar plan».")
+                    Text("Tu plan se respalda de forma privada en tu iCloud, independiente de tu Cuenta Maratonia.")
                 }
 
                 Section("Ayuda") {
@@ -1117,6 +1132,16 @@ struct PerfilTab: View {
                 OnboardingDeportivo(almacen: almacen)
             }
         }
+    }
+
+    private var estadoDelReloj: String {
+        if !conectividad.relojEmparejado {
+            return String(localized: "Sin reloj emparejado")
+        }
+        if !conectividad.appInstaladaEnReloj {
+            return String(localized: "Instalá Maratonia en el reloj")
+        }
+        return String(localized: "Conectado — enviar plan y música")
     }
 
     /// El corredor y su meta: objetivo, plan activo, referencia,

@@ -749,6 +749,17 @@
         }
       }
     },
+    "Conectado — enviar plan y música": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected — send plan and music"
+          }
+        }
+      }
+    },
     "Configuración": {
       "extractionState": "manual",
       "localizations": {
@@ -914,6 +925,17 @@
         }
       }
     },
+    "Corrés sin objetivo obligatorio de distancia ni tiempo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run with no required distance or time target."
+          }
+        }
+      }
+    },
     "Crear cuenta": {
       "extractionState": "manual",
       "localizations": {
@@ -998,6 +1020,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Completed or partial, out of those already due."
+          }
+        }
+      }
+    },
+    "Cómo se registra": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How it's recorded"
           }
         }
       }
@@ -2021,6 +2054,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Install it from the iPhone Watch app → Maratonia → Install."
+          }
+        }
+      }
+    },
+    "Instalá Maratonia en el reloj": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install Maratonia on the watch"
           }
         }
       }
@@ -3587,6 +3631,17 @@
         }
       }
     },
+    "Sin reloj emparejado": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No watch paired"
+          }
+        }
+      }
+    },
     "Suenan según la distancia recorrida — necesitan «Registrar carrera» activado en el reloj.": {
       "extractionState": "manual",
       "localizations": {
@@ -3917,6 +3972,17 @@
         }
       }
     },
+    "Tu plan se respalda de forma privada en tu iCloud, independiente de tu Cuenta Maratonia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your plan is backed up privately to your iCloud, independent of your Maratonia Account."
+          }
+        }
+      }
+    },
     "Tu punto de partida": {
       "extractionState": "manual",
       "localizations": {
@@ -4144,6 +4210,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zone %lld."
+          }
+        }
+      }
+    },
+    "aún sin datos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "no data yet"
           }
         }
       }

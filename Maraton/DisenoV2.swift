@@ -404,15 +404,17 @@ struct TarjetaEntrenamientoV2: View {
         TarjetaV2 {
             VStack(alignment: .leading, spacing: DV2.Espacio.m) {
                 HStack {
-                    // El sello de HOY: volt de marca como RELLENO con
-                    // texto oscuro (regla de uso de Marca.energia).
+                    // El sello de HOY en la identidad azul: relleno
+                    // suave del primario con texto del primario — se ve
+                    // premium en claro y oscuro y no compite con el
+                    // verde de dificultad (el oliva quedó descartado).
                     Text(etiqueta)
                         .font(.caption.weight(.heavy))
                         .tracking(1.5)
-                        .foregroundStyle(.black.opacity(0.8))
+                        .foregroundStyle(DV2.Marca.primario)
                         .padding(.horizontal, DV2.Espacio.s)
                         .padding(.vertical, 3)
-                        .background(DV2.Marca.energia, in: Capsule())
+                        .background(DV2.Marca.primario.opacity(0.15), in: Capsule())
                     Spacer()
                     ChipTipoV2(tipo: programado.definicion.tipo)
                 }

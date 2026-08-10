@@ -930,19 +930,22 @@ struct CorrerTab: View {
                     }
                 }
 
-                Toggle(isOn: $autoPausa) {
-                    Label("Auto-pausa en las paradas", systemImage: "pause.circle.fill")
-                        .font(.subheadline)
+                // Bloque compacto: cómo se va a REGISTRAR esta carrera
+                // — todo junto, nada flotando.
+                TarjetaV2 {
+                    VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                        EncabezadoSeccionV2(texto: "Cómo se registra")
+                        Toggle(isOn: $autoPausa) {
+                            Label("Auto-pausa en las paradas", systemImage: "pause.circle.fill")
+                                .font(.subheadline)
+                        }
+                        Label("Sin Apple Watch: el GPS del teléfono mide la distancia. Llevá el celu con vos y los auriculares puestos.",
+                              systemImage: "iphone")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .frame(maxWidth: 320)
                 .padding(.horizontal)
-
-                Label("Sin Apple Watch: el GPS del teléfono mide la distancia. Llevá el celu con vos y los auriculares puestos.",
-                      systemImage: "iphone")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
 
                 if let error = carrera.mensajeError {
                     Text(error)
@@ -971,6 +974,9 @@ struct CorrerTab: View {
                 }
                 Text("Carrera libre")
                     .font(protagonista ? .title3.weight(.bold) : .headline)
+                Text("Corrés sin objetivo obligatorio de distancia ni tiempo.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 if !store.plan.tramosActivos.isEmpty {
                     // El camino personalizado, dicho con todas las
                     // letras: acá corren TUS tramos importados.
@@ -994,12 +1000,17 @@ struct CorrerTab: View {
                             .background(Color.green,
                                         in: RoundedRectangle(cornerRadius: DV2.radioBoton))
                     } else {
+                        // Acción SECUNDARIA pero claramente tocable:
+                        // estilo de borde con el tint de Maratonia (no
+                        // el gris que parecía deshabilitado).
                         Label("Correr libre", systemImage: "play.fill")
                             .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(DV2.Marca.primario)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, DV2.Espacio.s)
-                            .background(Color(.tertiarySystemGroupedBackground),
-                                        in: RoundedRectangle(cornerRadius: DV2.radioBoton))
+                            .background(
+                                RoundedRectangle(cornerRadius: DV2.radioBoton)
+                                    .strokeBorder(DV2.Marca.primario.opacity(0.5), lineWidth: 1.5))
                     }
                 }
                 .buttonStyle(.plain)

@@ -671,6 +671,12 @@ struct SemanaActualV2: View {
                 }
                 simbolo(item)
             }
+            // El número del mes ancla la tira al calendario real: un
+            // usuario nuevo entiende la semana sin leyenda.
+            Text("\(item.dia.dia)")
+                .font(.system(size: 9, weight: item.esHoy ? .bold : .regular))
+                .monospacedDigit()
+                .foregroundStyle(item.esHoy ? Color.accentColor : Color(.tertiaryLabel))
         }
     }
 
@@ -720,10 +726,14 @@ struct SemanaActualV2: View {
         }
     }
 
+    /// Inicial del día desde el calendario del sistema, en el idioma de
+    /// la app — sin arrays hardcodeados.
     private func letra(de dia: DiaLocal) -> String {
         guard let fecha = dia.fecha() else { return "" }
-        let indice = (Calendar.current.component(.weekday, from: fecha) + 5) % 7
-        return ["L", "M", "X", "J", "V", "S", "D"][indice]
+        var calendario = Calendar.current
+        calendario.locale = FormatoFecha.locale
+        let indice = calendario.component(.weekday, from: fecha) - 1
+        return calendario.veryShortWeekdaySymbols[indice]
     }
 
     private func etiquetaAccesible(_ item: DiaDeSemana) -> String {

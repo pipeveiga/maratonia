@@ -225,6 +225,13 @@ struct ProgresoTab: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            // Barra de progreso real contra lo previsto: azul Maratonia
+            // sobre superficie del sistema. Con previsto = 0 no hay
+            // barra (ni división por cero, ni barra absurda).
+            if let previsto = kmPrevistosEstaSemana, previsto > 0 {
+                ProgressView(value: min(actual.km, previsto), total: previsto)
+                    .tint(DV2.Marca.primario)
+            }
             if let (hechos, total) = entrenamientosEstaSemana, total > 0 {
                 Text("\(hechos) de \(Plurales.entrenamientos(total)) de la semana")
                     .font(.subheadline.weight(.medium))
@@ -334,10 +341,13 @@ struct ProgresoTab: View {
                                 .monospacedDigit()
                                 .foregroundStyle(.secondary)
                                 .opacity(semana.km > 0 ? 1 : 0)
+                            // Semana actual en azul Maratonia; las
+                            // anteriores discretas en gris del sistema
+                            // (correctas en dark, no todo azul).
                             RoundedRectangle(cornerRadius: 3)
                                 .fill(semana.id == semanas.last?.id
-                                      ? Color.accentColor
-                                      : Color.accentColor.opacity(0.35))
+                                      ? DV2.Marca.primario
+                                      : Color(.systemGray4))
                                 .frame(height: max(4, CGFloat(semana.km / maximo) * 80))
                             Text(etiquetaSemana(semana.inicio))
                                 .font(.system(size: 8))
