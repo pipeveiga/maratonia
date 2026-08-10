@@ -106,6 +106,7 @@ struct ContentView: View {
                     } label: {
                         Image(systemName: "gearshape.fill")
                     }
+                    .accessibilityLabel("Ajustes")
                 }
             }
         }
@@ -349,6 +350,7 @@ struct ContentView: View {
             // propia. Solo el entrenamiento V1 (de tramos manuales,
             // pensado alrededor de las pistas) espera su música.
             .disabled(!libre && programadoID == nil && !musicaExterna && listas == 0)
+            .accessibilityLabel("Empezar \(titulo.lowercased())")
             Text(titulo)
                 .font(.footnote.weight(.semibold))
         }

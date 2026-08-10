@@ -595,6 +595,12 @@ struct SemanaActualV2: View {
     @ObservedObject var store: PlanStore
     @Binding var pestana: Pestana
 
+    /// Navegación PROGRAMÁTICA: siete NavigationLinks dentro de una
+    /// misma fila de List se pisan entre sí (la fila entera dispara el
+    /// primero); con Buttons + destino por estado cada círculo navega
+    /// al día correcto.
+    @State private var seleccionadoID: UUID?
+
     private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
 
     var body: some View {
@@ -606,20 +612,27 @@ struct SemanaActualV2: View {
             }
         }
         .padding(.vertical, DV2.Espacio.xs)
+        .navigationDestination(isPresented: Binding(
+            get: { seleccionadoID != nil },
+            set: { if !$0 { seleccionadoID = nil } })) {
+            if let id = seleccionadoID {
+                DetalleEntrenamientoView(almacen: almacen, store: store,
+                                         pestana: $pestana, programadoID: id)
+            }
+        }
     }
 
     @ViewBuilder
     private func celda(_ item: DiaDeSemana) -> some View {
         if let programado = item.programado {
-            NavigationLink {
-                DetalleEntrenamientoView(almacen: almacen, store: store,
-                                         pestana: $pestana,
-                                         programadoID: programado.id)
+            Button {
+                seleccionadoID = programado.id
             } label: {
                 columna(item)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(etiquetaAccesible(item))
+            .accessibilityAddTraits(.isButton)
         } else {
             columna(item)
                 .accessibilityLabel(etiquetaAccesible(item))
