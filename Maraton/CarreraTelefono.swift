@@ -1008,11 +1008,11 @@ struct CorrerTab: View {
 
     private var datosDelPlan: String {
         var partes: [String] = []
-        if !store.plan.pistas.isEmpty { partes.append("\(store.plan.pistas.count) pistas") }
+        if !store.plan.pistas.isEmpty { partes.append(Plurales.pistas(store.plan.pistas.count)) }
         let avisos = store.plan.cronograma(duracionMaximaMinutos: 600).count
             + store.plan.avisosKmActivos.count
         if avisos > 0 { partes.append("\(avisos) avisos") }
-        if !store.plan.tramosActivos.isEmpty { partes.append("\(store.plan.tramosActivos.count) tramos") }
+        if !store.plan.tramosActivos.isEmpty { partes.append(Plurales.tramos(store.plan.tramosActivos.count)) }
         return partes.isEmpty ? "Solo GPS: distancia, ritmo y mapa." : partes.joined(separator: " · ")
     }
 

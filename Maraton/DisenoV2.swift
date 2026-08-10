@@ -8,7 +8,39 @@ import SwiftUI
 // (accent), estado (verde/naranja/amarillo/gris), tipo de
 // entrenamiento (identidad de la tarjeta). Nada de gradientes porque sí.
 
+/// Pluralización centralizada (basta de "1 pistas · 1 tramos").
+/// Testeable y localizada por catálogo.
+enum Plurales {
+    static func pistas(_ n: Int) -> String {
+        n == 1 ? String(localized: "1 pista") : String(localized: "\(n) pistas")
+    }
+    static func tramos(_ n: Int) -> String {
+        n == 1 ? String(localized: "1 tramo") : String(localized: "\(n) tramos")
+    }
+    static func segmentos(_ n: Int) -> String {
+        n == 1 ? String(localized: "1 segmento") : String(localized: "\(n) segmentos")
+    }
+    static func entrenamientos(_ n: Int) -> String {
+        n == 1 ? String(localized: "1 entrenamiento") : String(localized: "\(n) entrenamientos")
+    }
+}
+
 enum DV2 {
+
+    // MARK: Identidad Maratonia (colores derivados del LOGO real:
+    // azul profundo #002070-#003090, azur #0080E0-#00A0F0 y un acento
+    // lima #606030 saturado). Tokens únicos — nada de hex repetidos
+    // por pantalla. Los semánticos siguen siendo del sistema (verde/
+    // naranja/rojo) para no perder significado nativo.
+    enum Marca {
+        /// Azur del logo: acciones y protagonismo (variante clara/
+        /// oscura vía Assets).
+        static let primario = Color("MaratoniaPrimario")
+        /// Azul profundo del logo: titulares y fondos de énfasis.
+        static let profundo = Color("MaratoniaProfundo")
+        /// Lima del logo: highlights puntuales (racha, chips de HOY).
+        static let lima = Color("MaratoniaLima")
+    }
 
     // Escala de espaciado única (basta de números mágicos por pantalla).
     enum Espacio {
@@ -374,7 +406,7 @@ struct TarjetaEntrenamientoV2: View {
                     MetricaV2(titulo: "estructura",
                               valor: programado.definicion.segmentos.count == 1
                                 ? "1 segmento"
-                                : "\(programado.definicion.segmentos.count) segmentos")
+                                : Plurales.segmentos(programado.definicion.segmentos.count))
                     if estado != .programado {
                         MetricaV2(titulo: "estado", valor: nombreDeEstado)
                     }

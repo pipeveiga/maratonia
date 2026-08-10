@@ -144,7 +144,12 @@ final class LectorProgreso: ObservableObject {
             sampleType: .workoutType(), predicate: predicado, limit: HKObjectQueryNoLimit,
             sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate,
                                                ascending: true)]) { [weak self] _, muestras, error in
-            let carreras = (muestras as? [HKWorkout] ?? []).map { workout in
+            // Las carreras ocultas por el usuario no cuentan para el
+            // progreso ni las marcas (siguen intactas en Apple Health).
+            let ocultas = CarrerasOcultas.compartidas.ids()
+            let carreras = (muestras as? [HKWorkout] ?? [])
+                .filter { !ocultas.contains($0.uuid) }
+                .map { workout in
                 SesionMetrica(
                     fecha: workout.endDate,
                     metros: workout.statistics(for: HKQuantityType(.distanceWalkingRunning))?
@@ -209,16 +214,32 @@ struct ProgresoTab: View {
                     .font(.system(size: 52, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .minimumScaleFactor(0.6)
-                Text("km")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(DV2.Marca.profundo)
+                if let previsto = kmPrevistosEstaSemana, previsto > 0 {
+                    Text("de \(String(format: "%.0f", previsto)) km previstos")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("km")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if let (hechos, total) = entrenamientosEstaSemana, total > 0 {
+                Text("\(hechos) de \(Plurales.entrenamientos(total)) de la semana")
+                    .font(.subheadline.weight(.medium))
             }
             HStack(spacing: DV2.Espacio.xl) {
                 MetricaV2(titulo: "tiempo", valor: formatearDuracion(actual.segundos))
                 MetricaV2(titulo: actual.carreras == 1 ? "carrera" : "carreras",
                           valor: "\(actual.carreras)")
             }
-            if let anterior, anterior.metros > 0 || actual.metros > 0 {
+            // La comparación contra la semana pasada solo cuando dice
+            // algo útil: un lunes "-22 km" es matemática correcta y UX
+            // pobre — se muestra desde mitad de semana, o antes si ya
+            // vas ganando.
+            if let anterior, anterior.metros > 0 || actual.metros > 0,
+               diaDeLaSemanaHoy >= 4 || actual.metros >= anterior.metros {
                 Text(comparacion(actual: actual, anterior: anterior))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -227,6 +248,35 @@ struct ProgresoTab: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)
         .accessibilityElement(children: .combine)
+    }
+
+    /// 1 = lunes … 7 = domingo, para decidir si la comparación semanal
+    /// ya aporta.
+    private var diaDeLaSemanaHoy: Int {
+        let wd = Calendar.current.component(.weekday, from: Date())
+        return wd == 1 ? 7 : wd - 1
+    }
+
+    /// Los programados de ESTA semana del plan activo (por lunes).
+    private var programadosEstaSemana: [EntrenamientoProgramado] {
+        let lunes = DiaLocal(fecha: Date()).lunesDeLaSemana()
+        return almacen.almacen.todosLosProgramados.filter {
+            $0.dia?.lunesDeLaSemana() == lunes
+        }
+    }
+
+    private var kmPrevistosEstaSemana: Double? {
+        let kms = programadosEstaSemana.compactMap(\.definicion.distanciaTotalKm)
+        return kms.isEmpty ? nil : kms.reduce(0, +)
+    }
+
+    private var entrenamientosEstaSemana: (Int, Int)? {
+        let semana = programadosEstaSemana
+        guard !semana.isEmpty else { return nil }
+        let hechos = semana.filter {
+            $0.resolucion == .cumplido || $0.resolucion == .parcial
+        }.count
+        return (hechos, semana.count)
     }
 
     // MARK: Plan (cumplimiento)

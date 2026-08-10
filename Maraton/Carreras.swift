@@ -9,6 +9,36 @@ import UIKit
 // de Maratonia con sus números (tiempo, distancia, ritmo, FC, calorías)
 // y el recorrido dibujado en un mapa.
 
+/// Carreras OCULTAS de Maratonia. Semántica segura y honesta:
+/// - Ocultar NUNCA toca Apple Health: el workout sigue existiendo ahí
+///   y en la app Salud; solo deja de aparecer en los listados y las
+///   estadísticas de Maratonia.
+/// - Persistente (UserDefaults) y reversible desde Perfil → Carreras
+///   ocultas.
+/// Inyectable para tests (suite propia).
+struct CarrerasOcultas {
+    static var compartidas = CarrerasOcultas(defaults: .standard)
+    let defaults: UserDefaults
+    private static let clave = "carrerasOcultasIDs"
+
+    func ids() -> Set<UUID> {
+        Set((defaults.stringArray(forKey: Self.clave) ?? [])
+            .compactMap(UUID.init(uuidString:)))
+    }
+
+    func ocultar(_ id: UUID) {
+        var actuales = ids(); actuales.insert(id)
+        defaults.set(actuales.map(\.uuidString).sorted(), forKey: Self.clave)
+    }
+
+    func restaurar(_ id: UUID) {
+        var actuales = ids(); actuales.remove(id)
+        defaults.set(actuales.map(\.uuidString).sorted(), forKey: Self.clave)
+    }
+
+    func estaOculta(_ id: UUID) -> Bool { ids().contains(id) }
+}
+
 struct CarreraResumen: Identifiable {
     let workout: HKWorkout
 
@@ -36,6 +66,22 @@ struct CarreraResumen: Identifiable {
 final class CarrerasStore: ObservableObject {
     @Published var carreras: [CarreraResumen] = []
     @Published var mensaje: String?
+    @Published var ocultasIDs: Set<UUID> = CarrerasOcultas.compartidas.ids()
+
+    /// Lo que Maratonia MUESTRA: todo menos lo oculto. El workout
+    /// oculto sigue intacto en Apple Health.
+    var visibles: [CarreraResumen] { carreras.filter { !ocultasIDs.contains($0.id) } }
+    var ocultas: [CarreraResumen] { carreras.filter { ocultasIDs.contains($0.id) } }
+
+    func ocultar(_ id: UUID) {
+        CarrerasOcultas.compartidas.ocultar(id)
+        ocultasIDs = CarrerasOcultas.compartidas.ids()
+    }
+
+    func restaurar(_ id: UUID) {
+        CarrerasOcultas.compartidas.restaurar(id)
+        ocultasIDs = CarrerasOcultas.compartidas.ids()
+    }
 
     private let healthStore = HKHealthStore()
     private var yaCargo = false
@@ -178,6 +224,7 @@ final class CarrerasStore: ObservableObject {
 
 struct CarrerasView: View {
     @StateObject private var store = CarrerasStore()
+    @State private var aOcultar: UUID?
 
     var body: some View {
         List {
@@ -197,7 +244,7 @@ struct CarrerasView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            ForEach(store.carreras) { carrera in
+            ForEach(store.visibles) { carrera in
                 NavigationLink {
                     CarreraDetalleView(store: store, id: carrera.id)
                 } label: {
@@ -226,11 +273,31 @@ struct CarrerasView: View {
                     .padding(.vertical, 3)
                 }
                 .accessibilityLabel(etiquetaCarrera(carrera))
+                .swipeActions(edge: .trailing) {
+                    Button {
+                        aOcultar = carrera.id
+                    } label: {
+                        Label("Ocultar", systemImage: "eye.slash")
+                    }
+                    .tint(.orange)
+                }
             }
         }
         .navigationTitle("Mis carreras")
         .onAppear { store.cargar() }
         .refreshable { await store.recargar() }
+        .confirmationDialog("¿Ocultar esta carrera de Maratonia?",
+                            isPresented: .init(get: { aOcultar != nil },
+                                               set: { if !$0 { aOcultar = nil } }),
+                            titleVisibility: .visible) {
+            Button("Ocultar de Maratonia") {
+                if let id = aOcultar { store.ocultar(id) }
+                aOcultar = nil
+            }
+            Button("Cancelar", role: .cancel) { aOcultar = nil }
+        } message: {
+            Text("Deja de aparecer en Maratonia y en sus estadísticas. El entrenamiento NO se borra: sigue intacto en Apple Health, y podés restaurarlo desde Perfil → Carreras ocultas.")
+        }
     }
 
     /// La semana arriba de las carreras sueltas — mismo lenguaje visual
@@ -270,7 +337,7 @@ struct CarrerasView: View {
     private var resumenSemanal: (km: Double, carreras: Int, ritmo: Int?) {
         let calendario = Calendar.current
         let ahora = Date()
-        let delaSemana = store.carreras.filter {
+        let delaSemana = store.visibles.filter {
             calendario.isDate($0.fecha, equalTo: ahora, toGranularity: .weekOfYear)
         }
         let metros = delaSemana.reduce(0.0) { $0 + $1.distanciaMetros }
@@ -283,6 +350,8 @@ struct CarrerasView: View {
 struct CarreraDetalleView: View {
     @ObservedObject var store: CarrerasStore
     let id: UUID
+    @Environment(\.dismiss) private var dismiss
+    @State private var confirmandoOcultar = false
 
     var body: some View {
         if let carrera = store.carreras.first(where: { $0.id == id }) {
@@ -356,6 +425,26 @@ struct CarreraDetalleView: View {
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
+                Menu {
+                    Button {
+                        confirmandoOcultar = true
+                    } label: {
+                        Label("Ocultar de Maratonia", systemImage: "eye.slash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+            .confirmationDialog("¿Ocultar esta carrera de Maratonia?",
+                                isPresented: $confirmandoOcultar,
+                                titleVisibility: .visible) {
+                Button("Ocultar de Maratonia") {
+                    store.ocultar(carrera.id)
+                    dismiss()
+                }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("Deja de aparecer en Maratonia y en sus estadísticas. El entrenamiento NO se borra: sigue intacto en Apple Health, y podés restaurarlo desde Perfil → Carreras ocultas.")
             }
         } else {
             Text("No encontré esta carrera.")
@@ -526,5 +615,43 @@ struct TarjetaCompartir: View {
                 .monospacedDigit()
                 .foregroundStyle(.white)
         }
+    }
+}
+
+// MARK: - Carreras ocultas (Perfil → Datos): restaurar
+
+struct CarrerasOcultasView: View {
+    @StateObject private var store = CarrerasStore()
+
+    var body: some View {
+        List {
+            if store.ocultas.isEmpty {
+                ContentUnavailableView {
+                    Label("No hay carreras ocultas", systemImage: "eye.slash")
+                } description: {
+                    Text("Las carreras que ocultes desde Mis carreras aparecen acá, listas para restaurar. Ocultar nunca borra nada de Apple Health.")
+                }
+                .listRowBackground(Color.clear)
+            }
+            ForEach(store.ocultas) { carrera in
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(String(format: "%.2f", carrera.distanciaMetros / 1000)) km")
+                            .font(.subheadline.weight(.semibold))
+                        Text(FormatoFecha.media(carrera.fecha))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Restaurar") {
+                        store.restaurar(carrera.id)
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+        }
+        .navigationTitle("Carreras ocultas")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { store.cargar() }
     }
 }

@@ -1992,3 +1992,67 @@ final class CoachTests: XCTestCase {
         }
     }
 }
+
+// MARK: - Sprint UX: carreras ocultas, plurales y auto-pausa
+
+final class UXSprintTests: XCTestCase {
+
+    func testOcultarYRestaurarCarreraPersiste() {
+        let suite = UserDefaults(suiteName: "test-ocultas-\(UUID().uuidString)")!
+        let ocultas = CarrerasOcultas(defaults: suite)
+        let id = UUID()
+        XCTAssertFalse(ocultas.estaOculta(id))
+        ocultas.ocultar(id)
+        XCTAssertTrue(ocultas.estaOculta(id))
+        // Persistencia: otra instancia sobre el mismo suite la ve.
+        XCTAssertTrue(CarrerasOcultas(defaults: suite).estaOculta(id))
+        ocultas.restaurar(id)
+        XCTAssertFalse(ocultas.estaOculta(id))
+        // Idempotencia: ocultar dos veces no duplica ni rompe.
+        ocultas.ocultar(id); ocultas.ocultar(id)
+        XCTAssertEqual(ocultas.ids().count, 1)
+    }
+
+    func testOcultarNoTocaOtrasCarreras() {
+        let suite = UserDefaults(suiteName: "test-ocultas-\(UUID().uuidString)")!
+        let ocultas = CarrerasOcultas(defaults: suite)
+        let a = UUID(), b = UUID()
+        ocultas.ocultar(a)
+        XCTAssertFalse(ocultas.estaOculta(b))
+        ocultas.restaurar(b)   // restaurar algo no oculto: inocuo
+        XCTAssertTrue(ocultas.estaOculta(a))
+    }
+
+    func testPlurales() {
+        XCTAssertEqual(Plurales.pistas(1), String(localized: "1 pista"))
+        XCTAssertEqual(Plurales.tramos(1), String(localized: "1 tramo"))
+        XCTAssertFalse(Plurales.pistas(2).hasPrefix("1 "))
+        XCTAssertFalse(Plurales.entrenamientos(3).contains("1 entrenamiento"))
+    }
+
+    func testAutoPausaDefaultApagadaSinPisarPreferencia() {
+        // La MISMA expresión que usan los motores:
+        // object(forKey:) as? Bool ?? false
+        let suite = UserDefaults(suiteName: "test-ap-\(UUID().uuidString)")!
+        func valor() -> Bool { suite.object(forKey: "autoPausa") as? Bool ?? false }
+        XCTAssertFalse(valor())            // instalación nueva → apagada
+        suite.set(true, forKey: "autoPausa")
+        XCTAssertTrue(valor())             // elección explícita se respeta
+        suite.set(false, forKey: "autoPausa")
+        XCTAssertFalse(valor())
+    }
+
+    func testCambioDePlanConservaHistorial() {
+        // Cambiar de plan archiva el anterior y NO toca sesiones.
+        var almacen = AlmacenV2()
+        almacen.activado = true
+        almacen.planActivo = PlanUsuario(nombre: "Viejo", origen: .personalizado,
+                                         fechaAdopcion: Date(timeIntervalSince1970: 0), semanas: [])
+        almacen.sesiones = [RegistroSesion(id: UUID(), fecha: Date(), vinculoProgramadoID: nil)]
+        almacen.adoptarPlan(PlanUsuario(nombre: "Nuevo", origen: .personalizado,
+                                        fechaAdopcion: Date(), semanas: []))
+        XCTAssertEqual(almacen.planActivo?.nombre, "Nuevo")
+        XCTAssertEqual(almacen.historialDePlanes.map(\.nombre), ["Viejo"])
+        XCTAssertEqual(almacen.sesiones.count, 1)   // historial intacto
+    }
+}

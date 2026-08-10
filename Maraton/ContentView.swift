@@ -352,12 +352,12 @@ struct PlanTab: View {
 
     private var subtituloConfiguracion: String {
         var partes: [String] = []
-        if !store.plan.pistas.isEmpty { partes.append("\(store.plan.pistas.count) pistas") }
+        if !store.plan.pistas.isEmpty { partes.append(Plurales.pistas(store.plan.pistas.count)) }
         let avisos = store.plan.avisosFijos.count + store.plan.avisosRepetidos.count
             + store.plan.avisosKmActivos.count
         if avisos > 0 { partes.append("\(avisos) avisos") }
         if !store.plan.tramosActivos.isEmpty {
-            partes.append("\(store.plan.tramosActivos.count) tramos")
+            partes.append(Plurales.tramos(store.plan.tramosActivos.count))
         }
         return partes.isEmpty ? "Música, avisos por voz y tramos manuales"
                               : partes.joined(separator: " · ")
@@ -453,7 +453,7 @@ struct ConfiguracionEntrenamientoScreen: View {
     private var subtituloMusica: String {
         store.plan.pistas.isEmpty
             ? "Importá tus MP3"
-            : "\(store.plan.pistas.count) pistas · \(formatearDuracion(store.duracionTotal))"
+            : "\(Plurales.pistas(store.plan.pistas.count)) · \(formatearDuracion(store.duracionTotal))"
     }
 
     private var subtituloAvisos: String {
@@ -466,7 +466,7 @@ struct ConfiguracionEntrenamientoScreen: View {
     private var subtituloTramos: String {
         store.plan.tramosActivos.isEmpty
             ? "Armá bloques con objetivo de ritmo"
-            : "\(store.plan.tramosActivos.count) tramos con objetivo"
+            : String(localized: "\(Plurales.tramos(store.plan.tramosActivos.count)) con objetivo")
     }
 }
 
@@ -973,14 +973,14 @@ struct PerfilTab: View {
                     }
                 }
 
-                Section("Apple Watch") {
+                Section("Dispositivos") {
                     NavigationLink {
                         RelojTab(store: store)
                     } label: {
                         HStack(spacing: 10) {
                             IconoAjuste(sistema: "applewatch", color: .black)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Reloj")
+                                Text("Apple Watch")
                                 Text("Enviar plan y música, estado de la conexión")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -991,7 +991,7 @@ struct PerfilTab: View {
 
                 Section {
                     HStack(spacing: 10) {
-                        IconoAjuste(sistema: "person.crop.circle.fill", color: .blue)
+                        IconoAjuste(sistema: "icloud.fill", color: .blue)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(textoCuenta)
                             if let fecha = cuenta.ultimoRespaldo {
@@ -1029,10 +1029,24 @@ struct PerfilTab: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
+
+                    NavigationLink {
+                        CarrerasOcultasView()
+                    } label: {
+                        HStack(spacing: 10) {
+                            IconoAjuste(sistema: "eye.slash", color: .orange)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Carreras ocultas")
+                                Text("Restaurar carreras que ocultaste")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                 } header: {
-                    Text("Cuenta")
+                    Text("Datos y sincronización")
                 } footer: {
-                    Text("Tu plan se respalda automáticamente en tu iCloud privado — sin registro ni contraseñas. Al reinstalar o cambiar de teléfono: «Restaurar plan».")
+                    Text("Esto es tu iCloud PRIVADO (respaldo del plan de audio), distinto de la Cuenta Maratonia de arriba. Al reinstalar o cambiar de teléfono: «Restaurar plan».")
                 }
 
                 Section("Ayuda") {

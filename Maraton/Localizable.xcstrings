@@ -12,6 +12,17 @@
         }
       }
     },
+    "%@ con objetivo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ with target"
+          }
+        }
+      }
+    },
     "%@ kilómetros": {
       "extractionState": "manual",
       "localizations": {
@@ -23,6 +34,17 @@
         }
       }
     },
+    "%lld de %@ de la semana": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld of %@ this week"
+          }
+        }
+      }
+    },
     "%lld días marcados": {
       "extractionState": "manual",
       "localizations": {
@@ -30,6 +52,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld days marked"
+          }
+        }
+      }
+    },
+    "%lld entrenamientos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld workouts"
           }
         }
       }
@@ -52,6 +85,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld minutes %lld seconds"
+          }
+        }
+      }
+    },
+    "%lld pistas": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld tracks"
+          }
+        }
+      }
+    },
+    "%lld segmentos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld segments"
           }
         }
       }
@@ -85,6 +140,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld weeks · %lld days per week"
+          }
+        }
+      }
+    },
+    "%lld tramos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld intervals"
           }
         }
       }
@@ -133,6 +199,17 @@
         }
       }
     },
+    "1 entrenamiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 workout"
+          }
+        }
+      }
+    },
     "1 kilómetro": {
       "extractionState": "manual",
       "localizations": {
@@ -162,6 +239,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 minute %lld seconds"
+          }
+        }
+      }
+    },
+    "1 pista": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 track"
+          }
+        }
+      }
+    },
+    "1 segmento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 segment"
+          }
+        }
+      }
+    },
+    "1 tramo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 interval"
           }
         }
       }
@@ -584,6 +694,17 @@
         }
       }
     },
+    "Carreras ocultas": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hidden runs"
+          }
+        }
+      }
+    },
     "Cerrar sesión": {
       "extractionState": "manual",
       "localizations": {
@@ -881,6 +1002,17 @@
         }
       }
     },
+    "Datos y sincronización": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data & sync"
+          }
+        }
+      }
+    },
     "De cero a completar 5 km corriendo": {
       "extractionState": "manual",
       "localizations": {
@@ -899,6 +1031,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Decide later"
+          }
+        }
+      }
+    },
+    "Deja de aparecer en Maratonia y en sus estadísticas. El entrenamiento NO se borra: sigue intacto en Apple Health, y podés restaurarlo desde Perfil → Carreras ocultas.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It stops appearing in Maratonia and its stats. The workout is NOT deleted: it stays intact in Apple Health, and you can restore it from Profile → Hidden runs."
           }
         }
       }
@@ -954,6 +1097,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Availability"
+          }
+        }
+      }
+    },
+    "Dispositivos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Devices"
           }
         }
       }
@@ -1416,6 +1570,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "This plan uses %lld of your %lld days — the rest are rest days."
+          }
+        }
+      }
+    },
+    "Esto es tu iCloud PRIVADO (respaldo del plan de audio), distinto de la Cuenta Maratonia de arriba. Al reinstalar o cambiar de teléfono: «Restaurar plan».": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This is your PRIVATE iCloud (audio plan backup), separate from the Maratonia Account above. When reinstalling or switching phones: “Restore plan”."
           }
         }
       }
@@ -1926,6 +2091,17 @@
         }
       }
     },
+    "Las carreras que ocultes desde Mis carreras aparecen acá, listas para restaurar. Ocultar nunca borra nada de Apple Health.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runs you hide from My Runs show up here, ready to restore. Hiding never deletes anything from Apple Health."
+          }
+        }
+      }
+    },
     "Las contraseñas no coinciden.": {
       "extractionState": "manual",
       "localizations": {
@@ -2245,6 +2421,17 @@
         }
       }
     },
+    "No hay carreras ocultas": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hidden runs"
+          }
+        }
+      }
+    },
     "No hay ninguna cuenta con ese email.": {
       "extractionState": "manual",
       "localizations": {
@@ -2362,6 +2549,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Goal"
+          }
+        }
+      }
+    },
+    "Ocultar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide"
+          }
+        }
+      }
+    },
+    "Ocultar de Maratonia": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide from Maratonia"
           }
         }
       }
@@ -3000,6 +3209,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reschedule"
+          }
+        }
+      }
+    },
+    "Restaurar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore"
+          }
+        }
+      }
+    },
+    "Restaurar carreras que ocultaste": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore runs you hid"
           }
         }
       }
@@ -3873,6 +4104,17 @@
         }
       }
     },
+    "de %@ km previstos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "of %@ km planned"
+          }
+        }
+      }
+    },
     "entrenamientos hechos": {
       "extractionState": "manual",
       "localizations": {
@@ -4045,6 +4287,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "At which minute?"
+          }
+        }
+      }
+    },
+    "¿Ocultar esta carrera de Maratonia?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide this run from Maratonia?"
           }
         }
       }
