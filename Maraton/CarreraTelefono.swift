@@ -82,7 +82,7 @@ final class CarreraCelu: NSObject, ObservableObject {
     private var fechaUltimoEmpujonGPS: Date?
 
     private var autoPausaActiva: Bool {
-        UserDefaults.standard.object(forKey: "autoPausaCelu") as? Bool ?? true
+        UserDefaults.standard.object(forKey: "autoPausaCelu") as? Bool ?? false
     }
 
     // Música: cola de pistas en loop, como en el reloj.
@@ -859,7 +859,7 @@ struct CorrerTab: View {
     @ObservedObject var store: PlanStore
     @ObservedObject var almacen: AlmacenStore
     @ObservedObject private var carrera = CarreraCelu.compartida
-    @AppStorage("autoPausaCelu") private var autoPausa = true
+    @AppStorage("autoPausaCelu") private var autoPausa = false
 
     var body: some View {
         NavigationStack {

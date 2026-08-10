@@ -78,7 +78,7 @@ final class Entrenamiento: NSObject, ObservableObject {
     private var fechaUltimoAvisoZona: Date?
 
     private var autoPausaActiva: Bool {
-        UserDefaults.standard.object(forKey: "autoPausa") as? Bool ?? true
+        UserDefaults.standard.object(forKey: "autoPausa") as? Bool ?? false
     }
     private var avisarZonas: Bool {
         UserDefaults.standard.object(forKey: "avisarZonas") as? Bool ?? true

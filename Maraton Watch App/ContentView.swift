@@ -935,7 +935,7 @@ struct AjustesReloj: View {
     @AppStorage("modoEntrenamiento") private var modoEntrenamiento = true
     @AppStorage("rutaGPS") private var rutaGPS = true
     @AppStorage("musicaExterna") private var musicaExterna = false
-    @AppStorage("autoPausa") private var autoPausa = true
+    @AppStorage("autoPausa") private var autoPausa = false
     @AppStorage("avisarZonas") private var avisarZonas = true
 
     var body: some View {
