@@ -34,7 +34,10 @@ struct OnboardingDeportivo: View {
     @State private var tieneFechaObjetivo = false
     @State private var fechaObjetivo = Date().addingTimeInterval(90 * 24 * 3600)
 
-    @State private var mostrandoPlanRecomendado = false
+    /// El resultado del MOTOR de planes (§39): "Preparar mi plan" dejó
+    /// de ser navegación — corre la planificación real.
+    @State private var resultadoMotor: ResultadoPlanificacion?
+    @State private var mostrandoPropuesta = false
 
     private let totalPasos = 4
 
@@ -81,9 +84,11 @@ struct OnboardingDeportivo: View {
                     Button("Ahora no") { dismiss() }
                 }
             }
-            .navigationDestination(isPresented: $mostrandoPlanRecomendado) {
-                if let base = planRecomendado {
-                    PlanBaseDetalleView(almacen: almacen, base: base)
+            .navigationDestination(isPresented: $mostrandoPropuesta) {
+                if let resultado = resultadoMotor {
+                    PropuestaPlanView(almacen: almacen, resultado: resultado) {
+                        dismiss()
+                    }
                 }
             }
         }
@@ -113,7 +118,7 @@ struct OnboardingDeportivo: View {
         pantalla(titulo: "¿Tenés una referencia de ritmo?",
                  subtitulo: "Sirve para que los ritmos del plan sean TUYOS, no genéricos.") {
             tarjetaOpcion(titulo: "Tengo una marca reciente",
-                          subtitulo: "Una carrera o un esfuerzo medido de los últimos meses",
+                          subtitulo: String(localized: "Una carrera o un esfuerzo medido de los últimos meses"),
                           icono: "stopwatch.fill",
                           elegida: experiencia == .marcaReciente) {
                 withAnimation { experiencia = .marcaReciente }
@@ -122,14 +127,14 @@ struct OnboardingDeportivo: View {
                 formularioMarca
             }
             tarjetaOpcion(titulo: "Prefiero hacer una prueba",
-                          subtitulo: "Test de 5K: fuerte pero controlado, cuando quieras",
+                          subtitulo: String(localized: "Test de 5K: fuerte pero controlado, cuando quieras"),
                           icono: "flag.checkered",
                           elegida: experiencia == .hacerTest) {
                 experiencia = .hacerTest
                 avanzar()
             }
             tarjetaOpcion(titulo: "Estoy empezando",
-                          subtitulo: "Sin referencia — el plan arranca suave y aprende con vos",
+                          subtitulo: String(localized: "Sin referencia — el plan arranca suave y aprende con vos"),
                           icono: "leaf.fill",
                           elegida: experiencia == .empezando) {
                 experiencia = .empezando
@@ -221,45 +226,27 @@ struct OnboardingDeportivo: View {
                                     diasPorSemana.map { "\($0) días por semana" } ?? "A definir")
                         filaResumen("flag.checkered", "Carrera",
                                     tieneFechaObjetivo
-                                    ? fechaObjetivo.formatted(date: .abbreviated, time: .omitted)
+                                    ? FormatoFecha.media(fechaObjetivo)
                                     : "Sin fecha — se avanza por progresión")
                     }
                 }
             }
 
-            // Recomendación DETERMINÍSTICA del catálogo (por distancia
-            // del objetivo). Sin plan compatible: se dice, no se inventa.
-            if let base = planRecomendado {
-                Button {
-                    guardarPerfil()
-                    mostrandoPlanRecomendado = true
-                } label: {
-                    EtiquetaBotonPrimarioV2(titulo: "Preparar mi plan",
-                                            icono: "figure.run")
-                }
-                .buttonStyle(.plain)
-                .disabled(objetivo == nil)
-                Text("Para tu objetivo te recomendamos «\(base.nombre)»: \(base.semanasTotales) semanas, \(base.diasPorSemana) días por semana.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Button("Guardar y cerrar") { terminar() }
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .disabled(objetivo == nil)
-            } else {
-                Button {
-                    terminar()
-                } label: {
-                    EtiquetaBotonPrimarioV2(titulo: "Listo", icono: "checkmark")
-                }
-                .buttonStyle(.plain)
-                .disabled(objetivo == nil)
-                if objetivo != nil {
-                    Text("Todavía no hay un plan de esa distancia en el catálogo — está en camino. Tu perfil queda guardado y podés explorar los planes disponibles cuando quieras.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+            // "PREPARAR MI PLAN" corre el MOTOR real (§39): guarda el
+            // perfil, arma el pedido y muestra la propuesta (o el
+            // motivo honesto por el que no hay plan).
+            Button {
+                prepararMiPlan()
+            } label: {
+                EtiquetaBotonPrimarioV2(titulo: "Preparar mi plan",
+                                        icono: "figure.run")
             }
+            .buttonStyle(.plain)
+            .disabled(objetivo == nil)
+            Button("Guardar y cerrar") { terminar() }
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .disabled(objetivo == nil)
 
             if objetivo == nil {
                 Text("Falta elegir el objetivo (paso 1).")
@@ -298,14 +285,6 @@ struct OnboardingDeportivo: View {
         }
     }
 
-    /// El plan del catálogo cuya distancia coincide con el objetivo.
-    private var planRecomendado: PlanBase? {
-        guard let objetivo else { return nil }
-        let metros = TextosObjetivo.distanciaMetros(de: objetivo)
-        return Catalogo.planesDisponibles().first {
-            abs($0.distanciaObjetivoKm * 1000 - metros) <= 500
-        }
-    }
 
     // MARK: Cierre
 
@@ -337,6 +316,22 @@ struct OnboardingDeportivo: View {
     private func terminar() {
         guardarPerfil()
         dismiss()
+    }
+
+    /// El flujo real de §39: perfil guardado → pedido → motor →
+    /// propuesta navegable. La referencia sale de lo recién guardado
+    /// (la marca del paso 2 ya quedó registrada como referencia).
+    private func prepararMiPlan() {
+        guard let objetivo else { return }
+        guardarPerfil()
+        let pedido = PedidoDePlan(
+            objetivo: objetivo,
+            fechaObjetivo: tieneFechaObjetivo ? DiaLocal(fecha: fechaObjetivo) : nil,
+            diasPorSemana: diasPorSemana ?? 3,
+            referencia: almacen.almacen.referenciaVigente,
+            hoy: DiaLocal(fecha: Date()))
+        resultadoMotor = MotorPlanificacion.proponer(pedido)
+        mostrandoPropuesta = true
     }
 
     private func avanzar() {
@@ -400,11 +395,11 @@ struct OnboardingDeportivo: View {
 
     private func detalle(de objetivo: ObjetivoDeportivo) -> String {
         switch objetivo {
-        case .primeros5K: return "De cero a completar 5 km corriendo"
-        case .mejorar5K: return "Ya los corrés — ahora, más rápido"
-        case .diez: return "El siguiente escalón de distancia"
-        case .mediaMaraton: return "21,1 km con una preparación seria"
-        case .maraton: return "Los 42,2 km — el grande"
+        case .primeros5K: return String(localized: "De cero a completar 5 km corriendo")
+        case .mejorar5K: return String(localized: "Ya los corrés — ahora, más rápido")
+        case .diez: return String(localized: "El siguiente escalón de distancia")
+        case .mediaMaraton: return String(localized: "21,1 km con una preparación seria")
+        case .maraton: return String(localized: "Los 42,2 km — el grande")
         }
     }
 
@@ -420,10 +415,10 @@ struct OnboardingDeportivo: View {
 
     private func subtituloDias(_ dias: Int) -> String {
         switch dias {
-        case 2: return "Lo mínimo para progresar"
-        case 3: return "El equilibrio clásico"
-        case 4: return "Progreso sólido"
-        default: return "Volumen alto — para semanas ordenadas"
+        case 2: return String(localized: "Lo mínimo para progresar")
+        case 3: return String(localized: "El equilibrio clásico")
+        case 4: return String(localized: "Progreso sólido")
+        default: return String(localized: "Volumen alto — para semanas ordenadas")
         }
     }
 

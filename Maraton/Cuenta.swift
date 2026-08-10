@@ -110,6 +110,19 @@ final class CuentaStore: ObservableObject {
         contenedor.privateCloudDatabase.add(operacion)
     }
 
+    /// Borra el respaldo propio de Maratonia en el iCloud del usuario
+    /// (parte de "Eliminar cuenta"). No toca nada más del iCloud.
+    func borrarRespaldo() {
+        contenedor.privateCloudDatabase.delete(withRecordID: Self.idRegistro) { [weak self] _, error in
+            DispatchQueue.main.async {
+                // "No existe" también es éxito: no había nada que borrar.
+                if let error, (error as? CKError)?.code != .unknownItem {
+                    self?.mensaje = "No pude borrar el respaldo de iCloud: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
     /// Baja el último plan respaldado (reinstalación / teléfono nuevo).
     func restaurar(alTerminar: @escaping (Plan?) -> Void) {
         contenedor.privateCloudDatabase.fetch(withRecordID: Self.idRegistro) { [weak self] registro, error in

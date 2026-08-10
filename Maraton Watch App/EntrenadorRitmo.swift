@@ -153,7 +153,7 @@ final class EntrenadorRitmo: ObservableObject {
                     fechaUltimaCorreccion = nil
                     Avisador.compartido.anunciar(anuncio(de: progreso.tramos[nuevo], numero: nuevo + 1))
                 case .planCompletado:
-                    Avisador.compartido.anunciar("Plan de tramos completado. ¡Bien ahí!")
+                    Avisador.compartido.anunciar(String(localized: "Plan de tramos completado. ¡Bien ahí!"))
                 }
             }
             return
@@ -166,12 +166,12 @@ final class EntrenadorRitmo: ObservableObject {
 
         if let rapido = tramo.ritmoMinSegKm, ritmo < rapido - margenSegKm {
             fechaUltimaCorreccion = Date()
-            Avisador.compartido.anunciar(
-                "Vas a \(ritmoParaHablar(ritmo)). Objetivo \(ritmoParaHablar(rapido)). Aflojá un poco.")
+            Avisador.compartido.anunciar(String(localized:
+                "Vas a \(ritmoParaHablar(ritmo)). Objetivo \(ritmoParaHablar(rapido)). Aflojá un poco."))
         } else if let lento = tramo.ritmoMaxSegKm, ritmo > lento + margenSegKm {
             fechaUltimaCorreccion = Date()
-            Avisador.compartido.anunciar(
-                "Vas a \(ritmoParaHablar(ritmo)). Objetivo \(ritmoParaHablar(lento)). Apurá un poco.")
+            Avisador.compartido.anunciar(String(localized:
+                "Vas a \(ritmoParaHablar(ritmo)). Objetivo \(ritmoParaHablar(lento)). Apurá un poco."))
         }
     }
 
@@ -185,12 +185,12 @@ final class EntrenadorRitmo: ObservableObject {
         ultimoKmAnunciado = km
         tiempoAlUltimoKm = tiempoActivo
         guard kmsCubiertos == 1, parcial > 60, parcial < 30 * 60 else {
-            Avisador.compartido.anunciar("Kilómetro \(km).")
+            Avisador.compartido.anunciar(String(localized: "Kilómetro \(km)."))
             return
         }
         parciales.append(ParcialKm(km: km, segundos: Int(parcial)))
-        Avisador.compartido.anunciar(
-            "Kilómetro \(km): \(ritmoParaHablar(Int(parcial))) el último.")
+        Avisador.compartido.anunciar(String(localized:
+            "Kilómetro \(km): \(ritmoParaHablar(Int(parcial))) el último."))
     }
 
     /// Avisos configurados por distancia ("en el km 5", "cada 3 km"):
@@ -209,17 +209,6 @@ final class EntrenadorRitmo: ObservableObject {
     }
 
     private func anuncio(de tramo: Tramo, numero: Int) -> String {
-        var texto = "Tramo \(numero): \(tramo.nombre). \(metaParaHablar(tramo))"
-        switch (tramo.ritmoMinSegKm, tramo.ritmoMaxSegKm) {
-        case let (rapido?, lento?):
-            texto += ", entre \(ritmoParaHablar(rapido)) y \(ritmoParaHablar(lento)) por kilómetro."
-        case let (nil, lento?):
-            texto += ", a \(ritmoParaHablar(lento)) por kilómetro o mejor."
-        case let (rapido?, nil):
-            texto += ", sin pasar de \(ritmoParaHablar(rapido)) por kilómetro."
-        default:
-            texto += ", a ritmo libre."
-        }
-        return texto
+        anuncioDeTramo(tramo, numero: numero)
     }
 }

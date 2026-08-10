@@ -1,54 +1,43 @@
-# Política de Privacidad — Maratonia
+# PRIVACIDAD — Qué dato vive dónde (base para Privacy Policy y App Privacy)
 
-**Última actualización: agosto de 2026**
+## LOCAL (Documents del dispositivo)
+- `plan.json`: configuración de audio legacy (pistas, avisos, tramos).
+- `dominio-v2.json`: plan de entrenamiento, calendario, estados,
+  perfil deportivo (objetivo/días/fecha), referencias de rendimiento,
+  registro de sesiones (IDs y vínculos — NO métricas) y `usuarioID`.
+- `cuenta.json`: cuenta Maratonia (userID, nombre opcional,
+  proveedores vinculados con su subject ID y email informativo).
+- MP3s del usuario (y su copia en el reloj).
+- UserDefaults: preferencias de UI y estado menor (tutorial visto,
+  auto-pausa on/off, completados locales del reloj).
+- **Nunca**: contraseñas ni tokens de sesión de terceros.
 
-Maratonia es una aplicación de running para iPhone y Apple Watch desarrollada
-por Felipe Veiga. Esta política describe qué datos usa la app y qué se hace
-con ellos. La versión corta: **tus datos no salen de tus dispositivos.**
+## APPLE HEALTH (HealthKit — el dispositivo del usuario)
+- Los WORKOUTS con distancia, ruta GPS, FC, calorías y la metadata
+  `programadoID`. Es la fuente autoritativa de "lo corrido".
+- Maratonia LEE workouts para Progreso/Carreras y ESCRIBE los propios.
+- **Jamás sale del ecosistema Salud del usuario. Jamás se sube a
+  servidores por existir un login.** Borrarlo es del usuario, desde
+  la app Salud (la app lo explica al eliminar cuenta).
 
-## Qué datos usa la app
+## ICLOUD PRIVADO DEL USUARIO (CloudKit private database)
+- Respaldo del plan de audio (`Plan` como JSON, registro "planActual").
+- Es el iCloud DEL USUARIO: Maratonia no puede leerlo de otros
+  usuarios ni verlo desde afuera. "Eliminar cuenta" lo borra.
 
-- **Datos de salud y actividad** (frecuencia cardíaca, distancia, calorías,
-  entrenamientos): se leen y escriben exclusivamente en Apple Salud
-  (HealthKit), con tu autorización explícita, para registrar tus carreras y
-  mostrarte tus métricas. Viven en tu dispositivo y en tu cuenta de iCloud
-  según la configuración de Salud de tu propio dispositivo.
-- **Ubicación** (GPS): se usa únicamente durante una carrera, con tu permiso,
-  para dibujar el recorrido en el mapa de tu entrenamiento. La ruta se guarda
-  en Apple Salud, asociada a tu carrera.
-- **Tu música y tus planes de entrenamiento**: se guardan localmente en tu
-  iPhone y tu Apple Watch.
-- **Respaldo del plan en iCloud**: tu plan de entrenamiento se respalda en la
-  base de datos **privada** de tu propia cuenta de iCloud, a la que solo vos
-  tenés acceso. El desarrollador no puede ver ni acceder a ese respaldo.
+## CLOUD MARATONIA (backend propio)
+- **Hoy: NO EXISTE.** No hay servidores de Maratonia; ningún dato
+  sale del dispositivo/iCloud/Salud del usuario.
+- Cuando exista (Firebase Auth para Google/email): SOLO identidad de
+  autenticación (subject IDs, email de login). El dominio deportivo y
+  HealthKit siguen donde están; subir perfil/plan será una decisión
+  futura explícita, no un efecto del login.
 
-## Qué NO hace la app
-
-- **No recolecta datos.** Maratonia no tiene servidores propios: ningún dato
-  tuyo (de salud, ubicación, música o uso) se envía al desarrollador ni a
-  terceros.
-- **No usa publicidad, analítica ni rastreadores.**
-- **No requiere cuenta ni registro.**
-
-## Permisos que la app solicita
-
-| Permiso | Para qué |
-|---|---|
-| Salud (lectura/escritura) | Registrar la carrera, mostrar FC y guardar el entrenamiento |
-| Ubicación (al usar la app) | Dibujar el recorrido en el mapa |
-| Notificaciones | Mostrar los avisos que vos programás (ej. "tomá agua") |
-
-Todos los permisos son opcionales: la app funciona en modo solo-audio sin
-ninguno de ellos.
-
-## Eliminación de datos
-
-Tus entrenamientos se administran desde la app Salud de Apple (podés borrarlos
-ahí). Borrar la app elimina tu música y tus planes locales.
-
-## Contacto
-
-Por consultas sobre esta política: **pipeveiga2003@gmail.com**
-
-Esta política puede actualizarse si la app incorpora nuevas funciones; la
-fecha de arriba refleja la última revisión.
+## Para el formulario App Privacy (App Store Connect)
+- Health & Fitness: SÍ se usa, vinculado al usuario, solo
+  funcionalidad de la app, NO tracking, NO se comparte con terceros.
+- Location: SÍ (ruta del mapa), solo funcionalidad, NO tracking.
+- Contact info (email): solo si crea cuenta; identificación, no
+  marketing, no tracking.
+- Tracking (ATT): NO. Sin publicidad, sin data brokers, sin SDKs de
+  analytics en este build.

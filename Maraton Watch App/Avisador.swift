@@ -50,11 +50,8 @@ final class Avisador: NSObject, ObservableObject {
         }
     }
 
-    /// Voz en español: es-AR con fallback a es-MX y es-ES.
-    static let vozEspanol: AVSpeechSynthesisVoice? =
-        AVSpeechSynthesisVoice(language: "es-AR")
-        ?? AVSpeechSynthesisVoice(language: "es-MX")
-        ?? AVSpeechSynthesisVoice(language: "es-ES")
+    /// La voz sigue el idioma de la app (ver vozDeLaApp en Shared).
+    static let vozEspanol: AVSpeechSynthesisVoice? = vozDeLaApp()
 
     static func pedirPermisoNotificaciones() {
         UNUserNotificationCenter.current()

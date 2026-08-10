@@ -1,4 +1,5 @@
 import Foundation
+import AVFoundation
 
 // Modelo de datos compartido entre la app iOS y la app watchOS.
 // Este archivo pertenece a los dos targets: es el "idioma" común
@@ -394,21 +395,97 @@ func ritmoParaHablar(_ segundosPorKm: Int) -> String {
     "\(segundosPorKm / 60) \(String(format: "%02d", segundosPorKm % 60))"
 }
 
+// MARK: - Calidad de métricas (RC1)
+
+/// Reglas de CALIDAD para métricas derivadas, en un solo lugar.
+/// Separación deliberada: el HISTORIAL cuenta todo (una salida de
+/// 200 m sigue sumando kilómetros a la semana y nada se borra de
+/// Salud); las MARCAS y los ritmos MOSTRADOS exigen muestras
+/// suficientes. No es ciencia deportiva: son pisos de sanidad para no
+/// mostrar jamás un "0:15/km" salido de una sesión de prueba.
+enum MetricasSesion {
+
+    /// Ritmo en seg/km con TODOS los guards: división por cero, NaN,
+    /// infinito, distancia insuficiente y ritmos físicamente absurdos
+    /// (más rápido que 2:00/km o más lento que 20:00/km es error de
+    /// sensor, no una carrera). nil = "sin ritmo fiable" — la UI
+    /// muestra un guion, nunca un número absurdo.
+    static func ritmoSegKm(metros: Double, segundos: Double,
+                           metrosMinimos: Double = 500) -> Int? {
+        guard metros.isFinite, segundos.isFinite,
+              metros >= metrosMinimos, segundos > 0 else { return nil }
+        let ritmo = segundos / metros * 1000
+        guard ritmo.isFinite, ritmo >= 120, ritmo <= 1200 else { return nil }
+        return Int(ritmo.rounded())
+    }
+
+    /// ¿La sesión puede producir MARCAS (mejor ritmo, salida más
+    /// larga)? Conservador: al menos 1 km, al menos 5 minutos y un
+    /// ritmo plausible sostenido (2:30–15:00 /km). Ante la duda, no
+    /// hay marca — "sin marca fiable" gana siempre a un récord falso.
+    static func elegibleParaMarcas(metros: Double, segundos: Double) -> Bool {
+        guard metros.isFinite, segundos.isFinite,
+              metros >= 1000, segundos >= 300 else { return false }
+        let ritmo = segundos / metros * 1000
+        return ritmo >= 150 && ritmo <= 900
+    }
+}
+
 /// La meta del tramo para la voz: "5 kilómetros" / "2 minutos" /
-/// "2 minutos y 30 segundos". Compartida por los dos motores.
+/// "2 minutos y 30 segundos". Compartida por los dos motores y
+/// localizada (el catálogo de cada target trae las claves).
 func metaParaHablar(_ tramo: Tramo) -> String {
     if tramo.esPorTiempo {
         let total = tramo.duracionSegundos ?? 0
         let minutos = total / 60
         let segundos = total % 60
-        if minutos == 0 { return "\(segundos) segundos" }
-        let base = minutos == 1 ? "1 minuto" : "\(minutos) minutos"
-        return segundos == 0 ? base : base + " y \(segundos) segundos"
+        if minutos == 0 { return String(localized: "\(segundos) segundos") }
+        if segundos == 0 {
+            return minutos == 1 ? String(localized: "1 minuto")
+                                : String(localized: "\(minutos) minutos")
+        }
+        return minutos == 1
+            ? String(localized: "1 minuto y \(segundos) segundos")
+            : String(localized: "\(minutos) minutos y \(segundos) segundos")
     }
     let km = tramo.kilometros == tramo.kilometros.rounded()
         ? "\(Int(tramo.kilometros))"
         : String(format: "%.1f", tramo.kilometros)
-    return km == "1" ? "1 kilómetro" : "\(km) kilómetros"
+    return km == "1" ? String(localized: "1 kilómetro")
+                     : String(localized: "\(km) kilómetros")
+}
+
+/// El anuncio hablado de un tramo, compartido por los dos motores
+/// (estaba duplicado) y localizado: "Tramo 2: Bloque. 3 kilómetros,
+/// entre 4 50 y 5 10 por kilómetro."
+func anuncioDeTramo(_ tramo: Tramo, numero: Int) -> String {
+    let sufijo: String
+    switch (tramo.ritmoMinSegKm, tramo.ritmoMaxSegKm) {
+    case let (rapido?, lento?):
+        sufijo = String(localized: ", entre \(ritmoParaHablar(rapido)) y \(ritmoParaHablar(lento)) por kilómetro.")
+    case let (nil, lento?):
+        sufijo = String(localized: ", a \(ritmoParaHablar(lento)) por kilómetro o mejor.")
+    case let (rapido?, nil):
+        sufijo = String(localized: ", sin pasar de \(ritmoParaHablar(rapido)) por kilómetro.")
+    default:
+        sufijo = String(localized: ", a ritmo libre.")
+    }
+    let detalle = metaParaHablar(tramo) + sufijo
+    return String(localized: "Tramo \(numero): \(tramo.nombre). \(detalle)")
+}
+
+/// La voz sintetizada sigue el IDIOMA DE LA APP (la localización
+/// resuelta del bundle), no un español fijo: con la app en inglés, la
+/// voz habla inglés. Compartida por los dos motores.
+func vozDeLaApp() -> AVSpeechSynthesisVoice? {
+    let idioma = Bundle.main.preferredLocalizations.first ?? "es"
+    let candidatos = idioma.hasPrefix("en")
+        ? ["en-US", "en-GB", "en-AU"]
+        : ["es-AR", "es-MX", "es-ES"]
+    for codigo in candidatos {
+        if let voz = AVSpeechSynthesisVoice(language: codigo) { return voz }
+    }
+    return AVSpeechSynthesisVoice(language: idioma)
 }
 
 struct AvisoFijo: Codable, Equatable, Identifiable, Hashable {

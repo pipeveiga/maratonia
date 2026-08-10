@@ -322,6 +322,16 @@ final class AlmacenStore: ObservableObject {
         }
     }
 
+    // MARK: Cuenta (RC1)
+
+    /// Asocia (o desasocia) el dominio deportivo a una cuenta. Es LA
+    /// migración de usuario existente: sus datos pasan a pertenecer al
+    /// userID sin duplicarse ni moverse; HealthKit no se toca.
+    func asociarUsuario(_ usuarioID: UUID?) {
+        guard almacen.usuarioID != usuarioID else { return }
+        almacen.usuarioID = usuarioID
+    }
+
     // MARK: Perfil deportivo y referencias (Fase F)
 
     /// El onboarding terminó: se guarda el perfil y, si trajo una marca,
@@ -711,7 +721,7 @@ struct SemanaActualV2: View {
     }
 
     private func etiquetaAccesible(_ item: DiaDeSemana) -> String {
-        let nombreDia = item.dia.fecha()?.formatted(.dateTime.weekday(.wide)) ?? ""
+        let nombreDia = item.dia.fecha().map { FormatoFecha.diaDeSemana($0) } ?? ""
         guard let programado = item.programado else { return "\(nombreDia): descanso" }
         let estado: String
         switch programado.estado(hoy: hoy) {
@@ -769,13 +779,13 @@ struct DetalleEntrenamientoView: View {
                     Text(programado.definicion.nombre)
                         .font(.title2.bold())
                     if let fecha = programado.dia?.fecha() {
-                        Text(fecha.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+                        Text(FormatoFecha.larga(fecha))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
                     if let original = programado.diaOriginal, original != programado.dia,
                        let fechaOriginal = original.fecha() {
-                        Text("Reprogramado (era el \(fechaOriginal.formatted(.dateTime.day().month())))")
+                        Text("Reprogramado (era el \(FormatoFecha.diaYMes(fechaOriginal)))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -845,9 +855,7 @@ struct DetalleEntrenamientoView: View {
     private func seccionSesion(_ sesionID: UUID) -> some View {
         Section("Sesión realizada") {
             if let sesion = almacen.almacen.sesiones.first(where: { $0.id == sesionID }) {
-                LabeledContent("Fecha",
-                               value: sesion.fecha.formatted(date: .abbreviated,
-                                                             time: .shortened))
+                LabeledContent("Fecha", value: FormatoFecha.fechaYHora(sesion.fecha))
             }
             NavigationLink {
                 CarreraDetalleView(store: carreras, id: sesionID)
@@ -926,7 +934,7 @@ struct DetalleEntrenamientoView: View {
 
                 if let original = programado.diaOriginal ?? programado.dia,
                    let fechaOriginal = original.fecha() {
-                    Text("Fecha original: \(fechaOriginal.formatted(.dateTime.weekday(.abbreviated).day().month()))")
+                    Text("Fecha original: \(FormatoFecha.corta(fechaOriginal))")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -1030,7 +1038,7 @@ struct CalendarioView: View {
                 Text(programado.definicion.nombre)
                 HStack(spacing: 6) {
                     if let dia = programado.dia, let fecha = dia.fecha() {
-                        Text(fecha.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
+                        Text(FormatoFecha.corta(fecha))
                             .font(.caption)
                             .foregroundStyle(programado.dia == hoy ? Color.orange : Color.secondary)
                     }

@@ -230,9 +230,9 @@ final class Entrenamiento: NSObject, ObservableObject {
                     .statistics(for: HKQuantityType(.distanceWalkingRunning))?
                     .sumQuantity()?.doubleValue(for: .meter()) {
                     self.distanciaMetros = metros
-                    if metros > 100 {
-                        self.ritmoPromedioSegKm = Int(builderRecuperado.elapsedTime / metros * 1000)
-                    }
+                    self.ritmoPromedioSegKm = MetricasSesion.ritmoSegKm(
+                        metros: metros, segundos: builderRecuperado.elapsedTime,
+                        metrosMinimos: 100)
                 }
                 if let kcal = builderRecuperado
                     .statistics(for: HKQuantityType(.activeEnergyBurned))?
@@ -379,7 +379,7 @@ final class Entrenamiento: NSObject, ObservableObject {
         fechaUltimoEmpujonGPS = nil
         Reproductor.compartido.pausar()  // cascada: avisos + entrenamiento
         ubicaciones.startUpdatingLocation()
-        Avisador.compartido.anunciar("Pausa automática.")
+        Avisador.compartido.anunciar(String(localized: "Pausa automática."))
     }
 
     /// Desplazamiento GPS (primer a último punto bueno) en la ventana.
@@ -397,7 +397,7 @@ final class Entrenamiento: NSObject, ObservableObject {
     private func autoReanudar() {
         guard enPausaAutomatica else { return }
         Reproductor.compartido.reanudar()  // limpia enPausaAutomatica
-        Avisador.compartido.anunciar("Seguimos.")
+        Avisador.compartido.anunciar(String(localized: "Seguimos."))
     }
 
     /// Termina la sesión y guarda el workout en Salud. La limpieza final
@@ -488,8 +488,10 @@ final class Entrenamiento: NSObject, ObservableObject {
         }
 
         // El promedio usa el tiempo del builder, que descuenta las pausas.
-        if let builder, distanciaMetros > 50 {
-            ritmoPromedioSegKm = Int(builder.elapsedTime / distanciaMetros * 1000)
+        if let builder {
+            ritmoPromedioSegKm = MetricasSesion.ritmoSegKm(metros: distanciaMetros,
+                                                           segundos: builder.elapsedTime,
+                                                           metrosMinimos: 100)
         }
 
         EntrenadorRitmo.compartido.chequear(
@@ -526,7 +528,7 @@ final class Entrenamiento: NSObject, ObservableObject {
         guard !esLaPrimera else { return }
         if let ultimo = fechaUltimoAvisoZona, Date().timeIntervalSince(ultimo) < 45 { return }
         fechaUltimoAvisoZona = Date()
-        Avisador.compartido.anunciar("Zona \(zona).")
+        Avisador.compartido.anunciar(String(localized: "Zona \(zona)."))
     }
 
     private func actualizarEstadisticas(con tipos: Set<HKSampleType>) {

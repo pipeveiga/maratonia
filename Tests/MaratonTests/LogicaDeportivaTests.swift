@@ -593,3 +593,132 @@ final class SupervisorReanudacionTests: XCTestCase {
                        [.planCompletado])
     }
 }
+
+// MARK: - Localización de fechas (build 41)
+
+final class FormatoFechaTests: XCTestCase {
+
+    private let es = Locale(identifier: "es_AR")
+    private let en = Locale(identifier: "en_US")
+
+    /// martes 11 de agosto de 2026, 21:54 hora local.
+    private var fecha: Date {
+        Calendar.current.date(from: DateComponents(
+            year: 2026, month: 8, day: 11, hour: 21, minute: 54))!
+    }
+
+    func testFechaCortaDeEntrenamiento() {
+        let texto = FormatoFecha.corta(fecha, locale: es).lowercased()
+        XCTAssertTrue(texto.contains("martes"), texto)
+        XCTAssertTrue(texto.contains("11"), texto)
+        XCTAssertTrue(texto.contains("ago"), texto)
+        XCTAssertFalse(texto.contains("tuesday"), texto)
+        XCTAssertFalse(texto.contains("aug"), texto)
+    }
+
+    func testFechaLargaDeDetalle() {
+        let texto = FormatoFecha.larga(fecha, locale: es).lowercased()
+        XCTAssertTrue(texto.contains("martes"), texto)
+        XCTAssertTrue(texto.contains("de agosto"), texto)   // "11 de agosto"
+        XCTAssertFalse(texto.contains("august"), texto)
+    }
+
+    func testFechaYHoraDeCarrera() {
+        let texto = FormatoFecha.fechaYHora(fecha, locale: es).lowercased()
+        XCTAssertTrue(texto.contains("ago"), texto)
+        XCTAssertTrue(texto.contains("2026"), texto)
+        XCTAssertTrue(texto.contains(" · "), texto)         // sin "at"/"a las"
+        XCTAssertTrue(texto.contains("54"), texto)
+        XCTAssertFalse(texto.contains(" at "), texto)
+    }
+
+    func testCambioDeLocale() {
+        // La MISMA arquitectura formatea en el idioma que se le pida:
+        // el bug era que el bundle resolvía inglés, no los formatos.
+        let esCorta = FormatoFecha.corta(fecha, locale: es).lowercased()
+        let enCorta = FormatoFecha.corta(fecha, locale: en).lowercased()
+        XCTAssertTrue(esCorta.contains("martes"))
+        XCTAssertTrue(enCorta.contains("tuesday"))
+        XCTAssertTrue(FormatoFecha.larga(fecha, locale: en).contains("August"))
+        XCTAssertTrue(FormatoFecha.media(fecha, locale: en).contains("2026"))
+    }
+
+    func testFormatosCompactos() {
+        XCTAssertEqual(FormatoFecha.numerica(fecha, locale: es), "11/8")
+        let corto = FormatoFecha.diaCorto(fecha, locale: es).lowercased()
+        XCTAssertTrue(corto.contains("mar"), corto)         // "mar 11/8"
+        XCTAssertTrue(corto.contains("11/8"), corto)
+        XCTAssertEqual(FormatoFecha.diaDeSemana(fecha, locale: es).lowercased(), "martes")
+    }
+
+    func testFormatearNoAlteraLaFecha() {
+        // Presentación pura: ni el Date ni el día calendario cambian
+        // por formatear (en ningún locale).
+        let dia = DiaLocal(anio: 2026, mes: 8, dia: 11)
+        let fecha = dia.fecha()!
+        let antes = fecha.timeIntervalSince1970
+        for locale in [es, en] {
+            _ = FormatoFecha.corta(fecha, locale: locale)
+            _ = FormatoFecha.larga(fecha, locale: locale)
+            _ = FormatoFecha.fechaYHora(fecha, locale: locale)
+            _ = FormatoFecha.completa(fecha, locale: locale)
+        }
+        XCTAssertEqual(fecha.timeIntervalSince1970, antes)
+        XCTAssertEqual(DiaLocal(fecha: fecha), dia)   // mismo día local
+    }
+}
+
+// MARK: - Calidad de métricas (RC1)
+
+final class MetricasSesionTests: XCTestCase {
+
+    func testRitmoConGuardsCompletos() {
+        // El caso real de build 40: sesión de prueba diminuta → 0:15/km.
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: 80, segundos: 20))
+        // División por cero / duración cero / distancia cero.
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: 0, segundos: 100))
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: 1000, segundos: 0))
+        // NaN e infinito jamás pasan.
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: .nan, segundos: 100))
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: 1000, segundos: .infinity))
+        // Absurdo rápido (1:00/km) y absurdo lento (33:20/km).
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: 5000, segundos: 300))
+        XCTAssertNil(MetricasSesion.ritmoSegKm(metros: 500, segundos: 1000000))
+        // Uno real: 5 km en 25:00 → 5:00/km.
+        XCTAssertEqual(MetricasSesion.ritmoSegKm(metros: 5000, segundos: 1500), 300)
+        // El piso es configurable (el reloj usa 100 m para el resumen).
+        XCTAssertNotNil(MetricasSesion.ritmoSegKm(metros: 150, segundos: 60,
+                                                  metrosMinimos: 100))
+    }
+
+    func testElegibilidadParaMarcas() {
+        // Elegible: 5 km en 25 min.
+        XCTAssertTrue(MetricasSesion.elegibleParaMarcas(metros: 5000, segundos: 1500))
+        // Corta en distancia o en tiempo: historial sí, marca no.
+        XCTAssertFalse(MetricasSesion.elegibleParaMarcas(metros: 900, segundos: 600))
+        XCTAssertFalse(MetricasSesion.elegibleParaMarcas(metros: 2000, segundos: 200))
+        // Ritmo implausible (más rápido que 2:30/km sostenido).
+        XCTAssertFalse(MetricasSesion.elegibleParaMarcas(metros: 5000, segundos: 700))
+        // Caminata muy lenta (> 15:00/km): sin marca.
+        XCTAssertFalse(MetricasSesion.elegibleParaMarcas(metros: 1000, segundos: 1000))
+        XCTAssertFalse(MetricasSesion.elegibleParaMarcas(metros: .nan, segundos: 600))
+    }
+
+    func testDestacadosIgnoranSesionesDePrueba() {
+        let sesiones = [
+            SesionMetrica(fecha: Date(), metros: 80, segundos: 20),      // prueba: 0:15/km
+            SesionMetrica(fecha: Date(), metros: 12000, segundos: 90),   // sensor roto
+            SesionMetrica(fecha: Date(), metros: 5000, segundos: 1500),  // real, 5:00/km
+            SesionMetrica(fecha: Date(), metros: 8000, segundos: 2800),  // real, más larga
+        ]
+        let (masLarga, mejorRitmo) = CalculoProgreso.destacados(sesiones)
+        // La "salida" del sensor roto (12 km en 90 s) no es la más larga.
+        XCTAssertEqual(masLarga?.metros, 8000)
+        XCTAssertEqual(mejorRitmo?.metros, 5000)
+        // Solo basura → sin marcas, jamás un número absurdo.
+        let vacio = CalculoProgreso.destacados([
+            SesionMetrica(fecha: Date(), metros: 80, segundos: 20)])
+        XCTAssertNil(vacio.masLarga)
+        XCTAssertNil(vacio.mejorRitmo)
+    }
+}

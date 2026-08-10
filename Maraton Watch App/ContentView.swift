@@ -383,8 +383,9 @@ struct ContentView: View {
     /// Cómo va a arrancar la sesión, en cuatro palabras. El detalle y los
     /// cambios viven en Ajustes.
     private var resumenDeModo: String {
-        if !modoEntrenamiento { return "Solo música y avisos" }
-        return rutaGPS ? "Carrera con GPS" : "Carrera sin GPS"
+        if !modoEntrenamiento { return String(localized: "Solo música y avisos") }
+        return rutaGPS ? String(localized: "Carrera con GPS")
+                       : String(localized: "Carrera sin GPS")
     }
 
     private var iconoDeModo: String {

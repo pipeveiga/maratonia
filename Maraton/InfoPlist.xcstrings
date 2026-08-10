@@ -1,0 +1,39 @@
+{
+  "sourceLanguage": "es",
+  "strings": {
+    "NSHealthShareUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To show your heart rate and record your run."
+          }
+        }
+      }
+    },
+    "NSHealthUpdateUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To save your run as a workout in Health."
+          }
+        }
+      }
+    },
+    "NSLocationWhenInUseUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To draw your run's route on the map."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
