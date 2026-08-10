@@ -8,12 +8,12 @@ import CloudKit
 //   (Apple, Google, email) son VÍNCULOS hacia ese userID: una cuenta
 //   puede tener varios y el email JAMÁS es clave primaria.
 // - El dominio deportivo pertenece al userID (AlmacenV2.usuarioID).
-// - Sign in with Apple es NATIVO (AuthenticationServices): funciona
-//   sin backend, con subject ID estable, private relay y chequeo de
-//   revocación. Google y email+contraseña llegan detrás del protocolo
-//   ProveedorAutenticacion cuando exista el proyecto de backend
-//   (ver AUTH_SETUP.md) — sus botones NO aparecen hasta entonces:
-//   cero botones muertos.
+// - Firebase Auth es la ÚNICA autoridad de credenciales (build 44):
+//   Apple se FEDERA contra Firebase (botón nativo + nonce), Google va
+//   por GoogleSignIn→Firebase y email+contraseña es Firebase puro
+//   (ver ServicioAuth.swift y AUTH_SETUP.md). Sin Firebase configurado
+//   la app funciona igual: Apple cae a modo nativo puro y los botones
+//   de Google/email NO aparecen — cero botones muertos.
 // - La cuenta es OPCIONAL en V1: la app funciona completa sin cuenta
 //   (Apple rechaza forzar registro para features que no lo requieren,
 //   guideline 5.1.1). Crear cuenta ASOCIA los datos existentes al
@@ -35,6 +35,11 @@ struct ProveedorVinculado: Codable, Equatable {
     /// Informativo (puede ser un private relay). Nunca clave primaria.
     var email: String?
     var fechaVinculacion: Date
+    /// UID de Firebase Auth de este vínculo (build 44). ATRIBUTO del
+    /// vínculo, jamás la identidad del dominio (esa es userID).
+    /// Opcional: las cuentas de build ≤43 no lo tienen y decodifican
+    /// igual.
+    var firebaseUID: String? = nil
 }
 
 struct CuentaUsuario: Codable, Equatable {
@@ -62,19 +67,15 @@ struct CuentaUsuario: Codable, Equatable {
 // MARK: - Disponibilidad de proveedores
 
 /// Qué métodos de autenticación están DISPONIBLES en este build.
-/// Apple es nativo (siempre, con la capability activada). Google y
-/// email dependen de la configuración externa del backend: hasta que
-/// exista (AUTH_SETUP.md), sus botones no se muestran.
+/// Apple es nativo/federado (siempre). Google exige Firebase arriba Y
+/// el URL scheme real del callback; email exige Firebase. Sin eso, los
+/// botones no aparecen — cero botones muertos.
 enum ProveedoresDisponibles {
     static var apple: Bool { true }
-    /// Se enciende solo cuando el proyecto de backend esté configurado
-    /// (la config viaja en el bundle, p. ej. GoogleService-Info.plist).
     static var google: Bool {
-        Bundle.main.url(forResource: "GoogleService-Info", withExtension: "plist") != nil
+        ServicioAuth.disponible && ServicioAuth.esquemaGoogleConfigurado
     }
-    static var email: Bool {
-        Bundle.main.url(forResource: "GoogleService-Info", withExtension: "plist") != nil
-    }
+    static var email: Bool { ServicioAuth.disponible }
 }
 
 // MARK: - Store
@@ -171,48 +172,20 @@ final class IdentidadStore: ObservableObject {
     }
 }
 
-// MARK: - Sign in with Apple (nativo)
-
-extension IdentidadStore {
-
-    /// Procesa el resultado del botón oficial. Nombre y email vienen
-    /// SOLO la primera vez que el usuario autoriza — por eso se
-    /// persisten al toque; el subject ID es estable para siempre.
-    func procesarResultadoApple(_ resultado: Result<ASAuthorization, Error>) {
-        switch resultado {
-        case .success(let autorizacion):
-            guard let credencial = autorizacion.credential as? ASAuthorizationAppleIDCredential else {
-                mensajeError = String(localized: "No pude leer la credencial de Apple.")
-                return
-            }
-            let nombre = [credencial.fullName?.givenName, credencial.fullName?.familyName]
-                .compactMap { $0 }.joined(separator: " ")
-            iniciarSesion(
-                con: ProveedorVinculado(tipo: .apple,
-                                        subjectID: credencial.user,
-                                        email: credencial.email,
-                                        fechaVinculacion: Date()),
-                nombre: nombre.isEmpty ? nil : nombre)
-        case .failure(let error):
-            // Cancelar no es un error para mostrar.
-            if (error as? ASAuthorizationError)?.code != .canceled {
-                mensajeError = String(localized: "No se pudo iniciar sesión con Apple. Probá de nuevo.")
-            }
-        }
-    }
-}
-
 // MARK: - UI: login
 
 /// Pantalla de autenticación, simple y premium: los tres caminos
 /// (los no configurados no aparecen) y salida clara sin cuenta.
 struct LoginView: View {
     @ObservedObject var identidad: IdentidadStore
+    @ObservedObject private var servicio = ServicioAuth.compartido
     @Environment(\.dismiss) private var dismiss
     /// true = se ofrece "Más adelante" (bienvenida); false = vino de
     /// Perfil y con cancelar alcanza.
     var permiteSaltear = false
     var alTerminar: (() -> Void)? = nil
+
+    @State private var mostrandoEmail = false
 
     var body: some View {
         VStack(spacing: DV2.Espacio.l) {
@@ -233,26 +206,24 @@ struct LoginView: View {
 
             Spacer()
 
+            if servicio.ocupado {
+                ProgressView()
+            }
+
             if ProveedoresDisponibles.apple {
                 SignInWithAppleButton(.continue) { pedido in
-                    pedido.requestedScopes = [.fullName, .email]
+                    servicio.prepararSolicitudApple(pedido)
                 } onCompletion: { resultado in
-                    identidad.procesarResultadoApple(resultado)
-                    if identidad.haySesion {
-                        alTerminar?()
-                        dismiss()
-                    }
+                    servicio.completarApple(resultado, identidad: identidad)
                 }
                 .signInWithAppleButtonStyle(.black)
                 .frame(height: 50)
                 .padding(.horizontal, DV2.Espacio.xl)
             }
 
-            // Google y email aparecen SOLO con el backend configurado
-            // (AUTH_SETUP.md): nada de botones que no funcionan.
             if ProveedoresDisponibles.google {
                 Button {
-                    identidad.mensajeError = String(localized: "Google estará disponible muy pronto.")
+                    servicio.entrarConGoogle(identidad: identidad)
                 } label: {
                     Label("Continuar con Google", systemImage: "g.circle.fill")
                         .font(.headline)
@@ -263,12 +234,13 @@ struct LoginView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, DV2.Espacio.xl)
+                .disabled(servicio.ocupado)
             }
             if ProveedoresDisponibles.email {
                 Button {
-                    identidad.mensajeError = String(localized: "El registro con email estará disponible muy pronto.")
+                    mostrandoEmail = true
                 } label: {
-                    Label("Continuar con email", systemImage: "envelope.fill")
+                    Label("Continuar con correo electrónico", systemImage: "envelope.fill")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, DV2.Espacio.m)
@@ -277,9 +249,10 @@ struct LoginView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, DV2.Espacio.xl)
+                .disabled(servicio.ocupado)
             }
 
-            if let error = identidad.mensajeError {
+            if let error = servicio.mensaje ?? identidad.mensajeError {
                 Text(error)
                     .font(.footnote)
                     .foregroundStyle(.red)
@@ -308,6 +281,158 @@ struct LoginView: View {
                 .padding(.bottom, DV2.Espacio.m)
         }
         .background(Color(.systemGroupedBackground))
+        .sheet(isPresented: $mostrandoEmail) {
+            EmailAuthView(identidad: identidad)
+        }
+        // La sesión puede nacer en cualquiera de los tres caminos: al
+        // aparecer, cerrar la pantalla y seguir.
+        .onChange(of: identidad.haySesion) { _, activa in
+            if activa {
+                alTerminar?()
+                dismiss()
+            }
+        }
+    }
+}
+
+// MARK: - UI: email + contraseña (Firebase es la autoridad)
+
+struct EmailAuthView: View {
+    @ObservedObject var identidad: IdentidadStore
+    @ObservedObject private var servicio = ServicioAuth.compartido
+    @Environment(\.dismiss) private var dismiss
+
+    private enum Modo { case crear, entrar }
+    @State private var modo: Modo = .crear
+    @State private var email = ""
+    @State private var password = ""
+    @State private var repetida = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Picker("Modo", selection: $modo) {
+                        Text("Crear cuenta").tag(Modo.crear)
+                        Text("Ya tengo cuenta").tag(Modo.entrar)
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                }
+
+                Section {
+                    TextField("Email", text: $email)
+                        .keyboardType(.emailAddress)
+                        .textContentType(.username)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    SecureField("Contraseña", text: $password)
+                        .textContentType(modo == .crear ? .newPassword : .password)
+                    if modo == .crear {
+                        SecureField("Repetir contraseña", text: $repetida)
+                            .textContentType(.newPassword)
+                    }
+                } footer: {
+                    if modo == .crear {
+                        Text("Mínimo 8 caracteres. La contraseña vive en Firebase Authentication — Maratonia nunca la guarda.")
+                    }
+                }
+
+                if let problema = validacionLocal {
+                    Section {
+                        Text(problema)
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                    }
+                }
+                if let mensaje = servicio.mensaje {
+                    Section {
+                        Text(mensaje)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
+
+                Section {
+                    Button {
+                        let limpio = email.trimmingCharacters(in: .whitespaces)
+                        if modo == .crear {
+                            servicio.crearCuentaEmail(limpio, password: password,
+                                                      identidad: identidad)
+                        } else {
+                            servicio.entrarConEmail(limpio, password: password,
+                                                    identidad: identidad)
+                        }
+                    } label: {
+                        if servicio.ocupado {
+                            ProgressView().frame(maxWidth: .infinity)
+                        } else {
+                            EtiquetaBotonPrimarioV2(
+                                titulo: modo == .crear
+                                    ? String(localized: "Crear cuenta")
+                                    : String(localized: "Iniciar sesión"),
+                                icono: "envelope.fill")
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .disabled(!formularioValido || servicio.ocupado)
+                }
+
+                if modo == .entrar {
+                    Section {
+                        Button("Olvidé mi contraseña") {
+                            servicio.recuperarPassword(
+                                email.trimmingCharacters(in: .whitespaces))
+                        }
+                        .disabled(!ValidacionCredenciales.emailValido(email))
+                    } footer: {
+                        Text("Te mandamos un email de Firebase para restablecerla.")
+                    }
+                }
+            }
+            .navigationTitle(Text("Correo electrónico"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { dismiss() }
+                }
+            }
+            .onChange(of: identidad.haySesion) { _, activa in
+                if activa { dismiss() }
+            }
+            .onAppear { servicio.mensaje = nil }
+        }
+    }
+
+    /// Validaciones LOCALES claras antes de molestar a Firebase.
+    private var validacionLocal: String? {
+        guard !email.isEmpty else { return nil }
+        if !ValidacionCredenciales.emailValido(email) {
+            return String(localized: "Ese email no parece válido.")
+        }
+        guard !password.isEmpty else { return nil }
+        if modo == .crear, !ValidacionCredenciales.passwordValida(password) {
+            return String(localized: "La contraseña es muy corta: usá al menos 8 caracteres.")
+        }
+        if modo == .crear, !repetida.isEmpty,
+           !ValidacionCredenciales.passwordsCoinciden(password, repetida) {
+            return String(localized: "Las contraseñas no coinciden.")
+        }
+        return nil
+    }
+
+    private var formularioValido: Bool {
+        guard ValidacionCredenciales.emailValido(email) else { return false }
+        switch modo {
+        case .crear:
+            return ValidacionCredenciales.passwordValida(password)
+                && ValidacionCredenciales.passwordsCoinciden(password, repetida)
+        case .entrar:
+            return !password.isEmpty
+        }
     }
 }
 
@@ -316,8 +441,10 @@ struct LoginView: View {
 struct SeccionCuentaMaratonia: View {
     @ObservedObject var identidad: IdentidadStore
     @ObservedObject var cuentaCloud: CuentaStore
+    @ObservedObject private var servicio = ServicioAuth.compartido
     @State private var mostrandoLogin = false
     @State private var confirmandoEliminar = false
+    @State private var mensajeEliminacion: String?
 
     var body: some View {
         Section {
@@ -331,19 +458,27 @@ struct SeccionCuentaMaratonia: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                Button("Cerrar sesión") { identidad.cerrarSesion() }
+                Button("Cerrar sesión") {
+                    servicio.cerrarSesion(identidad: identidad)
+                }
                 Button("Eliminar cuenta", role: .destructive) {
                     confirmandoEliminar = true
                 }
+                .disabled(servicio.ocupado)
                 .confirmationDialog("¿Eliminar tu cuenta de Maratonia?",
                                     isPresented: $confirmandoEliminar,
                                     titleVisibility: .visible) {
                     Button("Eliminar cuenta", role: .destructive) {
-                        identidad.eliminarCuenta(borrandoRespaldo: cuentaCloud)
+                        eliminar()
                     }
                     Button("Cancelar", role: .cancel) {}
                 } message: {
-                    Text("Se borran tu cuenta y el respaldo de Maratonia en iCloud. Tus entrenamientos guardados en Apple Health NO se tocan: siguen siendo tuyos y se administran desde la app Salud.")
+                    Text("Se borran tu identidad (incluida la de Firebase) y el respaldo de Maratonia en iCloud. Tus entrenamientos guardados en Apple Health NO se tocan: siguen siendo tuyos y se administran desde la app Salud.")
+                }
+                if let mensaje = mensajeEliminacion {
+                    Text(mensaje)
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
                 }
             } else {
                 Button {
@@ -372,6 +507,26 @@ struct SeccionCuentaMaratonia: View {
         }
         .sheet(isPresented: $mostrandoLogin) {
             LoginView(identidad: identidad)
+        }
+    }
+
+    /// Borrado en dos capas: primero la identidad REMOTA (Firebase +
+    /// revocación Apple), y solo si eso termina bien la cuenta local y
+    /// el respaldo iCloud. Si Firebase exige login reciente, la cuenta
+    /// local NO se toca — se guía al usuario a reautenticarse.
+    private func eliminar() {
+        mensajeEliminacion = nil
+        servicio.eliminarIdentidadRemota { resultado in
+            switch resultado {
+            case .eliminada:
+                identidad.eliminarCuenta(borrandoRespaldo: cuentaCloud)
+                mensajeEliminacion = nil
+            case .requiereReautenticacion:
+                mensajeEliminacion = String(localized: "Por seguridad, Firebase pide que vuelvas a iniciar sesión antes de eliminar la cuenta. Iniciá sesión y reintentá.")
+                mostrandoLogin = true
+            case .fallo(let motivo):
+                mensajeEliminacion = motivo
+            }
         }
     }
 
