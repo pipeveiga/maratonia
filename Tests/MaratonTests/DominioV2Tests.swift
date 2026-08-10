@@ -1729,3 +1729,206 @@ final class AuthSprintTests: XCTestCase {
         XCTAssertEqual(Set(identidad.cuenta!.proveedores.map(\.tipo)).count, 3)
     }
 }
+
+// MARK: - Sprint final: días concretos + distribución (B1/B2)
+
+final class DiasConcretosTests: XCTestCase {
+
+    private let hoy = DiaLocal(anio: 2026, mes: 8, dia: 10)   // lunes
+    private var lunes: Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.firstWeekday = 2
+        return c
+    }
+
+    private func diaDeSemana(_ dia: DiaLocal) -> Int {
+        // 1 = lunes … 7 = domingo (convención del dominio).
+        let fecha = dia.fecha(calendario: lunes)!
+        let wd = lunes.component(.weekday, from: fecha)   // 1 = domingo
+        return wd == 1 ? 7 : wd - 1
+    }
+
+    func testDistribuirMapeaSoloDiasElegidos() {
+        let base = ContenidoPlanes.mediaMaraton()
+        let dias = [2, 4, 6, 7]
+        let distribuida = MotorPlanificacion.distribuir(base, enDias: dias)
+        for semana in distribuida.semanas {
+            let asignados = semana.entrenamientos.map(\.diaDeSemana)
+            XCTAssertEqual(asignados.count, Set(asignados).count, "días duplicados")
+            XCTAssertTrue(asignados.allSatisfy { dias.contains($0) })
+            // La última sesión del template (larga/carrera) cae en el
+            // último día disponible.
+            XCTAssertEqual(asignados.max(), semana.entrenamientos.isEmpty ? nil : 7)
+        }
+    }
+
+    func testDistribuirRepartidoConMasDiasQueSesiones() {
+        // 3 sesiones en 5 días elegidos: primera en el primero, última
+        // en el último, la del medio repartida.
+        let base = PlanBase(id: "t", version: 1, nombre: "t", descripcion: "",
+                            distanciaObjetivoKm: 5, semanasTotales: 1, diasPorSemana: 3,
+                            provisional: true, semanas: [SemanaBase(numero: 1, entrenamientos: [
+                                EntrenamientoBase(diaDeSemana: 2, tipo: .umbral, nombre: "a", descripcion: "", segmentos: []),
+                                EntrenamientoBase(diaDeSemana: 4, tipo: .facil, nombre: "b", descripcion: "", segmentos: []),
+                                EntrenamientoBase(diaDeSemana: 7, tipo: .largo, nombre: "c", descripcion: "", segmentos: []),
+                            ])])
+        let d = MotorPlanificacion.distribuir(base, enDias: [1, 3, 4, 6, 7])
+        XCTAssertEqual(d.semanas[0].entrenamientos.map(\.diaDeSemana), [1, 4, 7])
+    }
+
+    func testProponerConDiasConcretos() throws {
+        let referencia = ReferenciaRendimiento(fecha: Date(), fuente: .marcaManual,
+                                               distanciaMetros: 5000, segundos: 1470)
+        let pedido = PedidoDePlan(objetivo: .mediaMaraton, fechaObjetivo: nil,
+                                  diasPorSemana: 4, diasConcretos: [2, 4, 6, 7],
+                                  referencia: referencia, hoy: hoy)
+        guard case .propuesta(let p) = MotorPlanificacion.proponer(pedido, calendario: lunes) else {
+            return XCTFail("sin propuesta")
+        }
+        XCTAssertEqual(p.diasPedidos, 4)
+        for semana in p.planUsuario.semanas {
+            for programado in semana.programados {
+                guard let dia = programado.dia else { continue }
+                XCTAssertTrue([2, 4, 6, 7].contains(diaDeSemana(dia)),
+                              "sesión en día no elegido: \(dia)")
+            }
+        }
+    }
+
+    func testCarreraPineadaAunqueNoSeaDiaElegido() throws {
+        // Carrera un miércoles (día 3, NO elegido): la carrera va a su
+        // fecha real igual — la fecha de la carrera manda.
+        let carrera = DiaLocal(anio: 2026, mes: 11, dia: 4)   // miércoles
+        let referencia = ReferenciaRendimiento(fecha: Date(), fuente: .marcaManual,
+                                               distanciaMetros: 5000, segundos: 1470)
+        let pedido = PedidoDePlan(objetivo: .mediaMaraton, fechaObjetivo: carrera,
+                                  diasPorSemana: 4, diasConcretos: [2, 4, 6, 7],
+                                  referencia: referencia, hoy: hoy)
+        guard case .propuesta(let p) = MotorPlanificacion.proponer(pedido, calendario: lunes) else {
+            return XCTFail("sin propuesta")
+        }
+        let ultima = p.planUsuario.semanas.last!.programados.last!
+        XCTAssertEqual(ultima.dia, carrera)
+    }
+
+    func testPerfilViejoSinDiasElegidosDecodifica() throws {
+        var json = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(PerfilDeportivo())) as! [String: Any]
+        json.removeValue(forKey: "diasElegidos")
+        let datos = try JSONSerialization.data(withJSONObject: json)
+        let perfil = try JSONDecoder().decode(PerfilDeportivo.self, from: datos)
+        XCTAssertNil(perfil.diasElegidos)
+    }
+}
+
+// MARK: - Sprint final: metodología de ritmos + contenido (B3-B7)
+
+final class MetodologiaTests: XCTestCase {
+
+    private var baseline: PerformanceBaseline {
+        PerformanceBaseline(referencia: ReferenciaRendimiento(
+            fecha: Date(), fuente: .test5K, distanciaMetros: 5000, segundos: 1470))!
+    }
+
+    func testZonasOrdenadasDeRapidaALenta() {
+        let m = MetodologiaMaratoniaV1()
+        let rep = m.resolver(.repeticion, baseline: baseline)!
+        let int = m.resolver(.intervalo, baseline: baseline)!
+        let umb = m.resolver(.umbral, baseline: baseline)!
+        let mar = m.resolver(.maraton, baseline: baseline)!
+        let fac = m.resolver(.facil, baseline: baseline)!
+        let rec = m.resolver(.recuperacion, baseline: baseline)!
+        XCTAssertLessThan(rep.minSegKm, int.minSegKm)
+        XCTAssertLessThan(int.minSegKm, umb.minSegKm)
+        XCTAssertLessThan(umb.minSegKm, mar.minSegKm)
+        XCTAssertLessThan(mar.maxSegKm, fac.minSegKm)
+        XCTAssertLessThan(fac.maxSegKm, rec.maxSegKm)
+    }
+
+    func testValoresRazonablesPara5KEn2430() {
+        // 5K en 24:30 → ritmo de carrera 294 s/km. El umbral (esfuerzo
+        // de ~60 min) debe ser más lento que eso pero cercano.
+        let m = MetodologiaMaratoniaV1()
+        let umb = m.resolver(.umbral, baseline: baseline)!
+        XCTAssertTrue((295...330).contains(umb.minSegKm), "umbral: \(umb)")
+        let mar = m.resolver(.maraton, baseline: baseline)!
+        XCTAssertTrue((310...350).contains(mar.minSegKm), "maratón: \(mar)")
+    }
+
+    func testReferenciaFueraDeRangoQuedaSimbolica() {
+        let corta = PerformanceBaseline(referencia: ReferenciaRendimiento(
+            fecha: Date(), fuente: .marcaManual, distanciaMetros: 800, segundos: 150))!
+        XCTAssertNil(MetodologiaMaratoniaV1().resolver(.umbral, baseline: corta))
+        XCTAssertNil(MetodologiaMaratoniaV1().resolver(.facil, baseline: corta))
+    }
+
+    func testMetodologiaActivaResuelve() {
+        if case .pendiente = Metodologias.resolver(.umbral, baseline: baseline) {
+            XCTFail("la metodología v1 debería resolver umbral")
+        }
+    }
+
+    func testContenidoGrandeListo() {
+        let biblioteca = BibliotecaArquetipos.v1()
+        for objetivo in [ObjetivoDeportivo.mejorar5K, .mediaMaraton, .maraton] {
+            let arquetipo = biblioteca.first { $0.objetivo == objetivo }!
+            XCTAssertTrue(arquetipo.listoParaProponer, "\(objetivo) sin contenido")
+        }
+        XCTAssertEqual(ContenidoPlanes.maraton().semanasTotales, 16)
+        XCTAssertEqual(ContenidoPlanes.mediaMaraton().semanasTotales, 12)
+        XCTAssertEqual(ContenidoPlanes.mejorar5K().semanasTotales, 8)
+    }
+
+    func testLargaConTopeYDescargas() {
+        let plan = ContenidoPlanes.maraton()
+        var largas: [Int: Double] = [:]
+        for semana in plan.semanas {
+            if let larga = semana.entrenamientos.first(where: { $0.tipo == .largo }) {
+                largas[semana.numero] = larga.segmentos.compactMap(\.distanciaKm).reduce(0, +)
+            }
+        }
+        XCTAssertLessThanOrEqual(largas.values.max() ?? 0, 30)
+        // Descargas: semana 4 < semana 3, semana 8 < semana 7.
+        XCTAssertLessThan(largas[4]!, largas[3]!)
+        XCTAssertLessThan(largas[8]!, largas[7]!)
+        // Taper: la última larga antes de la carrera es corta.
+        XCTAssertLessThan(largas[15]!, largas[13]! / 2)
+    }
+
+    func testConBaselineLosRitmosQuedanResueltos() throws {
+        let referencia = ReferenciaRendimiento(fecha: Date(), fuente: .test5K,
+                                               distanciaMetros: 5000, segundos: 1470)
+        var lunes = Calendar(identifier: .gregorian); lunes.firstWeekday = 2
+        let pedido = PedidoDePlan(objetivo: .maraton, fechaObjetivo: nil,
+                                  diasPorSemana: 4, diasConcretos: [2, 4, 6, 7],
+                                  referencia: referencia,
+                                  hoy: DiaLocal(anio: 2026, mes: 8, dia: 10))
+        guard case .propuesta(let p) = MotorPlanificacion.proponer(pedido, calendario: lunes) else {
+            return XCTFail("sin propuesta")
+        }
+        for semana in p.planUsuario.semanas {
+            for programado in semana.programados {
+                for segmento in programado.definicion.segmentos {
+                    if case .simbolico = segmento.ritmo {
+                        XCTFail("quedó simbólico con baseline presente: \(segmento.nombre)")
+                    }
+                }
+            }
+        }
+    }
+
+    func testSinBaselineQuedaSimbolicoYFunciona() throws {
+        var lunes = Calendar(identifier: .gregorian); lunes.firstWeekday = 2
+        let pedido = PedidoDePlan(objetivo: .maraton, fechaObjetivo: nil,
+                                  diasPorSemana: 4, referencia: nil,
+                                  aceptaSinBaseline: true,
+                                  hoy: DiaLocal(anio: 2026, mes: 8, dia: 10))
+        guard case .propuesta(let p) = MotorPlanificacion.proponer(pedido, calendario: lunes) else {
+            return XCTFail("sin propuesta")
+        }
+        let simbolicos = p.planUsuario.semanas.flatMap(\.programados)
+            .flatMap(\.definicion.segmentos)
+            .filter { if case .simbolico = $0.ritmo { return true } else { return false } }
+        XCTAssertFalse(simbolicos.isEmpty, "sin baseline los ritmos deben quedar simbólicos")
+    }
+}

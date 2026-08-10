@@ -51,6 +51,11 @@ struct SegmentoBase: Codable, Equatable {
     var duracionSegundos: Int?
     var ritmoMinSegKm: Int?
     var ritmoMaxSegKm: Int?
+    /// Zona SIMBÓLICA (fácil/umbral/…): la resuelve la metodología
+    /// activa contra el baseline al adoptar; sin baseline queda
+    /// simbólica (se muestra "a personalizar", se ejecuta libre).
+    /// Opcional: el catálogo viejo decodifica igual.
+    var tipoRitmo: TipoRitmo? = nil
 }
 
 // MARK: - Adopción (snapshot + fechas concretas)
@@ -90,6 +95,7 @@ extension PlanBase {
 
 extension SegmentoBase {
     var ritmo: RitmoObjetivo {
+        if let tipoRitmo { return .simbolico(tipoRitmo) }
         if ritmoMinSegKm == nil && ritmoMaxSegKm == nil { return .libre }
         return .absoluto(minSegKm: ritmoMinSegKm, maxSegKm: ritmoMaxSegKm)
     }

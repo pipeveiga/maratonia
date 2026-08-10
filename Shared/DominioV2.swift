@@ -319,6 +319,11 @@ enum ObjetivoDeportivo: String, Codable, CaseIterable {
 struct PerfilDeportivo: Codable, Equatable {
     var objetivo: ObjetivoDeportivo?
     var diasPorSemana: Int?
+    /// Días CONCRETOS de la semana en que puede correr (1 = lunes …
+    /// 7 = domingo, la misma convención que EntrenamientoBase
+    /// .diaDeSemana). Opcional: perfiles anteriores no lo tienen y el
+    /// motor cae a la distribución del template.
+    var diasElegidos: [Int]? = nil
     var fechaObjetivo: DiaLocal?
     /// Cuándo completó el onboarding (nil = nunca lo hizo).
     var fechaOnboarding: Date?
@@ -413,9 +418,10 @@ protocol MetodologiaRitmos {
 /// implementa el protocolo, se registra acá, y TODA la resolución de
 /// la app pasa por este único punto.
 enum Metodologias {
-    /// nil = los ritmos simbólicos quedan pendientes (se ejecutan
-    /// libres, se muestran como "a personalizar").
-    static var activa: MetodologiaRitmos? { nil }
+    /// Maratonia v1: zonas derivadas de la proyección de Riegel con
+    /// anclas fisiológicas publicadas (ver METODOLOGIA.md). Las tablas
+    /// propietarias (VDOT/Daniels) siguen sin copiarse.
+    static var activa: MetodologiaRitmos? { MetodologiaMaratoniaV1() }
 
     static func resolver(_ tipo: TipoRitmo, baseline: PerformanceBaseline?) -> ResolucionRitmo {
         guard let metodologia = activa, let baseline,
@@ -449,6 +455,82 @@ enum Riegel {
         guard factor >= 0.25, factor <= 4 else { return nil }
         let equivalente = Double(segundos) * pow(factor, exponente)
         return Int(equivalente.rounded())
+    }
+}
+
+// MARK: - Metodología Maratonia v1 (zonas con fuente pública)
+
+/// Zonas de entrenamiento derivadas DETERMINÍSTICAMENTE de una marca
+/// real, sin tablas propietarias. Anclas (citas completas en
+/// METODOLOGIA.md):
+/// - Proyección entre distancias: Riegel 1981 (el paper valida la
+///   fórmula de 1500 m a maratón; para DERIVAR ZONAS se usa ese rango
+///   completo, distinto del predictor de marcas de la UI, que mantiene
+///   su guarda conservadora de 1/4x–4x).
+/// - Umbral ≈ ritmo sostenible ~45-60 min de carrera (Faude,
+///   Kindermann & Meyer, Sports Medicine 2009).
+/// - Intervalo ≈ ritmo de carrera de 3-5 km ~ vVO2max (Billat &
+///   Koralsztein 1996; Billat 2001).
+/// - Repetición ≈ ritmo de 1500 m (mismo marco de Billat: esfuerzos
+///   cortos por encima de vVO2max).
+/// - Fácil/recuperación: claramente por debajo del umbral, coherente
+///   con la distribución ~80/20 (Seiler 2010). Sin ancla numérica
+///   publicada única → offsets amplios sobre ritmo de maratón,
+///   declarados CONSENSO (no paper).
+struct MetodologiaMaratoniaV1: MetodologiaRitmos {
+    static let id = "maratonia@1"
+    static let nombre = "Maratonia v1"
+    static let fuentePublica = "Riegel 1981; Faude et al. 2009; Billat 2001; Seiler 2010 — ver METODOLOGIA.md"
+
+    /// Rango de referencia aceptado: marcas de 1500 m a maratón, de 4′
+    /// a 4 h — fuera de eso la derivación no es defendible.
+    private func proyectar(_ baseline: PerformanceBaseline, aMetros: Double) -> Int? {
+        guard baseline.distanciaMetros >= 1500, baseline.distanciaMetros <= 42195,
+              baseline.segundos >= 240, baseline.segundos <= 14400,
+              aMetros >= 1500, aMetros <= 42195 else { return nil }
+        let tiempo = Double(baseline.segundos)
+            * pow(aMetros / baseline.distanciaMetros, Riegel.exponente)
+        return Int(tiempo.rounded())
+    }
+
+    private func ritmo(_ segundos: Int, metros: Double) -> Int {
+        Int((Double(segundos) / (metros / 1000)).rounded())
+    }
+
+    func resolver(_ tipo: TipoRitmo, baseline: PerformanceBaseline) -> RangoRitmo? {
+        // Ritmo de maratón proyectado: ancla de las zonas suaves.
+        let ritmoMaraton = proyectar(baseline, aMetros: 42195)
+            .map { ritmo($0, metros: 42195) }
+
+        switch tipo {
+        case .repeticion:
+            return proyectar(baseline, aMetros: 1500).map {
+                let r = ritmo($0, metros: 1500)
+                return RangoRitmo(minSegKm: r - 5, maxSegKm: r + 5)
+            }
+        case .intervalo:
+            return proyectar(baseline, aMetros: 3000).map {
+                let r = ritmo($0, metros: 3000)
+                return RangoRitmo(minSegKm: r - 5, maxSegKm: r + 8)
+            }
+        case .umbral:
+            // Distancia cuyo tiempo proyectado es 60 min (Faude 2009:
+            // el umbral se sostiene ~45-60 min): d = dRef·(3600/tRef)^(1/b).
+            guard baseline.segundos >= 240, baseline.segundos <= 14400,
+                  baseline.distanciaMetros >= 1500 else { return nil }
+            let d60 = baseline.distanciaMetros
+                * pow(3600 / Double(baseline.segundos), 1 / Riegel.exponente)
+            guard d60 >= 1500, d60 <= 42195 else { return nil }
+            let r = ritmo(3600, metros: d60)
+            return RangoRitmo(minSegKm: r - 5, maxSegKm: r + 8)
+        case .maraton:
+            return ritmoMaraton.map { RangoRitmo(minSegKm: $0 - 8, maxSegKm: $0 + 8) }
+        case .facil:
+            // CONSENSO: claramente bajo el umbral (Seiler 80/20).
+            return ritmoMaraton.map { RangoRitmo(minSegKm: $0 + 45, maxSegKm: $0 + 90) }
+        case .recuperacion:
+            return ritmoMaraton.map { RangoRitmo(minSegKm: $0 + 90, maxSegKm: $0 + 150) }
+        }
     }
 }
 

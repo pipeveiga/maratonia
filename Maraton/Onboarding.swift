@@ -22,6 +22,9 @@ struct OnboardingDeportivo: View {
     @State private var objetivo: ObjetivoDeportivo?
     @State private var experiencia: RespuestaExperiencia?
     @State private var diasPorSemana: Int?
+    /// Días concretos (1 = lunes … 7 = domingo). Sobrevive al ir y
+    /// volver entre pasos (@State del flujo) y se persiste en el perfil.
+    @State private var diasElegidos: Set<Int> = []
 
     // Marca reciente (solo si experiencia == .marcaReciente).
     @State private var marcaDistanciaMetros: Double = 5000
@@ -186,18 +189,98 @@ struct OnboardingDeportivo: View {
     // MARK: Paso 3 — disponibilidad
 
     private var pasoDisponibilidad: some View {
-        pantalla(titulo: "¿Cuántos días por semana podés correr?",
-                 subtitulo: "Un plan honesto con tu semana real vale más que uno ambicioso que no cumplís.") {
+        pantalla(titulo: "¿Qué días podés correr?",
+                 subtitulo: "Un plan honesto con tu semana real vale más que uno ambicioso que no cumplís. Los entrenamientos caen SOLO en los días que marques.") {
             ForEach([2, 3, 4, 5], id: \.self) { dias in
                 tarjetaOpcion(titulo: "\(dias) días",
                               subtitulo: subtituloDias(dias),
                               icono: "calendar",
                               elegida: diasPorSemana == dias) {
                     diasPorSemana = dias
+                    // Propuesta inicial repartida para esa cantidad; el
+                    // corredor la ajusta tocando los días.
+                    diasElegidos = Set(Self.diasSugeridos(para: dias))
+                }
+            }
+
+            if diasPorSemana != nil {
+                TarjetaV2 {
+                    VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                        EncabezadoSeccionV2(texto: "Tus días")
+                        HStack(spacing: DV2.Espacio.s) {
+                            ForEach(1...7, id: \.self) { dia in
+                                chipDia(dia)
+                            }
+                        }
+                        Text("\(diasElegidos.count) días marcados")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Button {
+                    diasPorSemana = diasElegidos.count
                     avanzar()
+                } label: {
+                    EtiquetaBotonPrimarioV2(titulo: "Continuar", icono: "arrow.right")
+                }
+                .buttonStyle(.plain)
+                .disabled(diasElegidos.count < 2)
+                if diasElegidos.count < 2 {
+                    Text("Marcá al menos 2 días.")
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
                 }
             }
         }
+    }
+
+    /// Chip de un día (1 = lunes … 7 = domingo), con inicial localizada
+    /// y nombre completo para VoiceOver.
+    private func chipDia(_ dia: Int) -> some View {
+        let elegido = diasElegidos.contains(dia)
+        return Button {
+            if elegido { diasElegidos.remove(dia) } else { diasElegidos.insert(dia) }
+        } label: {
+            Text(Self.inicialDia(dia))
+                .font(.subheadline.weight(.bold))
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
+                .background(elegido ? Color.accentColor
+                                    : Color(.secondarySystemGroupedBackground),
+                            in: Circle())
+                .foregroundStyle(elegido ? Color.white : Color.primary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Self.nombreDia(dia))
+        .accessibilityAddTraits(elegido ? .isSelected : [])
+    }
+
+    /// Reparto inicial por cantidad (el corredor lo ajusta): calidad y
+    /// larga separadas, larga hacia el fin de semana — coincide con el
+    /// orden de los templates.
+    static func diasSugeridos(para cantidad: Int) -> [Int] {
+        switch cantidad {
+        case 2: return [2, 6]           // martes y sábado
+        case 3: return [2, 4, 6]        // martes, jueves, sábado
+        case 4: return [2, 4, 6, 7]     // + domingo
+        default: return [1, 2, 4, 6, 7] // 5: + lunes
+        }
+    }
+
+    /// Inicial del día en el idioma de la app (L M X J V S D en
+    /// español), desde el calendario del sistema — sin hardcodear
+    /// nombres. Nuestro 1 = lunes; los símbolos van domingo-primero.
+    static func inicialDia(_ dia: Int) -> String {
+        var calendario = Calendar.current
+        calendario.locale = FormatoFecha.locale
+        let simbolos = calendario.veryShortWeekdaySymbols
+        return simbolos[dia % 7]   // 1(lun)→índice 1 … 7(dom)→0
+    }
+
+    static func nombreDia(_ dia: Int) -> String {
+        var calendario = Calendar.current
+        calendario.locale = FormatoFecha.locale
+        return calendario.weekdaySymbols[dia % 7].capitalized
     }
 
     // MARK: Paso 4 — fecha objetivo + cierre
@@ -223,7 +306,9 @@ struct OnboardingDeportivo: View {
                                     objetivo.map(TextosObjetivo.nombre(de:)) ?? "—")
                         filaResumen("stopwatch", "Referencia", textoReferencia)
                         filaResumen("calendar", "Disponibilidad",
-                                    diasPorSemana.map { "\($0) días por semana" } ?? "A definir")
+                                    diasElegidos.isEmpty
+                                    ? (diasPorSemana.map { "\($0) días por semana" } ?? "A definir")
+                                    : diasElegidos.sorted().map(Self.inicialDia).joined(separator: " · "))
                         filaResumen("flag.checkered", "Carrera",
                                     tieneFechaObjetivo
                                     ? FormatoFecha.media(fechaObjetivo)
@@ -298,7 +383,8 @@ struct OnboardingDeportivo: View {
     private func guardarPerfil() {
         var perfil = almacen.almacen.perfilDeportivo
         perfil.objetivo = objetivo
-        perfil.diasPorSemana = diasPorSemana
+        perfil.diasPorSemana = diasElegidos.isEmpty ? diasPorSemana : diasElegidos.count
+        perfil.diasElegidos = diasElegidos.isEmpty ? nil : diasElegidos.sorted()
         perfil.fechaObjetivo = tieneFechaObjetivo ? DiaLocal(fecha: fechaObjetivo) : nil
         perfil.fechaOnboarding = Date()
         perfil.testPendiente = (experiencia == .hacerTest)
@@ -327,7 +413,8 @@ struct OnboardingDeportivo: View {
         let pedido = PedidoDePlan(
             objetivo: objetivo,
             fechaObjetivo: tieneFechaObjetivo ? DiaLocal(fecha: fechaObjetivo) : nil,
-            diasPorSemana: diasPorSemana ?? 3,
+            diasPorSemana: diasElegidos.isEmpty ? (diasPorSemana ?? 3) : diasElegidos.count,
+            diasConcretos: diasElegidos.isEmpty ? nil : diasElegidos.sorted(),
             referencia: almacen.almacen.referenciaVigente,
             hoy: DiaLocal(fecha: Date()))
         resultadoMotor = MotorPlanificacion.proponer(pedido)

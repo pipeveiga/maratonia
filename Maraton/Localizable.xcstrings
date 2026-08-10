@@ -23,6 +23,17 @@
         }
       }
     },
+    "%lld días marcados": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld days marked"
+          }
+        }
+      }
+    },
     "%lld minutos": {
       "extractionState": "manual",
       "localizations": {
@@ -613,6 +624,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Confirm plan"
+          }
+        }
+      }
+    },
+    "Continuar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue"
           }
         }
       }
@@ -1889,6 +1911,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Records · 12 weeks"
+          }
+        }
+      }
+    },
+    "Marcá al menos 2 días.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mark at least 2 days."
           }
         }
       }
@@ -3367,6 +3400,17 @@
         }
       }
     },
+    "Tus días": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your days"
+          }
+        }
+      }
+    },
     "Tus entrenamientos viven en Apple Health y tu respaldo en tu iCloud privado. La cuenta es opcional.": {
       "extractionState": "manual",
       "localizations": {
@@ -3385,6 +3429,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Threshold"
+          }
+        }
+      }
+    },
+    "Un plan honesto con tu semana real vale más que uno ambicioso que no cumplís. Los entrenamientos caen SOLO en los días que marques.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An honest plan built around your real week beats an ambitious one you can't follow. Workouts land ONLY on the days you mark."
           }
         }
       }
@@ -3748,6 +3803,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skip this workout?"
+          }
+        }
+      }
+    },
+    "¿Qué días podés correr?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Which days can you run?"
           }
         }
       }

@@ -109,22 +109,22 @@ enum BibliotecaArquetipos {
                           contenido: bases["10k-continuo"]),
             PlanArquetipo(id: "mejorar-5k", version: 1, objetivo: .mejorar5K,
                           nombre: "Mejorar mis 5K",
-                          semanasMinimas: 6, semanasRecomendadas: 8,
+                          semanasMinimas: 8, semanasRecomendadas: 8,
                           diasMinimos: 3, diasMaximos: 5,
                           recomiendaBaseline: true,
-                          contenido: nil),
+                          contenido: ContenidoPlanes.mejorar5K()),
             PlanArquetipo(id: "media-maraton", version: 1, objetivo: .mediaMaraton,
                           nombre: "Media maratón",
-                          semanasMinimas: 10, semanasRecomendadas: 12,
+                          semanasMinimas: 12, semanasRecomendadas: 12,
                           diasMinimos: 3, diasMaximos: 5,
                           recomiendaBaseline: true,
-                          contenido: nil),
+                          contenido: ContenidoPlanes.mediaMaraton()),
             PlanArquetipo(id: "maraton", version: 1, objetivo: .maraton,
                           nombre: "Maratón",
-                          semanasMinimas: 14, semanasRecomendadas: 16,
+                          semanasMinimas: 16, semanasRecomendadas: 16,
                           diasMinimos: 3, diasMaximos: 5,
                           recomiendaBaseline: true,
-                          contenido: nil),
+                          contenido: ContenidoPlanes.maraton()),
         ]
     }
 }
@@ -137,6 +137,10 @@ struct PedidoDePlan {
     var objetivo: ObjetivoDeportivo
     var fechaObjetivo: DiaLocal?
     var diasPorSemana: Int
+    /// Días CONCRETOS elegidos (1 = lunes … 7 = domingo). Si están,
+    /// mandan: la cantidad efectiva es su cuenta y las sesiones caen
+    /// SOLO en esos días. nil = perfil viejo → días del template.
+    var diasConcretos: [Int]? = nil
     /// La referencia cruda vigente (test 5K, marca…), si existe.
     var referencia: ReferenciaRendimiento?
     /// true = el corredor decidió arrancar sin baseline aunque el
@@ -187,7 +191,13 @@ enum MotorPlanificacion {
             return .sinContenido(objetivo: pedido.objetivo)
         }
 
-        guard pedido.diasPorSemana >= arquetipo.diasMinimos else {
+        // Días concretos (si están) mandan sobre la cuenta abstracta.
+        let diasConcretos = pedido.diasConcretos.map {
+            Array(Set($0.filter { (1...7).contains($0) })).sorted()
+        }
+        let diasEfectivos = diasConcretos?.count ?? pedido.diasPorSemana
+
+        guard diasEfectivos >= arquetipo.diasMinimos else {
             return .diasInsuficientes(minimo: arquetipo.diasMinimos)
         }
 
@@ -221,8 +231,17 @@ enum MotorPlanificacion {
         }
 
         // ---- Disponibilidad: recorte por ROL, decidido acá y no en UI.
-        let recortada = recortar(base, aDias: min(pedido.diasPorSemana,
+        var recortada = recortar(base, aDias: min(diasEfectivos,
                                                   arquetipo.diasMaximos))
+
+        // ---- Días concretos: cada sesión cae SOLO en un día que el
+        // corredor dijo que puede correr. El ORDEN relativo del template
+        // (fácil→calidad→larga, con su separación) es metodología
+        // versionada y se preserva; el motor solo lo mapea a los días
+        // disponibles. La carrera objetivo se pinnea a su fecha después.
+        if let dias = diasConcretos, !dias.isEmpty {
+            recortada = distribuir(recortada, enDias: dias)
+        }
 
         // ---- Snapshot (reusa la adopción probada del catálogo).
         var plan = recortada.adoptar(inicio: inicio, fechaAdopcion: Date(),
@@ -230,6 +249,25 @@ enum MotorPlanificacion {
         plan.nombre = arquetipo.nombre
         plan.origen = .catalogo(planBaseID: arquetipo.planBaseID)
         plan.referenciaUsadaID = pedido.referencia?.id
+
+        // ---- Ritmos: los segmentos SIMBÓLICOS se resuelven contra el
+        // baseline con la metodología activa AL ADOPTAR (el snapshot
+        // queda con rangos concretos y el Watch no cambia). Sin
+        // baseline quedan simbólicos: el plan funciona igual.
+        if let baseline = PerformanceBaseline(referencia: pedido.referencia) {
+            for s in plan.semanas.indices {
+                for p in plan.semanas[s].programados.indices {
+                    for g in plan.semanas[s].programados[p].definicion.segmentos.indices {
+                        if case .simbolico(let tipo) = plan.semanas[s].programados[p]
+                            .definicion.segmentos[g].ritmo,
+                           case .resuelto(let rango, _) = Metodologias.resolver(tipo, baseline: baseline) {
+                            plan.semanas[s].programados[p].definicion.segmentos[g].ritmo =
+                                .absoluto(minSegKm: rango.minSegKm, maxSegKm: rango.maxSegKm)
+                        }
+                    }
+                }
+            }
+        }
 
         // Semana parcial inicial: los días ya pasados no se programan.
         if pedido.fechaObjetivo == nil {
@@ -263,7 +301,7 @@ enum MotorPlanificacion {
             nombre: arquetipo.nombre,
             semanas: plan.semanas.count,
             sesionesPorSemana: recortada.semanas.first?.entrenamientos.count ?? 0,
-            diasPedidos: pedido.diasPorSemana,
+            diasPedidos: diasEfectivos,
             fechaInicio: plan.semanas.first?.programados.compactMap(\.dia).min() ?? inicio,
             fechaCarrera: pedido.fechaObjetivo,
             referenciaUsada: pedido.referencia,
@@ -286,6 +324,39 @@ enum MotorPlanificacion {
             let elegidas = ordenadas.prefix(dias).map(\.offset).sorted()
             recortadaSemana.entrenamientos = elegidas.map { semana.entrenamientos[$0] }
             return recortadaSemana
+        }
+        return resultado
+    }
+
+    /// Reasigna el día de semana de cada sesión a los días ELEGIDOS
+    /// (1 = lunes … 7 = domingo), preservando el orden relativo del
+    /// template. Si hay más días disponibles que sesiones, se eligen
+    /// los mejor repartidos INCLUYENDO el último (la larga/carrera va
+    /// al final de la semana en todos los templates — eso es contenido
+    /// del arquetipo, no una regla del motor). Determinístico; jamás
+    /// duplica fechas (los días elegidos son únicos y las sesiones por
+    /// semana nunca superan su cuenta tras el recorte).
+    static func distribuir(_ base: PlanBase, enDias diasElegidos: [Int]) -> PlanBase {
+        let dias = Array(Set(diasElegidos.filter { (1...7).contains($0) })).sorted()
+        guard !dias.isEmpty else { return base }
+        var resultado = base
+        resultado.semanas = base.semanas.map { semana in
+            var nueva = semana
+            // Orden del template = metodología (separación de sesiones
+            // exigentes decidida por el contenido versionado).
+            let ordenadas = semana.entrenamientos.sorted { $0.diaDeSemana < $1.diaDeSemana }
+            let k = min(ordenadas.count, dias.count)
+            guard k > 0 else { return nueva }
+            // Subconjunto repartido de índices, siempre con el último.
+            let indices: [Int] = k == 1
+                ? [dias.count - 1]
+                : (0..<k).map { Int((Double($0) * Double(dias.count - 1) / Double(k - 1)).rounded()) }
+            nueva.entrenamientos = zip(ordenadas.prefix(k), indices).map { sesion, indice in
+                var asignada = sesion
+                asignada.diaDeSemana = dias[indice]
+                return asignada
+            }
+            return nueva
         }
         return resultado
     }
