@@ -95,14 +95,12 @@ struct PlanTab: View {
     @ObservedObject var store: PlanStore
     @ObservedObject var almacen: AlmacenStore
     @Binding var pestana: Pestana
-    @AppStorage("horizonteCronograma") private var horizonteMinutos = 120
 
-    // Edición EXPLÍCITA del nombre (lápiz → editar → Guardar/Cancelar):
-    // el título tocable que abría el teclado de sorpresa era mala UX.
-    @State private var editandoNombre = false
-    @State private var nombreBorrador = ""
-    @FocusState private var nombreEnfocado: Bool
+    private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
 
+    // El Plan responde tres preguntas, en este orden: ¿qué me toca HOY?
+    // ¿cómo viene MI SEMANA? ¿qué SIGUE? Después el objetivo, el
+    // calendario completo y — al final — la configuración de la sesión.
     var body: some View {
         NavigationStack {
             List {
@@ -114,22 +112,10 @@ struct PlanTab: View {
                     }
                 }
 
-                // El entrenamiento de HOY como acción principal de la
-                // app, no como una fila más del calendario.
-                if let hoy = almacen.almacen.entrenamientoDeHoy(DiaLocal(fecha: Date())) {
-                    Section {
-                        TarjetaEntrenamientoV2(programado: hoy) {
-                            LanzadorSesion.iniciar(definicion: hoy.definicion,
-                                                   programadoID: hoy.id,
-                                                   store: store, almacen: almacen)
-                            pestana = .correr
-                        }
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                    }
-                }
-
-                seccionCabecera
+                seccionHoy
+                seccionSemana
+                seccionProximos
+                seccionObjetivo
 
                 Section("Plan de entrenamiento") {
                     if almacen.almacen.planActivo != nil {
@@ -149,8 +135,7 @@ struct PlanTab: View {
                 }
 
                 // La configuración de la SESIÓN (música, avisos, tramos
-                // manuales) baja de jerarquía: una sola entrada. El
-                // protagonismo del Plan es HOY + calendario + explorar.
+                // manuales) es lo último: acompaña, no protagoniza.
                 Section("Configuración del entrenamiento") {
                     NavigationLink {
                         ConfiguracionEntrenamientoScreen(store: store)
@@ -166,97 +151,130 @@ struct PlanTab: View {
         }
     }
 
-    private func guardarNombre() {
-        let limpio = nombreBorrador.trimmingCharacters(in: .whitespaces)
-        if !limpio.isEmpty {
-            store.plan.nombre = limpio
+    /// HOY con UNA SOLA interpretación del dominio: pendiente se ofrece
+    /// (EMPEZAR), resuelto se muestra como resultado (cumplido/parcial/
+    /// omitido), y "descanso" SOLO cuando de verdad no hubo nada.
+    @ViewBuilder
+    private var seccionHoy: some View {
+        if let pendiente = almacen.almacen.entrenamientoDeHoy(hoy) {
+            Section {
+                TarjetaEntrenamientoV2(programado: pendiente) {
+                    LanzadorSesion.iniciar(definicion: pendiente.definicion,
+                                           programadoID: pendiente.id,
+                                           store: store, almacen: almacen)
+                    pestana = .correr
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+        } else if let resuelto = almacen.almacen.programadoDelDia(hoy) {
+            Section {
+                NavigationLink {
+                    DetalleEntrenamientoView(almacen: almacen, store: store,
+                                             pestana: $pestana,
+                                             programadoID: resuelto.id)
+                } label: {
+                    TarjetaEntrenamientoV2(programado: resuelto)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .buttonStyle(.plain)
+            }
         }
-        editandoNombre = false
-        nombreEnfocado = false
+    }
+
+    @ViewBuilder
+    private var seccionSemana: some View {
+        if almacen.almacen.planActivo != nil,
+           almacen.almacen.semanaActual(hoy: hoy).contains(where: { $0.programado != nil }) {
+            Section {
+                SemanaActualV2(almacen: almacen, store: store, pestana: $pestana)
+            } header: {
+                HStack {
+                    Text("Tu semana")
+                    Spacer()
+                    Text(progresoDeSemana)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .textCase(nil)
+                }
+            }
+        }
+    }
+
+    private var progresoDeSemana: String {
+        let programados = almacen.almacen.semanaActual(hoy: hoy).compactMap(\.programado)
+        let hechos = programados.filter {
+            $0.resolucion == .cumplido || $0.resolucion == .parcial
+        }.count
+        return "\(hechos) de \(programados.count)"
+    }
+
+    @ViewBuilder
+    private var seccionProximos: some View {
+        let proximos = almacen.almacen.proximosEntrenamientos(despuesDe: hoy, maximo: 3)
+        if !proximos.isEmpty {
+            Section("Próximos") {
+                ForEach(proximos) { programado in
+                    NavigationLink {
+                        DetalleEntrenamientoView(almacen: almacen, store: store,
+                                                 pestana: $pestana,
+                                                 programadoID: programado.id)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Circle()
+                                .fill(DV2.color(de: programado.definicion.tipo))
+                                .frame(width: 8, height: 8)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(programado.definicion.nombre)
+                                Text(subtituloProximo(programado))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 1)
+                    }
+                }
+            }
+        }
+    }
+
+    private func subtituloProximo(_ programado: EntrenamientoProgramado) -> String {
+        var partes: [String] = []
+        if let fecha = programado.dia?.fecha() {
+            partes.append(fecha.formatted(.dateTime.weekday(.wide).day().month()))
+        }
+        partes.append(programado.definicion.resumenEstructura)
+        return partes.joined(separator: " · ")
+    }
+
+    /// El objetivo con countdown en semanas — motivación, nunca presión.
+    @ViewBuilder
+    private var seccionObjetivo: some View {
+        let perfil = almacen.almacen.perfilDeportivo
+        if let objetivo = perfil.objetivo {
+            Section {
+                HStack(spacing: 12) {
+                    IconoAjuste(sistema: "flag.checkered", color: .red)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(TextosObjetivo.nombre(de: objetivo))
+                        if let cuenta = TextosObjetivo.cuentaRegresiva(
+                            hasta: perfil.fechaObjetivo, hoy: hoy) {
+                            Text(cuenta)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else if let dias = perfil.diasPorSemana {
+                            Text("\(dias) días por semana")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Tarjeta hero con degradado de marca: el nombre del plan editable
-    /// y sus números, como portada de la app.
-    private var seccionCabecera: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Label("TU ENTRENAMIENTO", systemImage: "figure.run")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.85))
-                    Spacer()
-                    if !editandoNombre {
-                        Button {
-                            nombreBorrador = store.plan.nombre
-                            editandoNombre = true
-                            nombreEnfocado = true
-                        } label: {
-                            Image(systemName: "pencil.circle.fill")
-                                .font(.title3)
-                                .foregroundStyle(.white.opacity(0.9))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                if editandoNombre {
-                    TextField("Nombre del plan", text: $nombreBorrador)
-                        .font(.title2.bold())
-                        .foregroundStyle(.white)
-                        .tint(.white)
-                        .focused($nombreEnfocado)
-                        .submitLabel(.done)
-                        .onSubmit(guardarNombre)
-                    HStack(spacing: 12) {
-                        Button("Guardar", action: guardarNombre)
-                            .buttonStyle(.borderedProminent)
-                            .tint(.white.opacity(0.3))
-                        Button("Cancelar") {
-                            editandoNombre = false
-                            nombreEnfocado = false
-                        }
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                } else {
-                    Text(store.plan.nombre)
-                        .font(.title2.bold())
-                        .foregroundStyle(.white)
-                }
-                HStack(spacing: 0) {
-                    estadistica("music.note", "\(store.plan.pistas.count)", "pistas")
-                    estadistica("clock.fill", formatearDuracion(store.duracionTotal), "música")
-                    estadistica("bell.fill", "\(store.plan.cronograma(duracionMaximaMinutos: horizonteMinutos).count)", "avisos")
-                    estadistica("speedometer", "\(store.plan.tramosActivos.count)", "tramos")
-                }
-            }
-            .padding(18)
-            .background(
-                LinearGradient(colors: [Color.accentColor, .teal],
-                               startPoint: .topLeading, endPoint: .bottomTrailing))
-            .listRowInsets(EdgeInsets())
-        }
-    }
-
-    private func estadistica(_ icono: String, _ valor: String, _ nombre: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 4) {
-                Image(systemName: icono)
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.8))
-                Text(valor)
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            Text(nombre)
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.75))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     private func filaNavegacion(icono: String, color: Color, titulo: String, subtitulo: String) -> some View {
         HStack(spacing: 12) {
             IconoAjuste(sistema: icono, color: color)
@@ -270,16 +288,22 @@ struct PlanTab: View {
         .padding(.vertical, 2)
     }
 
+    /// Una sola interpretación de HOY (bug de build 39: Correr decía
+    /// "parcial" y Plan decía "no hay entrenamiento").
     private var subtituloCalendario: String {
-        let hoy = DiaLocal(fecha: Date())
-        if let deHoy = almacen.almacen.entrenamientoDeHoy(hoy) {
-            return "Hoy: \(deHoy.definicion.nombre)"
+        if let deHoy = almacen.almacen.programadoDelDia(hoy) {
+            switch deHoy.resolucion {
+            case .pendiente: return "Hoy: \(deHoy.definicion.nombre)"
+            case .cumplido: return "Hoy: \(deHoy.definicion.nombre) — cumplido"
+            case .parcial: return "Hoy: \(deHoy.definicion.nombre) — parcial"
+            case .omitido: return "Hoy: \(deHoy.definicion.nombre) — omitido"
+            }
         }
         let vencidos = almacen.almacen.vencidos(hoy).count
         if vencidos > 0 {
             return vencidos == 1 ? "1 entrenamiento vencido" : "\(vencidos) entrenamientos vencidos"
         }
-        return "Hoy no hay entrenamiento programado"
+        return "Hoy: descanso"
     }
 
     private var subtituloCatalogo: String {
@@ -310,9 +334,36 @@ struct PlanTab: View {
 /// de la SESIÓN no compite con el calendario del entrenamiento.
 struct ConfiguracionEntrenamientoScreen: View {
     @ObservedObject var store: PlanStore
+    @State private var editandoNombre = false
+    @State private var nombreBorrador = ""
 
     var body: some View {
         List {
+            Section {
+                HStack {
+                    LabeledContent("Nombre", value: store.plan.nombre)
+                    Button {
+                        nombreBorrador = store.plan.nombre
+                        editandoNombre = true
+                    } label: {
+                        Image(systemName: "pencil.circle.fill")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Editar el nombre del plan")
+                }
+            } footer: {
+                Text("El nombre que ves en el reloj al mandar el plan.")
+            }
+            .alert("Nombre del plan", isPresented: $editandoNombre) {
+                TextField("Nombre", text: $nombreBorrador)
+                Button("Guardar") {
+                    let limpio = nombreBorrador.trimmingCharacters(in: .whitespaces)
+                    if !limpio.isEmpty { store.plan.nombre = limpio }
+                }
+                Button("Cancelar", role: .cancel) {}
+            }
+
             Section("Audio de la sesión") {
                 NavigationLink {
                     MusicaScreen(store: store)
@@ -1014,13 +1065,7 @@ struct PerfilTab: View {
     }
 
     private func nombreObjetivo(_ objetivo: ObjetivoDeportivo) -> String {
-        switch objetivo {
-        case .primeros5K: return "Mis primeros 5K"
-        case .mejorar5K: return "Mejorar mis 5K"
-        case .diez: return "Correr 10K"
-        case .mediaMaraton: return "Media maratón"
-        case .maraton: return "Maratón"
-        }
+        TextosObjetivo.nombre(de: objetivo)
     }
 
     private func subtituloPerfil(_ perfil: PerfilDeportivo) -> String {

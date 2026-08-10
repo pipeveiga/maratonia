@@ -520,6 +520,373 @@ struct PlanBaseDetalleView: View {
     }
 }
 
+// MARK: - UI: semana actual (el pulso del plan en una fila)
+
+/// L M X J V S D con el estado de cada día — hechos, hoy, próximos,
+/// parciales, vencidos y omitidos de un vistazo. Tocar un día con
+/// entrenamiento abre su detalle.
+struct SemanaActualV2: View {
+    @ObservedObject var almacen: AlmacenStore
+    @ObservedObject var store: PlanStore
+    @Binding var pestana: Pestana
+
+    private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
+
+    var body: some View {
+        let dias = almacen.almacen.semanaActual(hoy: hoy)
+        HStack(spacing: 0) {
+            ForEach(dias) { item in
+                celda(item)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.vertical, DV2.Espacio.xs)
+    }
+
+    @ViewBuilder
+    private func celda(_ item: DiaDeSemana) -> some View {
+        if let programado = item.programado {
+            NavigationLink {
+                DetalleEntrenamientoView(almacen: almacen, store: store,
+                                         pestana: $pestana,
+                                         programadoID: programado.id)
+            } label: {
+                columna(item)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(etiquetaAccesible(item))
+        } else {
+            columna(item)
+                .accessibilityLabel(etiquetaAccesible(item))
+        }
+    }
+
+    private func columna(_ item: DiaDeSemana) -> some View {
+        VStack(spacing: 5) {
+            Text(letra(de: item.dia))
+                .font(.caption2.weight(item.esHoy ? .bold : .regular))
+                .foregroundStyle(item.esHoy ? Color.accentColor : Color.secondary)
+            ZStack {
+                Circle()
+                    .fill(colorDeFondo(item))
+                    .frame(width: 34, height: 34)
+                if item.esHoy {
+                    Circle()
+                        .strokeBorder(Color.accentColor, lineWidth: 2)
+                        .frame(width: 34, height: 34)
+                }
+                simbolo(item)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func simbolo(_ item: DiaDeSemana) -> some View {
+        if let programado = item.programado {
+            switch programado.estado(hoy: hoy) {
+            case .cumplido:
+                Image(systemName: "checkmark")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+            case .parcial:
+                Image(systemName: "circle.bottomhalf.filled")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+            case .omitido:
+                Image(systemName: "minus")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+            case .vencido:
+                Image(systemName: "exclamationmark")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
+            case .programado:
+                Circle()
+                    .fill(DV2.color(de: programado.definicion.tipo))
+                    .frame(width: 10, height: 10)
+            }
+        } else {
+            Circle()
+                .fill(Color(.systemGray4))
+                .frame(width: 5, height: 5)
+        }
+    }
+
+    private func colorDeFondo(_ item: DiaDeSemana) -> Color {
+        guard let programado = item.programado else {
+            return Color(.tertiarySystemGroupedBackground)
+        }
+        switch programado.estado(hoy: hoy) {
+        case .cumplido: return .green
+        case .parcial: return .yellow
+        case .omitido: return Color(.systemGray3)
+        case .vencido: return .orange
+        case .programado:
+            return DV2.color(de: programado.definicion.tipo).opacity(0.15)
+        }
+    }
+
+    private func letra(de dia: DiaLocal) -> String {
+        guard let fecha = dia.fecha() else { return "" }
+        let indice = (Calendar.current.component(.weekday, from: fecha) + 5) % 7
+        return ["L", "M", "X", "J", "V", "S", "D"][indice]
+    }
+
+    private func etiquetaAccesible(_ item: DiaDeSemana) -> String {
+        let nombreDia = item.dia.fecha()?.formatted(.dateTime.weekday(.wide)) ?? ""
+        guard let programado = item.programado else { return "\(nombreDia): descanso" }
+        let estado: String
+        switch programado.estado(hoy: hoy) {
+        case .cumplido: estado = "cumplido"
+        case .parcial: estado = "parcial"
+        case .omitido: estado = "omitido"
+        case .vencido: estado = "vencido"
+        case .programado: estado = item.esHoy ? "hoy" : "programado"
+        }
+        return "\(nombreDia): \(programado.definicion.nombre), \(estado)"
+    }
+}
+
+// MARK: - UI: detalle del entrenamiento (acciones por estado)
+
+/// TODO lo del programado en un lugar: qué es, cuándo, cómo quedó, y
+/// las acciones que su estado permite — nunca acciones imposibles.
+struct DetalleEntrenamientoView: View {
+    @ObservedObject var almacen: AlmacenStore
+    @ObservedObject var store: PlanStore
+    @Binding var pestana: Pestana
+    let programadoID: UUID
+
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var carreras = CarrerasStore()
+    @State private var mostrandoReprogramar = false
+    @State private var nuevaFecha = Date()
+    @State private var confirmandoOmitir = false
+
+    private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
+
+    var body: some View {
+        if let programado = almacen.almacen.todosLosProgramados
+            .first(where: { $0.id == programadoID }) {
+            contenido(programado)
+        } else {
+            ContentUnavailableView {
+                Label("Ya no está en el plan", systemImage: "calendar.badge.minus")
+            } description: {
+                Text("Este entrenamiento pertenece a un plan archivado o reemplazado.")
+            }
+        }
+    }
+
+    private func contenido(_ programado: EntrenamientoProgramado) -> some View {
+        let estado = programado.estado(hoy: hoy)
+        return List {
+            Section {
+                VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+                    HStack {
+                        ChipTipoV2(tipo: programado.definicion.tipo)
+                        Spacer()
+                        insigniaEstado(estado)
+                    }
+                    Text(programado.definicion.nombre)
+                        .font(.title2.bold())
+                    if let fecha = programado.dia?.fecha() {
+                        Text(fecha.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let original = programado.diaOriginal, original != programado.dia,
+                       let fechaOriginal = original.fecha() {
+                        Text("Reprogramado (era el \(fechaOriginal.formatted(.dateTime.day().month())))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if !programado.definicion.descripcion.isEmpty {
+                        Text(programado.definicion.descripcion)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: DV2.Espacio.xl) {
+                        if let km = programado.definicion.distanciaTotalKm {
+                            MetricaV2(titulo: "distancia",
+                                      valor: km == km.rounded()
+                                        ? "\(Int(km)) km" : String(format: "%.1f km", km))
+                        }
+                        if let segundos = programado.definicion.duracionPorTiempoSegundos {
+                            MetricaV2(titulo: "por tiempo", valor: duracionTexto(segundos))
+                        }
+                    }
+                    .padding(.top, DV2.Espacio.xs)
+                }
+                .padding(.vertical, DV2.Espacio.xs)
+            }
+
+            if !programado.definicion.segmentos.isEmpty {
+                Section("Estructura") {
+                    ForEach(Array(programado.definicion.segmentos.enumerated()),
+                            id: \.element.id) { indice, segmento in
+                        HStack(spacing: DV2.Espacio.m) {
+                            Text("\(indice + 1)")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 18)
+                            Text(segmento.nombre)
+                            Spacer()
+                            Text(DV2.metaDeSegmento(segmento))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
+            if let sesionID = programado.sesionVinculadaID {
+                seccionSesion(sesionID)
+            }
+
+            seccionAcciones(programado, estado: estado)
+        }
+        .navigationTitle(programado.definicion.nombre)
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $mostrandoReprogramar) {
+            hojaReprogramar(programado)
+        }
+        .confirmationDialog("¿Omitir este entrenamiento?",
+                            isPresented: $confirmandoOmitir,
+                            titleVisibility: .visible) {
+            Button("Omitir", role: .destructive) {
+                almacen.almacen.omitir(programadoID: programadoID)
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Queda marcado como omitido en el calendario — no se borra nada y podés deshacerlo.")
+        }
+    }
+
+    @ViewBuilder
+    private func seccionSesion(_ sesionID: UUID) -> some View {
+        Section("Sesión realizada") {
+            if let sesion = almacen.almacen.sesiones.first(where: { $0.id == sesionID }) {
+                LabeledContent("Fecha",
+                               value: sesion.fecha.formatted(date: .abbreviated,
+                                                             time: .shortened))
+            }
+            NavigationLink {
+                CarreraDetalleView(store: carreras, id: sesionID)
+            } label: {
+                Label("Ver carrera", systemImage: "map.fill")
+            }
+            // Precarga: cuando el usuario toque "Ver carrera", el
+            // detalle ya tiene los datos de Salud listos.
+            .onAppear { carreras.cargar() }
+        }
+    }
+
+    @ViewBuilder
+    private func seccionAcciones(_ programado: EntrenamientoProgramado,
+                                 estado: EstadoProgramado) -> some View {
+        switch estado {
+        case .programado, .vencido:
+            Section {
+                Button {
+                    LanzadorSesion.iniciar(definicion: programado.definicion,
+                                           programadoID: programado.id,
+                                           store: store, almacen: almacen)
+                    pestana = .correr
+                    dismiss()
+                } label: {
+                    EtiquetaBotonPrimarioV2(titulo: "Empezar")
+                }
+                .buttonStyle(.plain)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+            Section {
+                Button {
+                    nuevaFecha = programado.dia?.fecha() ?? Date()
+                    mostrandoReprogramar = true
+                } label: {
+                    Label("Reprogramar", systemImage: "calendar.badge.clock")
+                }
+                Button(role: .destructive) {
+                    confirmandoOmitir = true
+                } label: {
+                    Label("Omitir", systemImage: "minus.circle")
+                }
+            }
+        case .omitido:
+            if programado.sesionVinculadaID == nil {
+                Section {
+                    Button {
+                        almacen.almacen.deshacerOmision(programadoID: programadoID)
+                    } label: {
+                        Label("Deshacer omisión", systemImage: "arrow.uturn.backward")
+                    }
+                } footer: {
+                    Text("Vuelve a quedar pendiente en su día.")
+                }
+            }
+        case .cumplido, .parcial:
+            EmptyView()   // la sesión realizada ya está arriba
+        }
+    }
+
+    private func hojaReprogramar(_ programado: EntrenamientoProgramado) -> some View {
+        NavigationStack {
+            Form {
+                DatePicker("Nueva fecha", selection: $nuevaFecha,
+                           displayedComponents: .date)
+                    .datePickerStyle(.graphical)
+
+                if let conflicto = almacen.almacen.conflictoEnDia(
+                    DiaLocal(fecha: nuevaFecha), salvo: programadoID) {
+                    Label("Ese día ya tiene «\(conflicto.definicion.nombre)». Pueden convivir los dos, pero vas a tener doble entrenamiento.",
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                }
+
+                if let original = programado.diaOriginal ?? programado.dia,
+                   let fechaOriginal = original.fecha() {
+                    Text("Fecha original: \(fechaOriginal.formatted(.dateTime.weekday(.abbreviated).day().month()))")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Reprogramar")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { mostrandoReprogramar = false }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Confirmar") {
+                        almacen.almacen.reprogramar(programadoID: programadoID,
+                                                    a: DiaLocal(fecha: nuevaFecha))
+                        mostrandoReprogramar = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func insigniaEstado(_ estado: EstadoProgramado) -> some View {
+        let (texto, icono, color): (String, String, Color) = {
+            switch estado {
+            case .programado: return ("Programado", "circle", .secondary)
+            case .vencido: return ("Vencido", "exclamationmark.circle.fill", .orange)
+            case .parcial: return ("Parcial", "circle.bottomhalf.filled", .yellow)
+            case .cumplido: return ("Cumplido", "checkmark.seal.fill", .green)
+            case .omitido: return ("Omitido", "minus.circle.fill", .gray)
+            }
+        }()
+        return Label(texto, systemImage: icono)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(color)
+    }
+}
+
 // MARK: - UI: calendario
 
 struct CalendarioView: View {

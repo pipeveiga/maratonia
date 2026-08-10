@@ -1278,3 +1278,27 @@ final class GestionProgramadoTests: XCTestCase {
         XCTAssertEqual(hoy.sumando(dias: 3).lunesDeLaSemana(), hoy)   // jueves
     }
 }
+
+// MARK: - Build 40: cuenta regresiva del objetivo
+
+final class CuentaRegresivaTests: XCTestCase {
+
+    private let hoy = DiaLocal(anio: 2026, mes: 8, dia: 10)
+
+    func testCuentaRegresivaEnSemanasYDias() {
+        XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 98), hoy: hoy),
+                       "Faltan 14 semanas para tu carrera")
+        XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 7), hoy: hoy),
+                       "Falta 1 semana para tu carrera")
+        XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 5), hoy: hoy),
+                       "Faltan 5 días para tu carrera")
+        XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 1), hoy: hoy),
+                       "Tu carrera es mañana")
+        XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy, hoy: hoy),
+                       "¡Tu carrera es hoy!")
+        XCTAssertNil(TextosObjetivo.cuentaRegresiva(hasta: nil, hoy: hoy))
+        // Fecha pasada: texto NEUTRO, sin reproches.
+        XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: -3), hoy: hoy),
+                       "La fecha de tu carrera ya pasó — actualizala cuando quieras")
+    }
+}

@@ -72,6 +72,20 @@ enum DV2 {
         }
     }
 
+    /// "3 km · ritmo umbral · a personalizar" — la meta y el ritmo de
+    /// un segmento, con simbólicos sin resolver mostrados con dignidad.
+    static func metaDeSegmento(_ segmento: Segmento) -> String {
+        var partes: [String] = []
+        if let km = segmento.distanciaKm {
+            partes.append(km == km.rounded() ? "\(Int(km)) km" : String(format: "%.1f km", km))
+        } else if let segundos = segmento.duracionSegundos {
+            partes.append(duracionTexto(segundos))
+        }
+        let ritmo = textoRitmo(de: segmento)
+        if ritmo != "libre" { partes.append(ritmo) }
+        return partes.joined(separator: " · ")
+    }
+
     static func nombre(de tipo: TipoRitmo) -> String {
         switch tipo {
         case .facil: return "Fácil"
@@ -94,6 +108,57 @@ enum DV2 {
         case .ritmoCarrera: return "Ritmo de carrera"
         case .testEvaluacion: return "Evaluación"
         case .personalizado: return "Personalizado"
+        }
+    }
+}
+
+/// Textos del objetivo deportivo — un solo lugar (los usaban Perfil,
+/// Plan y onboarding por separado y ya estaban divergiendo).
+enum TextosObjetivo {
+
+    static func nombre(de objetivo: ObjetivoDeportivo) -> String {
+        switch objetivo {
+        case .primeros5K: return "Mis primeros 5K"
+        case .mejorar5K: return "Mejorar mis 5K"
+        case .diez: return "Correr 10K"
+        case .mediaMaraton: return "Media maratón"
+        case .maraton: return "Maratón"
+        }
+    }
+
+    /// Distancia en metros de la carrera objetivo (para filtrar el
+    /// catálogo y recomendar de forma determinística).
+    static func distanciaMetros(de objetivo: ObjetivoDeportivo) -> Double {
+        switch objetivo {
+        case .primeros5K, .mejorar5K: return 5000
+        case .diez: return 10000
+        case .mediaMaraton: return 21097.5
+        case .maraton: return 42195
+        }
+    }
+
+    /// "Faltan 14 semanas para tu carrera" — motivación con días
+    /// calendario reales, jamás presión. nil = sin fecha objetivo.
+    static func cuentaRegresiva(hasta fechaObjetivo: DiaLocal?, hoy: DiaLocal,
+                                calendario: Calendar = .current) -> String? {
+        guard let objetivo = fechaObjetivo,
+              let desde = hoy.fecha(calendario: calendario),
+              let hasta = objetivo.fecha(calendario: calendario),
+              let dias = calendario.dateComponents([.day], from: desde, to: hasta).day
+        else { return nil }
+        switch dias {
+        case ..<0:
+            return "La fecha de tu carrera ya pasó — actualizala cuando quieras"
+        case 0:
+            return "¡Tu carrera es hoy!"
+        case 1:
+            return "Tu carrera es mañana"
+        case 2...13:
+            return "Faltan \(dias) días para tu carrera"
+        default:
+            let semanas = dias / 7
+            return semanas == 1 ? "Falta 1 semana para tu carrera"
+                                : "Faltan \(semanas) semanas para tu carrera"
         }
     }
 }
@@ -270,18 +335,8 @@ struct TarjetaEntrenamientoV2: View {
         }
     }
 
-    /// "3 km · ritmo umbral · a personalizar" — la meta y el ritmo del
-    /// segmento, con simbólicos sin resolver mostrados con dignidad.
     private func metaDeSegmento(_ segmento: Segmento) -> String {
-        var partes: [String] = []
-        if let km = segmento.distanciaKm {
-            partes.append(km == km.rounded() ? "\(Int(km)) km" : String(format: "%.1f km", km))
-        } else if let segundos = segmento.duracionSegundos {
-            partes.append(duracionTexto(segundos))
-        }
-        let ritmo = DV2.textoRitmo(de: segmento)
-        if ritmo != "libre" { partes.append(ritmo) }
-        return partes.joined(separator: " · ")
+        DV2.metaDeSegmento(segmento)
     }
 
     private var nombreDeEstado: String {
