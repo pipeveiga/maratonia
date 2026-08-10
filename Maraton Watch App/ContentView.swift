@@ -90,8 +90,15 @@ struct ContentView: View {
                     }
                 }
                 .padding(.horizontal, 4)
+                .padding(.top, 2)
             }
             .navigationTitle("Maratonia")
+            // Título INLINE: watchOS mantiene la barra compacta con su
+            // material propio y el contenido scrollea POR DEBAJO sin
+            // atravesarla — con el título grande por defecto, el Play
+            // verde quedaba superpuesto al encabezado al scrollear.
+            // Sin posiciones absolutas: layout natural en 40-49 mm.
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
