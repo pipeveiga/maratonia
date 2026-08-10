@@ -40,6 +40,10 @@
 		A1000000000000000000005B /* Progreso.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005A /* Progreso.swift */; };
 		A10000000000000000000065 /* Identidad.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000064 /* Identidad.swift */; };
 		A10000000000000000000067 /* MotorPlanes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000066 /* MotorPlanes.swift */; };
+		A10000000000000000000074 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000072 /* FirebaseAuth */; };
+		A10000000000000000000075 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000073 /* GoogleSignIn */; };
+		A10000000000000000000077 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000076 /* GoogleService-Info.plist */; };
+		A10000000000000000000079 /* ServicioAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000078 /* ServicioAuth.swift */; };
 		A1000000000000000000005D /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005C /* Localizable.xcstrings */; };
 		A1000000000000000000005F /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005E /* InfoPlist.xcstrings */; };
 		A10000000000000000000061 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000060 /* Localizable.xcstrings */; };
@@ -104,6 +108,9 @@
 		A1000000000000000000005A /* Progreso.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Progreso.swift; sourceTree = "<group>"; };
 		A10000000000000000000064 /* Identidad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Identidad.swift; sourceTree = "<group>"; };
 		A10000000000000000000066 /* MotorPlanes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotorPlanes.swift; sourceTree = "<group>"; };
+		A10000000000000000000076 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		A10000000000000000000078 /* ServicioAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicioAuth.swift; sourceTree = "<group>"; };
+		A1000000000000000000007A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1000000000000000000005C /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		A1000000000000000000005E /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		A10000000000000000000060 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
@@ -115,6 +122,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000074 /* FirebaseAuth in Frameworks */,
+				A10000000000000000000075 /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -166,6 +175,9 @@
 				A1000000000000000000005A /* Progreso.swift */,
 				A10000000000000000000064 /* Identidad.swift */,
 				A10000000000000000000066 /* MotorPlanes.swift */,
+				A10000000000000000000078 /* ServicioAuth.swift */,
+				A10000000000000000000076 /* GoogleService-Info.plist */,
+				A1000000000000000000007A /* Info.plist */,
 				A1000000000000000000005C /* Localizable.xcstrings */,
 				A1000000000000000000005E /* InfoPlist.xcstrings */,
 				A10000000000000000000044 /* Carreras.swift */,
@@ -221,6 +233,10 @@
 				A10000000000000000000013 /* PBXTargetDependency */,
 			);
 			name = Maraton;
+			packageProductDependencies = (
+				A10000000000000000000072 /* FirebaseAuth */,
+				A10000000000000000000073 /* GoogleSignIn */,
+			);
 			productName = Maraton;
 			productReference = A10000000000000000000004 /* Maraton.app */;
 			productType = "com.apple.product-type.application";
@@ -271,6 +287,10 @@
 			);
 			mainGroup = A10000000000000000000006;
 			productRefGroup = A10000000000000000000007 /* Products */;
+			packageReferences = (
+				A10000000000000000000070 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				A10000000000000000000071 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -288,6 +308,7 @@
 				A10000000000000000000032 /* Assets.xcassets in Resources */,
 				A1000000000000000000005D /* Localizable.xcstrings in Resources */,
 				A1000000000000000000005F /* InfoPlist.xcstrings in Resources */,
+				A10000000000000000000077 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -325,6 +346,7 @@
 				A1000000000000000000005B /* Progreso.swift in Sources */,
 				A10000000000000000000065 /* Identidad.swift in Sources */,
 				A10000000000000000000067 /* MotorPlanes.swift in Sources */,
+				A10000000000000000000079 /* ServicioAuth.swift in Sources */,
 				A10000000000000000000045 /* Carreras.swift in Sources */,
 				A10000000000000000000047 /* Diseno.swift in Sources */,
 				A10000000000000000000052 /* DominioV2.swift in Sources */,
@@ -357,6 +379,38 @@
 			targetProxy = A10000000000000000000014 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A10000000000000000000070 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
+		A10000000000000000000071 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A10000000000000000000072 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000070 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		A10000000000000000000073 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000071 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A10000000000000000000016 /* Debug */ = {
@@ -480,11 +534,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Maraton/Maraton.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 43;
+				CURRENT_PROJECT_VERSION = 44;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Maraton/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Maratonia;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Para mostrar tu frecuencia cardíaca y registrar la carrera.";
@@ -517,11 +572,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Maraton/Maraton.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 43;
+				CURRENT_PROJECT_VERSION = 44;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Maraton/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Maratonia;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Para mostrar tu frecuencia cardíaca y registrar la carrera.";
@@ -555,7 +611,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Maraton Watch App/MaratonWatchApp.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 43;
+				CURRENT_PROJECT_VERSION = 44;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 
 				ENABLE_PREVIEWS = YES;
@@ -593,7 +649,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Maraton Watch App/MaratonWatchApp.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 43;
+				CURRENT_PROJECT_VERSION = 44;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 
 				ENABLE_PREVIEWS = YES;

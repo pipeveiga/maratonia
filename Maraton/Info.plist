@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Este archivo se MERGEA con el Info.plist generado por Xcode
+	     (GENERATE_INFOPLIST_FILE=YES + INFOPLIST_FILE): acá viven solo
+	     las claves que no se pueden expresar como build settings. -->
+	<!-- URL scheme del callback de Google Sign-In. CONFIGURACIÓN
+	     EXTERNA: reemplazar el string de abajo por el valor de
+	     REVERSED_CLIENT_ID que figura en GoogleService-Info.plist
+	     (formato com.googleusercontent.apps.XXXX). Mientras tenga el
+	     placeholder, el botón de Google NO aparece (gate de runtime en
+	     ServicioAuth.esquemaGoogleConfigurado) — cero botones muertos. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>REVERSED-CLIENT-ID-PENDIENTE</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
