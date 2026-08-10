@@ -628,6 +628,17 @@
         }
       }
     },
+    "Continuar con correo electrónico": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue with email"
+          }
+        }
+      }
+    },
     "Continuar con email": {
       "extractionState": "manual",
       "localizations": {
@@ -635,6 +646,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Continue with email"
+          }
+        }
+      }
+    },
+    "Contraseña": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Password"
+          }
+        }
+      }
+    },
+    "Correo electrónico": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email"
           }
         }
       }
@@ -668,6 +701,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Free run"
+          }
+        }
+      }
+    },
+    "Crear cuenta": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create account"
           }
         }
       }
@@ -778,6 +822,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Decide later"
+          }
+        }
+      }
+    },
+    "Demasiados intentos. Esperá unos minutos y probá de nuevo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many attempts. Wait a few minutes and try again."
           }
         }
       }
@@ -991,6 +1046,28 @@
         }
       }
     },
+    "Email": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email"
+          }
+        }
+      }
+    },
+    "Email o contraseña incorrectos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wrong email or password."
+          }
+        }
+      }
+    },
     "Empezar": {
       "extractionState": "manual",
       "localizations": {
@@ -1086,6 +1163,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "That day already has “%@”. Both can coexist, but you'll have a double workout."
+          }
+        }
+      }
+    },
+    "Ese email no parece válido.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That email doesn't look valid."
+          }
+        }
+      }
+    },
+    "Ese email ya entra con otro proveedor (Apple o Google). Usá ese botón.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That email already signs in with another provider (Apple or Google). Use that button."
+          }
+        }
+      }
+    },
+    "Ese email ya tiene una cuenta. Probá iniciar sesión (o recuperar la contraseña).": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That email already has an account. Try signing in (or resetting the password)."
           }
         }
       }
@@ -1343,6 +1453,17 @@
         }
       }
     },
+    "Google no devolvió una credencial válida.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google didn't return a valid credential."
+          }
+        }
+      }
+    },
     "Guardar": {
       "extractionState": "manual",
       "localizations": {
@@ -1596,6 +1717,17 @@
         }
       }
     },
+    "La contraseña es muy corta: usá al menos 8 caracteres.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That password is too short: use at least 8 characters."
+          }
+        }
+      }
+    },
     "La fecha de tu carrera ya pasó — actualizala cuando quieras": {
       "extractionState": "manual",
       "localizations": {
@@ -1629,6 +1761,17 @@
         }
       }
     },
+    "Las contraseñas no coinciden.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The passwords don't match."
+          }
+        }
+      }
+    },
     "Listo": {
       "extractionState": "manual",
       "localizations": {
@@ -1636,6 +1779,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Done"
+          }
+        }
+      }
+    },
+    "Listo: te mandamos un email para restablecer la contraseña. Revisá también spam.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done: we sent you an email to reset your password. Check spam too."
           }
         }
       }
@@ -1838,6 +1992,17 @@
         }
       }
     },
+    "Mínimo 8 caracteres. La contraseña vive en Firebase Authentication — Maratonia nunca la guarda.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At least 8 characters. Your password lives in Firebase Authentication — Maratonia never stores it."
+          }
+        }
+      }
+    },
     "Música": {
       "extractionState": "manual",
       "localizations": {
@@ -1882,6 +2047,17 @@
         }
       }
     },
+    "No hay ninguna cuenta con ese email.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There's no account with that email."
+          }
+        }
+      }
+    },
     "No pude leer la credencial de Apple.": {
       "extractionState": "manual",
       "localizations": {
@@ -1904,6 +2080,17 @@
         }
       }
     },
+    "No se pudo completar. Probá de nuevo en un rato.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't complete that. Try again in a bit."
+          }
+        }
+      }
+    },
     "No se pudo iniciar sesión con Apple. Probá de nuevo.": {
       "extractionState": "manual",
       "localizations": {
@@ -1911,6 +2098,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't sign in with Apple. Please try again."
+          }
+        }
+      }
+    },
+    "No se pudo iniciar sesión con Google. Probá de nuevo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't sign in with Google. Please try again."
           }
         }
       }
@@ -1966,6 +2164,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Goal"
+          }
+        }
+      }
+    },
+    "Olvidé mi contraseña": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I forgot my password"
           }
         }
       }
@@ -2245,6 +2454,28 @@
         }
       }
     },
+    "Por seguridad, Firebase pide que vuelvas a iniciar sesión antes de eliminar la cuenta. Iniciá sesión y reintentá.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For security, Firebase requires a recent sign-in before deleting the account. Sign in and retry."
+          }
+        }
+      }
+    },
+    "Por seguridad, volvé a iniciar sesión y reintentá.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For security, sign in again and retry."
+          }
+        }
+      }
+    },
     "Por tiempo, en orden": {
       "extractionState": "manual",
       "localizations": {
@@ -2476,6 +2707,17 @@
         }
       }
     },
+    "Repetir contraseña": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repeat password"
+          }
+        }
+      }
+    },
     "Reprogramado (era el %@)": {
       "extractionState": "manual",
       "localizations": {
@@ -2527,6 +2769,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your account and Maratonia's iCloud backup are deleted. Your workouts saved in Apple Health are NOT touched: they remain yours and are managed from the Health app."
+          }
+        }
+      }
+    },
+    "Se borran tu identidad (incluida la de Firebase) y el respaldo de Maratonia en iCloud. Tus entrenamientos guardados en Apple Health NO se tocan: siguen siendo tuyos y se administran desde la app Salud.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This deletes your identity (including the Firebase one) and Maratonia's backup in iCloud. Your workouts saved in Apple Health are NOT touched: they remain yours and are managed from the Health app."
           }
         }
       }
@@ -2674,6 +2927,17 @@
         }
       }
     },
+    "Sin conexión: revisá internet e intentá de nuevo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No connection: check your internet and try again."
+          }
+        }
+      }
+    },
     "Sin fecha — se avanza por progresión": {
       "extractionState": "manual",
       "localizations": {
@@ -2791,6 +3055,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "YOUR PROPOSED PLAN"
+          }
+        }
+      }
+    },
+    "Te mandamos un email de Firebase para restablecerla.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We sent you a Firebase email to reset it."
           }
         }
       }
@@ -3242,6 +3517,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "No longer in the plan"
+          }
+        }
+      }
+    },
+    "Ya tengo cuenta": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I already have an account"
           }
         }
       }
