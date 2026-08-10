@@ -1413,3 +1413,207 @@ final class IdentidadTests: XCTestCase {
         XCTAssertNil(cargado.usuarioID)
     }
 }
+
+// MARK: - RC1: motor de planes (§42)
+
+final class MotorPlanesTests: XCTestCase {
+
+    private let hoy = DiaLocal(anio: 2026, mes: 8, dia: 10)   // lunes
+
+    private func pedido(_ objetivo: ObjetivoDeportivo,
+                        fecha: DiaLocal? = nil,
+                        dias: Int = 3,
+                        referencia: ReferenciaRendimiento? = nil,
+                        aceptaSinBaseline: Bool = false) -> PedidoDePlan {
+        PedidoDePlan(objetivo: objetivo, fechaObjetivo: fecha,
+                     diasPorSemana: dias, referencia: referencia,
+                     aceptaSinBaseline: aceptaSinBaseline, hoy: hoy)
+    }
+
+    private func propuesta(_ resultado: ResultadoPlanificacion) -> PropuestaPlan? {
+        if case .propuesta(let p) = resultado { return p }
+        return nil
+    }
+
+    func testObjetivo5KGeneraPropuestaCompleta() throws {
+        let resultado = MotorPlanificacion.proponer(pedido(.primeros5K))
+        let plan = try XCTUnwrap(propuesta(resultado))
+        XCTAssertEqual(plan.semanas, 6)
+        XCTAssertEqual(plan.sesionesPorSemana, 3)
+        XCTAssertEqual(plan.planUsuario.origen,
+                       .catalogo(planBaseID: "primeros-5k@2"))
+        // Calendario sin fechas duplicadas accidentales.
+        let dias = plan.planUsuario.semanas.flatMap(\.programados).compactMap(\.dia)
+        XCTAssertEqual(dias.count, Set(dias).count)
+        XCTAssertEqual(dias.count, 18)   // 6 semanas × 3 (arranca lunes: nada se pierde)
+        // Round-trip del plan generado.
+        let datos = try JSONEncoder().encode(plan.planUsuario)
+        XCTAssertEqual(try JSONDecoder().decode(PlanUsuario.self, from: datos),
+                       plan.planUsuario)
+    }
+
+    func testObjetivo10KGeneraPropuesta() throws {
+        let plan = try XCTUnwrap(propuesta(MotorPlanificacion.proponer(pedido(.diez))))
+        XCTAssertEqual(plan.semanas, 8)
+        XCTAssertEqual(plan.planUsuario.origen, .catalogo(planBaseID: "10k-continuo@2"))
+    }
+
+    func testMediaYMaratonSinContenidoHonesto() {
+        // 21K y 42K: infraestructura lista, contenido NO — el motor lo
+        // dice en vez de inventar workouts.
+        for objetivo in [ObjetivoDeportivo.mediaMaraton, .maraton, .mejorar5K] {
+            guard case .sinContenido(let cual) =
+                MotorPlanificacion.proponer(pedido(objetivo)) else {
+                return XCTFail("\(objetivo) debería ser sinContenido")
+            }
+            XCTAssertEqual(cual, objetivo)
+        }
+    }
+
+    func testBaselinePresenteAusenteYSinReferencia() throws {
+        // Biblioteca sintética: arquetipo CON contenido que recomienda
+        // baseline (los reales con baseline aún no tienen contenido).
+        var arquetipo = BibliotecaArquetipos.v1().first { $0.id == "10k-continuo" }!
+        arquetipo.recomiendaBaseline = true
+        let biblioteca = [arquetipo]
+
+        // Sin referencia → ofrece test (falta baseline).
+        guard case .faltaBaseline = MotorPlanificacion.proponer(
+            pedido(.diez), biblioteca: biblioteca) else {
+            return XCTFail("esperaba faltaBaseline")
+        }
+        // Con referencia → propuesta, y la referencia queda CONSERVADA.
+        let marca = ReferenciaRendimiento(fecha: Date(timeIntervalSince1970: 0),
+                                          fuente: .test5K,
+                                          distanciaMetros: 5000, segundos: 1470)
+        let conMarca = try XCTUnwrap(propuesta(MotorPlanificacion.proponer(
+            pedido(.diez, referencia: marca), biblioteca: biblioteca)))
+        XCTAssertEqual(conMarca.planUsuario.referenciaUsadaID, marca.id)
+        XCTAssertEqual(conMarca.referenciaUsada?.segundos, 1470)
+        // El corredor decide arrancar SIN baseline: el plan existe con
+        // ritmos sin resolver (el test 5K jamás es obligatorio).
+        XCTAssertNotNil(propuesta(MotorPlanificacion.proponer(
+            pedido(.diez, aceptaSinBaseline: true), biblioteca: biblioteca)))
+    }
+
+    func testDisponibilidadRecortaPorRolNoPorFila() throws {
+        // 2 días: cada semana conserva su sesión de MAYOR prioridad de
+        // rol — la LARGA sobrevive siempre que exista.
+        let plan = try XCTUnwrap(propuesta(MotorPlanificacion.proponer(
+            pedido(.diez, dias: 2))))
+        XCTAssertEqual(plan.sesionesPorSemana, 2)
+        for semana in plan.planUsuario.semanas {
+            XCTAssertEqual(semana.programados.count, 2)
+            XCTAssertTrue(semana.programados.contains {
+                PlanArquetipo.rol(de: $0.definicion.tipo) == .tiradaLarga
+                    || PlanArquetipo.rol(de: $0.definicion.tipo) == .carrera
+            }, "la larga no puede recortarse con 2 días")
+        }
+        // 5 días con arquetipo de máximo 3: usa 3 y lo dice.
+        let cinco = try XCTUnwrap(propuesta(MotorPlanificacion.proponer(
+            pedido(.diez, dias: 5))))
+        XCTAssertEqual(cinco.sesionesPorSemana, 3)
+        XCTAssertEqual(cinco.diasPedidos, 5)
+        // 1 día: por debajo del mínimo del arquetipo.
+        guard case .diasInsuficientes(let minimo) =
+            MotorPlanificacion.proponer(pedido(.diez, dias: 1)) else {
+            return XCTFail("esperaba diasInsuficientes")
+        }
+        XCTAssertEqual(minimo, 2)
+    }
+
+    func testCarreraAlineadaAlFinalExacto() throws {
+        // Carrera el sábado 19/9/2026: 6 semanas exactas desde este
+        // lunes. La última sesión cae EL DÍA de la carrera y no hay
+        // nada después.
+        let carrera = DiaLocal(anio: 2026, mes: 9, dia: 19)
+        let plan = try XCTUnwrap(propuesta(MotorPlanificacion.proponer(
+            pedido(.primeros5K, fecha: carrera))))
+        let dias = plan.planUsuario.semanas.flatMap(\.programados).compactMap(\.dia)
+        XCTAssertEqual(dias.max(), carrera)
+        XCTAssertFalse(dias.contains { carrera < $0 })
+        XCTAssertEqual(plan.fechaCarrera, carrera)
+        // El plan arranca en la semana de HOY (6 semanas justas).
+        XCTAssertEqual(plan.fechaInicio.lunesDeLaSemana(), hoy)
+    }
+
+    func testCarreraLejanaArrancaEnElFuturoSinEstirar() throws {
+        // Carrera en 10 semanas con plan de 6: el plan NO se estira —
+        // arranca más adelante para terminar en la carrera.
+        let carrera = DiaLocal(anio: 2026, mes: 10, dia: 17)
+        let plan = try XCTUnwrap(propuesta(MotorPlanificacion.proponer(
+            pedido(.primeros5K, fecha: carrera))))
+        XCTAssertEqual(plan.semanas, 6)
+        XCTAssertTrue(hoy < plan.fechaInicio)
+        let dias = plan.planUsuario.semanas.flatMap(\.programados).compactMap(\.dia)
+        XCTAssertEqual(dias.max(), carrera)
+    }
+
+    func testTiempoInsuficienteNoComprime() {
+        // "10K en 2 semanas": jamás un plan peligroso comprimido.
+        let carrera = hoy.sumando(dias: 13)
+        guard case .tiempoInsuficiente(let disponibles, let minimas) =
+            MotorPlanificacion.proponer(pedido(.diez, fecha: carrera)) else {
+            return XCTFail("esperaba tiempoInsuficiente")
+        }
+        XCTAssertEqual(minimas, 8)
+        XCTAssertLessThan(disponibles, minimas)
+    }
+
+    func testSemanaParcialInicial() throws {
+        // Hoy jueves, sin carrera: los días ya pasados de la primera
+        // semana no se programan; el resto queda intacto.
+        let jueves = DiaLocal(anio: 2026, mes: 8, dia: 13)
+        var pedidoJueves = pedido(.primeros5K)
+        pedidoJueves.hoy = jueves
+        let plan = try XCTUnwrap(propuesta(MotorPlanificacion.proponer(pedidoJueves)))
+        let dias = plan.planUsuario.semanas.flatMap(\.programados).compactMap(\.dia)
+        XCTAssertFalse(dias.contains { $0 < jueves })
+        XCTAssertEqual(plan.planUsuario.semanas.first?.programados.count, 1)  // solo el viernes
+        XCTAssertEqual(plan.planUsuario.semanas.count, 6)
+    }
+
+    func testActualizarArquetipoNoTocaPlanAdoptado() throws {
+        var almacen = AlmacenV2()
+        almacen.activado = true
+        let plan = try XCTUnwrap(propuesta(MotorPlanificacion.proponer(pedido(.primeros5K))))
+        almacen.adoptarPlan(plan.planUsuario)
+        let snapshot = almacen.planActivo
+
+        // "Sale la versión 3 del arquetipo": la biblioteca cambia, el
+        // plan activo es un snapshot por valor — idéntico.
+        var bibliotecaNueva = BibliotecaArquetipos.v1()
+        bibliotecaNueva[0].version = 3
+        _ = MotorPlanificacion.proponer(pedido(.primeros5K), biblioteca: bibliotecaNueva)
+        XCTAssertEqual(almacen.planActivo, snapshot)
+        if case .catalogo(let id) = snapshot!.origen {
+            XCTAssertEqual(id, "primeros-5k@2")   // la procedencia no se reescribe
+        }
+    }
+
+    func testValidadorDeCoach() {
+        var almacen = AlmacenV2()
+        almacen.activado = true
+        let programado = EntrenamientoProgramado(
+            definicion: DefinicionEntrenamiento(tipo: .facil, nombre: "R", segmentos: []),
+            dia: hoy.sumando(dias: 2))
+        almacen.planActivo = PlanUsuario(nombre: "P", origen: .personalizado,
+                                         fechaAdopcion: Date(timeIntervalSince1970: 0),
+                                         semanas: [SemanaPlan(numero: 1, programados: [programado])])
+        // Reprogramar hacia adelante: permitido.
+        XCTAssertTrue(ValidadorDeCoach.validar(
+            .reprogramar(programadoID: programado.id, a: hoy.sumando(dias: 4)),
+            en: almacen, hoy: hoy).permitido)
+        // Hacia el pasado: rechazado.
+        XCTAssertFalse(ValidadorDeCoach.validar(
+            .reprogramar(programadoID: programado.id, a: hoy.sumando(dias: -1)),
+            en: almacen, hoy: hoy).permitido)
+        // Ajustar volumen sin metodología: rechazado SIEMPRE.
+        XCTAssertFalse(ValidadorDeCoach.validar(
+            .ajustarVolumenSemana(numero: 1, factor: 1.4),
+            en: almacen, hoy: hoy).permitido)
+        // Omitir inexistente: rechazado.
+        XCTAssertFalse(ValidadorDeCoach.validar(
+            .omitir(programadoID: UUID()), en: almacen, hoy: hoy).permitido)
+    }
+}
