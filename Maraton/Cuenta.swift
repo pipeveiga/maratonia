@@ -85,7 +85,7 @@ final class CuentaStore: ObservableObject {
             return
         default:
             // Que se sepa: antes el respaldo se descartaba mudo.
-            mensaje = "El plan no se está respaldando: no hay sesión de iCloud activa."
+            mensaje = String(localized: "El plan no se está respaldando: no hay sesión de iCloud activa.")
             return
         }
         guard let datos = try? JSONEncoder().encode(plan),
@@ -103,7 +103,7 @@ final class CuentaStore: ObservableObject {
                     self?.ultimoRespaldo = Date()
                     self?.mensaje = nil
                 case .failure(let error):
-                    self?.mensaje = "Respaldo: \(error.localizedDescription)"
+                    self?.mensaje = String(localized: "Respaldo: \(error.localizedDescription)")
                 }
             }
         }
@@ -117,7 +117,7 @@ final class CuentaStore: ObservableObject {
             DispatchQueue.main.async {
                 // "No existe" también es éxito: no había nada que borrar.
                 if let error, (error as? CKError)?.code != .unknownItem {
-                    self?.mensaje = "No pude borrar el respaldo de iCloud: \(error.localizedDescription)"
+                    self?.mensaje = String(localized: "No pude borrar el respaldo de iCloud: \(error.localizedDescription)")
                 }
             }
         }
@@ -138,7 +138,7 @@ final class CuentaStore: ObservableObject {
                       let plan = try? JSONDecoder().decode(Plan.self, from: datos) else {
                     // El respaldo EXISTE pero no se entiende: decirlo tal
                     // cual, no "no hay respaldo" (mentira desesperante).
-                    self?.mensaje = "Hay un respaldo pero no lo puedo leer con esta versión de la app. Actualizá Maratonia e intentá de nuevo."
+                    self?.mensaje = String(localized: "Hay un respaldo pero no lo puedo leer con esta versión de la app. Actualizá Maratonia e intentá de nuevo.")
                     alTerminar(nil)
                     return
                 }

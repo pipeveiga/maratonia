@@ -487,10 +487,8 @@ final class ProgresoTramosTests: XCTestCase {
                        String(localized: "1 kilómetro"))
         XCTAssertEqual(metaParaHablar(Tramo(nombre: "D", kilometros: 7.5)),
                        String(localized: "\("7.5") kilómetros"))
-        // Tramo.descripcion arma "libre" con un literal (la UI usa
-        // DV2.textoRitmo, que sí localiza): literal también acá.
         XCTAssertEqual(Tramo(nombre: "T", kilometros: 0, duracionSegundos: 120).descripcion,
-                       "2 min libre")
+                       String(localized: "\("2 min") libre"))
     }
 }
 

@@ -254,10 +254,9 @@ final class EstructuraYMetadataTests: XCTestCase {
         // Un entrenamiento mixto informa AMBAS medidas (Fase D): la
         // distancia y la parte por tiempo. La expectativa se arma con
         // los mismos helpers para no depender del idioma del runner.
-        // OJO: resumenEstructura arma "segmentos" con un literal en
-        // español (no pasa por el catálogo) — por eso acá va literal.
-        // Hueco de localización conocido, anotado en el informe.
-        XCTAssertEqual(definicion.resumenEstructura, "7 km + 2 min · 3 segmentos")
+        // Un entrenamiento mixto informa AMBAS medidas (Fase D).
+        XCTAssertEqual(definicion.resumenEstructura,
+                       "7 km + 2 min · " + String(localized: "\(3) segmentos"))
     }
 
     // Puente al motor: absoluto conserva ritmos, libre y simbólico van
@@ -298,11 +297,13 @@ final class EstructuraYMetadataTests: XCTestCase {
             Segmento(nombre: "A", distanciaKm: 6),
             Segmento(nombre: "B", duracionSegundos: 720),
         ])
-        XCTAssertEqual(mixto.resumenEstructura, "6 km + 12 min · 2 segmentos")
+        XCTAssertEqual(mixto.resumenEstructura,
+                       "6 km + 12 min · " + String(localized: "\(2) segmentos"))
         let soloTiempo = DefinicionEntrenamiento(tipo: .recuperacion, nombre: "Trote", segmentos: [
             Segmento(nombre: "A", duracionSegundos: 1800),
         ])
-        XCTAssertEqual(soloTiempo.resumenEstructura, "30 min · 1 segmento")
+        XCTAssertEqual(soloTiempo.resumenEstructura,
+                       "30 min · " + String(localized: "1 segmento"))
         XCTAssertNil(soloTiempo.distanciaTotalKm)
         XCTAssertEqual(soloTiempo.duracionPorTiempoSegundos, 1800)
     }

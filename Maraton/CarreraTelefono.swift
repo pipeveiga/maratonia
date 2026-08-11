@@ -268,7 +268,7 @@ final class CarreraCelu: NSObject, ObservableObject {
                 try sesion.setCategory(.playback, mode: .default, options: [])
                 try sesion.setActive(true)
             } catch {
-                mensajeError = "No pude activar el audio: \(error.localizedDescription)"
+                mensajeError = String(localized: "No pude activar el audio: \(error.localizedDescription)")
             }
             reproducirPistaActual()
         }
@@ -289,7 +289,7 @@ final class CarreraCelu: NSObject, ObservableObject {
             // enciende el GPS cuando el usuario acepta.
             ubicaciones.requestWhenInUseAuthorization()
         case .denied, .restricted:
-            mensajeError = "Ubicación negada: sin distancia, ritmo ni mapa. Activala en Ajustes → Privacidad → Localización → Maratonia."
+            mensajeError = String(localized: "Ubicación negada: sin distancia, ritmo ni mapa. Activala en Ajustes → Privacidad → Localización → Maratonia.")
         default:
             break
         }
@@ -314,7 +314,7 @@ final class CarreraCelu: NSObject, ObservableObject {
                 // workouts está negado, avisar ya y no armar el builder —
                 // así el resumen dice la verdad ("terminada", no "guardada").
                 guard self.healthStore.authorizationStatus(for: .workoutType()) != .sharingDenied else {
-                    self.mensajeError = "Salud tiene negado el permiso de guardar entrenamientos: la carrera NO se va a guardar. Activalo en Salud → Compartir → Apps → Maratonia."
+                    self.mensajeError = String(localized: "Salud tiene negado el permiso de guardar entrenamientos: la carrera NO se va a guardar. Activalo en Salud → Compartir → Apps → Maratonia.")
                     return
                 }
                 let configuracion = HKWorkoutConfiguration()
@@ -550,7 +550,7 @@ final class CarreraCelu: NSObject, ObservableObject {
                 nuevo.play()
             }
         } catch {
-            mensajeError = "No pude reproducir \(nombre)."
+            mensajeError = String(localized: "No pude reproducir \(nombre).")
         }
     }
 
@@ -691,7 +691,7 @@ final class CarreraCelu: NSObject, ObservableObject {
                         // otra carrera andando: una corrida perdida no
                         // puede ser invisible)…
                         if let error = errorFinal ?? errorColeccion {
-                            self?.mensajeError = "La carrera NO se pudo guardar en Salud: \(error.localizedDescription)"
+                            self?.mensajeError = String(localized: "La carrera NO se pudo guardar en Salud: \(error.localizedDescription)")
                         }
                         // …pero el estado solo se toca si seguimos en la
                         // MISMA carrera: este completion puede llegar
@@ -716,7 +716,7 @@ final class CarreraCelu: NSObject, ObservableObject {
                     // Se puede permitir "Entrenamientos" y negar
                     // "Distancia": el workout se guardaba con 0 km mudo.
                     DispatchQueue.main.async {
-                        self?.mensajeError = "Salud rechazó la distancia (revisá el permiso «Distancia» en Salud → Apps → Maratonia): \(errorMuestra.localizedDescription)"
+                        self?.mensajeError = String(localized: "Salud rechazó la distancia (revisá el permiso «Distancia» en Salud → Apps → Maratonia): \(errorMuestra.localizedDescription)")
                     }
                 }
                 cerrar()
@@ -840,7 +840,7 @@ extension CarreraCelu: CLLocationManagerDelegate {
         case .authorizedWhenInUse, .authorizedAlways:
             manager.startUpdatingLocation()
         case .denied, .restricted:
-            mensajeError = "Ubicación negada: sin distancia, ritmo ni mapa. Activala en Ajustes → Privacidad → Localización → Maratonia."
+            mensajeError = String(localized: "Ubicación negada: sin distancia, ritmo ni mapa. Activala en Ajustes → Privacidad → Localización → Maratonia.")
         default:
             break
         }
@@ -848,7 +848,7 @@ extension CarreraCelu: CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         if let clError = error as? CLError, clError.code == .denied {
-            mensajeError = "Ubicación negada: sin distancia, ritmo ni mapa. Activala en Ajustes → Privacidad → Localización → Maratonia."
+            mensajeError = String(localized: "Ubicación negada: sin distancia, ritmo ni mapa. Activala en Ajustes → Privacidad → Localización → Maratonia.")
         }
     }
 }

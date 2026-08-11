@@ -137,7 +137,9 @@ extension DefinicionEntrenamiento {
         }
         var partes: [String] = []
         if !medidas.isEmpty { partes.append(medidas.joined(separator: " + ")) }
-        partes.append(segmentos.count == 1 ? "1 segmento" : "\(segmentos.count) segmentos")
+        partes.append(segmentos.count == 1
+                      ? String(localized: "1 segmento")
+                      : String(localized: "\(segmentos.count) segmentos"))
         return partes.joined(separator: " · ")
     }
 

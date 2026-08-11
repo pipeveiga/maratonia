@@ -34,6 +34,17 @@
         }
       }
     },
+    "%@ libre": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ open"
+          }
+        }
+      }
+    },
     "%lld avisos": {
       "extractionState": "manual",
       "localizations": {
@@ -1354,6 +1365,17 @@
         }
       }
     },
+    "El plan no se está respaldando: no hay sesión de iCloud activa.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your plan isn't being backed up: no active iCloud session."
+          }
+        }
+      }
+    },
     "El plan se archiva — no se borra nada: tus carreras, historial y tramos personalizados quedan intactos. La app pasa a modo libre y podés adoptar otro plan cuando quieras.": {
       "extractionState": "manual",
       "localizations": {
@@ -1383,6 +1405,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Email sign-up will be available very soon."
+          }
+        }
+      }
+    },
+    "El ritmo «más rápido» tiene que ser menor que el «más lento». Ej: 3:50 a 4:10.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The “faster” pace must be lower than the “slower” one. E.g.: 3:50 to 4:10."
           }
         }
       }
@@ -1794,6 +1827,17 @@
         }
       }
     },
+    "Falló el envío de un archivo: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A file transfer failed: %@"
+          }
+        }
+      }
+    },
     "Falta 1 semana para tu carrera": {
       "extractionState": "manual",
       "localizations": {
@@ -2036,6 +2080,17 @@
         }
       }
     },
+    "Hay un respaldo pero no lo puedo leer con esta versión de la app. Actualizá Maratonia e intentá de nuevo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There's a backup but this app version can't read it. Update Maratonia and try again."
+          }
+        }
+      }
+    },
     "Horas": {
       "extractionState": "manual",
       "localizations": {
@@ -2245,6 +2300,17 @@
         }
       }
     },
+    "La carrera NO se pudo guardar en Salud: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The run could NOT be saved to Health: %@"
+          }
+        }
+      }
+    },
     "La carrera se guarda en Salud.": {
       "extractionState": "manual",
       "localizations": {
@@ -2252,6 +2318,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "The run is saved to Health."
+          }
+        }
+      }
+    },
+    "La conexión con el reloj no está activa todavía. Probá de nuevo en unos segundos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The watch connection isn't active yet. Try again in a few seconds."
           }
         }
       }
@@ -2652,6 +2729,39 @@
         }
       }
     },
+    "No pude activar el audio: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't start audio: %@"
+          }
+        }
+      }
+    },
+    "No pude borrar el respaldo de iCloud: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't delete the iCloud backup: %@"
+          }
+        }
+      }
+    },
+    "No pude leer Salud: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't read Health: %@"
+          }
+        }
+      }
+    },
     "No pude leer la credencial de Apple.": {
       "extractionState": "manual",
       "localizations": {
@@ -2659,6 +2769,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't read the Apple credential."
+          }
+        }
+      }
+    },
+    "No pude reproducir %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't play %@."
           }
         }
       }
@@ -3466,6 +3587,17 @@
         }
       }
     },
+    "Respaldo: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup: %@"
+          }
+        }
+      }
+    },
     "Restaurar": {
       "extractionState": "manual",
       "localizations": {
@@ -3528,6 +3660,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pace per km"
+          }
+        }
+      }
+    },
+    "Salud no está disponible en este dispositivo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health isn't available on this device."
+          }
+        }
+      }
+    },
+    "Salud rechazó la distancia (revisá el permiso «Distancia» en Salud → Apps → Maratonia): %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health rejected the distance (check the “Distance” permission in Health → Apps → Maratonia): %@"
+          }
+        }
+      }
+    },
+    "Salud tiene negado el permiso de guardar entrenamientos: la carrera NO se va a guardar. Activalo en Salud → Compartir → Apps → Maratonia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health has workout-saving permission denied: the run will NOT be saved. Enable it in Health → Sharing → Apps → Maratonia."
+          }
+        }
+      }
+    },
+    "Salud tiene negado el permiso de guardar entrenamientos: la carrera NO se va a guardar. Activalo en el iPhone: Salud → Compartir → Apps → Maratonia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health has workout-saving permission denied: the run will NOT be saved. Enable it on the iPhone: Health → Sharing → Apps → Maratonia."
           }
         }
       }
@@ -3983,6 +4159,17 @@
         }
       }
     },
+    "Todavía no hay carreras. Corré con «Registrar carrera» activado y van a aparecer acá solas (la sincronización desde el reloj tarda unos minutos — tirá hacia abajo para actualizar). Si corriste y no aparecen, revisá los permisos en Salud → Compartir → Apps → Maratonia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No runs yet. Run with “Record run” enabled and they'll show up here on their own (syncing from the watch takes a few minutes — pull down to refresh). If you ran and they don't appear, check permissions in Health → Sharing → Apps → Maratonia."
+          }
+        }
+      }
+    },
     "Todavía no hay planes acá": {
       "extractionState": "manual",
       "localizations": {
@@ -4210,6 +4397,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your workouts live in Apple Health and your backup in your private iCloud. The account is optional."
+          }
+        }
+      }
+    },
+    "Ubicación negada: sin distancia, ritmo ni mapa. Activala en Ajustes → Privacidad → Localización → Maratonia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location denied: no distance, pace or map. Enable it in Settings → Privacy → Location → Maratonia."
           }
         }
       }

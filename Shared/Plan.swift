@@ -64,7 +64,7 @@ struct Tramo: Codable, Equatable, Identifiable, Hashable {
         case let (rapido?, nil):
             return "\(meta) sin pasar de \(formatearRitmo(rapido)) /km"
         default:
-            return "\(meta) libre"
+            return String(localized: "\(meta) libre")
         }
     }
 }
