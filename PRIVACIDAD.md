@@ -67,13 +67,32 @@
   se genera SIEMPRE en el dispositivo con el motor determinístico.
 
 ## Para el formulario App Privacy (App Store Connect)
-- Health & Fitness: SÍ se usa, vinculado al usuario, solo
-  funcionalidad de la app, NO tracking, NO se comparte con terceros.
-- Location: SÍ (ruta del mapa), solo funcionalidad, NO tracking.
-- Contact info (email address): solo si crea cuenta — se recolecta,
-  vinculado a la identidad, propósito App Functionality; no
-  marketing, no tracking.
-- Identifiers (User ID): SÍ si crea cuenta (UID de Firebase +
-  subject IDs de Apple/Google), App Functionality, no tracking.
-- Tracking (ATT): NO. Sin publicidad, sin data brokers, sin SDKs de
-  analytics en este build (FirebaseAuth no es Firebase Analytics).
+
+Apple define **"collect"** como *transmitir el dato fuera del
+dispositivo*. Usar un dato en el dispositivo y dejarlo ahí NO es
+recolectarlo. Con ese criterio, Maratonia declara solo esto:
+
+| Dato | ¿Sale del dispositivo? | ¿Se declara? |
+|---|---|---|
+| Health & Fitness (workouts, FC, distancia) | No — vive en HealthKit | **No** |
+| Location / ruta GPS | No — vive dentro del workout | **No** |
+| Respaldo iCloud (`Plan`) | No — es el iCloud privado del usuario | **No** |
+| Contact Info → **Email Address** | Sí — Firebase Auth, solo si crea cuenta | **Sí** |
+| Identifiers → **User ID** | Sí — UID de Firebase / subject IDs | **Sí** |
+
+Para los dos que sí se declaran: *Linked to the user* = **Sí**,
+*Used for tracking* = **No**, *Purpose* = **App Functionality**
+(nada de marketing, analytics ni personalización de anuncios).
+
+- **Tracking (ATT)**: NO. Sin publicidad, sin data brokers, sin SDKs
+  de analytics en este build (FirebaseAuth no es Firebase Analytics).
+- Si la cuenta es opcional y el usuario nunca la crea, ni siquiera esos
+  dos datos salen. Se declaran igual porque la capacidad existe.
+- **Si el Coach se activa** (backend desplegado), hay que VOLVER a este
+  formulario y agregar *Other Usage Data* → los resúmenes de
+  entrenamiento del DTO viajan al backend propio y a OpenAI como
+  service provider; propósito App Functionality, sin tracking.
+- Declarar de más no es "más seguro": pinta una etiqueta de privacidad
+  peor de la que la app merece, y no arregla nada si algún día la
+  arquitectura cambiara. La regla es que el formulario describa lo que
+  el binario realmente hace.

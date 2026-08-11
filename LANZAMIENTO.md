@@ -10,8 +10,8 @@ Los campos marcados **[VOS]** requieren un dato o una decisión tuya.
 
 ## FASE 0 — Antes de tocar App Store Connect
 
-- [ ] Build 58 compila sin warnings en Xcode (Product → Build)
-- [ ] Los 202 tests en verde (Product → Test)
+- [ ] Build 59 compila sin warnings en Xcode (Product → Build)
+- [ ] Los 211 tests en verde (Product → Test)
 - [ ] Recorrer las 5 pestañas en **español**
 - [ ] Cambiar el iPhone a **inglés** y recorrerlas de nuevo (build 58
       cerró el barrido: no debería quedar nada en español)
@@ -88,19 +88,27 @@ de `APP_STORE.md` (subtítulo, descripción, keywords, promotional).
 
 ## FASE 4 — App Privacy
 
-Responder según `PRIVACIDAD.md`. Resumen de lo que hay que declarar:
+Apple entiende por "recolectar" **transmitir el dato fuera del
+dispositivo**. Usarlo en el teléfono y dejarlo ahí no cuenta.
 
-| Dato | ¿Se recolecta? | Vinculado | Propósito | Tracking |
+Primera pregunta del asistente — *"¿Recolectás datos de esta app?"* →
+**Sí** (por el login). Después marcar únicamente:
+
+| Categoría | Dato | Vinculado | Propósito | Tracking |
 |---|---|---|---|---|
-| Health & Fitness | Sí | Sí | Funcionalidad | No |
-| Ubicación precisa | Sí | Sí | Funcionalidad | No |
-| Email | Solo con cuenta | Sí | Funcionalidad | No |
-| User ID | Solo con cuenta | Sí | Funcionalidad | No |
+| Contact Info | Email Address | Sí | App Functionality | No |
+| Identifiers | User ID | Sí | App Functionality | No |
+
+**NO marcar** Health & Fitness ni Location: los workouts y la ruta GPS
+viven en HealthKit y nunca salen del dispositivo. Tampoco el respaldo
+iCloud, que es el iCloud privado del usuario.
 
 **Tracking (ATT)**: NO. Sin publicidad, sin data brokers, sin analytics.
 
 > Si el Coach NO se activa en V1 (backend sin desplegar), no declares
 > nada de OpenAI: no viaja ningún dato. **[VOS: decidir]**
+> Si algún día se activa, hay que volver acá y agregar
+> *Other Usage Data*.
 
 ---
 
