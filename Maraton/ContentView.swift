@@ -362,7 +362,12 @@ struct PlanTab: View {
     }
 
     /// Tarjeta hero con degradado de marca: el nombre del plan editable
-    private func filaNavegacion(icono: String, color: Color, titulo: String, subtitulo: String) -> some View {
+    /// titulo: literal → LocalizedStringKey (se traduce).
+    /// subtitulo: String YA localizado por quien lo arma (son
+    /// propiedades computadas con String(localized:)).
+    private func filaNavegacion(icono: String, color: Color,
+                                titulo: LocalizedStringKey,
+                                subtitulo: String) -> some View {
         HStack(spacing: 12) {
             IconoAjuste(sistema: icono, color: color)
             VStack(alignment: .leading, spacing: 2) {
@@ -380,10 +385,10 @@ struct PlanTab: View {
     private var subtituloCalendario: String {
         if let deHoy = almacen.almacen.programadoDelDia(hoy) {
             switch deHoy.resolucion {
-            case .pendiente: return "Hoy: \(deHoy.definicion.nombre)"
-            case .cumplido: return "Hoy: \(deHoy.definicion.nombre) — cumplido"
-            case .parcial: return "Hoy: \(deHoy.definicion.nombre) — parcial"
-            case .omitido: return "Hoy: \(deHoy.definicion.nombre) — omitido"
+            case .pendiente: return String(localized: "Hoy: \(deHoy.definicion.nombre)")
+            case .cumplido: return String(localized: "Hoy: \(deHoy.definicion.nombre) — cumplido")
+            case .parcial: return String(localized: "Hoy: \(deHoy.definicion.nombre) — parcial")
+            case .omitido: return String(localized: "Hoy: \(deHoy.definicion.nombre) — omitido")
             }
         }
         let vencidos = almacen.almacen.vencidos(hoy).count
@@ -395,8 +400,8 @@ struct PlanTab: View {
 
     private var subtituloCatalogo: String {
         almacen.almacen.planActivo == nil
-            ? "Elegí un plan de 5K o 10K"
-            : "Cambiar de plan (el actual se archiva)"
+            ? String(localized: "Elegí un plan de 5K o 10K")
+            : String(localized: "Cambiar de plan (el actual se archiva)")
     }
 
     private var subtituloConfiguracion: String {
@@ -404,12 +409,13 @@ struct PlanTab: View {
         if !store.plan.pistas.isEmpty { partes.append(Plurales.pistas(store.plan.pistas.count)) }
         let avisos = store.plan.avisosFijos.count + store.plan.avisosRepetidos.count
             + store.plan.avisosKmActivos.count
-        if avisos > 0 { partes.append("\(avisos) avisos") }
+        if avisos > 0 { partes.append(String(localized: "\(avisos) avisos")) }
         if !store.plan.tramosActivos.isEmpty {
             partes.append(Plurales.tramos(store.plan.tramosActivos.count))
         }
-        return partes.isEmpty ? "Música, avisos por voz y tramos manuales"
-                              : partes.joined(separator: " · ")
+        return partes.isEmpty
+            ? String(localized: "Música, avisos por voz y tramos manuales")
+            : partes.joined(separator: " · ")
     }
 
 }
@@ -486,7 +492,8 @@ struct ConfiguracionEntrenamientoScreen: View {
     }
 
     private func filaConfiguracion(icono: String, color: Color,
-                                   titulo: String, subtitulo: String) -> some View {
+                                   titulo: LocalizedStringKey,
+                                   subtitulo: String) -> some View {
         HStack(spacing: 12) {
             IconoAjuste(sistema: icono, color: color)
             VStack(alignment: .leading, spacing: 2) {
@@ -501,7 +508,7 @@ struct ConfiguracionEntrenamientoScreen: View {
 
     private var subtituloMusica: String {
         store.plan.pistas.isEmpty
-            ? "Importá tus MP3"
+            ? String(localized: "Importá tus MP3")
             : "\(Plurales.pistas(store.plan.pistas.count)) · \(formatearDuracion(store.duracionTotal))"
     }
 
@@ -509,12 +516,14 @@ struct ConfiguracionEntrenamientoScreen: View {
         let total = store.plan.avisosFijos.count
             + store.plan.avisosRepetidos.count
             + store.plan.avisosKmActivos.count
-        return total == 0 ? "«Tomá agua», «comé un gel»…" : "\(total) avisos configurados"
+        return total == 0
+            ? String(localized: "«Tomá agua», «comé un gel»…")
+            : String(localized: "\(total) avisos configurados")
     }
 
     private var subtituloTramos: String {
         store.plan.tramosActivos.isEmpty
-            ? "Armá bloques con objetivo de ritmo"
+            ? String(localized: "Armá bloques con objetivo de ritmo")
             : String(localized: "\(Plurales.tramos(store.plan.tramosActivos.count)) con objetivo")
     }
 }

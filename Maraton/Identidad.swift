@@ -379,8 +379,8 @@ struct EmailAuthView: View {
                         } else {
                             EtiquetaBotonPrimarioV2(
                                 titulo: modo == .crear
-                                    ? String(localized: "Crear cuenta")
-                                    : String(localized: "Iniciar sesión"),
+                                    ? "Crear cuenta"
+                                    : "Iniciar sesión",
                                 icono: "envelope.fill")
                         }
                     }

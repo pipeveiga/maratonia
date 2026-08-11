@@ -325,7 +325,7 @@ struct TarjetaV2<Contenido: View>: View {
 /// no decoración repartida). Blanco sobre azul: contraste AA en ambos
 /// modos.
 struct EtiquetaBotonPrimarioV2: View {
-    var titulo: String
+    var titulo: LocalizedStringKey
     var icono: String = "play.fill"
 
     var body: some View {
@@ -344,10 +344,13 @@ struct EtiquetaBotonPrimarioV2: View {
 
 /// Encabezado de sección fuera de List (para pantallas de tarjetas).
 struct EncabezadoSeccionV2: View {
-    var texto: String
+    var texto: LocalizedStringKey
 
     var body: some View {
-        Text(texto.uppercased())
+        // .uppercased() sobre un String rompía la traducción: el
+        // mayusculeo va como modificador, no sobre el texto.
+        Text(texto)
+            .textCase(.uppercase)
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
             .tracking(0.8)
@@ -356,8 +359,11 @@ struct EncabezadoSeccionV2: View {
 }
 
 /// Métrica compacta: valor protagonista y título chico.
+/// titulo va como LocalizedStringKey: Text(unString) NO traduce —
+/// solo el literal tipado como clave pasa por el catálogo. `valor`
+/// sí es String: son números ya formateados.
 struct MetricaV2: View {
-    var titulo: String
+    var titulo: LocalizedStringKey
     var valor: String
 
     var body: some View {

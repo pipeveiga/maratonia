@@ -34,6 +34,28 @@
         }
       }
     },
+    "%lld avisos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld alerts"
+          }
+        }
+      }
+    },
+    "%lld avisos configurados": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld alerts set up"
+          }
+        }
+      }
+    },
     "%lld de %@ de la semana": {
       "extractionState": "manual",
       "localizations": {
@@ -430,6 +452,17 @@
         }
       }
     },
+    "Armá bloques con objetivo de ritmo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build blocks with a pace target"
+          }
+        }
+      }
+    },
     "Arranque": {
       "extractionState": "manual",
       "localizations": {
@@ -602,6 +635,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Calendar"
+          }
+        }
+      }
+    },
+    "Cambiar de plan (el actual se archiva)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change plan (the current one is archived)"
           }
         }
       }
@@ -1398,6 +1442,17 @@
         }
       }
     },
+    "Elegí un plan de 5K o 10K": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a 5K or 10K plan"
+          }
+        }
+      }
+    },
     "Elevación": {
       "extractionState": "manual",
       "localizations": {
@@ -2010,6 +2065,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "Today: %@"
+          }
+        }
+      }
+    },
+    "Hoy: %@ — cumplido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today: %@ — completed"
+          }
+        }
+      }
+    },
+    "Hoy: %@ — omitido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today: %@ — skipped"
+          }
+        }
+      }
+    },
+    "Hoy: %@ — parcial": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today: %@ — partial"
           }
         }
       }
@@ -4357,6 +4445,17 @@
         }
       }
     },
+    "distancia": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "distance"
+          }
+        }
+      }
+    },
     "entrenamientos hechos": {
       "extractionState": "manual",
       "localizations": {
@@ -4364,6 +4463,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "workouts done"
+          }
+        }
+      }
+    },
+    "estado": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "status"
+          }
+        }
+      }
+    },
+    "estructura": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "structure"
           }
         }
       }
@@ -4408,6 +4529,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "open"
+          }
+        }
+      }
+    },
+    "por tiempo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "by time"
+          }
+        }
+      }
+    },
+    "ritmo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "pace"
           }
         }
       }
@@ -4474,6 +4617,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your race is today!"
+          }
+        }
+      }
+    },
+    "«Tomá agua», «comé un gel»…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“Drink water”, “take a gel”…"
           }
         }
       }

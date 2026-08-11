@@ -507,7 +507,7 @@ struct PropuestaPlanView: View {
                     almacen.almacen.adoptarPlan(propuesta.planUsuario)
                     alTerminar()
                 } label: {
-                    EtiquetaBotonPrimarioV2(titulo: String(localized: "Confirmar plan"),
+                    EtiquetaBotonPrimarioV2(titulo: "Confirmar plan",
                                             icono: "checkmark")
                 }
                 .buttonStyle(.plain)
