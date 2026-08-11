@@ -251,7 +251,13 @@ final class EstructuraYMetadataTests: XCTestCase {
             Segmento(nombre: "Pausa", duracionSegundos: 120),
         ]
         XCTAssertEqual(definicion.distanciaTotalKm, 7)
-        XCTAssertEqual(definicion.resumenEstructura, "7 km · 3 segmentos")
+        // Un entrenamiento mixto informa AMBAS medidas (Fase D): la
+        // distancia y la parte por tiempo. La expectativa se arma con
+        // los mismos helpers para no depender del idioma del runner.
+        // OJO: resumenEstructura arma "segmentos" con un literal en
+        // español (no pasa por el catálogo) — por eso acá va literal.
+        // Hueco de localización conocido, anotado en el informe.
+        XCTAssertEqual(definicion.resumenEstructura, "7 km + 2 min · 3 segmentos")
     }
 
     // Puente al motor: absoluto conserva ritmos, libre y simbólico van
@@ -926,14 +932,16 @@ final class FaseGTests: XCTestCase {
             fecha: Date(), fuente: .marcaManual, distanciaMetros: 0, segundos: 100)))
     }
 
-    func testSinMetodologiaTodoQuedaPendiente() {
-        // REGLA DURA de Fase G: sin fuente pública citable no hay
-        // metodología activa — nada inventa números deportivos.
-        XCTAssertNil(Metodologias.activa)
+    func testMetodologiaActivaResuelveYSinBaselineQuedaPendiente() {
+        // Desde el build 53 hay metodología activa (maratonia@1, con
+        // fuentes citadas en METODOLOGIA.md). La regla dura sigue en
+        // pie por el otro lado: SIN baseline no se inventa nada.
+        XCTAssertNotNil(Metodologias.activa)
         let baseline = PerformanceBaseline(referencia: ReferenciaRendimiento(
             fecha: Date(), fuente: .test5K, distanciaMetros: 5000, segundos: 1500))
-        XCTAssertEqual(Metodologias.resolver(.umbral, baseline: baseline),
-                       .pendiente(.umbral))
+        if case .pendiente = Metodologias.resolver(.umbral, baseline: baseline) {
+            XCTFail("con baseline válido el umbral debe resolverse")
+        }
         XCTAssertEqual(Metodologias.resolver(.facil, baseline: nil), .pendiente(.facil))
     }
 
@@ -1292,17 +1300,17 @@ final class CuentaRegresivaTests: XCTestCase {
         XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 98), hoy: hoy),
                        "Faltan 14 semanas para tu carrera")
         XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 7), hoy: hoy),
-                       "Falta 1 semana para tu carrera")
+                       String(localized: "Falta 1 semana para tu carrera"))
         XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 5), hoy: hoy),
-                       "Faltan 5 días para tu carrera")
+                       String(localized: "Faltan \(5) días para tu carrera"))
         XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 1), hoy: hoy),
-                       "Tu carrera es mañana")
+                       String(localized: "Tu carrera es mañana"))
         XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy, hoy: hoy),
-                       "¡Tu carrera es hoy!")
+                       String(localized: "¡Tu carrera es hoy!"))
         XCTAssertNil(TextosObjetivo.cuentaRegresiva(hasta: nil, hoy: hoy))
         // Fecha pasada: texto NEUTRO, sin reproches.
         XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: -3), hoy: hoy),
-                       "La fecha de tu carrera ya pasó — actualizala cuando quieras")
+                       String(localized: "La fecha de tu carrera ya pasó — actualizala cuando quieras"))
     }
 }
 
@@ -1464,15 +1472,26 @@ final class MotorPlanesTests: XCTestCase {
         XCTAssertEqual(plan.planUsuario.origen, .catalogo(planBaseID: "10k-continuo@2"))
     }
 
-    func testMediaYMaratonSinContenidoHonesto() {
-        // 21K y 42K: infraestructura lista, contenido NO — el motor lo
-        // dice en vez de inventar workouts.
+    func testArquetipoSinContenidoRespondeHonesto() {
+        // 21K/42K/mejorar-5K ya tienen contenido (build 53). La
+        // invariante que importa es otra y sigue viva: un arquetipo SIN
+        // contenido validado hace que el motor lo diga, en vez de
+        // inventar workouts. Se prueba con biblioteca inyectada para no
+        // depender del estado del catálogo.
+        let vacio = PlanArquetipo(
+            id: "futuro", version: 1, objetivo: .maraton, nombre: "Futuro",
+            semanasMinimas: 12, semanasRecomendadas: 16,
+            diasMinimos: 3, diasMaximos: 5,
+            recomiendaBaseline: false, contenido: nil)
+        guard case .sinContenido(let cual) =
+            MotorPlanificacion.proponer(pedido(.maraton), biblioteca: [vacio]) else {
+            return XCTFail("sin contenido el motor debe responder sinContenido")
+        }
+        XCTAssertEqual(cual, .maraton)
+        // Y los que SÍ tienen contenido ahora proponen de verdad.
         for objetivo in [ObjetivoDeportivo.mediaMaraton, .maraton, .mejorar5K] {
-            guard case .sinContenido(let cual) =
-                MotorPlanificacion.proponer(pedido(objetivo)) else {
-                return XCTFail("\(objetivo) debería ser sinContenido")
-            }
-            XCTAssertEqual(cual, objetivo)
+            let arquetipo = BibliotecaArquetipos.v1().first { $0.objetivo == objetivo }
+            XCTAssertEqual(arquetipo?.listoParaProponer, true, "\(objetivo) sin contenido")
         }
     }
 

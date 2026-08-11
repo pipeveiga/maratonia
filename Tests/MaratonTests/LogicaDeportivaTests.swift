@@ -476,12 +476,19 @@ final class ProgresoTramosTests: XCTestCase {
         XCTAssertEqual(duracionTexto(45), "45 s")
         XCTAssertEqual(duracionTexto(120), "2 min")
         XCTAssertEqual(duracionTexto(90), "1:30 min")
+        // Estos textos SE LOCALIZAN: la expectativa se arma con la
+        // misma clave para que el test valide la rama y el número
+        // elegidos, no el idioma con el que corra el runner.
         XCTAssertEqual(metaParaHablar(Tramo(nombre: "T", kilometros: 0, duracionSegundos: 150)),
-                       "2 minutos y 30 segundos")
+                       String(localized: "\(2) minutos y \(30) segundos"))
         XCTAssertEqual(metaParaHablar(Tramo(nombre: "T", kilometros: 0, duracionSegundos: 60)),
-                       "1 minuto")
-        XCTAssertEqual(metaParaHablar(Tramo(nombre: "D", kilometros: 1)), "1 kilómetro")
-        XCTAssertEqual(metaParaHablar(Tramo(nombre: "D", kilometros: 7.5)), "7.5 kilómetros")
+                       String(localized: "1 minuto"))
+        XCTAssertEqual(metaParaHablar(Tramo(nombre: "D", kilometros: 1)),
+                       String(localized: "1 kilómetro"))
+        XCTAssertEqual(metaParaHablar(Tramo(nombre: "D", kilometros: 7.5)),
+                       String(localized: "\("7.5") kilómetros"))
+        // Tramo.descripcion arma "libre" con un literal (la UI usa
+        // DV2.textoRitmo, que sí localiza): literal también acá.
         XCTAssertEqual(Tramo(nombre: "T", kilometros: 0, duracionSegundos: 120).descripcion,
                        "2 min libre")
     }
