@@ -536,3 +536,151 @@ extension Plan {
             .map { AvisoProgramado(minuto: $0.minuto, texto: $0.texto) }
     }
 }
+
+// MARK: - Estimador de ritmo EN VIVO (build 54)
+
+/// CAUSA RAÍZ del ritmo inestable (prueba física de 11 km): el ritmo
+/// actual se calculaba sobre la distancia ACUMULADA del builder de
+/// HealthKit muestreada 1 vez/segundo en una ventana fija de 45 s.
+/// HealthKit entrega la distancia EN RÁFAGAS (escalera): entre ráfagas
+/// la distancia se congela y al llegar el lote salta de golpe. Con la
+/// ventana fija eso produce (a) oscilación 6:50↔6:20 por efecto borde
+/// (los escalones entran y salen de la ventana) y (b) el 2:00/km: tras
+/// un congelamiento largo, el lote de recuperación entero cae dentro
+/// de la ventana y el delta gigante se divide por 45 s.
+///
+/// Este estimador es determinístico y NO depende de CLLocation:
+/// procesa (tiempo, distancia acumulada) y publica un ritmo estable.
+/// Claves del diseño:
+/// - Un tick SIN avance no es información de ritmo (es HealthKit
+///   respirando): no ensucia la ventana.
+/// - Cada avance se pondera por el tiempo REAL desde el último avance:
+///   un lote de recuperación tras N s congelados se convierte solo en
+///   su promedio verdadero (150 m tras 60 s = 6:40/km, no 2:00/km).
+/// - Ventana móvil de avances + EMA moderada: estable en ritmo
+///   constante, reactiva en pocos segundos ante cambios reales.
+/// - Sin datos fiables: stale breve conservando el último valor y
+///   después nil (--:-- honesto), jamás un ritmo inventado.
+struct EstimadorRitmoLive {
+
+    /// Parámetros CENTRALIZADOS (nada de números mágicos sueltos).
+    struct Parametros {
+        /// Ventana de avances sobre la que se promedia (equilibrio
+        /// estabilidad/reactividad; 30 s no arruina intervalos).
+        var ventanaSegundos: TimeInterval = 30
+        /// Mínimos para publicar (warm-up): evita ritmos de 3 metros.
+        var minimoSegundos: TimeInterval = 12
+        var minimoMetros: Double = 15
+        /// Suavizado exponencial del valor publicado (0.35 ≈ el 63 %
+        /// del cambio real visible en ~2-3 actualizaciones).
+        var alfa: Double = 0.35
+        /// Velocidad humana máxima aceptada como muestra coherente
+        /// (12.5 m/s ≈ 1:20/km: sanity extremo, ÚLTIMA defensa — el
+        /// mecanismo principal es la ponderación temporal).
+        var velocidadMaxima: Double = 12.5
+        /// Sin avances: cuánto se conserva el último valor (stale) y
+        /// cuándo se pasa a nil (--:--).
+        var staleSegundos: TimeInterval = 10
+        var caducidadSegundos: TimeInterval = 20
+    }
+
+    var parametros = Parametros()
+
+    private var avances: [(t: TimeInterval, dt: TimeInterval, dd: Double)] = []
+    private var ultimoTiempo: TimeInterval?
+    private var ultimaDistancia: Double?
+    private var ultimoTiempoConAvance: TimeInterval?
+    private var suavizado: Double?
+
+    /// El ritmo publicado (seg/km). nil = sin dato fiable (--:--).
+    private(set) var ritmoSegKm: Int?
+    /// false = el valor publicado quedó viejo (sin avances recientes):
+    /// se muestra pero NO debe alimentar correcciones del coach.
+    private(set) var esConfiable = false
+
+    mutating func reiniciar() {
+        avances = []
+        ultimoTiempo = nil
+        ultimaDistancia = nil
+        ultimoTiempoConAvance = nil
+        suavizado = nil
+        ritmoSegKm = nil
+        esConfiable = false
+    }
+
+    /// Procesa un tick (1/s aprox) con la distancia ACUMULADA del
+    /// builder. Devuelve el ritmo publicado.
+    @discardableResult
+    mutating func procesar(tiempo: TimeInterval, distanciaAcumulada: Double) -> Int? {
+        // Timestamps duplicados o hacia atrás: tick inválido, ignorar.
+        if let previo = ultimoTiempo, tiempo <= previo {
+            return ritmoSegKm
+        }
+        guard let distanciaPrevia = ultimaDistancia else {
+            // Primera muestra: solo siembra.
+            ultimoTiempo = tiempo
+            ultimaDistancia = distanciaAcumulada
+            ultimoTiempoConAvance = tiempo
+            return nil
+        }
+        ultimoTiempo = tiempo
+
+        let delta = distanciaAcumulada - distanciaPrevia
+        if delta < 0 {
+            // Distancia acumulada retrocedió (reinicio externo): estado
+            // seguro, re-sembrar.
+            reiniciar()
+            ultimoTiempo = tiempo
+            ultimaDistancia = distanciaAcumulada
+            ultimoTiempoConAvance = tiempo
+            return nil
+        }
+
+        if delta == 0 {
+            // Tick sin avance: HealthKit entre ráfagas o corredor
+            // detenido. No es muestra de ritmo. Solo se degrada el
+            // estado publicado con el tiempo.
+            let sinAvance = tiempo - (ultimoTiempoConAvance ?? tiempo)
+            if sinAvance > parametros.caducidadSegundos {
+                ritmoSegKm = nil
+                esConfiable = false
+                suavizado = nil
+                avances = []
+            } else if sinAvance > parametros.staleSegundos {
+                esConfiable = false   // se muestra, pero no acciona
+            }
+            return ritmoSegKm
+        }
+
+        // Avance real: ponderado por el tiempo desde el ÚLTIMO avance
+        // (la corrección clave: un lote de recuperación se promedia
+        // sobre todo el período congelado).
+        let dtEfectivo = tiempo - (ultimoTiempoConAvance ?? tiempo)
+        ultimaDistancia = distanciaAcumulada
+        guard dtEfectivo > 0 else { return ritmoSegKm }
+        let velocidad = delta / dtEfectivo
+        // Sanity extremo (última defensa, no mecanismo principal):
+        // una velocidad imposible es una muestra espacial incoherente.
+        guard velocidad <= parametros.velocidadMaxima else {
+            return ritmoSegKm
+        }
+        ultimoTiempoConAvance = tiempo
+
+        avances.append((t: tiempo, dt: dtEfectivo, dd: delta))
+        avances.removeAll { tiempo - $0.t > parametros.ventanaSegundos }
+
+        let segundos = avances.reduce(0) { $0 + $1.dt }
+        let metros = avances.reduce(0) { $0 + $1.dd }
+        guard segundos >= parametros.minimoSegundos,
+              metros >= parametros.minimoMetros else {
+            return ritmoSegKm
+        }
+
+        let crudo = segundos / metros * 1000
+        let nuevo = suavizado.map { parametros.alfa * crudo + (1 - parametros.alfa) * $0 } ?? crudo
+        suavizado = nuevo
+        ritmoSegKm = Int(nuevo.rounded())
+        esConfiable = true
+        return ritmoSegKm
+    }
+}

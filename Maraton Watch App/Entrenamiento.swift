@@ -119,6 +119,23 @@ final class Entrenamiento: NSObject, ObservableObject {
     private var muestras: [(fecha: Date, metros: Double)] = []
     private var timerMuestras: Timer?
 
+    /// Estimador de ritmo en vivo (build 54): unidad pura de Shared,
+    /// alimentada con el tiempo activo del builder (descuenta pausas)
+    /// y la distancia acumulada.
+    private var estimadorRitmo = EstimadorRitmoLive()
+
+    #if DEBUG
+    /// Traza SOLO DEBUG para la próxima prueba física: una línea por
+    /// tick en la consola de Xcode (sin coordenadas GPS, sin archivos,
+    /// sin nada en Release).
+    private func trazaRitmo(ahora: Date) {
+        print(String(format: "[ritmo] t=%.0f d=%.1f ritmo=%@ confiable=%d",
+                     builder?.elapsedTime ?? 0, distanciaMetros,
+                     ritmoActualSegKm.map(String.init) ?? "--",
+                     estimadorRitmo.esConfiable ? 1 : 0))
+    }
+    #endif
+
     override private init() {
         super.init()
         ubicaciones.delegate = self
@@ -322,6 +339,7 @@ final class Entrenamiento: NSObject, ObservableObject {
             ubicacionPausa = nil
             ubicacionesRecientes = []
             supervisorReanudacion.reiniciar()
+            estimadorRitmo.reiniciar()
             zonaAnunciada = 0
             zonaCandidata = 0
             segundosEnZonaCandidata = 0
@@ -349,6 +367,9 @@ final class Entrenamiento: NSObject, ObservableObject {
         if usaGPS { ubicaciones.stopUpdatingLocation() }
         muestras = []
         ritmoActualSegKm = nil
+        // Estado seguro del estimador: ninguna ventana vieja puede
+        // producir un spike al reanudar (warm-up limpio).
+        estimadorRitmo.reiniciar()
     }
 
     func reanudar() {
@@ -361,6 +382,7 @@ final class Entrenamiento: NSObject, ObservableObject {
         sesion?.resume()
         if usaGPS { ubicaciones.startUpdatingLocation() }
         muestras = []  // arranca limpio: sin ritmo hasta juntar datos nuevos
+        estimadorRitmo.reiniciar()
     }
 
     // MARK: - Auto-pausa (requiere GPS)
@@ -478,14 +500,15 @@ final class Entrenamiento: NSObject, ObservableObject {
 
         avisarZonaSiCorresponde()
 
-        // Ritmo actual: contra la muestra más vieja dentro de ~45 s.
-        if let referencia = muestras.first(where: { ahora.timeIntervalSince($0.fecha) <= 45 }) {
-            let segundos = ahora.timeIntervalSince(referencia.fecha)
-            let metros = distanciaMetros - referencia.metros
-            if segundos >= 20 {
-                ritmoActualSegKm = metros >= 15 ? Int(segundos / metros * 1000) : nil
-            }
-        }
+        // Ritmo actual: estimador robusto (build 54) — inmune a la
+        // distancia en ráfagas de HealthKit que producía el 6:50↔6:20
+        // y el 2:00/km fantasma (ver EstimadorRitmoLive en Shared).
+        ritmoActualSegKm = estimadorRitmo.procesar(
+            tiempo: builder?.elapsedTime ?? ahora.timeIntervalSince1970,
+            distanciaAcumulada: distanciaMetros)
+        #if DEBUG
+        trazaRitmo(ahora: ahora)
+        #endif
 
         // El promedio usa el tiempo del builder, que descuenta las pausas.
         if let builder {
@@ -494,9 +517,13 @@ final class Entrenamiento: NSObject, ObservableObject {
                                                            metrosMinimos: 100)
         }
 
+        // Al coach SOLO le llega ritmo CONFIABLE: un valor stale o en
+        // warm-up jamás genera un "aflojá"/"apurá" falso. Los splits y
+        // avisos por km usan distancia/tiempo reales y no dependen de
+        // esto.
         EntrenadorRitmo.compartido.chequear(
             distanciaMetros: distanciaMetros,
-            ritmoActualSegKm: ritmoActualSegKm,
+            ritmoActualSegKm: estimadorRitmo.esConfiable ? ritmoActualSegKm : nil,
             tiempoActivo: builder?.elapsedTime ?? 0)
     }
 

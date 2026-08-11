@@ -1134,6 +1134,17 @@
         }
       }
     },
+    "Desnivel positivo: +%lld m": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elevation gain: +%lld m"
+          }
+        }
+      }
+    },
     "Disponibilidad": {
       "extractionState": "manual",
       "localizations": {
@@ -1383,6 +1394,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pick a goal and build your plan — or browse the catalog."
+          }
+        }
+      }
+    },
+    "Elevación": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elevation"
           }
         }
       }
@@ -1801,6 +1823,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Frequency"
+          }
+        }
+      }
+    },
+    "Frecuencia cardíaca": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart rate"
+          }
+        }
+      }
+    },
+    "Frecuencia cardíaca durante la sesión": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Heart rate during the session"
           }
         }
       }
@@ -2828,6 +2872,17 @@
         }
       }
     },
+    "Perfil de elevación": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elevation profile"
+          }
+        }
+      }
+    },
     "Personalizado": {
       "extractionState": "manual",
       "localizations": {
@@ -3158,6 +3213,17 @@
         }
       }
     },
+    "Rango: %lld–%lld ppm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Range: %lld–%lld bpm"
+          }
+        }
+      }
+    },
     "Reanudar": {
       "extractionState": "manual",
       "localizations": {
@@ -3352,6 +3418,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Race pace"
+          }
+        }
+      }
+    },
+    "Ritmo por kilómetro": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pace per kilometer"
+          }
+        }
+      }
+    },
+    "Ritmo por km": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pace per km"
           }
         }
       }
@@ -3638,6 +3726,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "No watch paired"
+          }
+        }
+      }
+    },
+    "Splits": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Splits"
           }
         }
       }
@@ -4287,6 +4386,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "km"
+          }
+        }
+      }
+    },
+    "km %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "km %lld"
           }
         }
       }

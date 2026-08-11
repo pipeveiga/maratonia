@@ -62,6 +62,8 @@ final class EntrenadorRitmo: ObservableObject {
         progreso = ProgresoTramos(tramos: plan.tramosActivos)
         fechaInicioTramo = nil
         fechaUltimaCorreccion = nil
+        ticksFueraDeRango = 0
+        direccionFueraDeRango = 0
         tramoActual = progreso.tramoActual
         ultimoKmAnunciado = 0
         tiempoAlUltimoKm = 0
@@ -159,21 +161,48 @@ final class EntrenadorRitmo: ObservableObject {
             return
         }
 
-        // Corrección de ritmo, con todos los filtros.
-        guard let ritmo = ritmoActualSegKm, let tramo = tramoActual else { return }
+        // Corrección de ritmo, con todos los filtros. Build 54: además
+        // de warm-up + 1/min + margen, la desviación debe SOSTENERSE
+        // (varios ticks seguidos en la misma dirección) — una lectura
+        // suelta jamás genera un "aflojá"/"apurá".
+        guard let ritmo = ritmoActualSegKm, let tramo = tramoActual else {
+            ticksFueraDeRango = 0
+            return
+        }
         guard Date().timeIntervalSince(inicioTramo) >= 45 else { return }
         if let ultima = fechaUltimaCorreccion, Date().timeIntervalSince(ultima) < 60 { return }
 
+        let direccion: Int
         if let rapido = tramo.ritmoMinSegKm, ritmo < rapido - margenSegKm {
+            direccion = -1
+        } else if let lento = tramo.ritmoMaxSegKm, ritmo > lento + margenSegKm {
+            direccion = 1
+        } else {
+            ticksFueraDeRango = 0
+            return
+        }
+        // El contador se reinicia si la desviación cambia de dirección.
+        ticksFueraDeRango = direccionFueraDeRango == direccion ? ticksFueraDeRango + 1 : 1
+        direccionFueraDeRango = direccion
+        guard ticksFueraDeRango >= ticksParaCorregir else { return }
+        ticksFueraDeRango = 0
+
+        if direccion == -1, let rapido = tramo.ritmoMinSegKm {
             fechaUltimaCorreccion = Date()
             Avisador.compartido.anunciar(String(localized:
                 "Vas a \(ritmoParaHablar(ritmo)). Objetivo \(ritmoParaHablar(rapido)). Aflojá un poco."))
-        } else if let lento = tramo.ritmoMaxSegKm, ritmo > lento + margenSegKm {
+        } else if direccion == 1, let lento = tramo.ritmoMaxSegKm {
             fechaUltimaCorreccion = Date()
             Avisador.compartido.anunciar(String(localized:
                 "Vas a \(ritmoParaHablar(ritmo)). Objetivo \(ritmoParaHablar(lento)). Apurá un poco."))
         }
     }
+
+    /// Desviación sostenida: ~5 s consecutivos fuera de rango en la
+    /// misma dirección antes de corregir (chequear corre 1 vez/segundo).
+    private var ticksFueraDeRango = 0
+    private var direccionFueraDeRango = 0
+    private let ticksParaCorregir = 5
 
     /// "Kilómetro 5: 4 12 el último." — una vez por km cumplido, con el
     /// parcial de ese kilómetro (tiempo activo, sin contar pausas).

@@ -415,6 +415,11 @@ struct CarreraDetalleView: View {
                 } header: {
                     Text("\(FormatoFecha.completa(carrera.fecha)) · \(FormatoFecha.hora(carrera.fecha))")
                 }
+
+                // Análisis real de la sesión (build 54): splits, ritmo
+                // por km, FC y elevación — todo desde HealthKit, carga
+                // al abrir, funciona también con carreras viejas.
+                SeccionesAnalisis(workout: carrera.workout)
             }
             .navigationTitle("Carrera")
             .navigationBarTitleDisplayMode(.inline)
@@ -662,5 +667,235 @@ struct CarrerasOcultasView: View {
         .navigationTitle("Carreras ocultas")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { store.cargar() }
+    }
+}
+
+// MARK: - Análisis post-carrera (build 54): splits, ritmo, FC, elevación
+
+import Charts
+
+/// Matemática PURA del análisis (testeable sin HealthKit). Todo deriva
+/// de datos REALES: la ruta guardada del workout (posición+altitud+
+/// timestamp) y las muestras de FC de Salud — nunca del estimador live.
+enum AnalisisSesion {
+
+    struct Punto { var t: TimeInterval; var d: Double; var alt: Double }
+
+    struct SplitKm: Identifiable {
+        var id: Int { km }
+        var km: Int
+        var segundos: Int
+        var ritmoSegKm: Int
+    }
+
+    /// Ruta → puntos (t desde el inicio, distancia acumulada, altitud).
+    static func puntos(de ubicaciones: [CLLocation]) -> [Punto] {
+        guard let primera = ubicaciones.first else { return [] }
+        var acumulada = 0.0
+        var resultado: [Punto] = []
+        var previa = primera
+        for ubicacion in ubicaciones {
+            acumulada += ubicacion.distance(from: previa)
+            previa = ubicacion
+            resultado.append(Punto(t: ubicacion.timestamp.timeIntervalSince(primera.timestamp),
+                                   d: acumulada, alt: ubicacion.altitude))
+        }
+        return resultado
+    }
+
+    /// Splits por km reales (interpolando el cruce exacto de cada km).
+    /// Nota: usan el tiempo de RELOJ de la ruta (una pausa larga infla
+    /// el km donde ocurrió — igual que el split de cualquier GPS).
+    static func splits(_ puntos: [Punto]) -> [SplitKm] {
+        guard puntos.count > 1 else { return [] }
+        var resultado: [SplitKm] = []
+        var kmObjetivo = 1000.0
+        var tiempoKmAnterior = 0.0
+        for (anterior, actual) in zip(puntos, puntos.dropFirst()) {
+            while actual.d >= kmObjetivo {
+                let tramo = actual.d - anterior.d
+                let fraccion = tramo > 0 ? (kmObjetivo - anterior.d) / tramo : 0
+                let tCruce = anterior.t + (actual.t - anterior.t) * fraccion
+                let segundos = Int((tCruce - tiempoKmAnterior).rounded())
+                let km = Int(kmObjetivo / 1000)
+                if segundos > 0 {
+                    resultado.append(SplitKm(km: km, segundos: segundos, ritmoSegKm: segundos))
+                }
+                tiempoKmAnterior = tCruce
+                kmObjetivo += 1000
+            }
+        }
+        return resultado
+    }
+
+    /// Reducción para gráficos: como mucho `maximo` puntos.
+    static func reducir<T>(_ valores: [T], a maximo: Int) -> [T] {
+        guard valores.count > maximo, maximo > 0 else { return valores }
+        let paso = Double(valores.count) / Double(maximo)
+        return (0..<maximo).map { valores[Int(Double($0) * paso)] }
+    }
+
+    /// Ganancia acumulada de subida (con umbral de 1 m contra el ruido
+    /// barométrico). nil si no hay altitudes útiles.
+    static func desnivelPositivo(_ puntos: [Punto]) -> Double? {
+        guard puntos.count > 1 else { return nil }
+        var ganancia = 0.0
+        var referencia = puntos[0].alt
+        for punto in puntos.dropFirst() {
+            let delta = punto.alt - referencia
+            if delta >= 1 { ganancia += delta; referencia = punto.alt }
+            else if delta < 0 { referencia = punto.alt }
+        }
+        return ganancia
+    }
+}
+
+/// Carga bajo demanda (al ABRIR el detalle) la ruta completa con
+/// timestamps y la serie de FC de ESA sesión. Nada de esto se carga en
+/// la lista — la UI no se traba.
+@MainActor
+final class CargadorAnalisis: ObservableObject {
+    @Published var puntos: [AnalisisSesion.Punto] = []
+    @Published var fc: [(t: TimeInterval, ppm: Double)] = []
+    @Published var cargando = true
+
+    private let healthStore = HKHealthStore()
+
+    func cargar(workout: HKWorkout) {
+        cargando = true
+        let predicadoRuta = HKQuery.predicateForObjects(from: workout)
+        let consultaRuta = HKSampleQuery(sampleType: HKSeriesType.workoutRoute(),
+                                         predicate: predicadoRuta, limit: 1,
+                                         sortDescriptors: nil) { [weak self] _, muestras, _ in
+            guard let ruta = (muestras as? [HKWorkoutRoute])?.first else {
+                Task { @MainActor in self?.terminarRuta([]) }
+                return
+            }
+            var ubicaciones: [CLLocation] = []
+            let recorrido = HKWorkoutRouteQuery(route: ruta) { _, lote, terminado, _ in
+                ubicaciones.append(contentsOf: lote ?? [])
+                if terminado {
+                    Task { @MainActor in self?.terminarRuta(ubicaciones) }
+                }
+            }
+            self?.healthStore.execute(recorrido)
+        }
+        healthStore.execute(consultaRuta)
+
+        let predicadoFC = HKQuery.predicateForSamples(withStart: workout.startDate,
+                                                      end: workout.endDate)
+        let consultaFC = HKSampleQuery(
+            sampleType: HKQuantityType(.heartRate), predicate: predicadoFC,
+            limit: HKObjectQueryNoLimit,
+            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+        ) { [weak self] _, muestras, _ in
+            let ppm = HKUnit.count().unitDivided(by: .minute())
+            let inicio = workout.startDate
+            let serie = (muestras as? [HKQuantitySample] ?? []).map {
+                (t: $0.startDate.timeIntervalSince(inicio), ppm: $0.quantity.doubleValue(for: ppm))
+            }
+            Task { @MainActor in
+                self?.fc = AnalisisSesion.reducir(serie, a: 120)
+            }
+        }
+        healthStore.execute(consultaFC)
+    }
+
+    private func terminarRuta(_ ubicaciones: [CLLocation]) {
+        let buenas = ubicaciones.filter { $0.horizontalAccuracy > 0 && $0.horizontalAccuracy <= 50 }
+        puntos = AnalisisSesion.puntos(de: buenas)
+        cargando = false
+    }
+}
+
+/// Las secciones de análisis del detalle: splits, ritmo/km, FC y
+/// elevación — solo con datos reales, sin secciones vacías.
+struct SeccionesAnalisis: View {
+    let workout: HKWorkout
+    @StateObject private var cargador = CargadorAnalisis()
+
+    var body: some View {
+        Group {
+            if cargador.cargando && cargador.puntos.isEmpty {
+                Section { ProgressView().frame(maxWidth: .infinity) }
+            }
+
+            let splits = AnalisisSesion.splits(cargador.puntos)
+            if !splits.isEmpty {
+                Section("Splits") {
+                    ForEach(splits) { split in
+                        HStack {
+                            Text("km \(split.km)")
+                                .font(.subheadline.weight(.semibold))
+                                .monospacedDigit()
+                            Spacer()
+                            Text(formatearDuracion(TimeInterval(split.segundos)))
+                                .font(.subheadline)
+                                .monospacedDigit()
+                            Text("\(formatearRitmo(split.ritmoSegKm)) /km")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
+                }
+                Section("Ritmo por km") {
+                    Chart(splits) { split in
+                        BarMark(x: .value("km", split.km),
+                                y: .value("ritmo", split.ritmoSegKm))
+                            .foregroundStyle(DV2.Marca.primario)
+                    }
+                    .chartYAxis {
+                        AxisMarks { valor in
+                            AxisValueLabel {
+                                if let seg = valor.as(Int.self) {
+                                    Text(formatearRitmo(seg))
+                                }
+                            }
+                        }
+                    }
+                    .frame(height: 140)
+                    .accessibilityLabel(Text("Ritmo por kilómetro"))
+                }
+            }
+
+            if !cargador.fc.isEmpty {
+                Section("Frecuencia cardíaca") {
+                    Chart(Array(cargador.fc.enumerated()), id: \.offset) { _, muestra in
+                        LineMark(x: .value("min", muestra.t / 60),
+                                 y: .value("ppm", muestra.ppm))
+                            .foregroundStyle(.red)
+                            .interpolationMethod(.monotone)
+                    }
+                    .frame(height: 120)
+                    .accessibilityLabel(Text("Frecuencia cardíaca durante la sesión"))
+                    if let min = cargador.fc.map(\.ppm).min(),
+                       let max = cargador.fc.map(\.ppm).max() {
+                        Text("Rango: \(Int(min))–\(Int(max)) ppm")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            let perfil = AnalisisSesion.reducir(cargador.puntos, a: 80)
+            if let desnivel = AnalisisSesion.desnivelPositivo(cargador.puntos),
+               perfil.count > 1 {
+                Section("Elevación") {
+                    Chart(Array(perfil.enumerated()), id: \.offset) { _, punto in
+                        LineMark(x: .value("km", punto.d / 1000),
+                                 y: .value("m", punto.alt))
+                            .foregroundStyle(DV2.Marca.profundo)
+                            .interpolationMethod(.monotone)
+                    }
+                    .frame(height: 100)
+                    .accessibilityLabel(Text("Perfil de elevación"))
+                    Text("Desnivel positivo: +\(Int(desnivel)) m")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .onAppear { cargador.cargar(workout: workout) }
     }
 }

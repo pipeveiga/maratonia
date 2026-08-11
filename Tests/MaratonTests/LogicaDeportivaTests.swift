@@ -722,3 +722,160 @@ final class MetricasSesionTests: XCTestCase {
         XCTAssertNil(vacio.mejorRitmo)
     }
 }
+
+// MARK: - Build 54: estimador de ritmo en vivo + análisis post-carrera
+
+final class EstimadorRitmoLiveTests: XCTestCase {
+
+    /// Simula ticks 1/s con una velocidad dada (m/s), con entrega de
+    /// distancia en ráfagas de `lote` segundos (como HealthKit real).
+    private func correr(_ estimador: inout EstimadorRitmoLive,
+                        desde t0: Double, segundos: Int,
+                        velocidad: Double, lote: Int = 1,
+                        distanciaInicial: Double) -> Double {
+        var distanciaReal = distanciaInicial
+        var distanciaEntregada = distanciaInicial
+        for i in 0..<segundos {
+            distanciaReal += velocidad
+            if lote <= 1 || (i % lote == lote - 1) {
+                distanciaEntregada = distanciaReal
+            }
+            estimador.procesar(tiempo: t0 + Double(i + 1),
+                               distanciaAcumulada: distanciaEntregada)
+        }
+        return distanciaReal
+    }
+
+    // TEST 1: carrera estable a 6:30/km (2.564 m/s) con ráfagas de 3 s
+    // → estable alrededor de 6:30, sin oscilaciones de 30 s/km.
+    func testEstableSeisTreintaConRafagas() {
+        var e = EstimadorRitmoLive()
+        _ = correr(&e, desde: 0, segundos: 120, velocidad: 1000.0 / 390, lote: 3,
+                   distanciaInicial: 0)
+        let ritmo = e.ritmoSegKm!
+        XCTAssertTrue((380...400).contains(ritmo), "ritmo: \(ritmo)")
+        XCTAssertTrue(e.esConfiable)
+    }
+
+    // TEST 2+3+13: congelamiento largo + lote de recuperación → JAMÁS
+    // 2:00/km; durante el congelamiento pasa a stale y luego a nil; al
+    // volver el GPS converge suave al ritmo real.
+    func testLoteDeRecuperacionNoProduceDosMinutos() {
+        var e = EstimadorRitmoLive()
+        let v = 1000.0 / 390   // 6:30/km
+        let d = correr(&e, desde: 0, segundos: 60, velocidad: v, distanciaInicial: 0)
+        // 45 s congelado (misma distancia entregada)…
+        for i in 0..<45 {
+            e.procesar(tiempo: 60 + Double(i + 1), distanciaAcumulada: d)
+        }
+        XCTAssertNil(e.ritmoSegKm, "tras caducidad debe ser nil (--:--)")
+        // …y llega el lote con TODO lo corrido en esos 45 s de golpe.
+        let recuperada = d + v * 45
+        let publicado = e.procesar(tiempo: 106, distanciaAcumulada: recuperada)
+        if let publicado {
+            XCTAssertGreaterThan(publicado, 300,
+                "el lote de recuperación produjo un ritmo absurdo: \(publicado)")
+        }
+        // Siguen ticks normales: converge al ritmo real.
+        _ = correr(&e, desde: 106, segundos: 40, velocidad: v, distanciaInicial: recuperada)
+        XCTAssertTrue((370...410).contains(e.ritmoSegKm ?? 0), "\(e.ritmoSegKm ?? 0)")
+    }
+
+    // TEST 4: aceleración real 6:00 → 4:30 converge en pocos segundos.
+    func testAceleracionRealConverge() {
+        var e = EstimadorRitmoLive()
+        let d = correr(&e, desde: 0, segundos: 60, velocidad: 1000.0 / 360, distanciaInicial: 0)
+        _ = correr(&e, desde: 60, segundos: 30, velocidad: 1000.0 / 270, distanciaInicial: d)
+        let ritmo = e.ritmoSegKm!
+        XCTAssertLessThan(ritmo, 320, "a los 30 s ya debe reflejar la aceleración: \(ritmo)")
+    }
+
+    // TEST 5: desaceleración real también converge.
+    func testDesaceleracionConverge() {
+        var e = EstimadorRitmoLive()
+        let d = correr(&e, desde: 0, segundos: 60, velocidad: 1000.0 / 270, distanciaInicial: 0)
+        _ = correr(&e, desde: 60, segundos: 40, velocidad: 1000.0 / 390, distanciaInicial: d)
+        XCTAssertGreaterThan(e.ritmoSegKm!, 340)
+    }
+
+    // TEST 6/9: una muestra espacial incoherente (velocidad imposible)
+    // se rechaza sin ensuciar el publicado.
+    func testMuestraImposibleRechazada() {
+        var e = EstimadorRitmoLive()
+        let d = correr(&e, desde: 0, segundos: 60, velocidad: 1000.0 / 390, distanciaInicial: 0)
+        let antes = e.ritmoSegKm
+        e.procesar(tiempo: 61, distanciaAcumulada: d + 20)   // 20 m en 1 s = 20 m/s
+        XCTAssertEqual(e.ritmoSegKm, antes)
+    }
+
+    // TEST 7/8: timestamps duplicados o hacia atrás — sin división por
+    // cero, sin cambio de estado.
+    func testTimestampsIrregularesSeguros() {
+        var e = EstimadorRitmoLive()
+        let d = correr(&e, desde: 0, segundos: 30, velocidad: 2.5, distanciaInicial: 0)
+        let antes = e.ritmoSegKm
+        e.procesar(tiempo: 30, distanciaAcumulada: d + 5)    // duplicado
+        e.procesar(tiempo: 29, distanciaAcumulada: d + 9)    // hacia atrás
+        XCTAssertEqual(e.ritmoSegKm, antes)
+    }
+
+    // TEST 10/11: pausa manual → estado seguro; reanudación → warm-up
+    // sin spikes (no publica hasta juntar datos nuevos).
+    func testPausaYReanudacionConWarmUp() {
+        var e = EstimadorRitmoLive()
+        _ = correr(&e, desde: 0, segundos: 60, velocidad: 2.5, distanciaInicial: 0)
+        XCTAssertNotNil(e.ritmoSegKm)
+        e.reiniciar()
+        XCTAssertNil(e.ritmoSegKm)
+        XCTAssertFalse(e.esConfiable)
+        // Tres ticks tras reanudar: todavía en warm-up, nada publicado.
+        e.procesar(tiempo: 300, distanciaAcumulada: 500)
+        e.procesar(tiempo: 301, distanciaAcumulada: 502.5)
+        e.procesar(tiempo: 302, distanciaAcumulada: 505)
+        XCTAssertNil(e.ritmoSegKm)
+    }
+
+    // TEST 12: GPS desaparece → stale primero (valor visible, no
+    // confiable) y luego nil.
+    func testDegradacionStaleLuegoNil() {
+        var e = EstimadorRitmoLive()
+        let d = correr(&e, desde: 0, segundos: 60, velocidad: 2.5, distanciaInicial: 0)
+        for i in 0..<12 {
+            e.procesar(tiempo: 60 + Double(i + 1), distanciaAcumulada: d)
+        }
+        XCTAssertNotNil(e.ritmoSegKm)      // stale: se muestra
+        XCTAssertFalse(e.esConfiable)      // pero no acciona al coach
+        for i in 12..<25 {
+            e.procesar(tiempo: 60 + Double(i + 1), distanciaAcumulada: d)
+        }
+        XCTAssertNil(e.ritmoSegKm)         // caducado: --:--
+    }
+}
+
+final class AnalisisSesionTests: XCTestCase {
+
+    func testSplitsInterpolados() {
+        // 2.5 km exactos a 6:00/km → splits de 360 s.
+        var puntos: [AnalisisSesion.Punto] = []
+        for i in 0...250 {
+            puntos.append(.init(t: Double(i) * 3.6, d: Double(i) * 10, alt: 10))
+        }
+        let splits = AnalisisSesion.splits(puntos)
+        XCTAssertEqual(splits.count, 2)
+        XCTAssertEqual(splits[0].segundos, 360)
+        XCTAssertEqual(splits[1].segundos, 360)
+    }
+
+    func testReducirYDesnivel() {
+        let muchos = Array(0..<1000)
+        XCTAssertEqual(AnalisisSesion.reducir(muchos, a: 80).count, 80)
+        // Subida de 30 m con ruido < 1 m no suma ruido.
+        var puntos: [AnalisisSesion.Punto] = []
+        for i in 0...100 {
+            puntos.append(.init(t: Double(i), d: Double(i) * 10,
+                                alt: 10 + Double(i) * 0.3))
+        }
+        let desnivel = AnalisisSesion.desnivelPositivo(puntos)!
+        XCTAssertEqual(desnivel, 30, accuracy: 3)
+    }
+}
