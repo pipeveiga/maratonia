@@ -46,6 +46,8 @@
 		A10000000000000000000079 /* ServicioAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000078 /* ServicioAuth.swift */; };
 		A1000000000000000000007C /* ContenidoPlanes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007B /* ContenidoPlanes.swift */; };
 		A1000000000000000000007E /* Coach.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007D /* Coach.swift */; };
+		A10000000000000000000083 /* DominioV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000081 /* DominioV2Tests.swift */; };
+		A10000000000000000000084 /* LogicaDeportivaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000082 /* LogicaDeportivaTests.swift */; };
 		A1000000000000000000005D /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005C /* Localizable.xcstrings */; };
 		A1000000000000000000005F /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005E /* InfoPlist.xcstrings */; };
 		A10000000000000000000061 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000060 /* Localizable.xcstrings */; };
@@ -59,6 +61,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = A10000000000000000000003;
 			remoteInfo = "Maraton Watch App";
+		};
+		A1000000000000000000008A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000002;
+			remoteInfo = Maraton;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -115,6 +124,9 @@
 		A10000000000000000000078 /* ServicioAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicioAuth.swift; sourceTree = "<group>"; };
 		A1000000000000000000007B /* ContenidoPlanes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContenidoPlanes.swift; sourceTree = "<group>"; };
 		A1000000000000000000007D /* Coach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Coach.swift; sourceTree = "<group>"; };
+		A10000000000000000000080 /* MaratonTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaratonTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000081 /* DominioV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DominioV2Tests.swift; sourceTree = "<group>"; };
+		A10000000000000000000082 /* LogicaDeportivaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicaDeportivaTests.swift; sourceTree = "<group>"; };
 		A1000000000000000000007A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1000000000000000000005C /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		A1000000000000000000005E /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
@@ -139,6 +151,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000087 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -148,6 +167,7 @@
 				A10000000000000000000008 /* Maraton */,
 				A10000000000000000000009 /* Maraton Watch App */,
 				A1000000000000000000000A /* Shared */,
+				A10000000000000000000085 /* MaratonTests */,
 				A10000000000000000000007 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -157,6 +177,7 @@
 			children = (
 				A10000000000000000000004 /* Maraton.app */,
 				A10000000000000000000005 /* Maraton Watch App.app */,
+				A10000000000000000000080 /* MaratonTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -223,6 +244,15 @@
 			path = Shared;
 			sourceTree = "<group>";
 		};
+		A10000000000000000000085 /* MaratonTests */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000081 /* DominioV2Tests.swift */,
+				A10000000000000000000082 /* LogicaDeportivaTests.swift */,
+			);
+			path = "Tests/MaratonTests";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -266,6 +296,24 @@
 			productReference = A10000000000000000000005 /* Maraton Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A10000000000000000000089 /* MaratonTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1000000000000000000008C /* Build configuration list for PBXNativeTarget "MaratonTests" */;
+			buildPhases = (
+				A10000000000000000000086 /* Sources */,
+				A10000000000000000000087 /* Frameworks */,
+				A10000000000000000000088 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A1000000000000000000008B /* PBXTargetDependency */,
+			);
+			name = MaratonTests;
+			productName = MaratonTests;
+			productReference = A10000000000000000000080 /* MaratonTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -281,6 +329,10 @@
 					};
 					A10000000000000000000003 = {
 						CreatedOnToolsVersion = 15.0;
+					};
+					A10000000000000000000089 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = A10000000000000000000002;
 					};
 				};
 			};
@@ -304,6 +356,7 @@
 			targets = (
 				A10000000000000000000002 /* Maraton */,
 				A10000000000000000000003 /* Maraton Watch App */,
+				A10000000000000000000089 /* MaratonTests */,
 			);
 		};
 /* End PBXProject section */
@@ -327,6 +380,13 @@
 				A10000000000000000000035 /* Assets.xcassets in Resources */,
 				A10000000000000000000061 /* Localizable.xcstrings in Resources */,
 				A10000000000000000000063 /* InfoPlist.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000088 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -380,6 +440,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000086 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000083 /* DominioV2Tests.swift in Sources */,
+				A10000000000000000000084 /* LogicaDeportivaTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -387,6 +456,11 @@
 			isa = PBXTargetDependency;
 			target = A10000000000000000000003 /* Maraton Watch App */;
 			targetProxy = A10000000000000000000014 /* PBXContainerItemProxy */;
+		};
+		A1000000000000000000008B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000002 /* Maraton */;
+			targetProxy = A1000000000000000000008A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -687,6 +761,42 @@
 			};
 			name = Release;
 		};
+		A1000000000000000000008D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 2M7NJ8V37F;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.pipeveiga.maraton.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Maraton.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Maraton";
+			};
+			name = Debug;
+		};
+		A1000000000000000000008E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 2M7NJ8V37F;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.pipeveiga.maraton.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Maraton.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Maraton";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -713,6 +823,15 @@
 			buildConfigurations = (
 				A1000000000000000000001C /* Debug */,
 				A1000000000000000000001D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1000000000000000000008C /* Build configuration list for PBXNativeTarget "MaratonTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1000000000000000000008D /* Debug */,
+				A1000000000000000000008E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
