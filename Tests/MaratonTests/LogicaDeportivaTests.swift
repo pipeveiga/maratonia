@@ -884,3 +884,115 @@ final class AnalisisSesionTests: XCTestCase {
         XCTAssertEqual(desnivel, 30, accuracy: 3)
     }
 }
+
+// MARK: - Build 59: el coach de ritmo del Watch (lógica pura)
+
+/// Cubre la decisión que antes vivía enterrada en EntrenadorRitmo
+/// (target Watch, sin ningún test) — justo lo que se cambió para
+/// arreglar el "aflojá" falso de la prueba física de 11 km.
+final class SupervisorCorreccionRitmoTests: XCTestCase {
+
+    /// Tramo objetivo 5:00–5:30 /km (300–330 s/km).
+    private let rapido = 300
+    private let lento = 330
+
+    private func sostener(_ s: inout SupervisorCorreccionRitmo, ritmo: Int?,
+                          veces: Int, enTramo: TimeInterval = 60)
+        -> [SupervisorCorreccionRitmo.Decision] {
+        (0..<veces).map { _ in
+            s.evaluar(ritmoSegKm: ritmo, minSegKm: rapido, maxSegKm: lento,
+                      segundosEnTramo: enTramo, segundosDesdeUltima: nil)
+        }
+    }
+
+    // Una lectura suelta fuera de rango NO habla (el bug reportado).
+    func testUnaLecturaSueltaNoCorrige() {
+        var s = SupervisorCorreccionRitmo()
+        let d = sostener(&s, ritmo: 120, veces: 1)   // 2:00/km absurdo
+        XCTAssertEqual(d, [.callar])
+    }
+
+    // Desviación REAL sostenida sí corrige, al 5º tick.
+    func testDesviacionSostenidaCorrige() {
+        var s = SupervisorCorreccionRitmo()
+        let d = sostener(&s, ritmo: 270, veces: 5)   // 4:30, más rápido
+        XCTAssertEqual(d, [.callar, .callar, .callar, .callar,
+                           .aflojar(objetivoSegKm: rapido)])
+    }
+
+    func testDemasiadoLentoApura() {
+        var s = SupervisorCorreccionRitmo()
+        let d = sostener(&s, ritmo: 400, veces: 5)
+        XCTAssertEqual(d.last, .apurar(objetivoSegKm: lento))
+    }
+
+    // Un outlier en medio de una racha reinicia el contador: no basta
+    // con acumular ticks sueltos.
+    func testOutlierIntercaladoReiniciaElContador() {
+        var s = SupervisorCorreccionRitmo()
+        _ = sostener(&s, ritmo: 270, veces: 4)       // 4 fuera de rango
+        _ = sostener(&s, ritmo: 315, veces: 1)       // 1 DENTRO del rango
+        let d = sostener(&s, ritmo: 270, veces: 4)   // vuelve a salir
+        XCTAssertTrue(d.allSatisfy { $0 == .callar }, "no debía corregir todavía")
+        XCTAssertEqual(sostener(&s, ritmo: 270, veces: 1), [.aflojar(objetivoSegKm: rapido)])
+    }
+
+    // Cambiar de dirección también reinicia (rápido → lento).
+    func testCambioDeDireccionReinicia() {
+        var s = SupervisorCorreccionRitmo()
+        _ = sostener(&s, ritmo: 270, veces: 4)       // yendo rápido
+        let d = sostener(&s, ritmo: 400, veces: 4)   // ahora lento
+        XCTAssertTrue(d.allSatisfy { $0 == .callar })
+    }
+
+    // Ritmo NO confiable (nil): el coach calla y pierde la racha.
+    func testSinRitmoConfiableCallaYPierdeLaRacha() {
+        var s = SupervisorCorreccionRitmo()
+        _ = sostener(&s, ritmo: 270, veces: 4)
+        XCTAssertEqual(sostener(&s, ritmo: nil, veces: 1), [.callar])
+        XCTAssertTrue(sostener(&s, ritmo: 270, veces: 4).allSatisfy { $0 == .callar })
+    }
+
+    // Gracia al empezar el tramo: el ritmo se está acomodando.
+    func testNoOpinaEnLosPrimerosSegundosDelTramo() {
+        var s = SupervisorCorreccionRitmo()
+        let d = sostener(&s, ritmo: 270, veces: 10, enTramo: 20)
+        XCTAssertTrue(d.allSatisfy { $0 == .callar })
+    }
+
+    // Como mucho una corrección por minuto.
+    func testNoRepiteAntesDelMinuto() {
+        var s = SupervisorCorreccionRitmo()
+        for _ in 0..<10 {
+            let d = s.evaluar(ritmoSegKm: 270, minSegKm: rapido, maxSegKm: lento,
+                              segundosEnTramo: 200, segundosDesdeUltima: 30)
+            XCTAssertEqual(d, .callar)
+        }
+    }
+
+    // Dentro del rango (con su margen) nunca corrige.
+    func testDentroDelRangoNoCorrige() {
+        var s = SupervisorCorreccionRitmo()
+        for ritmo in [rapido, 315, lento, rapido - 4, lento + 4] {
+            XCTAssertTrue(sostener(&s, ritmo: ritmo, veces: 10).allSatisfy { $0 == .callar },
+                          "corrigió a \(ritmo) estando en rango")
+        }
+    }
+
+    // Tramo sin objetivo de ritmo (libre): nunca opina.
+    func testTramoLibreNuncaCorrige() {
+        var s = SupervisorCorreccionRitmo()
+        let d = (0..<10).map { _ in
+            s.evaluar(ritmoSegKm: 270, minSegKm: nil, maxSegKm: nil,
+                      segundosEnTramo: 120, segundosDesdeUltima: nil)
+        }
+        XCTAssertTrue(d.allSatisfy { $0 == .callar })
+    }
+
+    func testReiniciarLimpiaLaRacha() {
+        var s = SupervisorCorreccionRitmo()
+        _ = sostener(&s, ritmo: 270, veces: 4)
+        s.reiniciar()
+        XCTAssertTrue(sostener(&s, ritmo: 270, veces: 4).allSatisfy { $0 == .callar })
+    }
+}

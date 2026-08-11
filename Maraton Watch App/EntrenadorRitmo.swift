@@ -42,7 +42,6 @@ final class EntrenadorRitmo: ObservableObject {
     private var progreso = ProgresoTramos(tramos: [])
     private var fechaInicioTramo: Date?
     private var fechaUltimaCorreccion: Date?
-    private let margenSegKm = 5
 
     // Splits: anuncio de cada kilómetro cumplido con el parcial.
     private var ultimoKmAnunciado = 0
@@ -62,8 +61,7 @@ final class EntrenadorRitmo: ObservableObject {
         progreso = ProgresoTramos(tramos: plan.tramosActivos)
         fechaInicioTramo = nil
         fechaUltimaCorreccion = nil
-        ticksFueraDeRango = 0
-        direccionFueraDeRango = 0
+        supervisorCorreccion.reiniciar()
         tramoActual = progreso.tramoActual
         ultimoKmAnunciado = 0
         tiempoAlUltimoKm = 0
@@ -94,6 +92,7 @@ final class EntrenadorRitmo: ObservableObject {
 
     func detener() {
         huellaSesion = nil
+        supervisorCorreccion.reiniciar()
         progreso = ProgresoTramos(tramos: [])
         tramoActual = nil
         fechaInicioTramo = nil
@@ -165,44 +164,33 @@ final class EntrenadorRitmo: ObservableObject {
         // de warm-up + 1/min + margen, la desviación debe SOSTENERSE
         // (varios ticks seguidos en la misma dirección) — una lectura
         // suelta jamás genera un "aflojá"/"apurá".
-        guard let ritmo = ritmoActualSegKm, let tramo = tramoActual else {
-            ticksFueraDeRango = 0
+        guard let tramo = tramoActual else {
+            supervisorCorreccion.reiniciar()
             return
         }
-        guard Date().timeIntervalSince(inicioTramo) >= 45 else { return }
-        if let ultima = fechaUltimaCorreccion, Date().timeIntervalSince(ultima) < 60 { return }
+        let ahora = Date()
+        let decision = supervisorCorreccion.evaluar(
+            ritmoSegKm: ritmoActualSegKm,
+            minSegKm: tramo.ritmoMinSegKm, maxSegKm: tramo.ritmoMaxSegKm,
+            segundosEnTramo: ahora.timeIntervalSince(inicioTramo),
+            segundosDesdeUltima: fechaUltimaCorreccion.map { ahora.timeIntervalSince($0) })
 
-        let direccion: Int
-        if let rapido = tramo.ritmoMinSegKm, ritmo < rapido - margenSegKm {
-            direccion = -1
-        } else if let lento = tramo.ritmoMaxSegKm, ritmo > lento + margenSegKm {
-            direccion = 1
-        } else {
-            ticksFueraDeRango = 0
+        switch decision {
+        case .callar:
             return
-        }
-        // El contador se reinicia si la desviación cambia de dirección.
-        ticksFueraDeRango = direccionFueraDeRango == direccion ? ticksFueraDeRango + 1 : 1
-        direccionFueraDeRango = direccion
-        guard ticksFueraDeRango >= ticksParaCorregir else { return }
-        ticksFueraDeRango = 0
-
-        if direccion == -1, let rapido = tramo.ritmoMinSegKm {
-            fechaUltimaCorreccion = Date()
+        case .aflojar(let objetivo):
+            fechaUltimaCorreccion = ahora
             Avisador.compartido.anunciar(String(localized:
-                "Vas a \(ritmoParaHablar(ritmo)). Objetivo \(ritmoParaHablar(rapido)). Aflojá un poco."))
-        } else if direccion == 1, let lento = tramo.ritmoMaxSegKm {
-            fechaUltimaCorreccion = Date()
+                "Vas a \(ritmoParaHablar(ritmoActualSegKm ?? objetivo)). Objetivo \(ritmoParaHablar(objetivo)). Aflojá un poco."))
+        case .apurar(let objetivo):
+            fechaUltimaCorreccion = ahora
             Avisador.compartido.anunciar(String(localized:
-                "Vas a \(ritmoParaHablar(ritmo)). Objetivo \(ritmoParaHablar(lento)). Apurá un poco."))
+                "Vas a \(ritmoParaHablar(ritmoActualSegKm ?? objetivo)). Objetivo \(ritmoParaHablar(objetivo)). Apurá un poco."))
         }
     }
 
-    /// Desviación sostenida: ~5 s consecutivos fuera de rango en la
-    /// misma dirección antes de corregir (chequear corre 1 vez/segundo).
-    private var ticksFueraDeRango = 0
-    private var direccionFueraDeRango = 0
-    private let ticksParaCorregir = 5
+    /// La decisión de cuándo corregir vive en Shared (pura y testeable).
+    private var supervisorCorreccion = SupervisorCorreccionRitmo()
 
     /// "Kilómetro 5: 4 12 el último." — una vez por km cumplido, con el
     /// parcial de ese kilómetro (tiempo activo, sin contar pausas).
