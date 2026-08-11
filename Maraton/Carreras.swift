@@ -131,11 +131,13 @@ final class CarrerasStore: ObservableObject {
             sampleType: .workoutType(), predicate: predicado,
             limit: 50, sortDescriptors: [orden]
         ) { [weak self] _, muestras, error in
-            guard let self else { return }
             let nuestras = (muestras as? [HKWorkout] ?? []).filter {
                 $0.sourceRevision.source.bundleIdentifier.hasPrefix("com.pipeveiga.maraton")
             }
-            DispatchQueue.main.async {
+            // Captura débil PROPIA en el salto a main (no se reusa el
+            // self desempaquetado del closure externo).
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
                 self.consultaEnCurso = false
                 // Fusionar preservando los detalles ya cargados (ruta,
                 // FC): reemplazar todo reseteaba mapas y promedios en
@@ -168,48 +170,46 @@ final class CarrerasStore: ObservableObject {
         ) { [weak self] _, estadisticas, _ in
             let ppm = HKUnit.count().unitDivided(by: .minute())
             let promedio = estadisticas?.averageQuantity()?.doubleValue(for: ppm)
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
                 self?.actualizar(workout: workout) { $0.fcPromedio = promedio }
             }
         }
         healthStore.execute(consultaFC)
 
-        // Recorrido GPS asociado al workout.
+        // Recorrido GPS asociado al workout. Los lotes se acumulan en
+        // CajaUbicaciones (con candado) y no en un `var` local: la
+        // enumeración llega desde la cola de HealthKit y capturar un
+        // mutable ahí era una carrera (error en Swift 6). Cada closure
+        // captura self DÉBILMENTE por su cuenta — nada de reusar el
+        // self desempaquetado de un closure externo.
         let predicadoRuta = HKQuery.predicateForObjects(from: workout)
         let consultaRuta = HKSampleQuery(
             sampleType: HKSeriesType.workoutRoute(), predicate: predicadoRuta,
             limit: 1, sortDescriptors: nil
         ) { [weak self] _, muestras, _ in
-            guard let self else { return }
             guard let ruta = (muestras as? [HKWorkoutRoute])?.first else {
-                DispatchQueue.main.async {
-                    self.actualizar(workout: workout) { $0.rutaCargada = true }
+                DispatchQueue.main.async { [weak self] in
+                    self?.actualizar(workout: workout) { $0.rutaCargada = true }
                 }
                 return
             }
-            var puntos: [CLLocationCoordinate2D] = []
-            let recorrido = HKWorkoutRouteQuery(route: ruta) { _, ubicaciones, terminado, error in
+            let caja = CajaUbicaciones()
+            let recorrido = HKWorkoutRouteQuery(route: ruta) { [weak self] _, lote, terminado, error in
+                caja.agregar(lote ?? [])
                 // Error a mitad de la enumeración: "terminado" no llega
                 // nunca y el spinner quedaba girando para siempre.
-                if error != nil {
-                    DispatchQueue.main.async {
-                        self.actualizar(workout: workout) { $0.rutaCargada = true }
-                    }
-                    return
-                }
-                if let ubicaciones {
-                    puntos.append(contentsOf: ubicaciones.map(\.coordinate))
-                }
-                if terminado {
-                    DispatchQueue.main.async {
-                        self.actualizar(workout: workout) {
-                            $0.ruta = puntos
-                            $0.rutaCargada = true
-                        }
+                // tomarResolucion garantiza UNA sola publicación.
+                guard terminado || error != nil, caja.tomarResolucion() else { return }
+                let puntos = error == nil ? caja.contenido.map(\.coordinate) : []
+                let completa = error == nil
+                DispatchQueue.main.async { [weak self] in
+                    self?.actualizar(workout: workout) {
+                        if completa { $0.ruta = puntos }
+                        $0.rutaCargada = true
                     }
                 }
             }
-            self.healthStore.execute(recorrido)
+            self?.healthStore.execute(recorrido)
         }
         healthStore.execute(consultaRuta)
     }
