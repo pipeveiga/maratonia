@@ -24,7 +24,10 @@ private func almacenConProgramado() -> (AlmacenV2, UUID) {
     return (almacen, programado.id)
 }
 
-final class IdentidadTests: XCTestCase {
+/// Identidad de los objetos del DOMINIO (programados, snapshots): que
+/// editar contenido o reprogramar no cambie el ID. Distinto de
+/// IdentidadCuentaTests, que prueba la identidad del USUARIO.
+final class IdentidadDominioTests: XCTestCase {
 
     // Editar contenido NO cambia la identidad.
     func testEditarContenidoConservaIdentidad() {
@@ -1308,7 +1311,7 @@ final class CuentaRegresivaTests: XCTestCase {
 // @MainActor: IdentidadStore está aislado a MainActor (build 45);
 // XCTest ejecuta estos tests en el hilo principal.
 @MainActor
-final class IdentidadTests: XCTestCase {
+final class IdentidadCuentaTests: XCTestCase {
 
     private func urlTemporal() -> URL {
         let directorio = FileManager.default.temporaryDirectory
