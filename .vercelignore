@@ -1,0 +1,7 @@
+# El sitio público es SOLO web/. Sin esto, deployar desde la raíz
+# publicaría todo el código fuente de la app (incluido el
+# GoogleService-Info.plist) en una URL pública.
+*
+!web/
+!web/**
+!vercel.json
