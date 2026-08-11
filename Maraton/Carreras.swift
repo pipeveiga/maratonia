@@ -750,6 +750,35 @@ enum AnalisisSesion {
     }
 }
 
+/// Acumulador de los lotes de la ruta. HKWorkoutRouteQuery entrega por
+/// tandas desde su propia cola, así que el estado mutable vive acá con
+/// candado en vez de en un `var` local capturado por closures
+/// concurrentes (eso era una carrera real, y error en Swift 6).
+/// `tomarResolucion` garantiza que la continuación se reanude UNA sola
+/// vez: reanudarla dos veces hace crashear el proceso.
+private final class CajaUbicaciones: @unchecked Sendable {
+    private let candado = NSLock()
+    private var todas: [CLLocation] = []
+    private var resuelta = false
+
+    func agregar(_ lote: [CLLocation]) {
+        candado.lock(); defer { candado.unlock() }
+        todas.append(contentsOf: lote)
+    }
+
+    var contenido: [CLLocation] {
+        candado.lock(); defer { candado.unlock() }
+        return todas
+    }
+
+    func tomarResolucion() -> Bool {
+        candado.lock(); defer { candado.unlock() }
+        if resuelta { return false }
+        resuelta = true
+        return true
+    }
+}
+
 /// Carga bajo demanda (al ABRIR el detalle) la ruta completa con
 /// timestamps y la serie de FC de ESA sesión. Nada de esto se carga en
 /// la lista — la UI no se traba.
@@ -763,48 +792,71 @@ final class CargadorAnalisis: ObservableObject {
 
     func cargar(workout: HKWorkout) {
         cargando = true
-        let predicadoRuta = HKQuery.predicateForObjects(from: workout)
-        let consultaRuta = HKSampleQuery(sampleType: HKSeriesType.workoutRoute(),
-                                         predicate: predicadoRuta, limit: 1,
-                                         sortDescriptors: nil) { [weak self] _, muestras, _ in
-            guard let ruta = (muestras as? [HKWorkoutRoute])?.first else {
-                Task { @MainActor in self?.terminarRuta([]) }
-                return
+        let store = healthStore
+        Task { @MainActor in
+            let ubicaciones = await Self.leerRuta(workout: workout, store: store)
+            let buenas = ubicaciones.filter {
+                $0.horizontalAccuracy > 0 && $0.horizontalAccuracy <= 50
             }
-            var ubicaciones: [CLLocation] = []
-            let recorrido = HKWorkoutRouteQuery(route: ruta) { _, lote, terminado, _ in
-                ubicaciones.append(contentsOf: lote ?? [])
-                if terminado {
-                    Task { @MainActor in self?.terminarRuta(ubicaciones) }
-                }
-            }
-            self?.healthStore.execute(recorrido)
+            self.puntos = AnalisisSesion.puntos(de: buenas)
+            self.cargando = false
         }
-        healthStore.execute(consultaRuta)
-
-        let predicadoFC = HKQuery.predicateForSamples(withStart: workout.startDate,
-                                                      end: workout.endDate)
-        let consultaFC = HKSampleQuery(
-            sampleType: HKQuantityType(.heartRate), predicate: predicadoFC,
-            limit: HKObjectQueryNoLimit,
-            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
-        ) { [weak self] _, muestras, _ in
-            let ppm = HKUnit.count().unitDivided(by: .minute())
-            let inicio = workout.startDate
-            let serie = (muestras as? [HKQuantitySample] ?? []).map {
-                (t: $0.startDate.timeIntervalSince(inicio), ppm: $0.quantity.doubleValue(for: ppm))
-            }
-            Task { @MainActor in
-                self?.fc = AnalisisSesion.reducir(serie, a: 120)
-            }
+        Task { @MainActor in
+            let serie = await Self.leerFC(workout: workout, store: store)
+            self.fc = AnalisisSesion.reducir(serie, a: 120)
         }
-        healthStore.execute(consultaFC)
     }
 
-    private func terminarRuta(_ ubicaciones: [CLLocation]) {
-        let buenas = ubicaciones.filter { $0.horizontalAccuracy > 0 && $0.horizontalAccuracy <= 50 }
-        puntos = AnalisisSesion.puntos(de: buenas)
-        cargando = false
+    /// Consultas de HealthKit fuera del main actor y SIN capturar self:
+    /// el resultado vuelve por continuación y recién ahí se publica.
+    private nonisolated static func leerRuta(workout: HKWorkout,
+                                             store: HKHealthStore) async -> [CLLocation] {
+        await withCheckedContinuation { continuacion in
+            let consulta = HKSampleQuery(
+                sampleType: HKSeriesType.workoutRoute(),
+                predicate: HKQuery.predicateForObjects(from: workout),
+                limit: 1, sortDescriptors: nil
+            ) { _, muestras, _ in
+                guard let ruta = (muestras as? [HKWorkoutRoute])?.first else {
+                    continuacion.resume(returning: [])
+                    return
+                }
+                let caja = CajaUbicaciones()
+                let recorrido = HKWorkoutRouteQuery(route: ruta) { _, lote, terminado, error in
+                    caja.agregar(lote ?? [])
+                    // Error también cierra: si no, el spinner quedaría
+                    // girando para siempre.
+                    if terminado || error != nil, caja.tomarResolucion() {
+                        continuacion.resume(returning: caja.contenido)
+                    }
+                }
+                store.execute(recorrido)
+            }
+            store.execute(consulta)
+        }
+    }
+
+    private nonisolated static func leerFC(workout: HKWorkout, store: HKHealthStore)
+        async -> [(t: TimeInterval, ppm: Double)] {
+        await withCheckedContinuation { continuacion in
+            let consulta = HKSampleQuery(
+                sampleType: HKQuantityType(.heartRate),
+                predicate: HKQuery.predicateForSamples(withStart: workout.startDate,
+                                                       end: workout.endDate),
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate,
+                                                   ascending: true)]
+            ) { _, muestras, _ in
+                let ppm = HKUnit.count().unitDivided(by: .minute())
+                let inicio = workout.startDate
+                let serie = (muestras as? [HKQuantitySample] ?? []).map {
+                    (t: $0.startDate.timeIntervalSince(inicio),
+                     ppm: $0.quantity.doubleValue(for: ppm))
+                }
+                continuacion.resume(returning: serie)
+            }
+            store.execute(consulta)
+        }
     }
 }
 
