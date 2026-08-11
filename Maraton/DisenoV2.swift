@@ -297,9 +297,10 @@ enum TextosObjetivo {
         case 2...13:
             return String(localized: "Faltan \(dias) días para tu carrera")
         default:
+            // Acá solo se llega con 14 días o más, así que semanas >= 2
+            // siempre: hasta 13 días la cuenta va en DÍAS (más preciso).
             let semanas = dias / 7
-            return semanas == 1 ? String(localized: "Falta 1 semana para tu carrera")
-                                : String(localized: "Faltan \(semanas) semanas para tu carrera")
+            return String(localized: "Faltan \(semanas) semanas para tu carrera")
         }
     }
 }

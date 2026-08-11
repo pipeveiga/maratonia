@@ -1298,9 +1298,15 @@ final class CuentaRegresivaTests: XCTestCase {
 
     func testCuentaRegresivaEnSemanasYDias() {
         XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 98), hoy: hoy),
-                       "Faltan 14 semanas para tu carrera")
+                       String(localized: "Faltan \(14) semanas para tu carrera"))
+        // Hasta 13 días la cuenta va en DÍAS (más preciso que "1
+        // semana"): el borde de semanas empieza en 14.
         XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 7), hoy: hoy),
-                       String(localized: "Falta 1 semana para tu carrera"))
+                       String(localized: "Faltan \(7) días para tu carrera"))
+        XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 13), hoy: hoy),
+                       String(localized: "Faltan \(13) días para tu carrera"))
+        XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 14), hoy: hoy),
+                       String(localized: "Faltan \(2) semanas para tu carrera"))
         XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 5), hoy: hoy),
                        String(localized: "Faltan \(5) días para tu carrera"))
         XCTAssertEqual(TextosObjetivo.cuentaRegresiva(hasta: hoy.sumando(dias: 1), hoy: hoy),
