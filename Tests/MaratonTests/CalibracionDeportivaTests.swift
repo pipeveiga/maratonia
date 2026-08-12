@@ -812,9 +812,9 @@ final class ArranqueConservadorTests: XCTestCase {
 
     func testConservadorNoSuperaElVolumenActualEnLaPrimeraSemana() {
         let base = MotorPlanificacion.recortar(ContenidoPlanes.mediaMaraton(), aDias: 4)
-        let (plan, _) = MotorPlanificacion.ajustarArranque(base, kmSemanalesActuales: 25,
-                                                          conservador: true)
-        XCTAssertLessThanOrEqual(CatalogoDePrueba.volumen(plan.semanas[0]), 25 * 1.02)
+        let ajuste = MotorPlanificacion.ajustarArranque(base, kmSemanalesActuales: 25,
+                                                        conservador: true)
+        XCTAssertLessThanOrEqual(CatalogoDePrueba.volumen(ajuste.base.semanas[0]), 25 * 1.02)
     }
 
     func testElArranqueUsaElVolumenCompletoNoSoloLasDistancias() {
@@ -824,26 +824,151 @@ final class ArranqueConservadorTests: XCTestCase {
         let soloDistancia = base.semanas[0].entrenamientos
             .flatMap(\.segmentos).compactMap(\.distanciaKm).reduce(0, +)
         XCTAssertGreaterThan(CatalogoDePrueba.volumen(base.semanas[0]), soloDistancia)
-        let (plan, factor) = MotorPlanificacion.ajustarArranque(
+        let ajuste = MotorPlanificacion.ajustarArranque(
             base, kmSemanalesActuales: 20, conservador: false)
-        XCTAssertLessThan(factor, 1)
-        XCTAssertLessThanOrEqual(CatalogoDePrueba.volumen(plan.semanas[0]),
+        XCTAssertLessThan(ajuste.factor, 1)
+        XCTAssertLessThanOrEqual(CatalogoDePrueba.volumen(ajuste.base.semanas[0]),
                                  20 * MotorPlanificacion.factorEntradaMaximo)
     }
 
     func testSinDatosDeVolumenElArranqueNoSeToca() {
         let base = MotorPlanificacion.recortar(ContenidoPlanes.maraton(), aDias: 4)
-        let (plan, factor) = MotorPlanificacion.ajustarArranque(base, kmSemanalesActuales: nil)
-        XCTAssertEqual(factor, 1)
-        XCTAssertEqual(plan, base)
+        let ajuste = MotorPlanificacion.ajustarArranque(base, kmSemanalesActuales: nil)
+        XCTAssertEqual(ajuste.factor, 1)
+        XCTAssertEqual(ajuste.base, base)
+        XCTAssertEqual(ajuste.diagnostico, .sinAjuste)
     }
 
     func testElArranqueNuncaEscalaHaciaArriba() {
         let base = MotorPlanificacion.recortar(ContenidoPlanes.mediaMaraton(), aDias: 4)
-        let (plan, factor) = MotorPlanificacion.ajustarArranque(base, kmSemanalesActuales: 200)
-        XCTAssertEqual(factor, 1)
-        XCTAssertEqual(CatalogoDePrueba.volumen(plan.semanas[0]),
+        let ajuste = MotorPlanificacion.ajustarArranque(base, kmSemanalesActuales: 200)
+        XCTAssertEqual(ajuste.factor, 1)
+        XCTAssertEqual(CatalogoDePrueba.volumen(ajuste.base.semanas[0]),
                        CatalogoDePrueba.volumen(base.semanas[0]), accuracy: 0.001)
+        XCTAssertEqual(ajuste.diagnostico, .sinAjuste)
+    }
+}
+
+// MARK: - El arranque DICE si pudo cumplir el techo
+
+/// `ajustarArranque` puede quedarse sin margen: el factor tiene un piso
+/// y los segmentos el suyo. Cuando eso pasa, la primera semana queda
+/// por encima del techo prometido. Estos tests NO fijan qué hay que
+/// hacer al respecto — esa decisión está abierta. Fijan que el
+/// resultado sea DECIBLE y que lo que dice sea cierto.
+final class DiagnosticoArranqueTests: XCTestCase {
+
+    /// El caso conocido: mejorar 10K a 5 días contra un corredor que
+    /// entra justo por el piso de elegibilidad (0,4 × 22 = 8,8).
+    func testDiceCuandoNoLlegaAlTecho() {
+        let base = MotorPlanificacion.recortar(ContenidoPlanes.mejorar10K(), aDias: 5)
+        let ajuste = MotorPlanificacion.ajustarArranque(
+            base, kmSemanalesActuales: 8.8, conservador: true)
+
+        guard case .excedeElTecho(let permitido, let resultante) = ajuste.diagnostico else {
+            return XCTFail("el techo no se cumple; el diagnóstico tiene que decirlo, dijo \(ajuste.diagnostico)")
+        }
+        XCTAssertEqual(permitido, 8.8, accuracy: 0.001)
+        XCTAssertGreaterThan(resultante, permitido)
+        XCTAssertFalse(ajuste.diagnostico.cumpleElTecho)
+        XCTAssertGreaterThan(ajuste.diagnostico.excesoKm, 10)
+        // Se agotó el piso: no es que la bisección haya elegido mal.
+        XCTAssertEqual(ajuste.factor, MotorPlanificacion.factorArranqueMinimo)
+    }
+
+    func testDiceCuandoSiLlegaAlTecho() {
+        let base = MotorPlanificacion.recortar(ContenidoPlanes.mejorar10K(), aDias: 4)
+        let ajuste = MotorPlanificacion.ajustarArranque(
+            base, kmSemanalesActuales: 20, conservador: false)
+
+        guard case .dentroDelTecho(let permitido, let resultante) = ajuste.diagnostico else {
+            return XCTFail("el techo se cumple; el diagnóstico dijo \(ajuste.diagnostico)")
+        }
+        XCTAssertEqual(permitido, 20 * MotorPlanificacion.factorEntradaMaximo, accuracy: 0.001)
+        XCTAssertLessThanOrEqual(resultante, permitido)
+        XCTAssertTrue(ajuste.diagnostico.cumpleElTecho)
+        XCTAssertEqual(ajuste.diagnostico.excesoKm, 0)
+        XCTAssertGreaterThan(ajuste.factor, MotorPlanificacion.factorArranqueMinimo)
+    }
+
+    /// Sin atenuación no hay techo que reportar.
+    func testSinAjusteCuandoElTemplateYaEntra() {
+        let base = MotorPlanificacion.recortar(ContenidoPlanes.mediaMaraton(), aDias: 4)
+        let ajuste = MotorPlanificacion.ajustarArranque(base, kmSemanalesActuales: 200)
+        XCTAssertEqual(ajuste.diagnostico, .sinAjuste)
+        XCTAssertTrue(ajuste.diagnostico.cumpleElTecho)
+        XCTAssertEqual(ajuste.diagnostico.excesoKm, 0)
+    }
+
+    /// EL invariante: el diagnóstico no miente. Sobre los 10 planes ×
+    /// todas sus frecuencias × el corredor que entra por el piso de
+    /// elegibilidad, lo que el resultado AFIRMA tiene que coincidir con
+    /// lo que la semana MIDE. No dice que el techo deba cumplirse —
+    /// dice que si el resultado declara haberlo cumplido, es verdad.
+    func testElDiagnosticoCoincideConLaSemanaQueQueda() {
+        for (arquetipo, contenido) in CatalogoDePrueba.todos {
+            let requisitos = RequisitosObjetivo.para(arquetipo.objetivo)
+            // Barre desde el piso de elegibilidad hacia arriba: cubre
+            // los dos lados de la frontera en el mismo recorrido.
+            let piso = max(1, requisitos.kmSemanales * RequisitosObjetivo.fraccionPiso)
+            for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
+                let base = MotorPlanificacion.recortar(contenido, aDias: dias)
+                for multiplo in [1.0, 1.5, 2.0, 3.0, 5.0] {
+                    let actuales = piso * multiplo
+                    for conservador in [true, false] {
+                        let ajuste = MotorPlanificacion.ajustarArranque(
+                            base, kmSemanalesActuales: actuales, conservador: conservador)
+                        let real = CatalogoDePrueba.volumen(ajuste.base.semanas[0])
+                        let caso = "\(arquetipo.id) \(dias)d actuales=\(actuales) conservador=\(conservador)"
+
+                        switch ajuste.diagnostico {
+                        case .sinAjuste:
+                            XCTAssertEqual(ajuste.factor, 1, "\(caso): sinAjuste con factor ≠ 1")
+                        case .dentroDelTecho(let permitido, let resultante):
+                            XCTAssertEqual(resultante, real, accuracy: 0.001,
+                                           "\(caso): el diagnóstico reporta un volumen distinto del real")
+                            XCTAssertLessThanOrEqual(
+                                resultante, permitido + 0.001,
+                                "\(caso): declara cumplir el techo y no lo cumple")
+                        case .excedeElTecho(let permitido, let resultante):
+                            XCTAssertEqual(resultante, real, accuracy: 0.001,
+                                           "\(caso): el diagnóstico reporta un volumen distinto del real")
+                            XCTAssertGreaterThan(
+                                resultante, permitido,
+                                "\(caso): declara exceder el techo y no lo excede")
+                            XCTAssertEqual(ajuste.factor,
+                                           MotorPlanificacion.factorArranqueMinimo,
+                                           "\(caso): excede el techo sin haber agotado el piso")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// La señal viaja por el camino real hasta la propuesta. Nadie la
+    /// lee todavía: se transporta para que la decisión de producto se
+    /// tome con el dato a la vista en vez de a ciegas.
+    func testLaPropuestaTransportaElDiagnostico() {
+        var lunes = Calendar(identifier: .gregorian); lunes.firstWeekday = 2
+        let referencia = ReferenciaRendimiento(fecha: Date(), fuente: .test5K,
+                                               distanciaMetros: 5000, segundos: 1470)
+        // Corredor que entra JUSTO por el piso de elegibilidad de
+        // maratón (0,4 × 40 = 16): el plan no puede achicarse hasta ahí.
+        let pedido = PedidoDePlan(
+            objetivo: .maraton, fechaObjetivo: nil, diasPorSemana: 4,
+            diasConcretos: [2, 4, 6, 7], referencia: referencia,
+            hoy: DiaLocal(anio: 2026, mes: 8, dia: 10),
+            actividad: ActividadActual(diasPorSemana: 4, kmSemanales: 16,
+                                       tiradaLargaKm: 12, mesesCorriendoRegular: 6))
+        guard case .propuesta(let p) = MotorPlanificacion.proponer(pedido, calendario: lunes) else {
+            return XCTFail("sin propuesta")
+        }
+        XCTAssertFalse(p.arranque.cumpleElTecho,
+                       "el techo no se cumple y la propuesta lo tiene que transportar")
+        XCTAssertGreaterThan(p.arranque.excesoKm, 0)
+        // Y sigue siendo el mismo plan: la señal no bloquea nada.
+        XCTAssertFalse(p.planUsuario.semanas.isEmpty)
     }
 }
 

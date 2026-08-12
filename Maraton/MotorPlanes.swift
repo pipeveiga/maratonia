@@ -217,6 +217,56 @@ struct PropuestaPlan {
     var veredicto: VeredictoElegibilidad = .elegible
     /// Factor con el que se atenuó el arranque (1 = sin atenuar).
     var factorArranque: Double = 1
+    /// Si el techo de entrada se pudo cumplir, y con cuánto margen.
+    /// Hoy NADIE lo lee: se transporta para que la decisión de qué
+    /// hacer con `.excedeElTecho` se pueda tomar mirando datos reales
+    /// en vez de a ciegas. Ver `DiagnosticoArranque`.
+    var arranque: DiagnosticoArranque = .sinAjuste
+}
+
+/// Qué pasó con el techo de entrada al atenuar el arranque.
+///
+/// Existe porque `ajustarArranque` NO siempre puede cumplir el techo.
+/// El factor tiene un piso (`factorArranqueMinimo`) y los segmentos
+/// tienen el suyo (1 km, y los bloques por tiempo no se escalan): si
+/// esos pisos se agotan antes de llegar al techo, la primera semana
+/// queda POR ENCIMA de lo que se le prometió al corredor. Eso pasaba
+/// ya, pero se devolvía con exactamente la misma forma que un ajuste
+/// exitoso — un `Double` — y el llamador no tenía manera de
+/// distinguirlos. El desvío existía y era invisible.
+///
+/// Este tipo NO cambia ninguna regla deportiva ni decide nada: solo
+/// hace decible lo que el cálculo ya sabía.
+enum DiagnosticoArranque: Equatable {
+    /// No se tocó nada: no había volumen previo con el cual medir, o
+    /// el template ya entraba bajo el techo por sí solo.
+    case sinAjuste
+    /// Se encontró un factor que deja la primera semana bajo el techo.
+    case dentroDelTecho(permitidoKm: Double, resultanteKm: Double)
+    /// Los pisos se agotaron antes que el techo: la primera semana
+    /// queda por encima de lo permitido. No es un error del cálculo —
+    /// es que este plan no se puede achicar tanto para este corredor.
+    case excedeElTecho(permitidoKm: Double, resultanteKm: Double)
+
+    /// Cuántos km por encima del techo quedó la primera semana.
+    var excesoKm: Double {
+        guard case .excedeElTecho(let permitido, let resultante) = self else { return 0 }
+        return max(0, resultante - permitido)
+    }
+
+    /// `false` SOLO cuando el techo prometido no se cumplió.
+    var cumpleElTecho: Bool {
+        if case .excedeElTecho = self { return false }
+        return true
+    }
+}
+
+/// Lo que devuelve `ajustarArranque`: el plan atenuado, el factor y —
+/// la parte nueva — si ese factor alcanzó para cumplir el techo.
+struct ResultadoArranque {
+    var base: PlanBase
+    var factor: Double
+    var diagnostico: DiagnosticoArranque
 }
 
 // MARK: - Motor
@@ -398,7 +448,8 @@ enum MotorPlanificacion {
             kmPrimeraSemana: (primeraSemanaKm ?? 0) > 0 ? primeraSemanaKm : nil,
             planUsuario: plan,
             veredicto: veredicto,
-            factorArranque: factorArranque))
+            factorArranque: factorArranque,
+            arranque: ajuste.diagnostico))
     }
 
     /// El volumen semanal REAL del corredor: gana lo medido en Salud
@@ -451,17 +502,27 @@ enum MotorPlanificacion {
     /// arranque de Mejorar 10K contra 20 km/semana daba 25,4 km, un
     /// +27 % donde el contrato dice +20 %.
     static func ajustarArranque(_ base: PlanBase, kmSemanalesActuales: Double?,
-                                conservador: Bool = false)
-        -> (base: PlanBase, factor: Double) {
+                                conservador: Bool = false) -> ResultadoArranque {
+        let sinTocar = ResultadoArranque(base: base, factor: 1, diagnostico: .sinAjuste)
         guard let actuales = kmSemanalesActuales, actuales > 0,
-              let primera = base.semanas.first else { return (base, 1) }
-        guard volumenSemanaBase(primera) > 0 else { return (base, 1) }
+              let primera = base.semanas.first else { return sinTocar }
+        guard volumenSemanaBase(primera) > 0 else { return sinTocar }
 
         let techo = conservador ? factorEntradaConservador : factorEntradaMaximo
         let rampa = conservador ? semanasDeRampaConservador : semanasDeRampa
         let permitido = actuales * techo
-        guard let factor = factorDeArranque(primera, permitido: permitido) else {
-            return (base, 1)
+
+        let factor: Double
+        let alcanzaElTecho: Bool
+        switch factorDeArranque(primera, permitido: permitido) {
+        case .noHaceFalta:
+            return sinTocar
+        case .encontrado(let f):
+            factor = f; alcanzaElTecho = true
+        case .pisoInsuficiente(let piso):
+            // El plan igual se atenúa todo lo que se puede: dejarlo sin
+            // tocar sería peor. Lo que cambia es que ahora se DICE.
+            factor = piso; alcanzaElTecho = false
         }
 
         var resultado = base
@@ -473,19 +534,49 @@ enum MotorPlanificacion {
             let avance = Double(indice) / Double(rampa)
             return escalarDistancias(semana, factor: factor + (1 - factor) * avance)
         }
-        return (resultado, factor)
+
+        // Se mide la semana que REALMENTE quedó, no una reconstrucción:
+        // si la rampa cambiara, el diagnóstico la sigue sin retocarse.
+        let resultante = resultado.semanas.first.map(volumenSemanaBase) ?? 0
+        return ResultadoArranque(
+            base: resultado, factor: factor,
+            diagnostico: alcanzaElTecho
+                ? .dentroDelTecho(permitidoKm: permitido, resultanteKm: resultante)
+                : .excedeElTecho(permitidoKm: permitido, resultanteKm: resultante))
     }
 
-    /// El MAYOR factor que deja la semana dentro del techo, o nil si el
-    /// techo ya se cumple sin tocar nada. El volumen es monótono no
-    /// decreciente en el factor (cada segmento crece o se queda en su
-    /// piso), así que la bisección es exacta y determinística. Si ni
-    /// siquiera `factorArranqueMinimo` alcanza, devuelve ese piso: por
-    /// debajo el plan deja de ser el plan y el problema es de
-    /// elegibilidad, no de arranque.
+    /// Resultado de buscar el factor de arranque. Los tres casos son
+    /// distintos y antes dos de ellos volvían como el mismo `Double`.
+    private enum BusquedaDeArranque {
+        /// El techo ya se cumple sin tocar nada.
+        case noHaceFalta
+        /// El mayor factor que deja la semana dentro del techo.
+        case encontrado(Double)
+        /// Ni siquiera `factorArranqueMinimo` alcanza. Trae el piso,
+        /// que es lo que se aplica igual, pero por otro camino para
+        /// que el llamador no pueda confundirlo con un éxito.
+        case pisoInsuficiente(Double)
+    }
+
+    /// El MAYOR factor que deja la semana dentro del techo. El volumen
+    /// es monótono no decreciente en el factor (cada segmento crece o
+    /// se queda en su piso), así que la bisección es exacta y
+    /// determinística.
+    ///
+    /// Si ni siquiera `factorArranqueMinimo` alcanza, el piso se aplica
+    /// igual — por debajo el plan deja de ser el plan — pero vuelve
+    /// como `.pisoInsuficiente`. Chequearlo por adelantado no cambia el
+    /// factor resultante: si el piso ya excede el permitido, la
+    /// monotonía garantiza que TODA la bisección deja `bajo` clavado en
+    /// el piso. Lo que cambia es que deja de ser indistinguible de un
+    /// ajuste que sí cumplió.
     private static func factorDeArranque(_ semana: SemanaBase,
-                                         permitido: Double) -> Double? {
-        guard volumenSemanaBase(semana) > permitido else { return nil }
+                                         permitido: Double) -> BusquedaDeArranque {
+        guard volumenSemanaBase(semana) > permitido else { return .noHaceFalta }
+        guard volumenSemanaBase(escalarDistancias(semana, factor: factorArranqueMinimo))
+                <= permitido else {
+            return .pisoInsuficiente(factorArranqueMinimo)
+        }
         var bajo = factorArranqueMinimo
         var alto = 1.0
         for _ in 0..<30 {
@@ -496,7 +587,7 @@ enum MotorPlanificacion {
                 bajo = medio
             }
         }
-        return bajo
+        return .encontrado(bajo)
     }
 
     /// Escala los segmentos por DISTANCIA de la semana. Los bloques por
