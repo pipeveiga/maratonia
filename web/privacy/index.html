@@ -1,57 +1,109 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Maratonia — Privacidad / Privacy</title>
-<style>
-body{font-family:-apple-system,system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;line-height:1.6;color:#1c1c1e}
-h1{font-size:1.6rem}h2{font-size:1.2rem;margin-top:2rem}
-hr{margin:3rem 0;border:none;border-top:1px solid #ccc}
-@media(prefers-color-scheme:dark){body{background:#111;color:#eee}hr{border-top-color:#333}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-en="Maratonia - Privacy">Maratonia - Privacidad / Privacy</title>
+  <meta name="description" content="Politica de privacidad de Maratonia: datos en dispositivo, Apple Health, iCloud privado, Firebase Authentication y Coach opcional." data-en="Maratonia privacy policy: on-device data, Apple Health, private iCloud, Firebase Authentication and optional Coach." data-i18n-attribute="content">
+  <script src="/language.js"></script>
+  <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-<h1>Política de privacidad de Maratonia</h1>
-<p>Última actualización: agosto 2026.</p>
-<h2>Qué datos maneja la app y dónde viven</h2>
-<ul>
-<li><strong>En tu dispositivo</strong>: tu plan de entrenamiento, calendario, preferencias y perfil deportivo. No salen del teléfono.</li>
-<li><strong>Apple Health</strong>: tus entrenamientos (distancia, ruta GPS, frecuencia cardíaca, calorías). Maratonia los lee para mostrar tu progreso y guarda los propios. Jamás se suben a ningún servidor. Se administran desde la app Salud.</li>
-<li><strong>Tu iCloud privado</strong>: un respaldo de tu configuración, en TU cuenta de iCloud. Maratonia no puede leer el iCloud de otros usuarios.</li>
-<li><strong>Firebase Authentication (Google Cloud)</strong>: solo si creás una cuenta (opcional). Guarda tu email de acceso y proveedores vinculados (Apple/Google/email). No guarda tu plan ni tus entrenamientos. Con "Ocultar mi correo" de Apple, solo ve la dirección relay.</li>
-<li><strong>Maratonia Coach (opcional)</strong>: si usás el Coach, un resumen mínimo (objetivo, fecha, días, marcas y resúmenes de sesiones — nunca rutas GPS, coordenadas ni datos crudos de Health) se envía a nuestro backend y a OpenAI para generar la respuesta. Sin usar el Coach, nada viaja.</li>
-</ul>
-<h2>Qué NO hacemos</h2>
-<ul>
-<li>No hay publicidad ni SDKs de analytics.</li>
-<li>No vendemos ni compartimos datos con data brokers.</li>
-<li>No hacemos tracking entre apps (sin ATT).</li>
-</ul>
-<h2>Eliminar tu cuenta</h2>
-<p>Perfil → Cuenta Maratonia → Eliminar cuenta. Borra tu identidad (incluida la de Firebase) y el respaldo en iCloud. Tus entrenamientos en Apple Health son tuyos y no se tocan.</p>
-<h2>Contacto</h2>
-<p>Consultas de privacidad: <a href="mailto:pipeveiga2003@gmail.com">pipeveiga2003@gmail.com</a></p>
-<hr>
-<h1>Maratonia Privacy Policy</h1>
-<p>Last updated: August 2026.</p>
-<h2>What data the app handles and where it lives</h2>
-<ul>
-<li><strong>On your device</strong>: your training plan, calendar, preferences and athlete profile. They never leave the phone.</li>
-<li><strong>Apple Health</strong>: your workouts (distance, GPS route, heart rate, calories). Maratonia reads them to show progress and saves its own. They are never uploaded to any server. Managed from the Health app.</li>
-<li><strong>Your private iCloud</strong>: a backup of your configuration, in YOUR iCloud account. Maratonia cannot read other users' iCloud.</li>
-<li><strong>Firebase Authentication (Google Cloud)</strong>: only if you create an (optional) account. It stores your sign-in email and linked providers (Apple/Google/email). It does not store your plan or workouts. With Apple's "Hide My Email", it only sees the relay address.</li>
-<li><strong>Maratonia Coach (optional)</strong>: if you use the Coach, a minimal summary (goal, date, days, results and session summaries — never GPS routes, coordinates or raw Health data) is sent to our backend and to OpenAI to generate the answer. If you don't use the Coach, nothing travels.</li>
-</ul>
-<h2>What we do NOT do</h2>
-<ul>
-<li>No ads, no analytics SDKs.</li>
-<li>No selling or sharing data with brokers.</li>
-<li>No cross-app tracking (no ATT).</li>
-</ul>
-<h2>Deleting your account</h2>
-<p>Profile → Maratonia Account → Delete account. This deletes your identity (including the Firebase one) and the iCloud backup. Your Apple Health workouts are yours and are not touched.</p>
-<h2>Contact</h2>
-<p>Privacy questions: <a href="mailto:pipeveiga2003@gmail.com">pipeveiga2003@gmail.com</a></p>
+  <nav class="site-nav on-page" aria-label="Navegacion principal">
+    <a class="brand" href="/" aria-label="Maratonia inicio">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>Maratonia</span>
+    </a>
+    <div class="nav-links">
+      <a href="/privacy/" data-en="Privacy">Privacidad</a>
+      <a href="/support/" data-en="Support">Soporte</a>
+      <a href="/terms/" data-en="Terms">Terminos</a>
+    </div>
+  </nav>
+
+  <header class="doc-header">
+    <div class="section">
+      <p class="eyebrow">Privacidad / Privacy</p>
+      <h1 data-en="Privacy, data by data.">Privacidad, dato por dato.</h1>
+      <p data-en="Maratonia uses HealthKit, location and sports data to work. Here is where each piece of data lives and what we do not do with it.">Maratonia usa HealthKit, ubicacion y datos deportivos para funcionar. Ac&aacute; explicamos d&oacute;nde vive cada dato y qu&eacute; no hacemos con ellos.</p>
+    </div>
+  </header>
+
+  <main class="section doc-main">
+    <aside class="doc-aside" aria-label="Indice">
+      <a class="locale-es" href="#es">Espa&ntilde;ol</a>
+      <a class="locale-en" href="#en">English</a>
+      <a href="/support/" data-en="Support">Soporte</a>
+    </aside>
+
+    <div>
+      <section class="doc-panel lang-section locale-es" id="es">
+        <h2>Politica de privacidad de Maratonia</h2>
+        <p><strong>Ultima actualizacion:</strong> agosto 2026.</p>
+
+        <h3>Que datos maneja la app y donde viven</h3>
+        <ul>
+          <li><strong>En tu dispositivo:</strong> tu plan de entrenamiento, calendario, preferencias, perfil deportivo, pistas MP3 y configuracion. No salen del telefono por usar la app.</li>
+          <li><strong>Apple Health:</strong> tus entrenamientos, distancia, ruta GPS, frecuencia cardiaca y calorias. Maratonia los lee para mostrar progreso y guarda los propios. No se suben a servidores por existir un login.</li>
+          <li><strong>Tu iCloud privado:</strong> respaldo de configuracion dentro de tu cuenta de iCloud. Maratonia no puede leer el iCloud de otros usuarios.</li>
+          <li><strong>Firebase Authentication:</strong> solo si creas una cuenta opcional. Guarda email de acceso, UID y proveedores vinculados. No guarda plan, calendario, carreras ni metricas deportivas.</li>
+          <li><strong>Maratonia Coach opcional:</strong> si usas el Coach, un resumen minimo de objetivo, fecha, dias, plan y sesiones puede enviarse al backend y a OpenAI para generar la respuesta. Nunca incluye rutas GPS, coordenadas ni datos crudos de HealthKit.</li>
+        </ul>
+
+        <h3>Que no hacemos</h3>
+        <ul>
+          <li>No usamos publicidad.</li>
+          <li>No incluimos SDKs de analytics en este build.</li>
+          <li>No vendemos ni compartimos datos con data brokers.</li>
+          <li>No hacemos tracking entre apps y no usamos ATT.</li>
+        </ul>
+
+        <h3>Eliminar tu cuenta</h3>
+        <p>Perfil &rarr; Cuenta Maratonia &rarr; Eliminar cuenta. Esa accion borra tu identidad de Maratonia, la identidad de Firebase cuando corresponda y el respaldo privado asociado. Tus entrenamientos de Apple Health son tuyos y se gestionan desde la app Salud.</p>
+
+        <h3>Contacto</h3>
+        <p>Consultas de privacidad: <a href="mailto:maratonia.site@gmail.com">maratonia.site@gmail.com</a>.</p>
+      </section>
+
+      <section class="doc-panel lang-section locale-en" id="en" lang="en">
+        <h2>Maratonia Privacy Policy</h2>
+        <p><strong>Last updated:</strong> August 2026.</p>
+
+        <h3>What data the app handles and where it lives</h3>
+        <ul>
+          <li><strong>On your device:</strong> your training plan, calendar, preferences, athlete profile, MP3 files and configuration. They do not leave the phone just because you use the app.</li>
+          <li><strong>Apple Health:</strong> your workouts, distance, GPS route, heart rate and calories. Maratonia reads them to show progress and saves its own. They are not uploaded to servers just because you have a login.</li>
+          <li><strong>Your private iCloud:</strong> configuration backup inside your own iCloud account. Maratonia cannot read other users' iCloud data.</li>
+          <li><strong>Firebase Authentication:</strong> only if you create an optional account. It stores sign-in email, UID and linked providers. It does not store your plan, calendar, runs or sports metrics.</li>
+          <li><strong>Optional Maratonia Coach:</strong> if you use Coach, a minimal summary of goal, date, days, plan and sessions may be sent to our backend and OpenAI to generate the answer. It never includes GPS routes, coordinates or raw HealthKit data.</li>
+        </ul>
+
+        <h3>What we do not do</h3>
+        <ul>
+          <li>No advertising.</li>
+          <li>No analytics SDKs in this build.</li>
+          <li>No selling or sharing data with data brokers.</li>
+          <li>No cross-app tracking and no ATT.</li>
+        </ul>
+
+        <h3>Deleting your account</h3>
+        <p>Profile &rarr; Maratonia Account &rarr; Delete account. This deletes your Maratonia identity, the Firebase identity when applicable and the related private backup. Apple Health workouts are yours and are managed from the Health app.</p>
+
+        <h3>Contact</h3>
+        <p>Privacy questions: <a href="mailto:maratonia.site@gmail.com">maratonia.site@gmail.com</a>.</p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>Maratonia Privacy</span>
+      <nav class="nav-links" aria-label="Links legales">
+        <a href="/">Inicio</a>
+        <a href="/support/" data-en="Support">Soporte</a>
+        <a href="/terms/" data-en="Terms">Terminos</a>
+      </nav>
+    </div>
+  </footer>
 </body>
 </html>
