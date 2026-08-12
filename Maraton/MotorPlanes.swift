@@ -945,11 +945,23 @@ struct PropuestaPlanView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                // El arranque se atenuó, pero no siempre alcanza: hay
+                // planes que no pueden bajar hasta el volumen del
+                // corredor sin dejar de ser ese plan. Prometer "adaptado
+                // a tu volumen actual" en ese caso es falso, y es
+                // justamente el corredor con menos base el que lo lee.
                 if propuesta.factorArranque < 1 {
-                    Label(String(localized: "Arranque adaptado a tu volumen actual: las primeras semanas empiezan más abajo y suben hasta el plan completo."),
-                          systemImage: "arrow.down.right.circle")
-                        .font(.footnote)
-                        .foregroundStyle(DV2.Marca.primario)
+                    if propuesta.arranque.cumpleElTecho {
+                        Label(String(localized: "Arranque adaptado a tu volumen actual: las primeras semanas empiezan más abajo y suben hasta el plan completo."),
+                              systemImage: "arrow.down.right.circle")
+                            .font(.footnote)
+                            .foregroundStyle(DV2.Marca.primario)
+                    } else {
+                        Label(String(localized: "Las primeras semanas ya empiezan lo más abajo que permite este plan, y aun así piden más de lo que venís haciendo. Arrancá con calma y adaptá las sesiones que te queden largas."),
+                              systemImage: "exclamationmark.triangle")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                    }
                 }
             } footer: {
                 Text("Al confirmar, tu plan actual (si existe) queda archivado con su historial.")

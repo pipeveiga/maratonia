@@ -3389,6 +3389,17 @@
         }
       }
     },
+    "Las primeras semanas ya empiezan lo más abajo que permite este plan, y aun así piden más de lo que venís haciendo. Arrancá con calma y adaptá las sesiones que te queden largas.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The first weeks already start as low as this plan allows, and they still ask for more than you've been doing. Ease into it and scale back any session that runs long."
+          }
+        }
+      }
+    },
     "Listo": {
       "extractionState": "manual",
       "localizations": {
@@ -3532,13 +3543,13 @@
         }
       }
     },
-    "Maratonia no diagnostica ni trata lesiones. Si marcás una molestia, el plan arranca más abajo y sube más despacio.": {
+    "Maratonia no diagnostica ni trata lesiones. Si marcás una molestia, el plan se vuelve más cauto con el arranque y con la progresión.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Maratonia doesn't diagnose or treat injuries. If you flag something, the plan starts lower and builds more slowly."
+            "value": "Maratonia doesn't diagnose or treat injuries. If you flag something, the plan gets more cautious about how it starts and how it builds."
           }
         }
       }
@@ -5600,13 +5611,13 @@
         }
       }
     },
-    "Sin referencia — el plan arranca suave y aprende con vos": {
+    "Sin referencia — las sesiones van a ritmo libre hasta que tengas una marca": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No reference — the plan starts easy and learns with you"
+            "value": "No reference — sessions run at free pace until you have a time on record"
           }
         }
       }

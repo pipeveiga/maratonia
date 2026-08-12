@@ -193,7 +193,10 @@ struct OnboardingDeportivo: View {
                     molestias = opcion
                 }
             }
-            Text("Maratonia no diagnostica ni trata lesiones. Si marcás una molestia, el plan arranca más abajo y sube más despacio.")
+            // No promete que el arranque BAJE: si el plan ya entraba
+            // bajo el techo, no hay nada que bajar y la promesa sería
+            // falsa. Lo que sí garantiza el motor es el criterio.
+            Text("Maratonia no diagnostica ni trata lesiones. Si marcás una molestia, el plan se vuelve más cauto con el arranque y con la progresión.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -311,7 +314,10 @@ struct OnboardingDeportivo: View {
                 avanzar()
             }
             tarjetaOpcion(titulo: String(localized: "Estoy empezando"),
-                          subtitulo: String(localized: "Sin referencia — el plan arranca suave y aprende con vos"),
+                          // "Arranca suave" no lo garantiza el motor:
+                          // sin referencia lo que cambia son los
+                          // ritmos, no el volumen de entrada.
+                          subtitulo: String(localized: "Sin referencia — las sesiones van a ritmo libre hasta que tengas una marca"),
                           icono: "leaf.fill",
                           elegida: experiencia == .empezando) {
                 experiencia = .empezando

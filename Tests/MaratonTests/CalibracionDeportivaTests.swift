@@ -1084,6 +1084,32 @@ final class ArranqueIrreducibleTests: XCTestCase {
         }
     }
 
+    /// La vista de la propuesta muestra el aviso de arranque SOLO
+    /// cuando hubo atenuación (`factorArranque < 1`), y adentro elige
+    /// el texto según `cumpleElTecho`. Si alguna vez se pudiera exceder
+    /// el techo SIN atenuar, el aviso desaparecería en silencio justo
+    /// en el caso que más importa. Este test ata las dos cosas.
+    func testExcederElTechoImplicaHaberAtenuado() {
+        for (arquetipo, contenido) in CatalogoDePrueba.todos {
+            let requisitos = RequisitosObjetivo.para(arquetipo.objetivo)
+            let piso = max(1, requisitos.kmSemanales * RequisitosObjetivo.fraccionPiso)
+            for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
+                let base = MotorPlanificacion.recortar(contenido, aDias: dias)
+                for multiplo in [0.25, 0.5, 1.0, 2.0, 5.0] {
+                    for conservador in [true, false] {
+                        let ajuste = MotorPlanificacion.ajustarArranque(
+                            base, kmSemanalesActuales: piso * multiplo,
+                            conservador: conservador)
+                        guard !ajuste.diagnostico.cumpleElTecho else { continue }
+                        XCTAssertLessThan(
+                            ajuste.factor, 1,
+                            "\(arquetipo.id) \(dias)d: excede el techo sin atenuar, la vista no lo avisaría")
+                    }
+                }
+            }
+        }
+    }
+
     /// La contracara: los mismos planes con un corredor que SÍ tiene
     /// base cumplen el techo y lo reportan como corresponde.
     func testLosMismosPlanesConBaseSuficienteCumplenElTecho() {
