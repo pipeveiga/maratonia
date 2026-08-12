@@ -422,7 +422,8 @@ enum MotorPlanificacion {
         // alarga la rampa. La diferencia es real y testeable.
         let ajuste = ajustarArranque(recortada,
                                      kmSemanalesActuales: volumenActual(pedido),
-                                     conservador: arranqueConservador)
+                                     conservador: arranqueConservador,
+                                     baseline: PerformanceBaseline(referencia: pedido.referencia))
         recortada = ajuste.base
         let factorArranque = ajuste.factor
 
@@ -536,6 +537,14 @@ enum MotorPlanificacion {
     /// calculaba contra un número que ignoraba las sesiones de calidad
     /// y la atenuación salía mal por varios kilómetros.
     ///
+    /// El techo se mide contra el BASELINE REAL del corredor cuando
+    /// existe. Los bloques por tiempo se convierten a km con un ritmo,
+    /// y usar el genérico hacía que el techo se evaluara para un
+    /// corredor que no es este: un umbral de 18′ son más km para quien
+    /// corre rápido que para quien corre lento, así que el mismo plan
+    /// pesa distinto según quién lo corra. Sin referencia se cae al
+    /// ritmo de referencia, que es lo único disponible.
+    ///
     /// Y el factor se BUSCA contra el volumen que va a quedar, no se
     /// deduce como `permitido / kmPrimera`: escalar solo mueve los
     /// segmentos por DISTANCIA. Los bloques por tiempo (un umbral de
@@ -545,12 +554,13 @@ enum MotorPlanificacion {
     /// arranque de Mejorar 10K contra 20 km/semana daba 25,4 km, un
     /// +27 % donde el contrato dice +20 %.
     static func ajustarArranque(_ base: PlanBase, kmSemanalesActuales: Double?,
-                                conservador: Bool = false) -> ResultadoArranque {
+                                conservador: Bool = false,
+                                baseline: PerformanceBaseline? = nil) -> ResultadoArranque {
         let sinMedida = ResultadoArranque(base: base, factor: 1,
                                           diagnostico: .sinVolumenPrevio)
         guard let actuales = kmSemanalesActuales, actuales > 0,
               let primera = base.semanas.first else { return sinMedida }
-        let volumenTemplate = volumenSemanaBase(primera)
+        let volumenTemplate = volumenSemanaBase(primera, baseline: baseline)
         guard volumenTemplate > 0 else { return sinMedida }
 
         let techo = conservador ? factorEntradaConservador : factorEntradaMaximo
@@ -559,7 +569,7 @@ enum MotorPlanificacion {
 
         let factor: Double
         let alcanzaElTecho: Bool
-        switch factorDeArranque(primera, permitido: permitido) {
+        switch factorDeArranque(primera, permitido: permitido, baseline: baseline) {
         case .noHaceFalta:
             return ResultadoArranque(
                 base: base, factor: 1,
@@ -585,7 +595,8 @@ enum MotorPlanificacion {
 
         // Se mide la semana que REALMENTE quedó, no una reconstrucción:
         // si la rampa cambiara, el diagnóstico la sigue sin retocarse.
-        let resultante = resultado.semanas.first.map(volumenSemanaBase) ?? 0
+        let resultante = resultado.semanas.first
+            .map { volumenSemanaBase($0, baseline: baseline) } ?? 0
         return ResultadoArranque(
             base: resultado, factor: factor,
             diagnostico: alcanzaElTecho
@@ -618,18 +629,21 @@ enum MotorPlanificacion {
     /// monotonía garantiza que TODA la bisección deja `bajo` clavado en
     /// el piso. Lo que cambia es que deja de ser indistinguible de un
     /// ajuste que sí cumplió.
-    private static func factorDeArranque(_ semana: SemanaBase,
-                                         permitido: Double) -> BusquedaDeArranque {
-        guard volumenSemanaBase(semana) > permitido else { return .noHaceFalta }
-        guard volumenSemanaBase(escalarDistancias(semana, factor: factorArranqueMinimo))
-                <= permitido else {
+    private static func factorDeArranque(_ semana: SemanaBase, permitido: Double,
+                                         baseline: PerformanceBaseline?) -> BusquedaDeArranque {
+        guard volumenSemanaBase(semana, baseline: baseline) > permitido else {
+            return .noHaceFalta
+        }
+        guard volumenSemanaBase(escalarDistancias(semana, factor: factorArranqueMinimo),
+                                baseline: baseline) <= permitido else {
             return .pisoInsuficiente(factorArranqueMinimo)
         }
         var bajo = factorArranqueMinimo
         var alto = 1.0
         for _ in 0..<30 {
             let medio = (bajo + alto) / 2
-            if volumenSemanaBase(escalarDistancias(semana, factor: medio)) > permitido {
+            if volumenSemanaBase(escalarDistancias(semana, factor: medio),
+                                 baseline: baseline) > permitido {
                 alto = medio
             } else {
                 bajo = medio
@@ -659,8 +673,9 @@ enum MotorPlanificacion {
 
     /// Volumen de la semana, sesión por sesión: el tope de duración es
     /// por sesión y aplanar la semana lo haría desaparecer.
-    private static func volumenSemanaBase(_ semana: SemanaBase) -> Double {
-        semana.entrenamientos.reduce(0.0) { $0 + volumenBase($1) }
+    private static func volumenSemanaBase(_ semana: SemanaBase,
+                                          baseline: PerformanceBaseline? = nil) -> Double {
+        semana.entrenamientos.reduce(0.0) { $0 + volumenBase($1, baseline: baseline) }
     }
 
     /// Cuánto puede crecer una sesión fácil al absorber el volumen de
@@ -719,12 +734,13 @@ enum MotorPlanificacion {
     /// Con el TOPE aplicado: una sesión que ya llega a su techo de
     /// duración no tiene capacidad libre para absorber nada, y lo que
     /// se le asignara se evaporaría igual al calcular el volumen.
-    private static func volumenBase(_ entrenamiento: EntrenamientoBase) -> Double {
+    private static func volumenBase(_ entrenamiento: EntrenamientoBase,
+                                    baseline: PerformanceBaseline? = nil) -> Double {
         CalculoVolumen.volumen(entrenamiento.segmentos.map {
             CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
                                    duracionSegundos: $0.duracionSegundos,
                                    ritmo: $0.ritmo)
-        }, tope: entrenamiento.topeDuracionSegundos).totalKm
+        }, tope: entrenamiento.topeDuracionSegundos, baseline: baseline).totalKm
     }
 
     /// Reparte `huerfano` km entre las sesiones absorbentes, en

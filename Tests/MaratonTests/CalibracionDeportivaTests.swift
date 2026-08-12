@@ -1551,3 +1551,132 @@ final class TopeDeDuracionTests: XCTestCase {
         XCTAssertFalse(definicion.volumen(baseline: baseline).recortadoPorTope)
     }
 }
+
+// MARK: - El techo se mide contra el corredor real
+
+/// Los bloques por tiempo se convierten a km con un RITMO: un umbral de
+/// 18′ son más kilómetros para quien corre rápido que para quien corre
+/// lento. Medir el techo de entrada con un ritmo genérico evaluaba el
+/// plan para un corredor que no era este.
+final class ArranqueContraBaselineRealTests: XCTestCase {
+
+    /// Mínimo alcanzable por escalado (límite factor→0) para un perfil.
+    static func minimoAlcanzable(_ semana: SemanaBase,
+                                 baseline: PerformanceBaseline?) -> Double {
+        semana.entrenamientos.reduce(0.0) { total, e in
+            guard e.tipo != .ritmoCarrera else {
+                return total + CatalogoDePrueba.volumen(e, baseline: baseline)
+            }
+            var m = e
+            m.segmentos = e.segmentos.map { s in
+                guard s.distanciaKm != nil else { return s }
+                var n = s; n.distanciaKm = 1.0; return n
+            }
+            return total + CatalogoDePrueba.volumen(m, baseline: baseline)
+        }
+    }
+
+    private var rapido: PerformanceBaseline { CatalogoDePrueba.corredores[0].baseline }
+    private var lento: PerformanceBaseline { CatalogoDePrueba.corredores[3].baseline }
+
+    /// El mismo plan y el mismo volumen previo dan factores DISTINTOS
+    /// según quién corra: al rápido hay que atenuarlo más, porque sus
+    /// bloques por tiempo pesan más kilómetros.
+    func testElFactorDependeDelCorredor() {
+        let base = MotorPlanificacion.recortar(ContenidoPlanes.mejorar10K(), aDias: 4)
+        let deRapido = MotorPlanificacion.ajustarArranque(
+            base, kmSemanalesActuales: 25, conservador: false, baseline: rapido)
+        let deLento = MotorPlanificacion.ajustarArranque(
+            base, kmSemanalesActuales: 25, conservador: false, baseline: lento)
+
+        XCTAssertLessThan(deRapido.factor, deLento.factor,
+                          "al corredor rápido el mismo plan le pesa más y hay que atenuarlo más")
+        // Y los dos entran bajo SU propio techo, que es el punto.
+        XCTAssertTrue(deRapido.diagnostico.cumpleElTecho)
+        XCTAssertTrue(deLento.diagnostico.cumpleElTecho)
+        for (ajuste, bl) in [(deRapido, rapido), (deLento, lento)] {
+            XCTAssertLessThanOrEqual(
+                CatalogoDePrueba.volumen(ajuste.base.semanas[0], baseline: bl),
+                25 * MotorPlanificacion.factorEntradaMaximo + 0.001)
+        }
+    }
+
+    /// Sin referencia se cae al ritmo de referencia, que resulta ser el
+    /// del corredor de 5K en 30:00. O sea: el cálculo viejo dimensionaba
+    /// TODO el catálogo como si cada corredor corriera 5K en 30 minutos.
+    func testSinBaselineEquivaleAlCorredorDeReferencia() {
+        let base = MotorPlanificacion.recortar(ContenidoPlanes.mejorar10K(), aDias: 4)
+        let generico = MotorPlanificacion.ajustarArranque(
+            base, kmSemanalesActuales: 25, conservador: false, baseline: nil)
+        let treintaMinutos = MotorPlanificacion.ajustarArranque(
+            base, kmSemanalesActuales: 25, conservador: false,
+            baseline: CatalogoDePrueba.corredores[2].baseline)
+        XCTAssertEqual(generico.factor, treintaMinutos.factor, accuracy: 1e-9)
+    }
+
+    /// Un plan sin bloques por tiempo no puede depender del baseline:
+    /// toda su carga está declarada en kilómetros. Es el control del
+    /// experimento — si esto cambiara, el baseline se estaría colando
+    /// donde no corresponde.
+    func testUnPlanSinBloquesPorTiempoNoDependeDelBaseline() {
+        let base = MotorPlanificacion.recortar(ContenidoPlanes.mediaMaraton(), aDias: 4)
+        let porTiempo = base.semanas[0].entrenamientos
+            .flatMap(\.segmentos).filter { $0.distanciaKm == nil && $0.duracionSegundos != nil }
+        XCTAssertTrue(porTiempo.isEmpty, "el control asume que este plan no tiene bloques por tiempo")
+
+        let valores = ([nil] + CatalogoDePrueba.corredores.map { Optional($0.baseline) })
+            .map { bl in
+                MotorPlanificacion.ajustarArranque(
+                    base, kmSemanalesActuales: 20, conservador: false, baseline: bl).factor
+            }
+        for v in valores.dropFirst() {
+            XCTAssertEqual(v, valores[0], accuracy: 1e-12)
+        }
+    }
+
+    /// CARACTERIZACIÓN de la frontera, no aprobación de ella. Con el
+    /// baseline real, ser irreducible pasa a depender del corredor:
+    /// mejorar 5K a 5 días no cierra para NINGUNO de los cuatro, y a 3
+    /// días no cierra solo para el más rápido. Si esto cambia, es
+    /// porque cambió el contenido o una constante — y hay que verlo.
+    func testLaFronteraDeIrreducibilidadDependeDelCorredor() {
+        let piso5K = 18 * RequisitosObjetivo.fraccionPiso      // 7,2
+        let cinco = MotorPlanificacion.recortar(ContenidoPlanes.mejorar5K(), aDias: 5)
+        for (nombre, bl) in CatalogoDePrueba.corredores {
+            XCTAssertGreaterThan(
+                Self.minimoAlcanzable(cinco.semanas[0], baseline: bl), piso5K,
+                "mejorar-5k 5d tendría que ser irreducible también para \(nombre)")
+        }
+
+        let tres = MotorPlanificacion.recortar(ContenidoPlanes.mejorar5K(), aDias: 3)
+        XCTAssertGreaterThan(
+            Self.minimoAlcanzable(tres.semanas[0], baseline: rapido), piso5K,
+            "a 3 días el más rápido sigue sin entrar")
+        XCTAssertLessThanOrEqual(
+            Self.minimoAlcanzable(tres.semanas[0], baseline: lento), piso5K,
+            "a 3 días el más lento SÍ entraría si el factor pudiera bajar")
+    }
+
+    /// En el piso de elegibilidad el factor termina SIEMPRE en su piso,
+    /// para los 10 planes × frecuencias × los cuatro corredores. O sea:
+    /// hoy la búsqueda nunca encuentra una solución interior ahí.
+    /// Caracteriza el estado actual; no dice que esté bien.
+    func testEnElPisoDeElegibilidadElFactorSiempreTocaSuPiso() {
+        for (arquetipo, contenido) in CatalogoDePrueba.todos {
+            let req = RequisitosObjetivo.para(arquetipo.objetivo)
+            guard req.kmSemanales > 0 else { continue }
+            let actuales = req.kmSemanales * RequisitosObjetivo.fraccionPiso
+            for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
+                let base = MotorPlanificacion.recortar(contenido, aDias: dias)
+                for (nombre, bl) in CatalogoDePrueba.corredores {
+                    let ajuste = MotorPlanificacion.ajustarArranque(
+                        base, kmSemanalesActuales: actuales, conservador: true, baseline: bl)
+                    XCTAssertEqual(ajuste.factor, MotorPlanificacion.factorArranqueMinimo,
+                                   accuracy: 1e-12, "\(arquetipo.id) \(dias)d · \(nombre)")
+                    XCTAssertFalse(ajuste.diagnostico.cumpleElTecho,
+                                   "\(arquetipo.id) \(dias)d · \(nombre)")
+                }
+            }
+        }
+    }
+}
