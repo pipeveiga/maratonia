@@ -650,6 +650,17 @@
         }
       }
     },
+    "Cambiala en Perfil.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change it in Profile."
+          }
+        }
+      }
+    },
     "Cambiar de plan (el actual se archiva)": {
       "extractionState": "manual",
       "localizations": {
@@ -1625,6 +1636,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Send plan and music, connection status"
+          }
+        }
+      }
+    },
+    "Es tu meta, no un plan de entrenamiento. Adoptá un plan para entrenar hacia ella. Cambiala en Perfil.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It's your goal, not a training plan. Adopt a plan to train toward it. Change it in Profile."
           }
         }
       }
@@ -4309,6 +4331,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your goal"
+          }
+        }
+      }
+    },
+    "Tu objetivo es %@. Adoptá un plan para empezar a entrenar — o corré libre cuando quieras.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your goal is %@. Adopt a plan to start training — or just run free whenever you want."
           }
         }
       }

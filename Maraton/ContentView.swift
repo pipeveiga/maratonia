@@ -156,7 +156,14 @@ struct PlanTab: View {
                         ContentUnavailableView {
                             Label("Sin plan activo", systemImage: "figure.run.square.stack")
                         } description: {
-                            Text("Elegí un objetivo y armá tu plan — o explorá el catálogo.")
+                            // Con objetivo ya elegido, el texto genérico
+                            // ("elegí un objetivo") mandaba a hacer algo
+                            // que ya estaba hecho.
+                            if let objetivo = almacen.almacen.perfilDeportivo.objetivo {
+                                Text("Tu objetivo es \(TextosObjetivo.nombre(de: objetivo)). Adoptá un plan para empezar a entrenar — o corré libre cuando quieras.")
+                            } else {
+                                Text("Elegí un objetivo y armá tu plan — o explorá el catálogo.")
+                            }
                         } actions: {
                             NavigationLink("Explorar planes") {
                                 CatalogoView(almacen: almacen)
@@ -336,26 +343,52 @@ struct PlanTab: View {
     }
 
     /// El objetivo con countdown en semanas — motivación, nunca presión.
+    ///
+    /// Lleva encabezado propio y es tocable a propósito: sin eso la fila
+    /// se leía como "un plan" (misma forma que las filas de abajo) y
+    /// aparecía justo debajo de "Sin plan activo", que es la
+    /// contradicción exacta que reportó el uso real. El objetivo es del
+    /// PERFIL y sobrevive a quitar el plan — eso es correcto, pero hay
+    /// que decirlo.
     @ViewBuilder
     private var seccionObjetivo: some View {
         let perfil = almacen.almacen.perfilDeportivo
         if let objetivo = perfil.objetivo {
             Section {
-                HStack(spacing: 12) {
-                    IconoAjuste(sistema: "flag.checkered", color: .red)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(TextosObjetivo.nombre(de: objetivo))
-                        if let cuenta = TextosObjetivo.cuentaRegresiva(
-                            hasta: perfil.fechaObjetivo, hoy: hoy) {
-                            Text(cuenta)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        } else if let dias = perfil.diasPorSemana {
-                            Text("\(dias) días por semana")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                Button {
+                    pestana = .perfil
+                } label: {
+                    HStack(spacing: 12) {
+                        IconoAjuste(sistema: "flag.checkered", color: .red)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(TextosObjetivo.nombre(de: objetivo))
+                            if let cuenta = TextosObjetivo.cuentaRegresiva(
+                                hasta: perfil.fechaObjetivo, hoy: hoy) {
+                                Text(cuenta)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else if let dias = perfil.diasPorSemana {
+                                Text("\(dias) días por semana")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
                     }
+                    .padding(.vertical, 2)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            } header: {
+                Text("Tu objetivo")
+            } footer: {
+                if almacen.almacen.planActivo == nil {
+                    Text("Es tu meta, no un plan de entrenamiento. Adoptá un plan para entrenar hacia ella. Cambiala en Perfil.")
+                } else {
+                    Text("Cambiala en Perfil.")
                 }
             }
         }
