@@ -218,10 +218,9 @@ struct PropuestaPlan {
     /// Factor con el que se atenuó el arranque (1 = sin atenuar).
     var factorArranque: Double = 1
     /// Si el techo de entrada se pudo cumplir, y con cuánto margen.
-    /// Hoy NADIE lo lee: se transporta para que la decisión de qué
-    /// hacer con `.excedeElTecho` se pueda tomar mirando datos reales
-    /// en vez de a ciegas. Ver `DiagnosticoArranque`.
-    var arranque: DiagnosticoArranque = .sinAjuste
+    /// El plan se propone igual cuando NO se cumple: el desvío se
+    /// reporta, no se esconde ni bloquea. Ver `DiagnosticoArranque`.
+    var arranque: DiagnosticoArranque = .sinVolumenPrevio
 }
 
 /// Qué pasó con el techo de entrada al atenuar el arranque.
@@ -238,14 +237,20 @@ struct PropuestaPlan {
 /// Este tipo NO cambia ninguna regla deportiva ni decide nada: solo
 /// hace decible lo que el cálculo ya sabía.
 enum DiagnosticoArranque: Equatable {
-    /// No se tocó nada: no había volumen previo con el cual medir, o
-    /// el template ya entraba bajo el techo por sí solo.
-    case sinAjuste
-    /// Se encontró un factor que deja la primera semana bajo el techo.
+    /// No había volumen previo con el cual medir (o el plan no declara
+    /// volumen). No hay techo: no hay nada que cumplir ni que
+    /// incumplir, y esto NO es lo mismo que haberlo cumplido.
+    case sinVolumenPrevio
+    /// El template ya entraba bajo el techo por sí solo: no hizo falta
+    /// atenuar nada.
+    case noHizoFalta(permitidoKm: Double, resultanteKm: Double)
+    /// Se atenuó y se encontró un factor que deja la primera semana
+    /// bajo el techo.
     case dentroDelTecho(permitidoKm: Double, resultanteKm: Double)
     /// Los pisos se agotaron antes que el techo: la primera semana
     /// queda por encima de lo permitido. No es un error del cálculo —
     /// es que este plan no se puede achicar tanto para este corredor.
+    /// El plan se conserva igual; lo que no se hace es mentir sobre él.
     case excedeElTecho(permitidoKm: Double, resultanteKm: Double)
 
     /// Cuántos km por encima del techo quedó la primera semana.
@@ -254,10 +259,36 @@ enum DiagnosticoArranque: Equatable {
         return max(0, resultante - permitido)
     }
 
-    /// `false` SOLO cuando el techo prometido no se cumplió.
+    /// `false` SOLO cuando había un techo y NO se cumplió. Sin techo
+    /// contra el cual medir no se afirma nada: ver `hayTecho`.
     var cumpleElTecho: Bool {
         if case .excedeElTecho = self { return false }
         return true
+    }
+
+    /// Si hubo un techo contra el cual medir. `cumpleElTecho` sobre un
+    /// diagnóstico sin techo es vacío, no una afirmación de éxito.
+    var hayTecho: Bool {
+        if case .sinVolumenPrevio = self { return false }
+        return true
+    }
+
+    /// El techo que se le prometió al corredor, si hubo uno.
+    var permitidoKm: Double? {
+        switch self {
+        case .sinVolumenPrevio: return nil
+        case .noHizoFalta(let p, _), .dentroDelTecho(let p, _), .excedeElTecho(let p, _):
+            return p
+        }
+    }
+
+    /// Lo que la primera semana mide de verdad, si se pudo medir.
+    var resultanteKm: Double? {
+        switch self {
+        case .sinVolumenPrevio: return nil
+        case .noHizoFalta(_, let r), .dentroDelTecho(_, let r), .excedeElTecho(_, let r):
+            return r
+        }
     }
 }
 
@@ -319,6 +350,12 @@ enum MotorPlanificacion {
             mesesCorriendoRegular: pedido.actividad?.mesesCorriendoRegular,
             volviendoDePausa: pedido.actividad?.volviendoDePausa ?? false))
 
+        // ¿El plan se genera en su variante conservadora? El veredicto
+        // lo dice para `.elegibleConservador`, pero NO para quien cruzó
+        // la puerta de `requiereFaseBase` aceptando arrancar
+        // conservador: ese es justamente el que menos base tiene.
+        var arranqueConservador = veredicto.esConservador
+
         switch veredicto {
         case .fechaDemasiadoCerca(let disponibles, let minimas):
             return .tiempoInsuficiente(semanasDisponibles: disponibles,
@@ -331,6 +368,12 @@ enum MotorPlanificacion {
                     motivos: motivos,
                     puente: EvaluadorElegibilidad.objetivoPuente(para: pedido.objetivo))
             }
+            // Aceptó arrancar conservador tras leer la advertencia: el
+            // plan tiene que SERLO. Antes recibía el techo permisivo
+            // (1,2 en vez de 1,0) y la rampa corta (3 semanas en vez de
+            // 5) — el trato MÁS agresivo para el corredor con MENOS
+            // base, exactamente al revés de lo que el flag promete.
+            arranqueConservador = true
         case .elegible, .elegibleConservador:
             break
         }
@@ -379,7 +422,7 @@ enum MotorPlanificacion {
         // alarga la rampa. La diferencia es real y testeable.
         let ajuste = ajustarArranque(recortada,
                                      kmSemanalesActuales: volumenActual(pedido),
-                                     conservador: veredicto.esConservador)
+                                     conservador: arranqueConservador)
         recortada = ajuste.base
         let factorArranque = ajuste.factor
 
@@ -503,10 +546,12 @@ enum MotorPlanificacion {
     /// +27 % donde el contrato dice +20 %.
     static func ajustarArranque(_ base: PlanBase, kmSemanalesActuales: Double?,
                                 conservador: Bool = false) -> ResultadoArranque {
-        let sinTocar = ResultadoArranque(base: base, factor: 1, diagnostico: .sinAjuste)
+        let sinMedida = ResultadoArranque(base: base, factor: 1,
+                                          diagnostico: .sinVolumenPrevio)
         guard let actuales = kmSemanalesActuales, actuales > 0,
-              let primera = base.semanas.first else { return sinTocar }
-        guard volumenSemanaBase(primera) > 0 else { return sinTocar }
+              let primera = base.semanas.first else { return sinMedida }
+        let volumenTemplate = volumenSemanaBase(primera)
+        guard volumenTemplate > 0 else { return sinMedida }
 
         let techo = conservador ? factorEntradaConservador : factorEntradaMaximo
         let rampa = conservador ? semanasDeRampaConservador : semanasDeRampa
@@ -516,7 +561,10 @@ enum MotorPlanificacion {
         let alcanzaElTecho: Bool
         switch factorDeArranque(primera, permitido: permitido) {
         case .noHaceFalta:
-            return sinTocar
+            return ResultadoArranque(
+                base: base, factor: 1,
+                diagnostico: .noHizoFalta(permitidoKm: permitido,
+                                          resultanteKm: volumenTemplate))
         case .encontrado(let f):
             factor = f; alcanzaElTecho = true
         case .pisoInsuficiente(let piso):
