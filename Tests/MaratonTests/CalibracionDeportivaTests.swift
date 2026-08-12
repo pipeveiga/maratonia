@@ -827,7 +827,8 @@ final class ArranqueConservadorTests: XCTestCase {
         let (plan, factor) = MotorPlanificacion.ajustarArranque(
             base, kmSemanalesActuales: 20, conservador: false)
         XCTAssertLessThan(factor, 1)
-        XCTAssertLessThanOrEqual(CatalogoDePrueba.volumen(plan.semanas[0]), 20 * 1.25)
+        XCTAssertLessThanOrEqual(CatalogoDePrueba.volumen(plan.semanas[0]),
+                                 20 * MotorPlanificacion.factorEntradaMaximo)
     }
 
     func testSinDatosDeVolumenElArranqueNoSeToca() {
