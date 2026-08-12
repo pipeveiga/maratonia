@@ -566,9 +566,16 @@ final class InvariantesCatalogoTests: XCTestCase {
     func testElTaperSiempreBajaElVolumen() {
         for (arquetipo, base) in CatalogoDePrueba.todos {
             let plan = MotorPlanificacion.recortar(base, aDias: arquetipo.diasMaximos)
+            // Propiedad ESTRUCTURAL del catálogo: el taper y el pico se
+            // miden con la misma vara, así que alcanza con el corredor
+            // de REFERENCIA (baseline nil → `RitmoDeReferencia`). El
+            // tope de duración comprime los dos lados en la misma
+            // dirección y la comparación no cambia de signo — lo
+            // verifiqué para los cuatro corredores antes de dejarlo así.
+            // La cobertura del tope por corredor vive en Contenido42KTests.
             let pico = plan.semanas
                 .filter { $0.fase?.esDeConstruccion ?? true }
-                .map(CatalogoDePrueba.volumen).max() ?? 0
+                .map { CatalogoDePrueba.volumen($0) }.max() ?? 0
             for semana in plan.semanas where semana.fase == .taper {
                 XCTAssertLessThan(CatalogoDePrueba.volumen(semana), pico,
                                   "\(arquetipo.id) sem \(semana.numero): el taper no baja")
@@ -583,18 +590,33 @@ final class InvariantesCatalogoTests: XCTestCase {
             let requisitos = RequisitosObjetivo.para(arquetipo.objetivo)
             let plan = MotorPlanificacion.recortar(base, aDias: arquetipo.diasMinimos)
             let construccion = plan.semanas.filter { $0.fase?.esDeConstruccion ?? true }
-            let pico = construccion.map(CatalogoDePrueba.volumen).max() ?? 0
-            let largaMaxima = plan.semanas.map(CatalogoDePrueba.larga).max() ?? 0
-            let primera = CatalogoDePrueba.volumen(plan.semanas[0])
 
-            XCTAssertLessThanOrEqual(requisitos.kmSemanales, pico,
-                "\(arquetipo.id): pide \(requisitos.kmSemanales) km/sem y el plan pica en \(pico)")
-            XCTAssertLessThanOrEqual(requisitos.kmSemanales, primera * 1.05,
-                "\(arquetipo.id): el requisito debería poder sostenerse el día uno " +
-                "(pide \(requisitos.kmSemanales), la primera semana son \(primera))")
-            XCTAssertLessThanOrEqual(requisitos.tiradaLargaKm, largaMaxima,
-                "\(arquetipo.id): exige una larga previa de \(requisitos.tiradaLargaKm) km " +
-                "y la más larga del plan es \(largaMaxima)")
+            // Contra CADA corredor, no contra uno solo. Los requisitos
+            // son kilómetros absolutos, pero desde el build 63 lo que el
+            // plan prescribe depende del ritmo: el tope de duración
+            // recorta la larga de quien corre lento. El caso que manda
+            // es justamente ese —el tope solo puede ACHICAR el plan, así
+            // que el corredor más lento es el que menos margen deja—, y
+            // medir solo con el de referencia dejaría sin probar el
+            // borde que el tope introdujo.
+            for (corredor, baseline) in CatalogoDePrueba.corredores {
+                let pico = construccion
+                    .map { CatalogoDePrueba.volumen($0, baseline: baseline) }.max() ?? 0
+                let largaMaxima = plan.semanas
+                    .map { CatalogoDePrueba.larga($0, baseline: baseline) }.max() ?? 0
+                let primera = CatalogoDePrueba.volumen(plan.semanas[0], baseline: baseline)
+                let quien = "\(arquetipo.id) · \(corredor)"
+
+                XCTAssertLessThanOrEqual(requisitos.kmSemanales, pico,
+                    "\(quien): pide \(requisitos.kmSemanales) km/sem y el plan pica en \(pico)")
+                XCTAssertLessThanOrEqual(requisitos.kmSemanales, primera * 1.05,
+                    "\(quien): el requisito debería poder sostenerse el día uno " +
+                    "(pide \(requisitos.kmSemanales), la primera semana son \(primera))")
+                XCTAssertLessThanOrEqual(requisitos.tiradaLargaKm, largaMaxima,
+                    "\(quien): exige una larga previa de \(requisitos.tiradaLargaKm) km " +
+                    "y la más larga del plan es \(largaMaxima)")
+            }
+            // Los días no dependen del ritmo: se comprueban una sola vez.
             XCTAssertEqual(requisitos.diasPorSemana, arquetipo.diasMinimos,
                 "\(arquetipo.id): elegibilidad y catálogo no coinciden en días mínimos")
         }
