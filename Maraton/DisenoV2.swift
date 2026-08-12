@@ -469,7 +469,7 @@ struct TarjetaEntrenamientoV2: View {
                 }
 
                 HStack(spacing: DV2.Espacio.xl) {
-                    if let km = programado.definicion.distanciaTotalKm {
+                    if let km = programado.definicion.distanciaPrescritaKm {
                         MetricaV2(titulo: "distancia",
                                   valor: km == km.rounded()
                                     ? "\(Int(km)) km"

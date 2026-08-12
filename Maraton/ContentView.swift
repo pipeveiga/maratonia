@@ -326,7 +326,7 @@ struct PlanTab: View {
                                     .lineLimit(1)
                             }
                             Spacer()
-                            if let km = programado.definicion.distanciaTotalKm {
+                            if let km = programado.definicion.distanciaPrescritaKm {
                                 Text(km == km.rounded()
                                      ? "\(Int(km)) km"
                                      : String(format: "%.1f km", km))

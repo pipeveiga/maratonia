@@ -46,12 +46,19 @@ struct SemanaBase: Codable, Equatable {
         // Antes esta banda salía de sumar solo distancias declaradas, y
         // el validador terminaba comparando el volumen real contra un
         // mínimo calculado sobre un número que ignoraba las calidades.
-        let km = CalculoVolumen.volumen(
-            entrenamientos.flatMap(\.segmentos).map {
-                CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
-                                       duracionSegundos: $0.duracionSegundos,
-                                       ritmo: $0.ritmo)
-            }).totalKm
+        // Sesión por sesión, no todo junto: el TOPE de duración es por
+        // sesión, así que aplanar los segmentos de la semana lo haría
+        // desaparecer (una semana de 5 sesiones nunca superaría un tope
+        // de 3 h aplicado a la suma).
+        let km = entrenamientos.reduce(into: 0.0) { total, entrenamiento in
+            total += CalculoVolumen.volumen(
+                entrenamiento.segmentos.map {
+                    CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
+                                           duracionSegundos: $0.duracionSegundos,
+                                           ritmo: $0.ritmo)
+                },
+                tope: entrenamiento.topeDuracionSegundos).totalKm
+        }
         let calidad = entrenamientos.filter {
             let rol = RolSesion.para($0.tipo)
             return rol == .calidadPrincipal || rol == .calidadSecundaria
@@ -83,6 +90,10 @@ struct EntrenamientoBase: Codable, Equatable {
     var nombre: String
     var descripcion: String
     var segmentos: [SegmentoBase]
+    /// Techo de duración de la sesión (ver `DefinicionEntrenamiento`).
+    /// Opcional: el catálogo JSON viejo decodifica igual y queda sin
+    /// tope, exactamente como se comportaba antes.
+    var topeDuracionSegundos: Int? = nil
 }
 
 /// Segmento del template, SIN identidad (los UUID nacen al adoptar).
@@ -129,7 +140,8 @@ extension PlanBase {
                                          distanciaKm: base.distanciaKm,
                                          duracionSegundos: base.duracionSegundos,
                                          ritmo: base.ritmo)
-                            }),
+                            },
+                            topeDuracionSegundos: entrenamiento.topeDuracionSegundos),
                         dia: inicio.sumando(dias: desplazamiento, calendario: calendario),
                         rolGuardado: rol,
                         adaptabilidadGuardada: .para(rol))
@@ -889,7 +901,7 @@ struct DetalleEntrenamientoView: View {
                             .foregroundStyle(.secondary)
                     }
                     HStack(spacing: DV2.Espacio.xl) {
-                        if let km = programado.definicion.distanciaTotalKm {
+                        if let km = programado.definicion.distanciaPrescritaKm {
                             MetricaV2(titulo: "distancia",
                                       valor: km == km.rounded()
                                         ? "\(Int(km)) km" : String(format: "%.1f km", km))

@@ -107,6 +107,19 @@ struct DefinicionEntrenamiento: Codable, Equatable, Identifiable {
     var nombre: String
     var descripcion: String = ""
     var segmentos: [Segmento] = []
+
+    /// TECHO de duración de la sesión, en segundos. No es una meta: es
+    /// un límite. La sesión sigue terminando por DISTANCIA cuando el
+    /// corredor llega a los kilómetros antes del tope; el tope solo
+    /// recorta cuando, al ritmo previsto, esos kilómetros no entran.
+    ///
+    /// Existe porque la distancia sola no describe la carga: 30 km son
+    /// 2:45 para quien corre 5 km en 20:00 y 4:30 para quien los corre
+    /// en 33:00. Ver METODOLOGIA.md §"Tope de duración del fondo".
+    ///
+    /// Opcional: nil = sin tope (todo el contenido anterior decodifica
+    /// igual y se comporta exactamente como antes).
+    var topeDuracionSegundos: Int? = nil
 }
 
 // MARK: - Volumen planificado (UNA sola definición)
@@ -136,6 +149,10 @@ struct VolumenPlanificado: Equatable {
     /// mejor que cero, pero no es exacto y quien lo muestre debería
     /// poder decirlo.
     var hayEstimacion: Bool = false
+    /// true = el tope de duración recortó kilómetros. El número de
+    /// abajo ya viene recortado: es lo que se va a correr de verdad,
+    /// no lo que declaraba el catálogo.
+    var recortadoPorTope: Bool = false
 
     var totalKm: Double { kmMedidos + kmEquivalentes }
     var esVacio: Bool { kmMedidos == 0 && segundosPorTiempo == 0 }
@@ -144,7 +161,8 @@ struct VolumenPlanificado: Equatable {
         VolumenPlanificado(kmMedidos: a.kmMedidos + b.kmMedidos,
                            segundosPorTiempo: a.segundosPorTiempo + b.segundosPorTiempo,
                            kmEquivalentes: a.kmEquivalentes + b.kmEquivalentes,
-                           hayEstimacion: a.hayEstimacion || b.hayEstimacion)
+                           hayEstimacion: a.hayEstimacion || b.hayEstimacion,
+                           recortadoPorTope: a.recortadoPorTope || b.recortadoPorTope)
     }
 }
 
@@ -192,15 +210,42 @@ enum CalculoVolumen {
         var ritmo: RitmoObjetivo
     }
 
+    /// Cuánto hay que escalar los segmentos POR DISTANCIA para que la
+    /// sesión entre en su tope de duración. 1.0 = el tope no muerde
+    /// (o no hay tope), y entonces todo se comporta como antes.
+    ///
+    /// Los bloques por TIEMPO no se tocan: un umbral de 20′ dura 20′
+    /// para cualquiera. Lo que se recorta es la distancia, que es lo
+    /// único cuya duración depende del ritmo de quien corre.
+    static func factorDeTope(_ segmentos: [Entrada],
+                             tope: Int?,
+                             baseline: PerformanceBaseline? = nil) -> Double {
+        guard let tope, tope > 0 else { return 1 }
+        var fijo = 0.0          // segundos que no dependen del ritmo
+        var variable = 0.0      // segundos que sí
+        for segmento in segmentos {
+            if let km = segmento.distanciaKm {
+                variable += km * Double(ritmo(de: segmento.ritmo, baseline: baseline).segKm)
+            } else if let segundos = segmento.duracionSegundos, segundos > 0 {
+                fijo += Double(segundos)
+            }
+        }
+        guard fijo + variable > Double(tope), variable > 0 else { return 1 }
+        return max(0, (Double(tope) - fijo) / variable)
+    }
+
     static func volumen(_ segmentos: [Entrada],
+                        tope: Int? = nil,
                         baseline: PerformanceBaseline? = nil) -> VolumenPlanificado {
         var v = VolumenPlanificado()
+        let factor = factorDeTope(segmentos, tope: tope, baseline: baseline)
         for segmento in segmentos {
             // DISTANCIA manda si el segmento trae las dos metas: es la
             // misma regla que usa el motor para ejecutar (tramosEjecutables),
             // y es lo que garantiza que nada se cuente dos veces.
             if let km = segmento.distanciaKm {
-                v.kmMedidos += km
+                v.kmMedidos += km * factor
+                if factor < 1 { v.recortadoPorTope = true }
                 continue
             }
             guard let segundos = segmento.duracionSegundos, segundos > 0 else { continue }
@@ -243,11 +288,25 @@ extension DefinicionEntrenamiento {
     /// exista: sin él la conversión usa el ritmo de referencia y marca
     /// `hayEstimacion`.
     func volumen(baseline: PerformanceBaseline? = nil) -> VolumenPlanificado {
-        CalculoVolumen.volumen(segmentos.map {
+        CalculoVolumen.volumen(entradasDeVolumen,
+                               tope: topeDuracionSegundos, baseline: baseline)
+    }
+
+    /// Los segmentos reducidos a lo que el cálculo necesita. Un solo
+    /// lugar: volumen, tope y tramos ejecutables leen exactamente lo
+    /// mismo.
+    var entradasDeVolumen: [CalculoVolumen.Entrada] {
+        segmentos.map {
             CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
                                    duracionSegundos: $0.duracionSegundos,
                                    ritmo: $0.ritmo)
-        }, baseline: baseline)
+        }
+    }
+
+    /// Cuánto se recorta la distancia para entrar en el tope (1 = nada).
+    func factorDeTope(baseline: PerformanceBaseline? = nil) -> Double {
+        CalculoVolumen.factorDeTope(entradasDeVolumen,
+                                    tope: topeDuracionSegundos, baseline: baseline)
     }
 
     /// Volumen total en km, contando los bloques por tiempo. Es lo que
@@ -265,6 +324,15 @@ extension DefinicionEntrenamiento {
         return kms.reduce(0, +)
     }
 
+    /// La distancia que se le MUESTRA al corredor y que va a correr: la
+    /// declarada, ya recortada por el tope de duración. Es la que tiene
+    /// que aparecer en tarjetas y detalles — prometer 30 km cuando el
+    /// tope va a cortar en 23 es mentirle al que entrena.
+    var distanciaPrescritaKm: Double? {
+        guard let declarada = distanciaTotalKm else { return nil }
+        return (declarada * factorDeTope() * 10).rounded() / 10
+    }
+
     /// Duración total prevista de los segmentos POR TIEMPO (nil si no
     /// hay ninguno). No estima tiempo de los segmentos por distancia.
     var duracionPorTiempoSegundos: Int? {
@@ -276,7 +344,10 @@ extension DefinicionEntrenamiento {
     /// "8 km · 1 segmento" / "6 km + 12 min · 5 segmentos" para tarjetas.
     var resumenEstructura: String {
         var medidas: [String] = []
-        if let km = distanciaTotalKm {
+        if let declarada = distanciaTotalKm {
+            // Lo que se muestra es lo que se va a correr: si el tope
+            // recorta, la tarjeta no puede seguir prometiendo 30 km.
+            let km = (declarada * factorDeTope() * 10).rounded() / 10
             medidas.append(km == km.rounded() ? "\(Int(km)) km" : String(format: "%.1f km", km))
         }
         if let segundos = duracionPorTiempoSegundos {
@@ -294,7 +365,14 @@ extension DefinicionEntrenamiento {
     /// DISTANCIA tiene prioridad si un segmento trae las dos metas; un
     /// segmento sin ninguna meta no es ejecutable y se descarta.
     var tramosEjecutables: [Tramo] {
-        segmentos.compactMap { segmento in
+        // El tope se resuelve acá con el ritmo que el propio segmento
+        // ya declara: al adoptar, el motor deja los ritmos en
+        // `.absoluto`, así que no hace falta baseline y el reloj recibe
+        // los kilómetros que de verdad va a correr. Sin ritmo resuelto
+        // cae al corredor de referencia — la misma regla que el
+        // volumen, no una segunda semántica.
+        let factor = factorDeTope()
+        return segmentos.compactMap { segmento in
             let minimo: Int?
             let maximo: Int?
             switch segmento.ritmo {
@@ -306,7 +384,9 @@ extension DefinicionEntrenamiento {
                 (minimo, maximo) = (rapido, lento)
             }
             if let km = segmento.distanciaKm {
-                return Tramo(nombre: segmento.nombre, kilometros: km,
+                let recortado = (km * factor * 10).rounded() / 10
+                guard recortado > 0 else { return nil }
+                return Tramo(nombre: segmento.nombre, kilometros: recortado,
                              ritmoMinSegKm: minimo, ritmoMaxSegKm: maximo)
             }
             if let segundos = segmento.duracionSegundos, segundos > 0 {
@@ -1352,7 +1432,12 @@ struct AlmacenV2: Codable, Equatable {
             nombre: String(localized: "Rodaje fácil"),
             descripcion: String(localized: "Versión suave de la sesión original: mismo tiempo en pie, sin la carga de intensidad."),
             segmentos: [Segmento(nombre: String(localized: "Rodaje"),
-                                 distanciaKm: km, duracionSegundos: nil, ritmo: .libre)])
+                                 distanciaKm: km, duracionSegundos: nil, ritmo: .libre)],
+            // El TOPE viaja con la sesión. Convertir es aliviar, no una
+            // puerta trasera para quitarle el techo de duración a un
+            // fondo: sin esta línea, convertir la larga en rodaje
+            // devolvía una sesión sin límite de tiempo.
+            topeDuracionSegundos: actual.definicion.topeDuracionSegundos)
         // El rol baja a fácil: la semana ya no cuenta esto como calidad.
         planActivo?.semanas[s].programados[p].rolGuardado = .facil
         planActivo?.semanas[s].programados[p].adaptabilidadGuardada = .para(.facil)

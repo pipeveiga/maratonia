@@ -128,11 +128,16 @@ enum ContenidoPlanes {
     private static func semana(_ numero: Int, calidad: EntrenamientoBase,
                                kmFacil: Double, kmLarga: Double,
                                finalMaraton: Double? = nil,
-                               fase: TipoSemana? = nil) -> SemanaBase {
-        SemanaBase(numero: numero, entrenamientos: [
+                               fase: TipoSemana? = nil,
+                               kmMedio: Double? = nil) -> SemanaBase {
+        // Cuando se pide `kmMedio`, el rodaje del día 4 se PROMUEVE a
+        // rodaje medio: no se agrega un día (la disponibilidad del
+        // corredor manda), se alarga el que ya estaba ahí.
+        let dia4 = kmMedio.map { medioLargo(4, km: $0) } ?? facil(4, km: kmFacil)
+        return SemanaBase(numero: numero, entrenamientos: [
             recuperacion(1, km: max(3, kmFacil - 2)),
             calidad,
-            facil(4, km: kmFacil),
+            dia4,
             facil(6, km: max(4, kmFacil - 1)),
             larga(7, km: kmLarga, finalMaraton: finalMaraton),
         ], fase: fase)
@@ -154,6 +159,54 @@ enum ContenidoPlanes {
             facil(6, km: kmFacil),
             larga(7, km: kmLarga, finalMaraton: finalMaraton),
         ], fase: fase)
+    }
+
+    // MARK: Tope de duración de las sesiones (solo 42K)
+
+    /// Techo de tiempo en la calle por sesión, en MINUTOS. La sesión
+    /// sigue terminando por distancia si el corredor llega antes; el
+    /// tope solo actúa cuando, a su ritmo, esos kilómetros no entran.
+    ///
+    /// EVIDENCIA: el costo de un fondo escala con el TIEMPO, no con los
+    /// kilómetros, y los corredores más lentos se deterioran antes en
+    /// términos de distancia — el desacople interno/externo aparece de
+    /// media a los 25,2 km pero recién a los 33,4 km en el tercil más
+    /// rápido (Smyth y Muniz-Pumares, Sports Med 2022, n = 82.303), y
+    /// 90 minutos de rodaje suave ya bajan un 5-6 % la velocidad del
+    /// primer umbral en recreativos (Nuuttila et al., EJAP 2024).
+    ///
+    /// CONSENSO: los planes publicados topan el fondo por DISTANCIA en
+    /// 30,9-35,2 km (Sports Med Open 2024, 92 planes sub-élite), y la
+    /// práctica de entrenadores lo tapa por tiempo en 2:30-3:00, con
+    /// margen hasta ~3:30 para quien debuta. Ninguno de esos números
+    /// sale de un ensayo: no existe.
+    ///
+    /// DECISIÓN MARATONIA: topar por TIEMPO (la evidencia dice que la
+    /// carga es tiempo) con un valor por plan que crece con el nivel de
+    /// entrenamiento (la evidencia dice que la durabilidad crece con
+    /// él). El ORDEN de los tres números se apoya en la evidencia; los
+    /// números en sí son una decisión, tomada en el extremo
+    /// conservador para quien nunca corrió un maratón.
+    /// Ver METODOLOGIA.md.
+    static let topePrimeraMaraton = 180      // 3:00
+    static let topeMejorarMaraton = 195      // 3:15
+    static let topeMaratonRendimiento = 210  // 3:30
+
+    /// Estampa el tope en TODAS las sesiones de entrenamiento del plan.
+    /// La carrera objetivo queda afuera: un maratón dura lo que dura.
+    private static func conTope(_ base: PlanBase, minutos: Int) -> PlanBase {
+        var plan = base
+        plan.semanas = plan.semanas.map { semana in
+            var s = semana
+            s.entrenamientos = s.entrenamientos.map { entrenamiento in
+                guard entrenamiento.tipo != .ritmoCarrera else { return entrenamiento }
+                var e = entrenamiento
+                e.topeDuracionSegundos = minutos * 60
+                return e
+            }
+            return s
+        }
+        return plan
     }
 
     /// Reparto ESTRUCTURAL de fases sobre las semanas de construcción.
@@ -242,29 +295,37 @@ enum ContenidoPlanes {
 
     static func maraton() -> PlanBase {
         var semanas: [SemanaBase] = []
-        // Larga: 12 → 30 km (tope), descargas en 4, 8 y 12.
-        let largas: [Double] = [12, 14, 16, 12, 18, 20, 22, 16, 24, 26, 28, 20, 30]
+        // Larga: 12 → 30 km (tope de distancia), descargas en 4, 8 y 12.
+        // Las descargas suben (12→14, 16→18, 20→22): eran tan profundas
+        // que la semana siguiente rebotaba +47-56 %, y la peor caía
+        // justo antes del pico.
+        let largas: [Double] = [12, 14, 16, 14, 18, 20, 22, 18, 24, 26, 28, 22, 30]
+        // Rodaje MEDIO del día 4 (reemplaza el rodaje suelto, no agrega
+        // día): sin él la larga era 2,7× la segunda sesión más larga de
+        // la semana — el corredor pasaba de 11 km a 30 km sin nada en
+        // el medio. También es lo que separa este plan de "Mejorar".
+        let medios: [Int: Double] = [5: 12, 6: 13, 7: 14, 8: 12, 9: 14,
+                                     10: 15, 11: 15, 12: 13, 13: 15]
         for numero in 1...13 {
             let esDescarga = numero == 4 || numero == 8 || numero == 12
             let calidad = umbral(2, minutos: esDescarga ? 15 : min(20 + numero, 32))
             // Final a ritmo de maratón dentro de la larga desde la
             // semana 9 (las de descarga van todas cómodas).
             let finalMaraton: Double? = (numero >= 9 && !esDescarga) ? 4 : nil
-            // kmFacil 8 → 11: la tirada larga llegaba a ocupar el 51 %
-            // del volumen semanal en el pico (30 km sobre 59). Sube el
-            // volumen COMPLEMENTARIO — la progresión de fondos no se
-            // toca, porque pasó la auditoría de saltos de sesión.
             semanas.append(semana(numero, calidad: calidad,
-                                  kmFacil: esDescarga ? 8 : 11,
+                                  kmFacil: esDescarga ? 9 : 11,
                                   kmLarga: largas[numero - 1],
                                   finalMaraton: finalMaraton,
                                   fase: fase(numero, construccion: 13,
-                                             esDescarga: esDescarga, esPico: numero == 13)))
+                                             esDescarga: esDescarga, esPico: numero == 13),
+                                  kmMedio: medios[numero]))
         }
-        // Taper de 3 semanas (Bosquet 2007).
+        // Taper de 3 semanas (Bosquet 2007). El rodaje de la primera
+        // semana sube a 10 km: en taper la larga no puede quedar sola,
+        // o pasa a ser 2,9× la siguiente sesión.
         semanas.append(SemanaBase(numero: 14, entrenamientos: [
             umbral(2, minutos: 18),
-            facil(4, km: 7),
+            facil(4, km: 10),
             larga(7, km: 20),
         ], fase: .taper))
         semanas.append(SemanaBase(numero: 15, entrenamientos: [
@@ -277,11 +338,11 @@ enum ContenidoPlanes {
             activacion(4),
             carrera(7, km: 42.195, nombre: "Maratón"),
         ], fase: .semanaDeCarrera))
-        return PlanBase(
-            id: "maraton", version: 1, nombre: "Maratón",
-            descripcion: "16 semanas: larga hasta 30 km con descargas cada 4ª semana, umbral semanal, finales a ritmo de maratón desde la semana 9 y taper de 3 semanas.",
+        return conTope(PlanBase(
+            id: "maraton", version: 2, nombre: "Maratón",
+            descripcion: "16 semanas: larga hasta 30 km (o 3 h, lo que llegue primero) con descargas cada 4ª semana, rodaje medio de mitad de semana, umbral semanal, finales a ritmo de maratón desde la semana 9 y taper de 3 semanas.",
             distanciaObjetivoKm: 42.195, semanasTotales: 16, diasPorSemana: 4,
-            provisional: false, semanas: semanas)
+            provisional: false, semanas: semanas), minutos: topePrimeraMaraton)
     }
 
     // MARK: Mejorar 10K — 10 semanas
@@ -409,8 +470,16 @@ enum ContenidoPlanes {
 
     static func mejorarMaraton() -> PlanBase {
         var semanas: [SemanaBase] = []
-        // Larga: 16 → 32 km (tope), descargas en 4, 8, 12.
-        let largas: [Double] = [16, 18, 20, 15, 22, 24, 26, 18, 28, 30, 32, 22, 30, 24, 18]
+        // Larga: 16 → 32 km, descargas en 4, 8, 12, PICO en la 15.
+        // Antes el pico estaba declarado en la 11 y el plan seguía
+        // cuatro semanas más bajando (32 → 22 → 30 → 24 → 18): 28 días
+        // de descenso antes del taper, sin que ninguna fase lo dijera.
+        // Ahora el fondo más largo es la última semana de construcción
+        // y el descenso ES el taper — no hace falta inventar una fase
+        // "post-pico" para nombrar algo que no debería existir.
+        let largas: [Double] = [16, 18, 20, 16, 22, 24, 26, 20, 28, 30, 32, 24, 28, 30, 32]
+        let medios: [Int: Double] = [5: 14, 6: 15, 7: 15, 8: 13, 9: 16, 10: 16,
+                                     11: 16, 12: 14, 13: 16, 14: 16, 15: 16]
         for numero in 1...15 {
             let esDescarga = numero == 4 || numero == 8 || numero == 12
             let calidad = umbral(2, minutos: esDescarga ? 18 : min(24 + numero, 38))
@@ -418,42 +487,49 @@ enum ContenidoPlanes {
             // enseña el ritmo con las piernas ya cansadas.
             let finalMaraton: Double? = (numero >= 7 && !esDescarga)
                 ? min(6 + Double(numero - 7), 12) : nil
-            // kmFacil 10 → 12, mismo motivo que en Primera Maratón
-            // (la larga ocupaba el 48 % del pico).
             semanas.append(semana(numero, calidad: calidad,
-                                  kmFacil: esDescarga ? 9 : 12,
+                                  kmFacil: esDescarga ? 10 : 12,
                                   kmLarga: largas[numero - 1],
                                   finalMaraton: finalMaraton,
                                   fase: fase(numero, construccion: 15,
-                                             esDescarga: esDescarga, esPico: numero == 11)))
+                                             esDescarga: esDescarga, esPico: numero == 15),
+                                  kmMedio: medios[numero]))
         }
+        // Taper de 2 semanas + semana de carrera. La larga de la
+        // primera sube 20 → 22 para que NUNCA crezca respecto de la
+        // semana anterior: antes la 15 prescribía 18 km y la 16, ya en
+        // taper, prescribía 20.
         semanas.append(SemanaBase(numero: 16, entrenamientos: [
             umbral(2, minutos: 20),
-            facil(4, km: 8),
-            larga(7, km: 20),
+            facil(4, km: 11),
+            larga(7, km: 22),
         ], fase: .taper))
         semanas.append(SemanaBase(numero: 17, entrenamientos: [
             umbral(2, minutos: 12),
-            facil(4, km: 6),
-            larga(7, km: 12),
+            facil(4, km: 7),
+            larga(7, km: 13),
         ], fase: .taper))
         semanas.append(SemanaBase(numero: 18, entrenamientos: [
             facil(2, km: 5),
             activacion(4),
             carrera(7, km: 42.195, nombre: "Maratón"),
         ], fase: .semanaDeCarrera))
-        return PlanBase(
-            id: "mejorar-maraton", version: 1, nombre: "Mejorar mi maratón",
-            descripcion: "18 semanas: larga hasta 32 km con finales a ritmo de maratón cada vez más largos desde la semana 7, umbral semanal, tres descargas y taper de 3 semanas.",
+        return conTope(PlanBase(
+            id: "mejorar-maraton", version: 2, nombre: "Mejorar mi maratón",
+            descripcion: "18 semanas: larga hasta 32 km (o 3:15, lo que llegue primero) con finales a ritmo de maratón cada vez más largos desde la semana 7, rodaje medio de mitad de semana, umbral semanal, tres descargas y taper de 3 semanas.",
             distanciaObjetivoKm: 42.195, semanasTotales: 18, diasPorSemana: 5,
-            provisional: false, semanas: semanas)
+            provisional: false, semanas: semanas), minutos: topeMejorarMaraton)
     }
 
     // MARK: Maratón — rendimiento — 18 semanas
 
     static func maratonRendimiento() -> PlanBase {
         var semanas: [SemanaBase] = []
-        let largas: [Double] = [18, 20, 22, 16, 24, 26, 28, 20, 30, 32, 32, 22, 32, 26, 20]
+        // Mismo criterio que en Mejorar: descargas menos profundas y
+        // el fondo más largo en la ÚLTIMA semana de construcción, para
+        // que no haya semanas declaradas "específicas" mientras el plan
+        // ya viene bajando.
+        let largas: [Double] = [18, 20, 22, 18, 24, 26, 28, 22, 30, 32, 32, 26, 30, 32, 32]
         for numero in 1...15 {
             let esDescarga = numero == 4 || numero == 8 || numero == 12
             let principal = umbral(2, minutos: esDescarga ? 20 : min(26 + numero, 40))
@@ -465,16 +541,16 @@ enum ContenidoPlanes {
             let finalMaraton: Double? = (numero >= 7 && !esDescarga)
                 ? min(8 + Double(numero - 7), 14) : nil
             semanas.append(semanaDoble(numero, calidad: principal, segundaCalidad: segunda,
-                                       kmFacil: esDescarga ? 10 : 12,
-                                       kmMedio: esDescarga ? 12 : 16,
+                                       kmFacil: esDescarga ? 11 : 12,
+                                       kmMedio: esDescarga ? 13 : 16,
                                        kmLarga: largas[numero - 1],
                                        finalMaraton: finalMaraton,
                                        fase: fase(numero, construccion: 15,
-                                                  esDescarga: esDescarga, esPico: numero == 11)))
+                                                  esDescarga: esDescarga, esPico: numero == 15)))
         }
         semanas.append(SemanaBase(numero: 16, entrenamientos: [
             umbral(2, minutos: 22),
-            facil(4, km: 10),
+            facil(4, km: 12),
             larga(7, km: 22),
         ], fase: .taper))
         semanas.append(SemanaBase(numero: 17, entrenamientos: [
@@ -487,10 +563,10 @@ enum ContenidoPlanes {
             activacion(4),
             carrera(7, km: 42.195, nombre: "Maratón"),
         ], fase: .semanaDeCarrera))
-        return PlanBase(
-            id: "maraton-rendimiento", version: 1, nombre: "Maratón · rendimiento",
-            descripcion: "18 semanas de máxima especificidad: dos calidades por semana, bloques largos a ritmo de maratón, rodaje medio, larga hasta 32 km y taper de 3 semanas. Pide base real y sin molestias.",
+        return conTope(PlanBase(
+            id: "maraton-rendimiento", version: 2, nombre: "Maratón · rendimiento",
+            descripcion: "18 semanas de máxima especificidad: dos calidades por semana, bloques largos a ritmo de maratón, rodaje medio, larga hasta 32 km (o 3:30, lo que llegue primero) y taper de 3 semanas. Pide base real y sin molestias.",
             distanciaObjetivoKm: 42.195, semanasTotales: 18, diasPorSemana: 6,
-            provisional: false, semanas: semanas)
+            provisional: false, semanas: semanas), minutos: topeMaratonRendimiento)
     }
 }

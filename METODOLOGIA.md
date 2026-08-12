@@ -23,6 +23,95 @@ Runna y otras apps se miraron SOLO como benchmark de forma de producto.
 - **Progresión de la larga** ≤ +1-2 km/semana; **tope 30 km** (maratón) y **18 km** (media): control de carga.
 - **Bandas de ejecución** (±5 a ±8 s/km sobre el ritmo central derivado): tolerancia práctica, no fisiología.
 
+## Tope de duración del fondo (42K)
+
+El problema: un plan que prescribe "30 km" prescribe cosas distintas
+según quién lo corra. Medido sobre el propio contenido, con los ritmos
+que devuelve `maratonia@1`:
+
+| Corredor | 30 km | 32 km |
+|---|---|---|
+| 5 km en 20:00 | 2:45 | 3:01 |
+| 5 km en 25:00 | 3:19 | 3:37 |
+| 5 km en 30:00 | 3:58 | 4:14 |
+| 5 km en 33:00 | 4:18 | 4:36 |
+
+**EVIDENCIA** (lo que está medido y publicado):
+
+| Fuente | Qué muestra |
+|---|---|
+| B. Smyth, D. Muniz-Pumares, "Decoupling of Internal and External Workload During a Marathon", *Sports Medicine* 52, 2022 (n = 82.303) | El desacople interno/externo aparece de media a los 25,2 ± 9,9 km, pero a los 33,4 ± 9,0 km en el tercil que menos se desacopla (el más rápido). El mismo kilómetro NO es el mismo evento fisiológico según a qué velocidad se llegue a él. |
+| O-P. Nuuttila et al., "Durability in recreational runners: effects of 90-min low-intensity exercise on the running speed at the lactate threshold", *Eur J Appl Physiol*, 2024 (n = 31) | 90 minutos de rodaje suave ya bajan la velocidad del primer umbral un 5,8 % (mujeres) y 5,3 % (varones) en corredores recreativos. El deterioro empieza mucho antes del final de un fondo largo. |
+| Comparaciones 10 / 21 / 42 km en maratonianos amateur (marcadores de daño muscular) | La creatina quinasa post-carrera escala con la distancia: el grupo de 42 km queda significativamente por encima de los de 21 y 10 km. El costo es dosis-dependiente. |
+
+Conclusión de la evidencia: **el costo de un fondo escala con el TIEMPO
+en pie, y el corredor más lento paga más por el mismo kilometraje.**
+
+**CONSENSO** (práctica extendida, sin ensayo detrás):
+
+- Análisis cuantitativo de 92 planes de maratón sub-élite publicados
+  (*Sports Medicine - Open* 10, 2024): el fondo más largo va de 30,9 km
+  (planes de bajo volumen) a 35,2 km (alto volumen). Es decir: **los
+  planes publicados topan por DISTANCIA y no miran el ritmo.**
+- La práctica de entrenadores topa el fondo en 2:30-3:00, con margen
+  hasta ~3:30 para quien debuta.
+- Ese mismo trabajo advierte que los planes de maratón son
+  "mayoritariamente basados en experiencia", no en evidencia: **no
+  existe un ensayo que diga que 3:00 es mejor que 3:15 o que 2:45.**
+
+**DECISIÓN MARATONIA:**
+
+1. Topar por **tiempo**, no por distancia — es lo que la evidencia dice
+   que constituye la carga.
+2. **Termina lo que llegue primero.** Si el corredor alcanza la
+   distancia antes del tope, la sesión termina por distancia y el tope
+   nunca actúa. Para el corredor de 5 km en 20:00 el tope prácticamente
+   no existe.
+3. Un valor por plan, que crece con el nivel de entrenamiento:
+
+   | Plan | Tope | Fondo declarado |
+   |---|---|---|
+   | Primera Maratón | 3:00 | hasta 30 km |
+   | Mejorar mi maratón | 3:15 | hasta 32 km |
+   | Maratón · rendimiento | 3:30 | hasta 32 km |
+
+   El **orden** de los tres números se apoya en la evidencia (la
+   durabilidad mejora con el nivel de entrenamiento). Los **números en
+   sí son una decisión**, tomada en el extremo conservador para quien
+   nunca corrió un maratón. No se presentan como evidencia.
+
+**Consecuencia declarada, no resuelta:** un tope absoluto no protege
+por igual. Para el corredor de 5 km en 20:00 el fondo pico son 2:45 de
+una carrera de ~3:20 (82 %); para el de 5 km en 33:00 son 3:00 de una
+carrera de ~5:15 (57 %) y su fondo más largo queda en ~21 km. Un tope
+proporcional al tiempo de carrera proyectado sería más justo, pero
+sería una fórmula nueva sin respaldo: queda declarado como pendiente,
+no inventado acá.
+
+**El tope NO es personalizable por la IA.** Vive en el contenido, viaja
+con la sesión al adoptarla y se conserva al reducir y al convertir en
+fácil. Ninguna operación del Coach puede subir carga: `reducir` exige
+factor < 1 por contrato y el resto de las operaciones (mover, omitir,
+convertir) no aumentan volumen.
+
+## Proporción de la tirada larga (HEURÍSTICA MARATONIA)
+
+La tirada larga no puede superar **2,2×** la segunda sesión más larga
+de la misma semana de construcción.
+
+**Esto NO es evidencia científica.** No sale de ningún paper. Sale de
+medir el propio catálogo: Primera Maratón llegaba a 2,73× (30 km contra
+11 km) y Mejorar Maratón a 2,67× (32 contra 12) — el corredor saltaba
+de rodajes de 11 km al fondo de 30 km sin nada en el medio. El número
+exacto es arbitrario dentro de un rango razonable; lo que no es
+arbitrario es que exista un techo. Se corrige agregando un **rodaje
+medio** de mitad de semana (que reemplaza al rodaje suelto que ya
+estaba: no agrega días), nunca recortando el fondo.
+
+Nota sobre el contexto: en los 92 planes publicados citados arriba, los
+planes de bajo volumen ponen la larga en 50 % o más del volumen
+semanal. Maratonia es deliberadamente más conservadora (techo del 45 %).
+
 ## Qué produce la metodología
 
 `MetodologiaMaratoniaV1` (Shared/DominioV2.swift, id `maratonia@1`):
@@ -268,13 +357,3 @@ taper que nadie declaró.
   (donde el template pone la larga/carrera).
 - El **día de la tirada larga** lo elige el corredor. Sin preferencia,
   queda donde lo puso el template; la app NO fuerza domingo.
-
-## Distribución semanal (arquitectura vs metodología)
-
-- La SEPARACIÓN de sesiones exigentes vive en el ORDEN del template
-  (contenido versionado): calidad a mitad de semana, larga al final.
-- El motor (`MotorPlanificacion.distribuir`) solo MAPEA ese orden a los
-  días concretos que el corredor eligió — jamás inventa carga ni
-  programa en días no disponibles. Si hay más días que sesiones, elige
-  el subconjunto mejor repartido incluyendo siempre el último día
-  (donde el template pone la larga/carrera).

@@ -355,13 +355,22 @@ final class RecorteYRedistribucionTests: XCTestCase {
                        accuracy: 0.01, "la tirada larga no cambia al recortar")
     }
 
+    /// Un rodaje no puede volverse una segunda tirada larga al absorber
+    /// el volumen de las sesiones recortadas. Se evalúa en las
+    /// frecuencias que el arquetipo DECLARA soportar: recortar Primera
+    /// Maratón a 3 días es una semana que la app nunca genera
+    /// (`diasMinimos` = 4) y medir ahí no dice nada del producto.
     func testUnaSesionFacilNoCreceSinControl() {
-        let base = ContenidoPlanes.maraton()
-        let tres = MotorPlanificacion.recortar(base, aDias: 3)
-        for semana in tres.semanas {
-            for entrenamiento in semana.entrenamientos where entrenamiento.tipo == .facil {
-                let km = entrenamiento.segmentos.compactMap(\.distanciaKm).reduce(0, +)
-                XCTAssertLessThan(km, 25, "semana \(semana.numero): un «rodaje suave» de \(km) km")
+        for (arquetipo, base) in CatalogoDePrueba.todos {
+            for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
+                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                for semana in plan.semanas {
+                    for entrenamiento in semana.entrenamientos
+                    where entrenamiento.tipo == .facil {
+                        let km = entrenamiento.segmentos.compactMap(\.distanciaKm).reduce(0, +)
+                        XCTAssertLessThan(km, 25, "\(arquetipo.id) \(dias)d semana \(semana.numero): un «rodaje» de \(km) km")
+                    }
+                }
             }
         }
     }
@@ -401,21 +410,61 @@ enum CatalogoDePrueba {
         }
     }
 
-    static func volumen(_ semana: SemanaBase) -> Double {
-        CalculoVolumen.volumen(semana.entrenamientos.flatMap(\.segmentos).map {
+    /// Volumen de UNA sesión, con su tope de duración aplicado.
+    /// Sesión por sesión: el tope es por sesión, así que sumar los
+    /// segmentos de la semana entera lo haría desaparecer.
+    static func volumen(_ entrenamiento: EntrenamientoBase,
+                        baseline: PerformanceBaseline? = nil) -> Double {
+        CalculoVolumen.volumen(entrenamiento.segmentos.map {
             CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
                                    duracionSegundos: $0.duracionSegundos, ritmo: $0.ritmo)
-        }).totalKm
+        }, tope: entrenamiento.topeDuracionSegundos, baseline: baseline).totalKm
     }
 
-    static func larga(_ semana: SemanaBase) -> Double {
+    /// Duración prevista de UNA sesión, ya recortada por su tope.
+    static func duracion(_ entrenamiento: EntrenamientoBase,
+                         baseline: PerformanceBaseline? = nil) -> Double {
+        let entradas = entrenamiento.segmentos.map {
+            CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
+                                   duracionSegundos: $0.duracionSegundos, ritmo: $0.ritmo)
+        }
+        let factor = CalculoVolumen.factorDeTope(
+            entradas, tope: entrenamiento.topeDuracionSegundos, baseline: baseline)
+        return entradas.reduce(0.0) { total, entrada in
+            if let km = entrada.distanciaKm {
+                return total + km * factor
+                    * Double(CalculoVolumen.ritmo(de: entrada.ritmo, baseline: baseline).segKm)
+            }
+            return total + Double(entrada.duracionSegundos ?? 0)
+        }
+    }
+
+    static func volumen(_ semana: SemanaBase,
+                        baseline: PerformanceBaseline? = nil) -> Double {
+        semana.entrenamientos.reduce(0) { $0 + volumen($1, baseline: baseline) }
+    }
+
+    static func larga(_ semana: SemanaBase,
+                      baseline: PerformanceBaseline? = nil) -> Double {
         semana.entrenamientos.filter { $0.tipo == .largo }
-            .map { entrenamiento in
-                CalculoVolumen.volumen(entrenamiento.segmentos.map {
-                    CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
-                                           duracionSegundos: $0.duracionSegundos, ritmo: $0.ritmo)
-                }).totalKm
-            }.max() ?? 0
+            .map { volumen($0, baseline: baseline) }.max() ?? 0
+    }
+
+    /// Los cuatro corredores con los que se auditó el contenido 42K:
+    /// del recreativo rápido al que corre 5 km en 33 minutos. Es donde
+    /// el tope de duración cambia de "no muerde" a "manda".
+    static let corredores: [(nombre: String, baseline: PerformanceBaseline)] = {
+        [("5K 20:00", 1200), ("5K 25:00", 1500),
+         ("5K 30:00", 1800), ("5K 33:00", 1980)].compactMap { nombre, segundos in
+            PerformanceBaseline(referencia: ReferenciaRendimiento(
+                fecha: Date(timeIntervalSince1970: 0), fuente: .estimacionInicial,
+                distanciaMetros: 5000, segundos: segundos)).map { (nombre, $0) }
+        }
+    }()
+
+    /// Los tres planes de maratón, que son los que declaran tope.
+    static var maratones: [(arquetipo: PlanArquetipo, base: PlanBase)] {
+        todos.filter { $0.base.distanciaObjetivoKm > 42 }
     }
 }
 
@@ -753,5 +802,303 @@ final class ArranqueConservadorTests: XCTestCase {
         XCTAssertEqual(factor, 1)
         XCTAssertEqual(CatalogoDePrueba.volumen(plan.semanas[0]),
                        CatalogoDePrueba.volumen(base.semanas[0]), accuracy: 0.001)
+    }
+}
+
+// MARK: - INVARIANTES DEL CONTENIDO 42K (sprint de contenido)
+
+/// Estos recorren los TRES planes de maratón × todas sus frecuencias ×
+/// los cuatro corredores de referencia. Un plan de maratón no es el
+/// mismo objeto para quien corre 5 km en 20:00 que para quien los corre
+/// en 33:00: la misma tirada de 30 km son 2:45 o 4:30. Los invariantes
+/// que no se evalúan contra un ritmo concreto no dicen nada.
+final class Contenido42KTests: XCTestCase {
+
+    /// HEURÍSTICA MARATONIA — NO es evidencia. La tirada larga no puede
+    /// ser más de 2,2 veces la segunda sesión más larga de la semana.
+    /// No sale de ningún paper: sale de mirar el propio catálogo y
+    /// decidir que un salto de 11 km a 30 km (2,7×) deja al corredor
+    /// sin nada en el medio. El número exacto es arbitrario dentro de
+    /// un rango razonable; lo que no es arbitrario es que exista un
+    /// techo. Ver METODOLOGIA.md.
+    static let topeLargaSobreSegunda = 2.2
+
+    /// El tope declarado por cada plan, en segundos.
+    private func tope(_ base: PlanBase) -> Int? {
+        base.semanas.flatMap(\.entrenamientos).compactMap(\.topeDuracionSegundos).max()
+    }
+
+    func testTodosLosPlanesDeMaratonDeclaranTope() {
+        for (arquetipo, base) in CatalogoDePrueba.maratones {
+            let sinTope = base.semanas.flatMap(\.entrenamientos)
+                .filter { $0.tipo != .ritmoCarrera && $0.topeDuracionSegundos == nil }
+            XCTAssertTrue(sinTope.isEmpty,
+                          "\(arquetipo.id): \(sinTope.count) sesiones sin tope de duración")
+        }
+    }
+
+    /// El invariante central del sprint: NINGUNA sesión de entrenamiento
+    /// deja al corredor en la calle más tiempo del que el plan declara.
+    func testNingunaSesionSuperaElTopeDeDuracion() {
+        var fallos: [String] = []
+        for (arquetipo, base) in CatalogoDePrueba.maratones {
+            guard let tope = tope(base) else { continue }
+            for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
+                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                for (nombre, baseline) in CatalogoDePrueba.corredores {
+                    for semana in plan.semanas {
+                        for entrenamiento in semana.entrenamientos
+                        where entrenamiento.tipo != .ritmoCarrera {
+                            let duracion = CatalogoDePrueba.duracion(entrenamiento,
+                                                                    baseline: baseline)
+                            if duracion > Double(tope) + 1 {
+                                fallos.append(String(
+                                    format: "%@ %dd %@ sem %d %@: %.0f min (tope %d)",
+                                    arquetipo.id, dias, nombre, semana.numero,
+                                    entrenamiento.nombre, duracion / 60, tope / 60))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        XCTAssertTrue(fallos.isEmpty, "sesiones por encima del tope:\n" + fallos.joined(separator: "\n"))
+    }
+
+    /// La larga no puede ser un abismo respecto del resto de la semana.
+    /// Solo en semanas de construcción: en taper que la larga domine es
+    /// exactamente lo que corresponde.
+    func testLaLargaNoDuplicaMasDe2Punto2ALaSegunda() {
+        var fallos: [String] = []
+        for (arquetipo, base) in CatalogoDePrueba.maratones {
+            for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
+                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                for (nombre, baseline) in CatalogoDePrueba.corredores {
+                    for semana in plan.semanas {
+                        guard semana.fase?.esDeConstruccion ?? false else { continue }
+                        let kms = semana.entrenamientos
+                            .map { CatalogoDePrueba.volumen($0, baseline: baseline) }
+                            .sorted(by: >)
+                        guard kms.count >= 2, kms[1] > 0 else { continue }
+                        let razon = kms[0] / kms[1]
+                        if razon > Self.topeLargaSobreSegunda {
+                            fallos.append(String(format: "%@ %dd %@ sem %d: %.2f× (%.1f/%.1f km)",
+                                                 arquetipo.id, dias, nombre, semana.numero,
+                                                 razon, kms[0], kms[1]))
+                        }
+                    }
+                }
+            }
+        }
+        XCTAssertTrue(fallos.isEmpty, "larga desproporcionada:\n" + fallos.joined(separator: "\n"))
+    }
+
+    /// Progresión de la SESIÓN más larga: nunca más de un 10 % (o +2 km,
+    /// lo que sea mayor) sobre el fondo más largo de las cuatro semanas
+    /// previas —~30 días—. El criterio de la sesión aislada es el que
+    /// tiene respaldo (BJSM/JOSPT); el +2 km existe porque a 12 km un
+    /// 10 % son 1,2 km y ahí el porcentaje deja de significar algo.
+    func testElFondoNoPegaSaltosEnTreintaDias() {
+        var fallos: [String] = []
+        for (arquetipo, base) in CatalogoDePrueba.maratones {
+            for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
+                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                for (nombre, baseline) in CatalogoDePrueba.corredores {
+                    let largas = plan.semanas.map {
+                        CatalogoDePrueba.larga($0, baseline: baseline)
+                    }
+                    for (indice, larga) in largas.enumerated() {
+                        let previas = largas[max(0, indice - 4)..<indice]
+                        guard let maximo = previas.max(), maximo > 0 else { continue }
+                        let permitido = max(maximo * 1.10, maximo + 2)
+                        if larga > permitido + 0.05 {
+                            fallos.append(String(format: "%@ %dd %@ sem %d: %.1f km (máx 30 d %.1f)",
+                                                 arquetipo.id, dias, nombre,
+                                                 plan.semanas[indice].numero, larga, maximo))
+                        }
+                    }
+                }
+            }
+        }
+        XCTAssertTrue(fallos.isEmpty, "saltos de fondo:\n" + fallos.joined(separator: "\n"))
+    }
+
+    /// Desde el pico hasta la carrera el fondo SOLO baja. Antes había
+    /// planes que prescribían 18 km en la última semana de construcción
+    /// y 20 km en la primera de taper.
+    func testElFondoNuncaCreceDesdeElPico() {
+        var fallos: [String] = []
+        for (arquetipo, base) in CatalogoDePrueba.maratones {
+            for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
+                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                for (nombre, baseline) in CatalogoDePrueba.corredores {
+                    let descenso = plan.semanas
+                        .filter { $0.fase == .pico || $0.fase == .taper }
+                        .map { ($0.numero, CatalogoDePrueba.larga($0, baseline: baseline)) }
+                    for (previa, siguiente) in zip(descenso, descenso.dropFirst())
+                    where siguiente.1 > previa.1 + 0.05 {
+                        fallos.append(String(format: "%@ %dd %@: sem %d %.1f → sem %d %.1f km",
+                                             arquetipo.id, dias, nombre,
+                                             previa.0, previa.1, siguiente.0, siguiente.1))
+                    }
+                }
+            }
+        }
+        XCTAssertTrue(fallos.isEmpty, "el fondo crece en el taper:\n" + fallos.joined(separator: "\n"))
+    }
+
+    /// Salir de una descarga no puede dejarte por encima de donde
+    /// estabas ANTES de ella. Comparar contra la descarga misma no dice
+    /// nada —para eso existe la descarga—; lo que importa es que la
+    /// semana siguiente retome la progresión, no que la invente.
+    func testSalirDeUnaDescargaRetomaLaProgresion() {
+        var fallos: [String] = []
+        for (arquetipo, base) in CatalogoDePrueba.maratones {
+            for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
+                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                for (nombre, baseline) in CatalogoDePrueba.corredores {
+                    for (indice, semana) in plan.semanas.enumerated() {
+                        guard semana.fase == .descarga, indice > 0,
+                              indice + 1 < plan.semanas.count else { continue }
+                        let antes = CatalogoDePrueba.volumen(plan.semanas[indice - 1],
+                                                             baseline: baseline)
+                        let despues = CatalogoDePrueba.volumen(plan.semanas[indice + 1],
+                                                               baseline: baseline)
+                        guard antes > 0 else { continue }
+                        if despues / antes > 1.15 {
+                            fallos.append(String(format: "%@ %dd %@ descarga sem %d: %.1f → %.1f km (+%.0f%%)",
+                                                 arquetipo.id, dias, nombre, semana.numero,
+                                                 antes, despues, (despues / antes - 1) * 100))
+                        }
+                    }
+                }
+            }
+        }
+        XCTAssertTrue(fallos.isEmpty, "rebote de descarga:\n" + fallos.joined(separator: "\n"))
+    }
+
+    /// El tope viaja con la sesión: convertir una larga en rodaje fácil
+    /// no puede devolver una sesión SIN techo de duración. Era una
+    /// puerta trasera real — `convertirEnFacil` construía una
+    /// definición nueva desde cero.
+    func testConvertirEnFacilConservaElTope() {
+        var almacen = AlmacenV2()
+        let definicion = DefinicionEntrenamiento(
+            tipo: .largo, nombre: "Tirada larga",
+            segmentos: [Segmento(nombre: "Larga cómoda", distanciaKm: 30,
+                                 ritmo: .simbolico(.facil))],
+            topeDuracionSegundos: 180 * 60)
+        let programado = EntrenamientoProgramado(
+            definicion: definicion, dia: DiaLocal(anio: 2026, mes: 8, dia: 10),
+            rolGuardado: .tiradaLarga, adaptabilidadGuardada: .para(.tiradaLarga))
+        almacen.planActivo = PlanUsuario(
+            nombre: "Prueba", origen: .personalizado, fechaAdopcion: Date(),
+            semanas: [SemanaPlan(numero: 1, programados: [programado])])
+
+        XCTAssertTrue(almacen.convertirEnFacil(programadoID: programado.id))
+        let resultado = almacen.planActivo?.semanas[0].programados[0].definicion
+        XCTAssertEqual(resultado?.topeDuracionSegundos, 180 * 60,
+                       "convertir en fácil no puede quitar el tope de duración")
+    }
+
+    /// Reducir tampoco lo pierde (y solo puede achicar: el factor es < 1
+    /// por contrato, así que jamás puede empujar una sesión al tope).
+    func testReducirConservaElTope() {
+        var almacen = AlmacenV2()
+        let definicion = DefinicionEntrenamiento(
+            tipo: .largo, nombre: "Tirada larga",
+            segmentos: [Segmento(nombre: "Larga cómoda", distanciaKm: 30,
+                                 ritmo: .simbolico(.facil))],
+            topeDuracionSegundos: 180 * 60)
+        let programado = EntrenamientoProgramado(
+            definicion: definicion, dia: DiaLocal(anio: 2026, mes: 8, dia: 10),
+            rolGuardado: .tiradaLarga, adaptabilidadGuardada: .para(.tiradaLarga))
+        almacen.planActivo = PlanUsuario(
+            nombre: "Prueba", origen: .personalizado, fechaAdopcion: Date(),
+            semanas: [SemanaPlan(numero: 1, programados: [programado])])
+
+        XCTAssertTrue(almacen.reducir(programadoID: programado.id, factor: 0.8))
+        XCTAssertEqual(almacen.planActivo?.semanas[0].programados[0]
+            .definicion.topeDuracionSegundos, 180 * 60)
+    }
+}
+
+// MARK: - Semántica del tope (dominio)
+
+final class TopeDeDuracionTests: XCTestCase {
+
+    /// El corredor de referencia (5 km en 30:00) corre fácil a ~7:56/km.
+    private var baseline: PerformanceBaseline? {
+        PerformanceBaseline(referencia: ReferenciaRendimiento(
+            fecha: Date(timeIntervalSince1970: 0), fuente: .estimacionInicial,
+            distanciaMetros: 5000, segundos: 1800))
+    }
+
+    private func larga(_ km: Double, tope: Int?) -> DefinicionEntrenamiento {
+        DefinicionEntrenamiento(
+            tipo: .largo, nombre: "Tirada larga",
+            segmentos: [Segmento(nombre: "Larga cómoda", distanciaKm: km,
+                                 ritmo: .simbolico(.facil))],
+            topeDuracionSegundos: tope)
+    }
+
+    /// Si la distancia entra en el tope, el tope no existe: la sesión
+    /// termina por DISTANCIA, tal como está prescrita.
+    func testLlegarALaDistanciaAntesDelTopeNoRecortaNada() {
+        let definicion = larga(12, tope: 180 * 60)
+        XCTAssertEqual(definicion.factorDeTope(baseline: baseline), 1)
+        XCTAssertEqual(definicion.volumenKm(baseline: baseline), 12, accuracy: 0.001)
+        XCTAssertEqual(definicion.distanciaPrescritaKm, 12)
+    }
+
+    /// Y si no entra, el volumen planificado NO puede seguir diciendo
+    /// 30 km: dice lo que se va a correr de verdad.
+    func testElVolumenPlanificadoReflejaElRecorte() {
+        let sinTope = larga(30, tope: nil)
+        let conTope = larga(30, tope: 180 * 60)
+        XCTAssertEqual(sinTope.volumenKm(baseline: baseline), 30, accuracy: 0.001)
+
+        let recortado = conTope.volumen(baseline: baseline)
+        XCTAssertTrue(recortado.recortadoPorTope)
+        XCTAssertLessThan(recortado.totalKm, 30)
+        // 3 h al ritmo fácil del corredor de referencia.
+        let esperado = 10800.0 / Double(CalculoVolumen.ritmo(de: .simbolico(.facil),
+                                                            baseline: baseline).segKm)
+        XCTAssertEqual(recortado.totalKm, esperado, accuracy: 0.05)
+    }
+
+    /// Los bloques por TIEMPO no se tocan: un umbral de 20′ dura 20′
+    /// para cualquiera. Lo que se recorta es la distancia.
+    func testElTopeNoTocaLosBloquesPorTiempo() {
+        let definicion = DefinicionEntrenamiento(
+            tipo: .umbral, nombre: "Umbral",
+            segmentos: [Segmento(nombre: "Calentamiento", distanciaKm: 30,
+                                 ritmo: .simbolico(.facil)),
+                        Segmento(nombre: "Bloque", duracionSegundos: 20 * 60,
+                                 ritmo: .simbolico(.umbral))],
+            topeDuracionSegundos: 180 * 60)
+        let volumen = definicion.volumen(baseline: baseline)
+        XCTAssertEqual(volumen.segundosPorTiempo, 20 * 60,
+                       "el bloque por tiempo no se recorta")
+        XCTAssertTrue(volumen.recortadoPorTope)
+    }
+
+    /// El reloj recibe los kilómetros recortados, no los declarados:
+    /// si el plan dice 30 km y el tope corta en 23, el tramo dice 23.
+    func testLosTramosEjecutablesLleganRecortados() {
+        var definicion = larga(30, tope: 180 * 60)
+        // Al adoptar, el motor deja el ritmo resuelto en `.absoluto`.
+        definicion.segmentos[0].ritmo = .absoluto(minSegKm: 470, maxSegKm: 490)
+        let tramos = definicion.tramosEjecutables
+        XCTAssertEqual(tramos.count, 1)
+        XCTAssertEqual(tramos[0].kilometros, 22.5, accuracy: 0.2)   // 10800/480
+    }
+
+    /// Sin tope declarado, absolutamente nada cambia respecto de antes.
+    func testSinTopeElComportamientoEsIdentico() {
+        let definicion = larga(30, tope: nil)
+        XCTAssertEqual(definicion.factorDeTope(baseline: baseline), 1)
+        XCTAssertEqual(definicion.tramosEjecutables[0].kilometros, 30)
+        XCTAssertFalse(definicion.volumen(baseline: baseline).recortadoPorTope)
     }
 }

@@ -120,19 +120,19 @@ enum BibliotecaArquetipos {
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mediaRendimiento()),
             // ---- 42K
-            PlanArquetipo(id: "maraton", version: 1, objetivo: .maraton,
+            PlanArquetipo(id: "maraton", version: 2, objetivo: .maraton,
                           nombre: "Maratón",
                           semanasMinimas: 16, semanasRecomendadas: 16,
                           diasMinimos: 4, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.maraton()),
-            PlanArquetipo(id: "mejorar-maraton", version: 1, objetivo: .mejorarMaraton,
+            PlanArquetipo(id: "mejorar-maraton", version: 2, objetivo: .mejorarMaraton,
                           nombre: "Mejorar mi maratón",
                           semanasMinimas: 18, semanasRecomendadas: 18,
                           diasMinimos: 4, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mejorarMaraton()),
-            PlanArquetipo(id: "maraton-rendimiento", version: 1, objetivo: .maratonRendimiento,
+            PlanArquetipo(id: "maraton-rendimiento", version: 2, objetivo: .maratonRendimiento,
                           nombre: "Maratón · rendimiento",
                           semanasMinimas: 18, semanasRecomendadas: 18,
                           diasMinimos: 5, diasMaximos: 6,
@@ -446,12 +446,9 @@ enum MotorPlanificacion {
         -> (base: PlanBase, factor: Double) {
         guard let actuales = kmSemanalesActuales, actuales > 0,
               let primera = base.semanas.first else { return (base, 1) }
-        let kmPrimera = CalculoVolumen.volumen(
-            primera.entrenamientos.flatMap(\.segmentos).map {
-                CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
-                                       duracionSegundos: $0.duracionSegundos,
-                                       ritmo: $0.ritmo)
-            }).totalKm
+        // Sesión por sesión: el tope de duración es por sesión y
+        // aplanar la semana lo haría desaparecer.
+        let kmPrimera = primera.entrenamientos.reduce(0.0) { $0 + volumenBase($1) }
         guard kmPrimera > 0 else { return (base, 1) }
 
         let techo = conservador ? factorEntradaConservador : factorEntradaMaximo
@@ -539,12 +536,15 @@ enum MotorPlanificacion {
         return rol == .facil || rol == .recuperacion
     }
 
+    /// Con el TOPE aplicado: una sesión que ya llega a su techo de
+    /// duración no tiene capacidad libre para absorber nada, y lo que
+    /// se le asignara se evaporaría igual al calcular el volumen.
     private static func volumenBase(_ entrenamiento: EntrenamientoBase) -> Double {
         CalculoVolumen.volumen(entrenamiento.segmentos.map {
             CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
                                    duracionSegundos: $0.duracionSegundos,
                                    ritmo: $0.ritmo)
-        }).totalKm
+        }, tope: entrenamiento.topeDuracionSegundos).totalKm
     }
 
     /// Reparte `huerfano` km entre las sesiones absorbentes, en
