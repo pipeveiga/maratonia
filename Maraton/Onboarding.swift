@@ -20,8 +20,28 @@ struct OnboardingDeportivo: View {
 
     @State private var paso = 0
     @State private var objetivo: ObjetivoDeportivo?
+    /// El objetivo se arma en dos preguntas cortas (§7) en vez de una
+    /// lista de diez tarjetas.
+    @State private var distancia: DistanciaObjetivo?
+    @State private var intencion: IntencionObjetivo?
     @State private var experiencia: RespuestaExperiencia?
     @State private var diasPorSemana: Int?
+
+    // ---- Actividad actual (paso 2). Lo que Salud detecta se propone;
+    // lo que el corredor dice, manda.
+    @StateObject private var lectorActividad = LectorProgreso()
+    @State private var actividadDetectada: ActividadDetectada?
+    @State private var corrigiendoActividad = false
+    @State private var origenActividad: ActividadActual.Origen = .declarado
+    @State private var diasActualesManual = 0
+    @State private var kmSemanalesManual: Double = 0
+    @State private var tiradaLargaManual: Double = 0
+    @State private var mesesRegular = 0
+    @State private var volviendoDePausa = false
+    @State private var molestias: EstadoMolestias = .ninguna
+
+    // ---- Preferencias de la semana (paso 4).
+    @State private var diaPreferidoFondo: Int?
     /// Días concretos (1 = lunes … 7 = domingo). Sobrevive al ir y
     /// volver entre pasos (@State del flujo) y se persiste en el perfil.
     @State private var diasElegidos: Set<Int> = []
@@ -42,7 +62,7 @@ struct OnboardingDeportivo: View {
     @State private var resultadoMotor: ResultadoPlanificacion?
     @State private var mostrandoPropuesta = false
 
-    private let totalPasos = 4
+    private let totalPasos = 5
 
     var body: some View {
         NavigationStack {
@@ -61,12 +81,20 @@ struct OnboardingDeportivo: View {
 
                 TabView(selection: $paso) {
                     pasoObjetivo.tag(0)
-                    pasoExperiencia.tag(1)
-                    pasoDisponibilidad.tag(2)
-                    pasoFechaYResumen.tag(3)
+                    pasoActividad.tag(1)
+                    pasoExperiencia.tag(2)
+                    pasoDisponibilidad.tag(3)
+                    pasoFechaYResumen.tag(4)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: paso)
+                .onAppear { lectorActividad.cargar(semanas: 8) }
+                .onChange(of: lectorActividad.sesiones) { _, sesiones in
+                    // La detección se recalcula sola cuando Salud
+                    // responde; si el corredor ya tocó algo, no se pisa.
+                    guard !corrigiendoActividad, origenActividad == .declarado else { return }
+                    actividadDetectada = DeteccionActividad.detectar(sesiones, hoy: Date())
+                }
             }
             .navigationTitle("Tu objetivo")
             .navigationBarTitleDisplayMode(.inline)
@@ -98,29 +126,166 @@ struct OnboardingDeportivo: View {
         .interactiveDismissDisabled(false)
     }
 
-    // MARK: Paso 1 — objetivo
+    // MARK: Paso 1 — objetivo (DISTANCIA + INTENCIÓN, no diez tarjetas)
 
     private var pasoObjetivo: some View {
         pantalla(titulo: "¿Qué querés lograr?",
-                 subtitulo: "El plan se arma alrededor de esto.") {
-            ForEach(ObjetivoDeportivo.allCases, id: \.self) { opcion in
+                 subtitulo: "Primero la distancia, después qué querés hacer con ella. El plan se arma alrededor de esto.") {
+            EncabezadoSeccionV2(texto: "Distancia")
+            ForEach(DistanciaObjetivo.allCases, id: \.self) { opcion in
                 tarjetaOpcion(titulo: TextosObjetivo.nombre(de: opcion),
                               subtitulo: detalle(de: opcion),
                               icono: icono(de: opcion),
-                              elegida: objetivo == opcion) {
-                    let cambio = objetivo != opcion
-                    objetivo = opcion
-                    // Cada objetivo tiene su rango de cadencias: volver
-                    // atrás y cambiarlo podía dejar elegida una cantidad
-                    // que el arquetipo nuevo no soporta.
-                    if cambio, let actual = diasPorSemana,
-                       !cadenciasPosibles.contains(actual) {
-                        diasPorSemana = nil
-                        diasElegidos = []
+                              elegida: distancia == opcion) {
+                    withAnimation {
+                        if distancia != opcion { intencion = nil; objetivo = nil }
+                        distancia = opcion
                     }
-                    avanzar()
                 }
             }
+
+            if let distancia {
+                EncabezadoSeccionV2(texto: "Tu meta con esa distancia")
+                ForEach(distancia.intencionesPosibles, id: \.self) { opcion in
+                    tarjetaOpcion(titulo: TextosObjetivo.nombre(de: opcion),
+                                  subtitulo: TextosObjetivo.detalle(de: opcion),
+                                  icono: icono(de: opcion),
+                                  elegida: intencion == opcion) {
+                        intencion = opcion
+                        elegirObjetivo(distancia: distancia, intencion: opcion)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Compone el objetivo y limpia lo que dejó de ser válido. Volver
+    /// atrás y cambiar de objetivo no puede dejar pegada una cadencia
+    /// que el arquetipo nuevo no soporta.
+    private func elegirObjetivo(distancia: DistanciaObjetivo, intencion: IntencionObjetivo) {
+        guard let nuevo = ObjetivoDeportivo.combinando(distancia, intencion) else { return }
+        let cambio = objetivo != nuevo
+        objetivo = nuevo
+        if cambio, let actual = diasPorSemana, !cadenciasPosibles.contains(actual) {
+            diasPorSemana = nil
+            diasElegidos = []
+        }
+        avanzar()
+    }
+
+    // MARK: Paso 2 — actividad actual (Salud manda cuando existe)
+
+    private var pasoActividad: some View {
+        pantalla(titulo: "¿Qué venís haciendo?",
+                 subtitulo: "Es el dato que más cambia tu plan: define dónde arranca, no dónde termina.") {
+            if let detectada = actividadDetectada, !corrigiendoActividad {
+                tarjetaDetectada(detectada)
+            } else {
+                formularioActividad
+            }
+
+            EncabezadoSeccionV2(texto: "Molestias")
+            ForEach(EstadoMolestias.allCases, id: \.self) { opcion in
+                tarjetaOpcion(titulo: textoMolestia(opcion),
+                              subtitulo: detalleMolestia(opcion),
+                              icono: opcion == .ninguna ? "checkmark.seal" : "exclamationmark.triangle",
+                              elegida: molestias == opcion) {
+                    molestias = opcion
+                }
+            }
+            Text("Maratonia no diagnostica ni trata lesiones. Si marcás una molestia, el plan simplemente arranca más prudente.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Button { avanzar() } label: {
+                EtiquetaBotonPrimarioV2(titulo: "Continuar", icono: "arrow.right")
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// La propuesta calculada desde Salud: confirmar o corregir. Nunca
+    /// se guarda como verdad sin que el corredor la mire (§4).
+    private func tarjetaDetectada(_ detectada: ActividadDetectada) -> some View {
+        TarjetaV2 {
+            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                EncabezadoSeccionV2(texto: "Lo que vimos en Salud")
+                Text("Unas \(String(format: "%.1f", detectada.diasPorSemana)) salidas por semana y ~\(String(format: "%.0f", detectada.kmSemanales)) km semanales, con una salida más larga de \(String(format: "%.1f", detectada.tiradaLargaKm)) km.")
+                    .font(.subheadline)
+                Text("Calculado sobre \(Plurales.carreras(detectada.salidasConsideradas)) de las últimas 6 semanas.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: DV2.Espacio.m) {
+                    Button {
+                        aplicarDetectada(detectada, origen: .confirmado)
+                        avanzar()
+                    } label: {
+                        EtiquetaBotonPrimarioV2(titulo: "Sí, representa mi actividad",
+                                                icono: "checkmark")
+                    }
+                    .buttonStyle(.plain)
+                }
+                Button("Corregir a mano") {
+                    withAnimation {
+                        aplicarDetectada(detectada, origen: .corregido)
+                        corrigiendoActividad = true
+                    }
+                }
+                .font(.footnote)
+            }
+        }
+    }
+
+    private var formularioActividad: some View {
+        TarjetaV2 {
+            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                EncabezadoSeccionV2(texto: "Tu actividad de hoy")
+                if actividadDetectada == nil {
+                    Text("No tenemos historial suficiente en Salud — eso no dice nada de vos, solo que no lo sabemos. Contanos y listo.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Stepper("Salidas por semana: \(diasActualesManual)",
+                        value: $diasActualesManual, in: 0...14)
+                Stepper("Kilómetros por semana: \(Int(kmSemanalesManual))",
+                        value: $kmSemanalesManual, in: 0...200, step: 5)
+                Stepper("Salida más larga: \(String(format: "%.0f", tiradaLargaManual)) km",
+                        value: $tiradaLargaManual, in: 0...60, step: 1)
+                Picker("Hace cuánto corrés seguido", selection: $mesesRegular) {
+                    Text("Recién empiezo").tag(0)
+                    Text("1-3 meses").tag(2)
+                    Text("3-6 meses").tag(4)
+                    Text("6-12 meses").tag(9)
+                    Text("Más de un año").tag(18)
+                }
+                Toggle("Vuelvo después de una pausa larga", isOn: $volviendoDePausa)
+            }
+        }
+    }
+
+    private func aplicarDetectada(_ detectada: ActividadDetectada,
+                                  origen: ActividadActual.Origen) {
+        diasActualesManual = Int(detectada.diasPorSemana.rounded())
+        kmSemanalesManual = (detectada.kmSemanales / 5).rounded() * 5
+        tiradaLargaManual = detectada.tiradaLargaKm.rounded()
+        origenActividad = origen
+    }
+
+    private func textoMolestia(_ estado: EstadoMolestias) -> String {
+        switch estado {
+        case .ninguna: return String(localized: "Ninguna, estoy bien")
+        case .molestiaLeve: return String(localized: "Una molestia leve")
+        case .lesionReciente: return String(localized: "Una lesión reciente")
+        case .enRecuperacion: return String(localized: "Estoy en recuperación")
+        }
+    }
+
+    private func detalleMolestia(_ estado: EstadoMolestias) -> String {
+        switch estado {
+        case .ninguna: return String(localized: "Sin nada que me limite para correr")
+        case .molestiaLeve: return String(localized: "Molesta, pero puedo correr")
+        case .lesionReciente: return String(localized: "Me hizo dejar de correr en el último tiempo")
+        case .enRecuperacion: return String(localized: "Estoy volviendo con indicación de alguien")
         }
     }
 
@@ -129,7 +294,7 @@ struct OnboardingDeportivo: View {
     private var pasoExperiencia: some View {
         pantalla(titulo: "¿Tenés una referencia de ritmo?",
                  subtitulo: "Sirve para que los ritmos del plan sean TUYOS, no genéricos.") {
-            tarjetaOpcion(titulo: "Tengo una marca reciente",
+            tarjetaOpcion(titulo: String(localized: "Tengo una marca reciente"),
                           subtitulo: String(localized: "Una carrera o un esfuerzo medido de los últimos meses"),
                           icono: "stopwatch.fill",
                           elegida: experiencia == .marcaReciente) {
@@ -138,14 +303,14 @@ struct OnboardingDeportivo: View {
             if experiencia == .marcaReciente {
                 formularioMarca
             }
-            tarjetaOpcion(titulo: "Prefiero hacer una prueba",
+            tarjetaOpcion(titulo: String(localized: "Prefiero hacer una prueba"),
                           subtitulo: String(localized: "Test de 5K: fuerte pero controlado, cuando quieras"),
                           icono: "flag.checkered",
                           elegida: experiencia == .hacerTest) {
                 experiencia = .hacerTest
                 avanzar()
             }
-            tarjetaOpcion(titulo: "Estoy empezando",
+            tarjetaOpcion(titulo: String(localized: "Estoy empezando"),
                           subtitulo: String(localized: "Sin referencia — el plan arranca suave y aprende con vos"),
                           icono: "leaf.fill",
                           elegida: experiencia == .empezando) {
@@ -212,7 +377,7 @@ struct OnboardingDeportivo: View {
         pantalla(titulo: "¿Qué días podés correr?",
                  subtitulo: "Un plan honesto con tu semana real vale más que uno ambicioso que no cumplís. Los entrenamientos caen SOLO en los días que marques.") {
             ForEach(cadenciasPosibles, id: \.self) { dias in
-                tarjetaOpcion(titulo: "\(dias) días",
+                tarjetaOpcion(titulo: String(localized: "\(dias) días"),
                               subtitulo: subtituloDias(dias),
                               icono: "calendar",
                               elegida: diasPorSemana == dias) {
@@ -241,6 +406,25 @@ struct OnboardingDeportivo: View {
                             .foregroundStyle(diasElegidos.count == cantidad ? .secondary : .orange)
                     }
                 }
+                // Día de fondo: la app NO fuerza domingo (§9). Si el
+                // corredor no elige, la larga queda donde la puso el
+                // template — el último día de sus días elegidos.
+                if diasElegidos.count == cantidad {
+                    TarjetaV2 {
+                        VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                            EncabezadoSeccionV2(texto: "Día de la tirada larga")
+                            Text("Opcional. Es la sesión que más tiempo te lleva: elegí el día que te queda cómodo.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                            HStack(spacing: DV2.Espacio.s) {
+                                ForEach(diasElegidos.sorted(), id: \.self) { dia in
+                                    chipFondo(dia)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Button {
                     avanzar()
                 } label: {
@@ -286,7 +470,29 @@ struct OnboardingDeportivo: View {
         .accessibilityLabel(Self.nombreDia(dia))
         .accessibilityHint(bloqueado
                            ? Text("Ya marcaste \(tope) días. Sacá uno para elegir este.")
-                           : Text(""))
+                           : Text(verbatim: ""))
+        .accessibilityAddTraits(elegido ? .isSelected : [])
+    }
+
+    /// Chip para elegir el día de la tirada larga entre los días ya
+    /// marcados. Tocar el elegido lo desmarca (volver a "sin
+    /// preferencia" tiene que ser posible).
+    private func chipFondo(_ dia: Int) -> some View {
+        let elegido = diaPreferidoFondo == dia
+        return Button {
+            diaPreferidoFondo = elegido ? nil : dia
+        } label: {
+            Text(Self.inicialDia(dia))
+                .font(.subheadline.weight(.bold))
+                .frame(maxWidth: .infinity)
+                .frame(height: 36)
+                .background(elegido ? DV2.Marca.profundo
+                                    : Color(.secondarySystemGroupedBackground),
+                            in: Capsule())
+                .foregroundStyle(elegido ? Color.white : Color.primary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Self.nombreDia(dia))
         .accessibilityAddTraits(elegido ? .isSelected : [])
     }
 
@@ -295,10 +501,13 @@ struct OnboardingDeportivo: View {
     /// orden de los templates.
     static func diasSugeridos(para cantidad: Int) -> [Int] {
         switch cantidad {
-        case 2: return [2, 6]           // martes y sábado
-        case 3: return [2, 4, 6]        // martes, jueves, sábado
-        case 4: return [2, 4, 6, 7]     // + domingo
-        default: return [1, 2, 4, 6, 7] // 5: + lunes
+        case ..<2: return [2, 6]
+        case 2: return [2, 6]              // martes y sábado
+        case 3: return [2, 4, 6]           // martes, jueves, sábado
+        case 4: return [2, 4, 6, 7]        // + domingo
+        case 5: return [1, 2, 4, 6, 7]     // + lunes
+        case 6: return [1, 2, 4, 5, 6, 7]  // descanso el miércoles
+        default: return [1, 2, 3, 4, 5, 6, 7]
         }
     }
 
@@ -415,6 +624,26 @@ struct OnboardingDeportivo: View {
     /// Guardar es idempotente: se llama tanto al cerrar como ANTES de
     /// saltar al plan recomendado — así el perfil no se pierde aunque
     /// el usuario adopte el plan y no vuelva a tocar "cerrar".
+    /// Lo que el corredor dice que viene haciendo, con su origen: si
+    /// confirmó lo detectado en Salud, queda marcado como confirmado;
+    /// si lo tocó, como corregido. El origen importa para saber cuánto
+    /// confiar en el dato.
+    private var actividadDelPerfil: ActividadActual? {
+        let hayAlgo = diasActualesManual > 0 || kmSemanalesManual > 0
+            || tiradaLargaManual > 0 || mesesRegular > 0 || volviendoDePausa
+        guard hayAlgo else { return nil }
+        return ActividadActual(
+            origen: corrigiendoActividad ? .corregido : origenActividad,
+            fecha: Date(),
+            diasPorSemana: diasActualesManual > 0 ? Double(diasActualesManual) : nil,
+            kmSemanales: kmSemanalesManual > 0 ? kmSemanalesManual : nil,
+            minutosSemanales: nil,
+            tiradaLargaKm: tiradaLargaManual > 0 ? tiradaLargaManual : nil,
+            mesesCorriendoRegular: mesesRegular > 0 ? mesesRegular : nil,
+            volviendoDePausa: volviendoDePausa,
+            otrosDeportes: nil)
+    }
+
     private func guardarPerfil() {
         var perfil = almacen.almacen.perfilDeportivo
         perfil.objetivo = objetivo
@@ -423,6 +652,16 @@ struct OnboardingDeportivo: View {
         perfil.fechaObjetivo = tieneFechaObjetivo ? DiaLocal(fecha: fechaObjetivo) : nil
         perfil.fechaOnboarding = Date()
         perfil.testPendiente = (experiencia == .hacerTest)
+        // Los datos básicos NO se piden acá a propósito: son contexto
+        // opcional (§2) y el onboarding no es un interrogatorio. Se
+        // editan en Perfil cuando el corredor quiera.
+        if let actividad = actividadDelPerfil { perfil.actividad = actividad }
+        perfil.molestias = molestias
+        if diaPreferidoFondo != nil {
+            perfil.preferencias = PreferenciasSemana(
+                diaPreferidoFondo: diaPreferidoFondo,
+                diasImposibles: perfil.preferencias?.diasImposibles)
+        }
 
         var marca: ReferenciaRendimiento?
         if experiencia == .marcaReciente, segundosDeMarca > 0 {
@@ -442,18 +681,36 @@ struct OnboardingDeportivo: View {
     /// El flujo real de §39: perfil guardado → pedido → motor →
     /// propuesta navegable. La referencia sale de lo recién guardado
     /// (la marca del paso 2 ya quedó registrada como referencia).
-    private func prepararMiPlan() {
+    private func prepararMiPlan(aceptaConservador: Bool = false) {
         guard let objetivo else { return }
         guardarPerfil()
-        let pedido = PedidoDePlan(
+        resultadoMotor = MotorPlanificacion.proponer(
+            pedido(objetivo, aceptaConservador: aceptaConservador))
+        mostrandoPropuesta = true
+    }
+
+    /// El pedido completo: objetivo, fecha, disponibilidad, referencia
+    /// Y el contexto real del corredor (historial de Salud, actividad
+    /// declarada, molestias, preferencias). Sin ese contexto el motor
+    /// no puede evaluar elegibilidad ni ajustar el arranque.
+    private func pedido(_ objetivo: ObjetivoDeportivo,
+                        aceptaConservador: Bool) -> PedidoDePlan {
+        PedidoDePlan(
             objetivo: objetivo,
             fechaObjetivo: tieneFechaObjetivo ? DiaLocal(fecha: fechaObjetivo) : nil,
             diasPorSemana: diasElegidos.isEmpty ? (diasPorSemana ?? 3) : diasElegidos.count,
             diasConcretos: diasElegidos.isEmpty ? nil : diasElegidos.sorted(),
             referencia: almacen.almacen.referenciaVigente,
-            hoy: DiaLocal(fecha: Date()))
-        resultadoMotor = MotorPlanificacion.proponer(pedido)
-        mostrandoPropuesta = true
+            hoy: DiaLocal(fecha: Date()),
+            historial: ResumenHistorial.ventana(lectorActividad.sesiones,
+                                                dias: DeteccionActividad.diasVentana,
+                                                hoy: Date()),
+            actividad: actividadDelPerfil,
+            molestias: molestias,
+            preferencias: diaPreferidoFondo.map {
+                PreferenciasSemana(diaPreferidoFondo: $0, diasImposibles: nil)
+            },
+            aceptaConservador: aceptaConservador)
     }
 
     private func avanzar() {
@@ -462,7 +719,12 @@ struct OnboardingDeportivo: View {
 
     // MARK: Piezas
 
-    private func pantalla<Contenido: View>(titulo: String, subtitulo: String,
+    /// titulo/subtitulo son LocalizedStringKey y NO String: con String,
+    /// `Text(titulo)` no traduce nada — las claves estaban en el
+    /// catálogo con su versión en inglés y jamás se usaban. Todos los
+    /// llamadores pasan literales, así que el cambio es directo.
+    private func pantalla<Contenido: View>(titulo: LocalizedStringKey,
+                                           subtitulo: LocalizedStringKey,
                                            @ViewBuilder contenido: () -> Contenido) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DV2.Espacio.m) {
@@ -515,23 +777,29 @@ struct OnboardingDeportivo: View {
 
     // MARK: Textos
 
-    private func detalle(de objetivo: ObjetivoDeportivo) -> String {
-        switch objetivo {
-        case .primeros5K: return String(localized: "De cero a completar 5 km corriendo")
-        case .mejorar5K: return String(localized: "Ya los corrés — ahora, más rápido")
-        case .diez: return String(localized: "El siguiente escalón de distancia")
-        case .mediaMaraton: return String(localized: "21,1 km con una preparación seria")
-        case .maraton: return String(localized: "Los 42,2 km — el grande")
+    private func detalle(de distancia: DistanciaObjetivo) -> String {
+        switch distancia {
+        case .cinco: return String(localized: "La puerta de entrada. Se puede desde cero.")
+        case .diez: return String(localized: "El siguiente escalón de distancia.")
+        case .media: return String(localized: "21,1 km con una preparación seria.")
+        case .maraton: return String(localized: "Los 42,2 km — el grande.")
         }
     }
 
-    private func icono(de objetivo: ObjetivoDeportivo) -> String {
-        switch objetivo {
-        case .primeros5K: return "figure.walk.motion"
-        case .mejorar5K: return "bolt.fill"
+    private func icono(de distancia: DistanciaObjetivo) -> String {
+        switch distancia {
+        case .cinco: return "figure.walk.motion"
         case .diez: return "figure.run"
-        case .mediaMaraton: return "road.lanes"
+        case .media: return "road.lanes"
         case .maraton: return "trophy.fill"
+        }
+    }
+
+    private func icono(de intencion: IntencionObjetivo) -> String {
+        switch intencion {
+        case .completar: return "flag.checkered"
+        case .mejorar: return "bolt.fill"
+        case .rendimiento: return "chart.line.uptrend.xyaxis"
         }
     }
 
@@ -540,7 +808,8 @@ struct OnboardingDeportivo: View {
         case 2: return String(localized: "Lo mínimo para progresar")
         case 3: return String(localized: "El equilibrio clásico")
         case 4: return String(localized: "Progreso sólido")
-        default: return String(localized: "Volumen alto — para semanas ordenadas")
+        case 5: return String(localized: "Volumen alto — para semanas ordenadas")
+        default: return String(localized: "Carga de rendimiento — pide base real")
         }
     }
 

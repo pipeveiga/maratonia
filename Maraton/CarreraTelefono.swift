@@ -34,6 +34,11 @@ struct SesionGuardada {
     /// (nil si no se completó). Para el Test 5K esto ES la marca: el
     /// trote posterior no la ensucia.
     var tiempoEstructuraSegundos: Int? = nil
+    /// Agregados de la sesión, para el análisis post-carrera (§32).
+    /// Son los MISMOS números que se guardaron en Salud: ni ritmo
+    /// instantáneo ni muestras — solo el total.
+    var metrosRecorridos: Double = 0
+    var segundosTotales: Double = 0
 }
 
 final class CarreraCelu: NSObject, ObservableObject {
@@ -665,6 +670,10 @@ final class CarreraCelu: NSObject, ObservableObject {
         let estructuraCompleta = debeMarcarCumplido(tramosTotales: progreso.tramos.count,
                                                     indiceAlcanzado: progreso.indice)
         let tiempoEstructura = tiempoAlCompletarEstructura.map { Int($0.rounded()) }
+        // Agregados de la sesión, capturados ANTES de detener los
+        // componentes (que ponen la distancia en cero).
+        let metrosFinales = distanciaMetros
+        let segundosFinales = acumuladoPrevio
         // La evidencia de origen viaja también en Salud (respaldo).
         if let idProgramado {
             builder.addMetadata(MetadatosSesion.metadata(programadoID: idProgramado)) { _, _ in }
@@ -683,7 +692,9 @@ final class CarreraCelu: NSObject, ObservableObject {
                             callback?(SesionGuardada(hkUUID: workout.uuid,
                                                      fecha: fin,
                                                      estructuraCompleta: estructuraCompleta,
-                                                     tiempoEstructuraSegundos: tiempoEstructura))
+                                                     tiempoEstructuraSegundos: tiempoEstructura,
+                                                     metrosRecorridos: metrosFinales,
+                                                     segundosTotales: segundosFinales))
                         }
                     }
                     DispatchQueue.main.async {
@@ -871,6 +882,14 @@ struct CorrerTab: View {
                 }
             }
             .navigationTitle("Correr")
+        }
+        // El feedback subjetivo aparece UNA vez, al terminar de
+        // guardar, y se puede cerrar sin responder nada.
+        .sheet(item: $almacen.sesionParaFeedback) { analisis in
+            FeedbackSesionView(almacen: almacen, sesionID: analisis.sesionID,
+                               analisis: analisis) {
+                almacen.sesionParaFeedback = nil
+            }
         }
     }
 

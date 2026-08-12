@@ -32,6 +32,41 @@ struct PlanBase: Codable, Equatable, Identifiable {
 struct SemanaBase: Codable, Equatable {
     var numero: Int
     var entrenamientos: [EntrenamientoBase]
+    /// Fase del bloque a la que pertenece esta semana. Opcional: el
+    /// catálogo JSON viejo decodifica igual y queda sin declarar
+    /// (nunca se inventa una fase que el contenido no declaró).
+    var fase: TipoSemana? = nil
+
+    /// Las reglas que esta semana le impone a cualquier adaptación.
+    /// Se DERIVAN del propio contenido — no son números sueltos: el
+    /// objetivo es lo que la semana prescribe, y la banda es una
+    /// tolerancia declarada alrededor de eso.
+    var reglasDerivadas: ReglasSemana {
+        let km = entrenamientos
+            .flatMap(\.segmentos)
+            .compactMap(\.distanciaKm)
+            .reduce(0, +)
+        let calidad = entrenamientos.filter {
+            let rol = RolSesion.para($0.tipo)
+            return rol == .calidadPrincipal || rol == .calidadSecundaria
+        }.count
+        return ReglasSemana(
+            fase: fase,
+            volumenObjetivoKm: km > 0 ? km : nil,
+            volumenMinimoKm: km > 0 ? (km * ReglasSemana.toleranciaAbajo * 10).rounded() / 10 : nil,
+            volumenMaximoKm: km > 0 ? (km * ReglasSemana.toleranciaArriba * 10).rounded() / 10 : nil,
+            maximoCalidad: calidad)
+    }
+}
+
+extension ReglasSemana {
+    /// Cuánto se puede bajar el volumen de una semana adaptándola sin
+    /// que deje de ser esa semana. DECISIÓN MARATONIA (METODOLOGIA.md):
+    /// −25 % es una semana floja; por debajo ya es otra semana.
+    static let toleranciaAbajo = 0.75
+    /// Hacia arriba el margen es mucho más chico a propósito (§40):
+    /// adaptar nunca es una excusa para subir carga.
+    static let toleranciaArriba = 1.05
 }
 
 /// Un entrenamiento RELATIVO: "semana N, día D" (día 1 = fecha de
@@ -72,6 +107,12 @@ extension PlanBase {
                 numero: semana.numero,
                 programados: semana.entrenamientos.map { entrenamiento in
                     let desplazamiento = (semana.numero - 1) * 7 + (entrenamiento.diaDeSemana - 1)
+                    // El ROL y el CONTRATO de adaptación se congelan acá,
+                    // al adoptar: así una sesión convertida a fácil no
+                    // "recupera" su rol de calidad al releer el plan, y
+                    // un cambio futuro en la tabla de roles no reescribe
+                    // planes ya adoptados (siguen siendo snapshots).
+                    let rol = RolSesion.para(entrenamiento.tipo)
                     return EntrenamientoProgramado(
                         definicion: DefinicionEntrenamiento(
                             tipo: entrenamiento.tipo,
@@ -83,8 +124,11 @@ extension PlanBase {
                                          duracionSegundos: base.duracionSegundos,
                                          ritmo: base.ritmo)
                             }),
-                        dia: inicio.sumando(dias: desplazamiento, calendario: calendario))
-                })
+                        dia: inicio.sumando(dias: desplazamiento, calendario: calendario),
+                        rolGuardado: rol,
+                        adaptabilidadGuardada: .para(rol))
+                },
+                reglas: semana.reglasDerivadas)
         }
         return PlanUsuario(nombre: nombre,
                            origen: .catalogo(planBaseID: planBaseID),
@@ -212,6 +256,10 @@ final class AlmacenStore: ObservableObject {
         didSet { guardar() }
     }
 
+    /// Lo recién corrido HOY, esperando el feedback subjetivo. nil =
+    /// no hay nada que preguntar. La UI lo consume y lo limpia.
+    @Published var sesionParaFeedback: AnalisisPostCarrera?
+
     private let url: URL
 
     /// false en tests: los stores de prueba no deben tocar WCSession ni
@@ -326,6 +374,29 @@ final class AlmacenStore: ObservableObject {
         } else {
             almacen.registrarSesionLibre(sesionID: sesion.hkUUID, fecha: sesion.fecha)
         }
+        ofrecerFeedback(sesionID: sesion.hkUUID, fecha: sesion.fecha,
+                        metros: sesion.metrosRecorridos, segundos: sesion.segundosTotales,
+                        programadoID: programadoID,
+                        estructuraCompleta: sesion.estructuraCompleta)
+    }
+
+    /// Arma el análisis determinístico de lo recién corrido y lo
+    /// publica para que la UI ofrezca el feedback subjetivo. Solo para
+    /// sesiones de HOY: un resultado del reloj que llega tres días
+    /// tarde no puede abrir una pregunta sobre "cómo te sentiste".
+    func ofrecerFeedback(sesionID: UUID, fecha: Date, metros: Double, segundos: Double,
+                         programadoID: UUID?, estructuraCompleta: Bool,
+                         hoy: Date = Date()) {
+        guard DiaLocal(fecha: fecha) == DiaLocal(fecha: hoy), metros > 0 else { return }
+        let programado = programadoID.flatMap { id in
+            almacen.todosLosProgramados.first { $0.id == id }
+        }
+        sesionParaFeedback = AnalisisPostCarrera.desde(
+            sesion: SesionMetrica(fecha: fecha, metros: metros, segundos: segundos),
+            sesionID: sesionID,
+            programado: programado,
+            registro: almacen.sesiones.first { $0.id == sesionID },
+            estructuraCompleta: estructuraCompleta)
     }
 
     // MARK: Cuenta (RC1)

@@ -11,28 +11,10 @@ import SwiftUI
 // La IA futura se monta ARRIBA: propone CambioPropuesto, el motor
 // valida, el usuario acepta. GPT jamás escribe el dominio directo.
 
-// MARK: - Roles y semanas (estructura, no metodología)
-
-/// El rol de una sesión dentro de la semana. Los arquetipos razonan
-/// por ROLES con prioridad — la disponibilidad decide qué roles entran
-/// (2 días ≠ "plan de 4 borrando filas").
-enum RolSesion: Int, Codable, Comparable {
-    case carrera = 0            // el día objetivo: nunca se recorta
-    case tiradaLarga = 1
-    case calidadPrincipal = 2
-    case facil = 3
-    case recuperacion = 4
-    case calidadSecundaria = 5
-
-    static func < (a: RolSesion, b: RolSesion) -> Bool { a.rawValue < b.rawValue }
-}
-
-/// Carácter de una semana dentro del plan (infraestructura §37: carga,
-/// descarga, taper — el contenido lo declara cuando su metodología lo
-/// define; nil = sin declarar, jamás se inventa).
-enum TipoSemana: String, Codable {
-    case carga, descarga, taper, semanaDeCarrera
-}
+// NOTA: RolSesion, TipoSemana y Adaptabilidad se mudaron a
+// Shared/DominioV2.swift — se PERSISTEN dentro del plan (prioridad y
+// contrato de adaptación de cada sesión) y ese archivo es el que
+// también compila el Watch. Acá quedó solo lo que es motor.
 
 // MARK: - Arquetipo
 
@@ -70,62 +52,97 @@ struct PlanArquetipo: Identifiable {
 }
 
 extension PlanArquetipo {
-    /// Rol de una sesión del contenido. Tabla ESTRUCTURAL fija (no es
-    /// metodología: es cómo se recorta por disponibilidad).
-    static func rol(de tipo: TipoEntrenamiento) -> RolSesion {
-        switch tipo {
-        case .ritmoCarrera: return .carrera
-        case .largo: return .tiradaLarga
-        case .tempo, .umbral, .series, .testEvaluacion: return .calidadPrincipal
-        case .recuperacion: return .recuperacion
-        case .facil, .personalizado: return .facil
-        }
-    }
+    /// Rol de una sesión del contenido. La tabla vive en el dominio
+    /// (`RolSesion.para(_:)`) porque también se persiste en el plan;
+    /// esto queda como alias para no romper llamadores.
+    static func rol(de tipo: TipoEntrenamiento) -> RolSesion { .para(tipo) }
 }
 
 // MARK: - Biblioteca V1
 
-/// La biblioteca de arquetipos de V1 (§40, CONTENIDO_PLANES.md):
-/// - primeros-5k y 10k-continuo: contenido PROVISIONAL real (ritmos
-///   libres, progresión conservadora) — proponibles.
-/// - mejorar-5k, media-maraton, maraton: DECLARADOS con límites, SIN
-///   contenido validado → el motor lo dice con honestidad.
+/// El catálogo completo: los diez objetivos de §13, cada uno con su
+/// arquetipo versionado, sus límites explícitos y su contenido real.
+/// Nada copiado de planes de terceros — la metodología está citada en
+/// METODOLOGIA.md y la estructura es de Maratonia.
+///
+/// Los `diasMinimos` de cada arquetipo tienen que coincidir con los
+/// `RequisitosObjetivo` del evaluador de elegibilidad; hay un test que
+/// lo verifica, porque divergir ahí produce el peor bug posible: la
+/// app te deja elegir un objetivo y después no te genera nada.
 enum BibliotecaArquetipos {
     static func v1() -> [PlanArquetipo] {
         let bases = Dictionary(uniqueKeysWithValues:
             Catalogo.planesDisponibles().map { ($0.id, $0) })
         return [
+            // ---- 5K
             PlanArquetipo(id: "primeros-5k", version: 2, objetivo: .primeros5K,
                           nombre: "Primeros 5K",
                           semanasMinimas: 6, semanasRecomendadas: 6,
                           diasMinimos: 2, diasMaximos: 3,
                           recomiendaBaseline: false,
                           contenido: bases["primeros-5k"]),
-            PlanArquetipo(id: "10k-continuo", version: 2, objetivo: .diez,
-                          nombre: "Rumbo a 10K",
-                          semanasMinimas: 8, semanasRecomendadas: 8,
-                          diasMinimos: 2, diasMaximos: 3,
-                          recomiendaBaseline: false,
-                          contenido: bases["10k-continuo"]),
             PlanArquetipo(id: "mejorar-5k", version: 1, objetivo: .mejorar5K,
                           nombre: "Mejorar mis 5K",
                           semanasMinimas: 8, semanasRecomendadas: 8,
                           diasMinimos: 3, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mejorar5K()),
+            // ---- 10K
+            PlanArquetipo(id: "10k-continuo", version: 2, objetivo: .diez,
+                          nombre: "Rumbo a 10K",
+                          semanasMinimas: 8, semanasRecomendadas: 8,
+                          diasMinimos: 2, diasMaximos: 3,
+                          recomiendaBaseline: false,
+                          contenido: bases["10k-continuo"]),
+            PlanArquetipo(id: "mejorar-10k", version: 1, objetivo: .mejorar10K,
+                          nombre: "Mejorar mis 10K",
+                          semanasMinimas: 10, semanasRecomendadas: 10,
+                          diasMinimos: 3, diasMaximos: 5,
+                          recomiendaBaseline: true,
+                          contenido: ContenidoPlanes.mejorar10K()),
+            // ---- 21K
             PlanArquetipo(id: "media-maraton", version: 1, objetivo: .mediaMaraton,
                           nombre: "Media maratón",
                           semanasMinimas: 12, semanasRecomendadas: 12,
                           diasMinimos: 3, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mediaMaraton()),
+            PlanArquetipo(id: "mejorar-media", version: 1, objetivo: .mejorarMedia,
+                          nombre: "Mejorar mi media",
+                          semanasMinimas: 12, semanasRecomendadas: 12,
+                          diasMinimos: 3, diasMaximos: 5,
+                          recomiendaBaseline: true,
+                          contenido: ContenidoPlanes.mejorarMedia()),
+            PlanArquetipo(id: "media-rendimiento", version: 1, objetivo: .mediaRendimiento,
+                          nombre: "Media · rendimiento",
+                          semanasMinimas: 14, semanasRecomendadas: 14,
+                          diasMinimos: 5, diasMaximos: 6,
+                          recomiendaBaseline: true,
+                          contenido: ContenidoPlanes.mediaRendimiento()),
+            // ---- 42K
             PlanArquetipo(id: "maraton", version: 1, objetivo: .maraton,
                           nombre: "Maratón",
                           semanasMinimas: 16, semanasRecomendadas: 16,
                           diasMinimos: 3, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.maraton()),
+            PlanArquetipo(id: "mejorar-maraton", version: 1, objetivo: .mejorarMaraton,
+                          nombre: "Mejorar mi maratón",
+                          semanasMinimas: 18, semanasRecomendadas: 18,
+                          diasMinimos: 4, diasMaximos: 5,
+                          recomiendaBaseline: true,
+                          contenido: ContenidoPlanes.mejorarMaraton()),
+            PlanArquetipo(id: "maraton-rendimiento", version: 1, objetivo: .maratonRendimiento,
+                          nombre: "Maratón · rendimiento",
+                          semanasMinimas: 18, semanasRecomendadas: 18,
+                          diasMinimos: 5, diasMaximos: 6,
+                          recomiendaBaseline: true,
+                          contenido: ContenidoPlanes.maratonRendimiento()),
         ]
+    }
+
+    static func arquetipo(para objetivo: ObjetivoDeportivo) -> PlanArquetipo? {
+        v1().first { $0.objetivo == objetivo }
     }
 }
 
@@ -147,6 +164,20 @@ struct PedidoDePlan {
     /// arquetipo lo recomiende (el Test 5K nunca es obligatorio).
     var aceptaSinBaseline = false
     var hoy: DiaLocal
+
+    // ---- Motor adaptativo: contexto del corredor. Todo opcional —
+    // sin nada de esto el motor se comporta exactamente como antes.
+
+    /// Ventana de 42 días calculada desde Salud.
+    var historial: ResumenVentana? = nil
+    /// Lo que el corredor declaró (o confirmó) sobre su actividad.
+    var actividad: ActividadActual? = nil
+    var molestias: EstadoMolestias = .ninguna
+    var preferencias: PreferenciasSemana? = nil
+    /// Saltear la puerta de elegibilidad porque el corredor insistió
+    /// tras leer la advertencia. NUNCA saltea los bloqueos duros
+    /// (fecha imposible, días insuficientes): esos no son opinables.
+    var aceptaConservador = false
 }
 
 enum ResultadoPlanificacion {
@@ -160,6 +191,10 @@ enum ResultadoPlanificacion {
     case diasInsuficientes(minimo: Int)
     /// El arquetipo existe pero su contenido todavía no está validado.
     case sinContenido(objetivo: ObjetivoDeportivo)
+    /// El objetivo no se sostiene con lo que el corredor trae hoy.
+    /// Trae los motivos y, si existe, por dónde empezar en su lugar.
+    case requiereBase(motivos: [MotivoElegibilidad],
+                      puente: ObjetivoDeportivo?)
 }
 
 /// El plan propuesto ANTES de confirmar: resumen + PlanUsuario listo.
@@ -175,6 +210,13 @@ struct PropuestaPlan {
     var referenciaUsada: ReferenciaRendimiento?
     var kmPrimeraSemana: Double?
     var planUsuario: PlanUsuario
+
+    /// Cómo salió la evaluación de elegibilidad. `.elegible` es lo
+    /// normal; `.elegibleConservador` significa que el arranque se
+    /// bajó y el corredor merece saber por qué.
+    var veredicto: VeredictoElegibilidad = .elegible
+    /// Factor con el que se atenuó el arranque (1 = sin atenuar).
+    var factorArranque: Double = 1
 }
 
 // MARK: - Motor
@@ -192,8 +234,11 @@ enum MotorPlanificacion {
         }
 
         // Días concretos (si están) mandan sobre la cuenta abstracta.
-        let diasConcretos = pedido.diasConcretos.map {
-            Array(Set($0.filter { (1...7).contains($0) })).sorted()
+        // Los días declarados IMPOSIBLES se descartan siempre: son una
+        // restricción del corredor, no una preferencia negociable.
+        let imposibles = Set(pedido.preferencias?.diasImposibles ?? [])
+        let diasConcretos = pedido.diasConcretos.map { crudos in
+            Array(Set(crudos.filter { (1...7).contains($0) && !imposibles.contains($0) })).sorted()
         }
         let diasEfectivos = diasConcretos?.count ?? pedido.diasPorSemana
 
@@ -204,6 +249,40 @@ enum MotorPlanificacion {
         if arquetipo.recomiendaBaseline, pedido.referencia == nil,
            !pedido.aceptaSinBaseline {
             return .faltaBaseline(arquetipo: arquetipo.id)
+        }
+
+        // ---- Elegibilidad: ¿este objetivo se sostiene con lo que el
+        // corredor trae? Determinístico y explicable (§12). No es un
+        // filtro moral: solo evita vender un plan que no se aguanta.
+        let semanasDisponibles = pedido.fechaObjetivo.map {
+            semanasEntre(pedido.hoy, y: $0, calendario: calendario)
+        }
+        let veredicto = EvaluadorElegibilidad.evaluar(EntradaElegibilidad(
+            objetivo: pedido.objetivo,
+            semanasDisponibles: semanasDisponibles,
+            semanasMinimasDelPlan: arquetipo.semanasMinimas,
+            diasElegidos: diasEfectivos,
+            historial: pedido.historial,
+            actividadDeclarada: pedido.actividad,
+            tieneBaseline: pedido.referencia != nil,
+            molestias: pedido.molestias,
+            mesesCorriendoRegular: pedido.actividad?.mesesCorriendoRegular,
+            volviendoDePausa: pedido.actividad?.volviendoDePausa ?? false))
+
+        switch veredicto {
+        case .fechaDemasiadoCerca(let disponibles, let minimas):
+            return .tiempoInsuficiente(semanasDisponibles: disponibles,
+                                       semanasMinimas: minimas)
+        case .frecuenciaInsuficiente(_, let minimo):
+            return .diasInsuficientes(minimo: minimo)
+        case .requiereFaseBase(let motivos):
+            guard pedido.aceptaConservador else {
+                return .requiereBase(
+                    motivos: motivos,
+                    puente: EvaluadorElegibilidad.objetivoPuente(para: pedido.objetivo))
+            }
+        case .elegible, .elegibleConservador:
+            break
         }
 
         // ---- Calendario ----
@@ -240,8 +319,16 @@ enum MotorPlanificacion {
         // versionada y se preserva; el motor solo lo mapea a los días
         // disponibles. La carrera objetivo se pinnea a su fecha después.
         if let dias = diasConcretos, !dias.isEmpty {
-            recortada = distribuir(recortada, enDias: dias)
+            recortada = distribuir(recortada, enDias: dias,
+                                   diaFondo: pedido.preferencias?.diaPreferidoFondo)
         }
+
+        // ---- Arranque conservador: el plan empieza DONDE ESTÁ el
+        // corredor, no donde el template asume que está.
+        let ajuste = ajustarArranque(recortada,
+                                     kmSemanalesActuales: volumenActual(pedido))
+        recortada = ajuste.base
+        let factorArranque = ajuste.factor
 
         // ---- Snapshot (reusa la adopción probada del catálogo).
         var plan = recortada.adoptar(inicio: inicio, fechaAdopcion: Date(),
@@ -306,7 +393,73 @@ enum MotorPlanificacion {
             fechaCarrera: pedido.fechaObjetivo,
             referenciaUsada: pedido.referencia,
             kmPrimeraSemana: (primeraSemanaKm ?? 0) > 0 ? primeraSemanaKm : nil,
-            planUsuario: plan))
+            planUsuario: plan,
+            veredicto: veredicto,
+            factorArranque: factorArranque))
+    }
+
+    /// El volumen semanal REAL del corredor: gana lo medido en Salud
+    /// sobre lo declarado (§4). nil = no sabemos, y entonces el
+    /// arranque no se toca (no inventamos un punto de partida).
+    static func volumenActual(_ pedido: PedidoDePlan) -> Double? {
+        if let historial = pedido.historial, !historial.estaVacia {
+            return historial.kmPorSemana
+        }
+        return pedido.actividad?.kmSemanales
+    }
+
+    /// Cuánto puede subir la primera semana respecto de lo que el
+    /// corredor viene haciendo. DECISIÓN MARATONIA (METODOLOGIA.md):
+    /// +20 % sobre el volumen actual. No es la "regla del 10 %"
+    /// universal — que no tiene respaldo sólido y no distingue a quien
+    /// corre 10 km/semana de quien corre 90 — sino un techo de ENTRADA
+    /// al plan, aplicado una sola vez.
+    static let factorEntradaMaximo = 1.2
+    /// Piso: por debajo de esto el plan ya no es el plan. Si hace falta
+    /// recortar más, el problema es de elegibilidad, no de arranque.
+    static let factorArranqueMinimo = 0.5
+    /// En cuántas semanas se vuelve al volumen del template.
+    static let semanasDeRampa = 3
+
+    /// Atenúa las primeras semanas para que el salto de entrada sea
+    /// razonable, y vuelve al template con una rampa lineal. NUNCA
+    /// escala hacia arriba (§40) ni toca la carrera objetivo.
+    static func ajustarArranque(_ base: PlanBase, kmSemanalesActuales: Double?)
+        -> (base: PlanBase, factor: Double) {
+        guard let actuales = kmSemanalesActuales, actuales > 0,
+              let primera = base.semanas.first else { return (base, 1) }
+        let kmPrimera = primera.entrenamientos
+            .flatMap(\.segmentos).compactMap(\.distanciaKm).reduce(0, +)
+        guard kmPrimera > 0 else { return (base, 1) }
+
+        let permitido = actuales * factorEntradaMaximo
+        guard kmPrimera > permitido else { return (base, 1) }
+        let factor = max(factorArranqueMinimo, permitido / kmPrimera)
+
+        var resultado = base
+        resultado.semanas = base.semanas.map { semana in
+            let indice = semana.numero - 1
+            guard indice >= 0, indice < semanasDeRampa else { return semana }
+            // Rampa lineal: semana 1 = factor, y de ahí a 1 en
+            // `semanasDeRampa` semanas.
+            let avance = Double(indice) / Double(semanasDeRampa)
+            let factorSemana = factor + (1 - factor) * avance
+            var nueva = semana
+            nueva.entrenamientos = semana.entrenamientos.map { entrenamiento in
+                // La carrera objetivo jamás se escala.
+                guard entrenamiento.tipo != .ritmoCarrera else { return entrenamiento }
+                var ajustado = entrenamiento
+                ajustado.segmentos = entrenamiento.segmentos.map { segmento in
+                    guard let km = segmento.distanciaKm else { return segmento }
+                    var nuevoSegmento = segmento
+                    nuevoSegmento.distanciaKm = max(1, (km * factorSemana * 10).rounded() / 10)
+                    return nuevoSegmento
+                }
+                return ajustado
+            }
+            return nueva
+        }
+        return (resultado, factor)
     }
 
     /// Recorte por disponibilidad: en cada semana quedan las `dias`
@@ -336,7 +489,14 @@ enum MotorPlanificacion {
     /// del arquetipo, no una regla del motor). Determinístico; jamás
     /// duplica fechas (los días elegidos son únicos y las sesiones por
     /// semana nunca superan su cuenta tras el recorte).
-    static func distribuir(_ base: PlanBase, enDias diasElegidos: [Int]) -> PlanBase {
+    /// `diaFondo`: el día que el corredor prefiere para la tirada larga
+    /// (1 = lunes … 7 = domingo). Si es uno de sus días elegidos, la
+    /// larga se INTERCAMBIA con lo que hubiera caído ahí — nunca se
+    /// duplica un día ni se pierde una sesión. Sin preferencia, la
+    /// larga queda donde la puso el template (el último día de la
+    /// semana), que NO es lo mismo que forzar domingo (§9).
+    static func distribuir(_ base: PlanBase, enDias diasElegidos: [Int],
+                           diaFondo: Int? = nil) -> PlanBase {
         let dias = Array(Set(diasElegidos.filter { (1...7).contains($0) })).sorted()
         guard !dias.isEmpty else { return base }
         var resultado = base
@@ -351,11 +511,21 @@ enum MotorPlanificacion {
             let indices: [Int] = k == 1
                 ? [dias.count - 1]
                 : (0..<k).map { Int((Double($0) * Double(dias.count - 1) / Double(k - 1)).rounded()) }
-            nueva.entrenamientos = zip(ordenadas.prefix(k), indices).map { sesion, indice in
+            var asignadas = zip(ordenadas.prefix(k), indices).map { sesion, indice -> EntrenamientoBase in
                 var asignada = sesion
                 asignada.diaDeSemana = dias[indice]
                 return asignada
             }
+            if let preferido = diaFondo, dias.contains(preferido),
+               let larga = asignadas.firstIndex(where: { $0.tipo == .largo }),
+               asignadas[larga].diaDeSemana != preferido {
+                let diaDeLaLarga = asignadas[larga].diaDeSemana
+                if let ocupante = asignadas.firstIndex(where: { $0.diaDeSemana == preferido }) {
+                    asignadas[ocupante].diaDeSemana = diaDeLaLarga
+                }
+                asignadas[larga].diaDeSemana = preferido
+            }
+            nueva.entrenamientos = asignadas.sorted { $0.diaDeSemana < $1.diaDeSemana }
             return nueva
         }
         return resultado
@@ -375,53 +545,10 @@ enum MotorPlanificacion {
     }
 }
 
-// MARK: - Coach futuro (interfaces, SIN implementación de IA — §41)
-
-/// Lo ÚNICO que un coach (GPT u otro) podrá proponer. El coach no
-/// escribe el dominio ni el Watch: propone, el MOTOR valida, el
-/// USUARIO acepta, y recién ahí se aplica versionado.
-enum CambioPropuesto {
-    case reprogramar(programadoID: UUID, a: DiaLocal)
-    case omitir(programadoID: UUID)
-    /// Requiere metodología versionada: hoy el validador lo rechaza.
-    case ajustarVolumenSemana(numero: Int, factor: Double)
-}
-
-struct ValidacionDeCambio {
-    var permitido: Bool
-    var motivo: String?
-}
-
-enum ValidadorDeCoach {
-    /// Reglas del motor sobre cualquier propuesta externa. Determinista
-    /// y conservador: lo que no puede validarse, se rechaza.
-    static func validar(_ cambio: CambioPropuesto, en almacen: AlmacenV2,
-                        hoy: DiaLocal) -> ValidacionDeCambio {
-        switch cambio {
-        case .reprogramar(let id, let dia):
-            guard let programado = almacen.todosLosProgramados.first(where: { $0.id == id }),
-                  programado.resolucion == .pendiente else {
-                return ValidacionDeCambio(permitido: false,
-                                          motivo: "Solo se reprograman pendientes.")
-            }
-            guard !(dia < hoy) else {
-                return ValidacionDeCambio(permitido: false,
-                                          motivo: "No se reprograma hacia el pasado.")
-            }
-            return ValidacionDeCambio(permitido: true, motivo: nil)
-        case .omitir(let id):
-            let existe = almacen.todosLosProgramados.contains {
-                $0.id == id && $0.resolucion == .pendiente
-            }
-            return ValidacionDeCambio(permitido: existe,
-                                      motivo: existe ? nil : "Solo se omiten pendientes.")
-        case .ajustarVolumenSemana:
-            return ValidacionDeCambio(
-                permitido: false,
-                motivo: "Ajustar volumen requiere metodología versionada (pendiente).")
-        }
-    }
-}
+// NOTA: CambioPropuesto, ValidacionDeCambio y ValidadorDeCoach viven
+// ahora en Adaptacion.swift, con el juego completo de operaciones
+// (mantener / mover / reducir / convertir / omitir) y el validador
+// determinístico entero. Acá quedó solo la generación del plan.
 
 // MARK: - UI: propuesta de plan ("Preparar mi plan" de verdad)
 
@@ -452,7 +579,49 @@ struct PropuestaPlanView: View {
                 icono: "hammer", color: .secondary,
                 titulo: String(localized: "Ese plan está en camino"),
                 texto: String(localized: "El contenido de \(TextosObjetivo.nombre(de: objetivo)) todavía no está listo — no vamos a inventarlo. Tu perfil queda guardado; mientras tanto podés usar los planes de 5K y 10K."))
+        case .requiereBase(let motivos, let puente):
+            vistaRequiereBase(motivos: motivos, puente: puente)
         }
+    }
+
+    /// El "todavía no" honesto: explica QUÉ falta (nunca califica al
+    /// corredor) y ofrece por dónde empezar. El objetivo queda
+    /// guardado — nadie le está diciendo que no puede.
+    private func vistaRequiereBase(motivos: [MotivoElegibilidad],
+                                   puente: ObjetivoDeportivo?) -> some View {
+        List {
+            Section {
+                VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+                    Label(String(localized: "Falta base para ese objetivo"),
+                          systemImage: "figure.strengthtraining.functional")
+                        .font(.headline)
+                        .foregroundStyle(.orange)
+                    Text("No es un “no”: es un “todavía no”. Armar ese plan ahora sería venderte semanas que no se sostienen.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Section(String(localized: "Por qué")) {
+                ForEach(motivos, id: \.self) { motivo in
+                    Label(motivo.texto, systemImage: "circle.fill")
+                        .font(.footnote)
+                        .labelStyle(.titleAndIcon)
+                }
+            }
+            if let puente {
+                Section {
+                    Text("Un buen punto de partida es **\(TextosObjetivo.nombre(de: puente))**. Cuando lo completes, este objetivo va a estar a tiro.")
+                        .font(.subheadline)
+                }
+            }
+            Section {
+                Button(String(localized: "Entendido")) { alTerminar() }
+            } footer: {
+                Text("Tu objetivo queda guardado en el perfil. Podés volver a intentarlo cuando quieras.")
+            }
+        }
+        .navigationTitle(Text("Tu plan"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func vistaPropuesta(_ propuesta: PropuestaPlan) -> some View {
@@ -499,8 +668,23 @@ struct PropuestaPlanView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                if propuesta.factorArranque < 1 {
+                    Label(String(localized: "Arranque adaptado a tu volumen actual: las primeras semanas empiezan más abajo y suben hasta el plan completo."),
+                          systemImage: "arrow.down.right.circle")
+                        .font(.footnote)
+                        .foregroundStyle(DV2.Marca.primario)
+                }
             } footer: {
                 Text("Al confirmar, tu plan actual (si existe) queda archivado con su historial.")
+            }
+            if !propuesta.veredicto.motivos.isEmpty {
+                Section(String(localized: "A tener en cuenta")) {
+                    ForEach(propuesta.veredicto.motivos, id: \.self) { motivo in
+                        Text(motivo.texto)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
             Section {
                 Button {

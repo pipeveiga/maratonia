@@ -1249,6 +1249,17 @@ struct PerfilTab: View {
                         LabeledContent("Tu carrera", value: FormatoFecha.media(fecha))
                     }
                 }
+                if let actividad = perfil.actividad, !actividad.estaVacia {
+                    HStack(spacing: 10) {
+                        IconoAjuste(sistema: "figure.run.circle", color: .mint)
+                        VStack(alignment: .leading, spacing: 2) {
+                            LabeledContent("Actividad actual", value: textoActividad(actividad))
+                            Text(origenActividad(actividad.origen))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
                 Button("Cambiar objetivo") { mostrandoOnboarding = true }
             } else {
                 Button {
@@ -1259,7 +1270,7 @@ struct PerfilTab: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Elegí tu objetivo")
                                 .foregroundStyle(.primary)
-                            Text("2 minutos: meta, experiencia y disponibilidad")
+                            Text("2 minutos: meta, actividad actual y disponibilidad")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1267,10 +1278,67 @@ struct PerfilTab: View {
                 }
             }
         }
+
+        Section("Tu perfil") {
+            NavigationLink {
+                DatosBasicosView(almacen: almacen)
+            } label: {
+                filaNavegacion(icono: "person.text.rectangle", color: .gray,
+                               titulo: "Datos básicos",
+                               subtitulo: subtituloDatosBasicos)
+            }
+            NavigationLink {
+                HistorialAdaptacionesView(almacen: almacen)
+            } label: {
+                filaNavegacion(icono: "clock.arrow.circlepath", color: .brown,
+                               titulo: "Ajustes del plan",
+                               subtitulo: subtituloAdaptaciones)
+            }
+        }
     }
 
     private func nombreObjetivo(_ objetivo: ObjetivoDeportivo) -> String {
         TextosObjetivo.nombre(de: objetivo)
+    }
+
+    private func textoActividad(_ actividad: ActividadActual) -> String {
+        var partes: [String] = []
+        if let km = actividad.kmSemanales {
+            partes.append(String(format: "%.0f km/sem", km))
+        }
+        if let dias = actividad.diasPorSemana {
+            partes.append(String(format: "%.0f días", dias))
+        }
+        if let larga = actividad.tiradaLargaKm {
+            partes.append(String(format: "larga %.0f km", larga))
+        }
+        return partes.isEmpty ? String(localized: "Sin cargar") : partes.joined(separator: " · ")
+    }
+
+    /// De dónde salió el dato importa: no es lo mismo un número que el
+    /// corredor confirmó que uno que la app dedujo sola.
+    private func origenActividad(_ origen: ActividadActual.Origen) -> String {
+        switch origen {
+        case .declarado: return String(localized: "Lo cargaste vos")
+        case .detectadoSalud: return String(localized: "Detectado en Salud, sin confirmar")
+        case .confirmado: return String(localized: "Detectado en Salud y confirmado por vos")
+        case .corregido: return String(localized: "Detectado en Salud y corregido por vos")
+        }
+    }
+
+    private var subtituloDatosBasicos: String {
+        let datos = almacen.almacen.perfilDeportivo.datosBasicos ?? DatosBasicos()
+        if let edad = datos.edad(a: DiaLocal(fecha: Date())) {
+            return String(localized: "\(edad) años · opcional, solo contexto")
+        }
+        return String(localized: "Edad, sexo, altura y peso — todo opcional")
+    }
+
+    private var subtituloAdaptaciones: String {
+        let total = almacen.almacen.historialAdaptaciones.count
+        return total == 0
+            ? String(localized: "Sin ajustes todavía")
+            : String(localized: "\(total) cambios registrados")
     }
 
     private func textoReferencia(_ referencia: ReferenciaRendimiento) -> String {

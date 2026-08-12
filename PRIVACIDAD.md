@@ -49,12 +49,25 @@
 ## BACKEND MARATONIA (Cloud Functions — solo Maratonia Coach)
 - **Existe solo si el usuario usa el Coach** (acción explícita; sin
   backend configurado la sección ni aparece). Autenticado con Firebase.
-- **Qué recibe**: el DTO mínimo de `ContextoCoach` — objetivo, fecha de
-  carrera, días elegidos, baseline (distancia+tiempo), resumen del plan
-  y de sesiones (fecha/tipo/km/ritmo/cumplida).
-- **Qué NO recibe jamás**: rutas GPS, coordenadas, frecuencia cardíaca
-  cruda, datos de HealthKit sin resumir, contactos, nada del Watch.
-  (Un test automatizado verifica que el DTO no serializa esos campos.)
+- **Qué recibe**: el DTO de `ContextoCoach` — objetivo, fecha de
+  carrera, días elegidos y días imposibles, baseline (distancia+tiempo),
+  semana y fase actual del plan, cumplimiento, resumen del plan y de
+  sesiones (fecha/tipo/km/cumplida/sensación), **ventanas agregadas**
+  de 7/28/42 días (km, salidas, tirada más larga, mayor pausa) y los
+  **eventos** que el detector determinístico ya concluyó (tipo,
+  severidad, ID del entrenamiento afectado).
+- **Qué NO recibe jamás**: rutas GPS, coordenadas, altimetría,
+  frecuencia cardíaca, muestras de HealthKit, el UUID de los workouts
+  de Salud, contactos, ni nada del Watch. Todo lo que viaja es
+  AGREGADO: sumas y conteos, nunca la serie de datos.
+- Una molestia declarada viaja como **bandera** (`tipo: "molestia"`)
+  sin detalle: es una señal para el plan, no un dato clínico que se le
+  manda a un tercero.
+- **Dos tests automatizados** lo verifican: uno serializa el DTO con
+  datos reales y falla si aparece cualquier término prohibido; otro
+  comprueba que el identificador de sesión de Salud nunca se incluye.
+- Datos biométricos (edad, sexo, altura, peso): **no se envían**. Son
+  contexto local y nada más.
 - Guarda: contadores de uso por usuario/día (rate limit) y cache de
   respuestas por 24 h (idempotencia), en Firestore del proyecto —
   inaccesible desde clientes (reglas: deny all).

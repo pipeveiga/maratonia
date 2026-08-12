@@ -188,6 +188,17 @@
         }
       }
     },
+    "Afinar: menos volumen, la intensidad se mantiene.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sharpen up: less volume, intensity stays."
+          }
+        }
+      }
+    },
     "Ajustes": {
       "extractionState": "manual",
       "localizations": {
@@ -228,6 +239,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cue"
+          }
+        }
+      }
+    },
+    "Bajar el volumen para asimilar lo hecho.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop the volume to absorb the work."
+          }
+        }
+      }
+    },
+    "Bien": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good"
           }
         }
       }
@@ -283,6 +316,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Completed"
+          }
+        }
+      }
+    },
+    "Construir el hábito y el volumen cómodo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build the habit and comfortable volume."
           }
         }
       }
@@ -382,6 +426,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Workout: %@"
+          }
+        }
+      }
+    },
+    "Exigido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hard"
           }
         }
       }
@@ -507,6 +562,17 @@
         }
       }
     },
+    "La semana más exigente del bloque.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hardest week of the block."
+          }
+        }
+      }
+    },
     "Listo": {
       "extractionState": "manual",
       "localizations": {
@@ -536,6 +602,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Maratonia"
+          }
+        }
+      }
+    },
+    "Muy bien": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Very good"
+          }
+        }
+      }
+    },
+    "Muy exigido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Very hard"
           }
         }
       }
@@ -782,6 +870,28 @@
         }
       }
     },
+    "Rodaje": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run"
+          }
+        }
+      }
+    },
+    "Rodaje fácil": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Easy run"
+          }
+        }
+      }
+    },
     "Ruta GPS": {
       "extractionState": "manual",
       "localizations": {
@@ -837,6 +947,17 @@
         }
       }
     },
+    "Semana de carga.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load week."
+          }
+        }
+      }
+    },
     "Sin música cargada": {
       "extractionState": "manual",
       "localizations": {
@@ -866,6 +987,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Music and cues only"
+          }
+        }
+      }
+    },
+    "Subir la carga de a poco, con calidad introductoria.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build load gradually, with introductory quality work."
           }
         }
       }
@@ -914,6 +1046,17 @@
         }
       }
     },
+    "Trabajo específico al ritmo de tu carrera.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Specific work at your race pace."
+          }
+        }
+      }
+    },
     "Tramo %lld: %@. %@": {
       "extractionState": "manual",
       "localizations": {
@@ -921,6 +1064,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Interval %lld: %@. %@"
+          }
+        }
+      }
+    },
+    "Tu carrera. Todo lo demás acompaña.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your race. Everything else supports it."
           }
         }
       }
@@ -965,6 +1119,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "You're at %@. Target %@. Pick it up a little."
+          }
+        }
+      }
+    },
+    "Versión suave de la sesión original: mismo tiempo en pie, sin la carga de intensidad.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A gentle version of the original session: same time on feet, without the intensity."
           }
         }
       }
