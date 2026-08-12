@@ -78,13 +78,13 @@
         }
       }
     },
-    "%lld días marcados": {
+    "%lld de %lld días marcados": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld days marked"
+            "value": "%1$lld of %2$lld days selected"
           }
         }
       }
@@ -2564,13 +2564,13 @@
         }
       }
     },
-    "Marcá al menos 2 días.": {
+    "Marcá %lld días, o elegí otra cantidad arriba.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mark at least 2 days."
+            "value": "Select %lld days, or pick a different number above."
           }
         }
       }
@@ -4584,6 +4584,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "You already run it — now, faster"
+          }
+        }
+      }
+    },
+    "Ya marcaste %lld días. Sacá uno para elegir este.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You already selected %lld days. Remove one to pick this."
           }
         }
       }

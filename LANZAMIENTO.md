@@ -11,7 +11,7 @@ Los campos marcados **[VOS]** requieren un dato o una decisión tuya.
 ## FASE 0 — Antes de tocar App Store Connect
 
 - [ ] Build 60 compila sin warnings en Xcode (Product → Build)
-- [ ] Los 211 tests en verde (Product → Test)
+- [ ] Los 217 tests en verde (Product → Test)
 - [ ] Recorrer las 5 pestañas en **español**
 - [ ] Cambiar el iPhone a **inglés** y recorrerlas de nuevo (build 58
       cerró el barrido: no debería quedar nada en español)

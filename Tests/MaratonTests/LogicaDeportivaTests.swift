@@ -996,3 +996,82 @@ final class SupervisorCorreccionRitmoTests: XCTestCase {
         XCTAssertTrue(sostener(&s, ritmo: 270, veces: 4).allSatisfy { $0 == .callar })
     }
 }
+
+// MARK: - Coherencia del catálogo de arquetipos
+//
+// El onboarding ofrece cadencias (2/3/4/5 días) y el motor reparte las
+// sesiones de la semana del template entre los días marcados. Si un
+// arquetipo declara diasMaximos mayor que las sesiones que su contenido
+// trae, la app ofrece días que nunca se van a usar y el corredor cree
+// que entrena más de lo que el plan pide. Eso fue un bug real:
+// "Primeros 5K" (3 sesiones) dejaba marcar los 7 días de la semana.
+
+final class RangoDeDiasArquetiposTests: XCTestCase {
+
+    private var conContenido: [PlanArquetipo] {
+        BibliotecaArquetipos.v1().filter { $0.contenido != nil }
+    }
+
+    func testLaBibliotecaTieneContenido() {
+        XCTAssertFalse(conContenido.isEmpty)
+    }
+
+    func testMinimoNoSuperaAlMaximo() {
+        for arq in BibliotecaArquetipos.v1() {
+            XCTAssertLessThanOrEqual(arq.diasMinimos, arq.diasMaximos,
+                                     "\(arq.id): rango de días invertido")
+        }
+    }
+
+    /// El tope declarado tiene que ser alcanzable: alguna semana del
+    /// contenido debe tener al menos esa cantidad de entrenamientos.
+    func testElMaximoDeclaradoLoBancaElContenido() {
+        for arq in conContenido {
+            let maxSesiones = arq.contenido!.semanas
+                .map(\.entrenamientos.count).max() ?? 0
+            XCTAssertGreaterThanOrEqual(
+                maxSesiones, arq.diasMaximos,
+                "\(arq.id) declara hasta \(arq.diasMaximos) días pero su semana " +
+                "más cargada tiene \(maxSesiones) entrenamientos")
+        }
+    }
+
+    /// Ninguna semana pide más días de los que el arquetipo permite
+    /// elegir: si no, el reparto recorta sesiones en silencio.
+    func testNingunaSemanaExcedeElMaximo() {
+        for arq in conContenido {
+            for semana in arq.contenido!.semanas {
+                XCTAssertLessThanOrEqual(
+                    semana.entrenamientos.count, arq.diasMaximos,
+                    "\(arq.id) semana \(semana.numero): " +
+                    "\(semana.entrenamientos.count) sesiones con tope \(arq.diasMaximos)")
+            }
+        }
+    }
+
+    /// Las cadencias que el onboarding ofrece caen dentro de lo que
+    /// diasSugeridos() sabe repartir (2...5).
+    func testLasCadenciasOfrecidasTienenRepartoSugerido() {
+        for arq in BibliotecaArquetipos.v1() {
+            for cantidad in arq.diasMinimos...arq.diasMaximos {
+                let sugeridos = OnboardingDeportivo.diasSugeridos(para: cantidad)
+                XCTAssertEqual(Set(sugeridos).count, cantidad,
+                               "\(arq.id): reparto de \(cantidad) días mal formado")
+                XCTAssertTrue(sugeridos.allSatisfy { (1...7).contains($0) })
+            }
+        }
+    }
+
+    /// Con los días concretos marcados, el plan cae SOLO ahí y en tantos
+    /// días como sesiones tenga la semana — la promesa de la pantalla.
+    func testDistribuirRespetaLosDiasMarcados() {
+        for arq in conContenido {
+            let dias = OnboardingDeportivo.diasSugeridos(para: arq.diasMaximos)
+            let repartido = MotorPlanificacion.distribuir(arq.contenido!, enDias: dias)
+            for semana in repartido.semanas {
+                XCTAssertTrue(semana.entrenamientos.allSatisfy { dias.contains($0.diaDeSemana) },
+                              "\(arq.id) semana \(semana.numero): cayó fuera de los días marcados")
+            }
+        }
+    }
+}

@@ -108,7 +108,16 @@ struct OnboardingDeportivo: View {
                               subtitulo: detalle(de: opcion),
                               icono: icono(de: opcion),
                               elegida: objetivo == opcion) {
+                    let cambio = objetivo != opcion
                     objetivo = opcion
+                    // Cada objetivo tiene su rango de cadencias: volver
+                    // atrás y cambiarlo podía dejar elegida una cantidad
+                    // que el arquetipo nuevo no soporta.
+                    if cambio, let actual = diasPorSemana,
+                       !cadenciasPosibles.contains(actual) {
+                        diasPorSemana = nil
+                        diasElegidos = []
+                    }
                     avanzar()
                 }
             }
@@ -188,10 +197,21 @@ struct OnboardingDeportivo: View {
 
     // MARK: Paso 3 — disponibilidad
 
+    /// Cadencias ofrecidas: SOLO las que el arquetipo del objetivo
+    /// elegido soporta de verdad. Antes se ofrecía 2-5 fijo y "Primeros
+    /// 5K" (máximo 3 sesiones por semana) dejaba elegir 5 — dos días
+    /// quedaban vacíos sin decirlo.
+    private var cadenciasPosibles: [Int] {
+        guard let objetivo,
+              let arq = BibliotecaArquetipos.v1().first(where: { $0.objetivo == objetivo })
+        else { return [2, 3, 4, 5] }
+        return Array(arq.diasMinimos...max(arq.diasMinimos, arq.diasMaximos))
+    }
+
     private var pasoDisponibilidad: some View {
         pantalla(titulo: "¿Qué días podés correr?",
                  subtitulo: "Un plan honesto con tu semana real vale más que uno ambicioso que no cumplís. Los entrenamientos caen SOLO en los días que marques.") {
-            ForEach([2, 3, 4, 5], id: \.self) { dias in
+            ForEach(cadenciasPosibles, id: \.self) { dias in
                 tarjetaOpcion(titulo: "\(dias) días",
                               subtitulo: subtituloDias(dias),
                               icono: "calendar",
@@ -203,30 +223,33 @@ struct OnboardingDeportivo: View {
                 }
             }
 
-            if diasPorSemana != nil {
+            if let cantidad = diasPorSemana {
                 TarjetaV2 {
                     VStack(alignment: .leading, spacing: DV2.Espacio.m) {
                         EncabezadoSeccionV2(texto: "Tus días")
                         HStack(spacing: DV2.Espacio.s) {
                             ForEach(1...7, id: \.self) { dia in
-                                chipDia(dia)
+                                chipDia(dia, tope: cantidad)
                             }
                         }
-                        Text("\(diasElegidos.count) días marcados")
+                        // El contador dice CUÁNTOS FALTAN contra la
+                        // cadencia elegida: "7 días marcados" con la
+                        // tarjeta "3 días" seleccionada era una
+                        // contradicción en pantalla.
+                        Text("\(diasElegidos.count) de \(cantidad) días marcados")
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(diasElegidos.count == cantidad ? .secondary : .orange)
                     }
                 }
                 Button {
-                    diasPorSemana = diasElegidos.count
                     avanzar()
                 } label: {
                     EtiquetaBotonPrimarioV2(titulo: "Continuar", icono: "arrow.right")
                 }
                 .buttonStyle(.plain)
-                .disabled(diasElegidos.count < 2)
-                if diasElegidos.count < 2 {
-                    Text("Marcá al menos 2 días.")
+                .disabled(diasElegidos.count != cantidad)
+                if diasElegidos.count < cantidad {
+                    Text("Marcá \(cantidad) días, o elegí otra cantidad arriba.")
                         .font(.footnote)
                         .foregroundStyle(.orange)
                 }
@@ -236,8 +259,14 @@ struct OnboardingDeportivo: View {
 
     /// Chip de un día (1 = lunes … 7 = domingo), con inicial localizada
     /// y nombre completo para VoiceOver.
-    private func chipDia(_ dia: Int) -> some View {
+    /// `tope` = la cadencia elegida arriba. Llegado al tope, los días
+    /// sin marcar se apagan: marcar 7 con "3 días" seleccionado dejaba
+    /// 4 días que el plan nunca iba a usar (el motor reparte tantas
+    /// sesiones como tiene la semana del template, no una por día).
+    /// Sacar días siempre se puede — es el camino para cambiar de idea.
+    private func chipDia(_ dia: Int, tope: Int) -> some View {
         let elegido = diasElegidos.contains(dia)
+        let bloqueado = !elegido && diasElegidos.count >= tope
         return Button {
             if elegido { diasElegidos.remove(dia) } else { diasElegidos.insert(dia) }
         } label: {
@@ -248,10 +277,16 @@ struct OnboardingDeportivo: View {
                 .background(elegido ? Color.accentColor
                                     : Color(.secondarySystemGroupedBackground),
                             in: Circle())
-                .foregroundStyle(elegido ? Color.white : Color.primary)
+                .foregroundStyle(elegido ? Color.white
+                                 : (bloqueado ? Color.secondary : Color.primary))
+                .opacity(bloqueado ? 0.4 : 1)
         }
         .buttonStyle(.plain)
+        .disabled(bloqueado)
         .accessibilityLabel(Self.nombreDia(dia))
+        .accessibilityHint(bloqueado
+                           ? Text("Ya marcaste \(tope) días. Sacá uno para elegir este.")
+                           : Text(""))
         .accessibilityAddTraits(elegido ? .isSelected : [])
     }
 
