@@ -2289,6 +2289,17 @@
         }
       }
     },
+    "Es la semana de tu carrera: los entrenamientos no se mueven.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It's your race week — workouts don't move."
+          }
+        }
+      }
+    },
     "Es la única tirada larga de la semana: mejor acortarla o moverla que borrarla.": {
       "extractionState": "manual",
       "localizations": {
@@ -2454,28 +2465,6 @@
         }
       }
     },
-    "Esta sesión no se mide por distancia: no se puede acortar así.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This session isn't measured by distance, so it can't be shortened this way."
-          }
-        }
-      }
-    },
-    "Esta sesión no se mide por distancia: no se puede convertir.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This session isn't measured by distance, so it can't be converted."
-          }
-        }
-      }
-    },
     "Esta sesión no se puede acortar.": {
       "extractionState": "manual",
       "localizations": {
@@ -2516,6 +2505,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "This session can't be skipped."
+          }
+        }
+      }
+    },
+    "Esta sesión no tiene distancia ni duración: no hay nada que acortar.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This session has no distance or duration — there's nothing to shorten."
+          }
+        }
+      }
+    },
+    "Esta sesión no tiene volumen: no se puede convertir.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This session has no volume — it can't be converted."
           }
         }
       }
@@ -2626,6 +2637,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "You're running fewer days per week than this goal needs."
+          }
+        }
+      }
+    },
+    "Estás en taper: la intensidad se mantiene y el volumen ya está bajando. Acortarla sí se puede.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're tapering: intensity stays and volume is already dropping. Shortening it is fine."
+          }
+        }
+      }
+    },
+    "Estás en taper: mover sesiones acá desarma la recuperación previa a tu carrera.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're tapering — moving sessions now undoes the recovery before your race."
           }
         }
       }
@@ -3499,13 +3532,13 @@
         }
       }
     },
-    "Maratonia no diagnostica ni trata lesiones. Si marcás una molestia, el plan simplemente arranca más prudente.": {
+    "Maratonia no diagnostica ni trata lesiones. Si marcás una molestia, el plan arranca más abajo y sube más despacio.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Maratonia doesn't diagnose or treat injuries. If you flag something, the plan simply starts more cautiously."
+            "value": "Maratonia doesn't diagnose or treat injuries. If you flag something, the plan starts lower and builds more slowly."
           }
         }
       }

@@ -325,34 +325,73 @@ struct RequisitosObjetivo: Equatable {
     /// "arrancar conservador": falta base de verdad.
     static let fraccionPiso = 0.4
 
+    /// TABLA EXPLÍCITA por distancia + intención.
+    ///
+    /// Reemplaza a la fórmula `factor × distancia`, que era lineal en la
+    /// distancia cuando la relación entre volumen de entrenamiento y
+    /// distancia objetivo no lo es. Producía dos absurdos simétricos:
+    /// para mejorar un 5K pedía 15 km/semana (la mitad de lo que el
+    /// propio plan exige en su primera semana) y para un maratón de
+    /// rendimiento pedía 4 × 42,195 = 168,8 km/semana, volumen de élite,
+    /// para un plan cuyo pico es 100. Además pedía una tirada larga
+    /// reciente de 33,8 km: más de lo que ese plan te va a hacer correr
+    /// en 18 semanas.
+    ///
+    /// Los valores de abajo son DECISIÓN MARATONIA (METODOLOGIA.md) y
+    /// están ANCLADOS AL PROPIO PLAN: cada requisito de volumen queda
+    /// por debajo del volumen de la primera semana del arquetipo que
+    /// habilita, y cada requisito de tirada larga queda en el orden de
+    /// su primer fondo. La idea es "esto ya lo podés sostener el día
+    /// uno", no "ya sos capaz de terminar". Hay un test de catálogo que
+    /// verifica esa coherencia contra el contenido real, así que la
+    /// tabla no puede volver a divergir del plan en silencio.
     static func para(_ objetivo: ObjetivoDeportivo) -> RequisitosObjetivo {
-        let km = objetivo.distancia.metros / 1000
-        switch objetivo.intencion {
-        case .completar:
-            // "Primeros 5K" ES la fase base: no exige nada previo.
-            if objetivo.distancia == .cinco {
-                return RequisitosObjetivo(kmSemanales: 0, tiradaLargaKm: 0,
-                                          diasPorSemana: 2, mesesRegular: 0,
-                                          exigeBaseline: false)
-            }
-            return RequisitosObjetivo(kmSemanales: km * 1.5,
-                                      tiradaLargaKm: km * 0.45,
-                                      diasPorSemana: objetivo.distancia == .diez ? 2 : 3,
-                                      mesesRegular: objetivo.distancia == .diez ? 1
-                                                  : (objetivo.distancia == .media ? 3 : 6),
+        switch objetivo {
+        // ---- 5K: la puerta de entrada. Completar no exige nada.
+        case .primeros5K:
+            return RequisitosObjetivo(kmSemanales: 0, tiradaLargaKm: 0,
+                                      diasPorSemana: 2, mesesRegular: 0,
                                       exigeBaseline: false)
-        case .mejorar:
-            return RequisitosObjetivo(kmSemanales: km * 3,
-                                      tiradaLargaKm: km * 0.6,
-                                      diasPorSemana: objetivo.distancia == .maraton ? 4 : 3,
-                                      mesesRegular: objetivo.distancia == .maraton ? 9
-                                                  : (objetivo.distancia == .media ? 6 : 3),
+        case .mejorar5K:
+            return RequisitosObjetivo(kmSemanales: 18, tiradaLargaKm: 6,
+                                      diasPorSemana: 3, mesesRegular: 3,
                                       exigeBaseline: false)
-        case .rendimiento:
-            return RequisitosObjetivo(kmSemanales: km * 4,
-                                      tiradaLargaKm: km * 0.8,
-                                      diasPorSemana: 5,
-                                      mesesRegular: 12,
+        // ---- 10K
+        case .diez:
+            return RequisitosObjetivo(kmSemanales: 10, tiradaLargaKm: 4,
+                                      diasPorSemana: 2, mesesRegular: 1,
+                                      exigeBaseline: false)
+        case .mejorar10K:
+            return RequisitosObjetivo(kmSemanales: 22, tiradaLargaKm: 8,
+                                      diasPorSemana: 3, mesesRegular: 3,
+                                      exigeBaseline: false)
+        // ---- 21K: de media maratón para arriba, mínimo 4 días. Con 3
+        // la tirada larga pasa del 50 % del volumen semanal y el plan
+        // deja de ser un plan de media (ver METODOLOGIA.md).
+        case .mediaMaraton:
+            return RequisitosObjetivo(kmSemanales: 28, tiradaLargaKm: 10,
+                                      diasPorSemana: 4, mesesRegular: 4,
+                                      exigeBaseline: false)
+        case .mejorarMedia:
+            return RequisitosObjetivo(kmSemanales: 30, tiradaLargaKm: 12,
+                                      diasPorSemana: 4, mesesRegular: 6,
+                                      exigeBaseline: false)
+        case .mediaRendimiento:
+            return RequisitosObjetivo(kmSemanales: 50, tiradaLargaKm: 14,
+                                      diasPorSemana: 5, mesesRegular: 12,
+                                      exigeBaseline: true)
+        // ---- 42K
+        case .maraton:
+            return RequisitosObjetivo(kmSemanales: 40, tiradaLargaKm: 12,
+                                      diasPorSemana: 4, mesesRegular: 6,
+                                      exigeBaseline: false)
+        case .mejorarMaraton:
+            return RequisitosObjetivo(kmSemanales: 48, tiradaLargaKm: 16,
+                                      diasPorSemana: 4, mesesRegular: 9,
+                                      exigeBaseline: false)
+        case .maratonRendimiento:
+            return RequisitosObjetivo(kmSemanales: 65, tiradaLargaKm: 18,
+                                      diasPorSemana: 5, mesesRegular: 12,
                                       exigeBaseline: true)
         }
     }

@@ -42,10 +42,16 @@ struct SemanaBase: Codable, Equatable {
     /// objetivo es lo que la semana prescribe, y la banda es una
     /// tolerancia declarada alrededor de eso.
     var reglasDerivadas: ReglasSemana {
-        let km = entrenamientos
-            .flatMap(\.segmentos)
-            .compactMap(\.distanciaKm)
-            .reduce(0, +)
+        // Mismo cálculo que el dominio: los bloques por tiempo cuentan.
+        // Antes esta banda salía de sumar solo distancias declaradas, y
+        // el validador terminaba comparando el volumen real contra un
+        // mínimo calculado sobre un número que ignoraba las calidades.
+        let km = CalculoVolumen.volumen(
+            entrenamientos.flatMap(\.segmentos).map {
+                CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
+                                       duracionSegundos: $0.duracionSegundos,
+                                       ritmo: $0.ritmo)
+            }).totalKm
         let calidad = entrenamientos.filter {
             let rol = RolSesion.para($0.tipo)
             return rol == .calidadPrincipal || rol == .calidadSecundaria
@@ -396,7 +402,8 @@ final class AlmacenStore: ObservableObject {
             sesionID: sesionID,
             programado: programado,
             registro: almacen.sesiones.first { $0.id == sesionID },
-            estructuraCompleta: estructuraCompleta)
+            estructuraCompleta: estructuraCompleta,
+            baseline: PerformanceBaseline(referencia: almacen.referenciaVigente))
     }
 
     // MARK: Cuenta (RC1)

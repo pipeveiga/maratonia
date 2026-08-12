@@ -86,6 +86,8 @@ struct ContextoCoach: Codable {
                       ahora: Date = Date()) -> ContextoCoach {
         let perfil = almacen.perfilDeportivo
         let referencia = almacen.referenciaVigente
+        // Para convertir a distancia los bloques por tiempo del plan.
+        let baselineCoach = PerformanceBaseline(referencia: referencia)
         let proximos = almacen.todosLosProgramados
             .filter { $0.resolucion == .pendiente && !(($0.dia ?? hoy) < hoy) }
             .sorted { ($0.dia ?? hoy) < ($1.dia ?? hoy) }
@@ -95,7 +97,7 @@ struct ContextoCoach: Codable {
                               dia: Self.texto(programado.dia ?? hoy),
                               nombre: programado.definicion.nombre,
                               tipo: programado.definicion.tipo.rawValue,
-                              km: programado.definicion.distanciaTotalKm)
+                              km: (programado.definicion.volumenKm(baseline: baselineCoach) * 10).rounded() / 10)
             }
 
         let indiceSemana = almacen.planActivo.flatMap { plan in
@@ -118,7 +120,7 @@ struct ContextoCoach: Codable {
                 }
                 return SesionDTO(fecha: Self.texto(programado.dia ?? hoy),
                                  tipo: programado.definicion.tipo.rawValue,
-                                 km: programado.definicion.distanciaTotalKm,
+                                 km: (programado.definicion.volumenKm(baseline: baselineCoach) * 10).rounded() / 10,
                                  ritmoSegKm: nil,
                                  cumplida: programado.resolucion == .cumplido,
                                  sensacion: registro?.sensacion?.rawValue)

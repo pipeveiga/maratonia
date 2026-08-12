@@ -250,8 +250,12 @@ enum ContenidoPlanes {
             // Final a ritmo de maratón dentro de la larga desde la
             // semana 9 (las de descarga van todas cómodas).
             let finalMaraton: Double? = (numero >= 9 && !esDescarga) ? 4 : nil
+            // kmFacil 8 → 11: la tirada larga llegaba a ocupar el 51 %
+            // del volumen semanal en el pico (30 km sobre 59). Sube el
+            // volumen COMPLEMENTARIO — la progresión de fondos no se
+            // toca, porque pasó la auditoría de saltos de sesión.
             semanas.append(semana(numero, calidad: calidad,
-                                  kmFacil: esDescarga ? 6 : 8,
+                                  kmFacil: esDescarga ? 8 : 11,
                                   kmLarga: largas[numero - 1],
                                   finalMaraton: finalMaraton,
                                   fase: fase(numero, construccion: 13,
@@ -293,8 +297,10 @@ enum ContenidoPlanes {
             let calidad = numero % 2 == 1
                 ? umbral(2, minutos: esDescarga ? 14 : min(18 + (numero / 2) * 3, 28))
                 : intervalos(2, repeticiones: esDescarga ? 4 : 5 + numero / 4, minutosCada: 3)
+            // kmFacil 7 → 8: con 3 días la tirada larga rozaba el 45 %
+            // del volumen semanal. Sube el complemento, no baja la larga.
             semanas.append(semana(numero, calidad: calidad,
-                                  kmFacil: esDescarga ? 6 : 7,
+                                  kmFacil: esDescarga ? 7 : 8,
                                   kmLarga: largas[numero - 1],
                                   fase: fase(numero, construccion: 8,
                                              esDescarga: esDescarga, esPico: numero == 8)))
@@ -412,8 +418,10 @@ enum ContenidoPlanes {
             // enseña el ritmo con las piernas ya cansadas.
             let finalMaraton: Double? = (numero >= 7 && !esDescarga)
                 ? min(6 + Double(numero - 7), 12) : nil
+            // kmFacil 10 → 12, mismo motivo que en Primera Maratón
+            // (la larga ocupaba el 48 % del pico).
             semanas.append(semana(numero, calidad: calidad,
-                                  kmFacil: esDescarga ? 8 : 10,
+                                  kmFacil: esDescarga ? 9 : 12,
                                   kmLarga: largas[numero - 1],
                                   finalMaraton: finalMaraton,
                                   fase: fase(numero, construccion: 15,

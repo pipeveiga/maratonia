@@ -109,9 +109,156 @@ struct DefinicionEntrenamiento: Codable, Equatable, Identifiable {
     var segmentos: [Segmento] = []
 }
 
+// MARK: - Volumen planificado (UNA sola definición)
+
+/// El volumen de una sesión o de una semana, con su procedencia a la
+/// vista. Existe porque `distanciaTotalKm` contaba SOLO los segmentos
+/// medidos en distancia: un `umbral(32′)` son 1,5 km de entrada + 32
+/// minutos + 1 km de salida, y el motor lo contabilizaba como 2,5 km.
+/// Los 32 minutos —más de 5 km reales— desaparecían del volumen
+/// semanal, del arranque conservador, de las bandas del validador, del
+/// detector y de Progreso.
+///
+/// Regla: los segmentos por DISTANCIA se suman tal cual; los segmentos
+/// por TIEMPO se convierten a distancia equivalente con el ritmo de su
+/// propia zona. Nunca se cuenta un segmento dos veces — cada uno cae en
+/// exactamente una de las dos ramas (distancia tiene prioridad, igual
+/// que en `tramosEjecutables`).
+struct VolumenPlanificado: Equatable {
+    /// Suma de los segmentos que declaran distancia.
+    var kmMedidos: Double = 0
+    /// Suma de los segmentos medidos en tiempo.
+    var segundosPorTiempo: Int = 0
+    /// Esos segundos convertidos a distancia.
+    var kmEquivalentes: Double = 0
+    /// true = al menos una conversión usó el ritmo de REFERENCIA porque
+    /// el ritmo real no se pudo resolver. El número sigue siendo mucho
+    /// mejor que cero, pero no es exacto y quien lo muestre debería
+    /// poder decirlo.
+    var hayEstimacion: Bool = false
+
+    var totalKm: Double { kmMedidos + kmEquivalentes }
+    var esVacio: Bool { kmMedidos == 0 && segundosPorTiempo == 0 }
+
+    static func + (a: VolumenPlanificado, b: VolumenPlanificado) -> VolumenPlanificado {
+        VolumenPlanificado(kmMedidos: a.kmMedidos + b.kmMedidos,
+                           segundosPorTiempo: a.segundosPorTiempo + b.segundosPorTiempo,
+                           kmEquivalentes: a.kmEquivalentes + b.kmEquivalentes,
+                           hayEstimacion: a.hayEstimacion || b.hayEstimacion)
+    }
+}
+
+/// Ritmos de último recurso para convertir tiempo en distancia cuando
+/// el corredor todavía no tiene baseline.
+///
+/// HEURÍSTICA PROVISIONAL (ver METODOLOGIA.md). No son prescripción:
+/// **nunca se le muestran al corredor ni se usan como objetivo de
+/// ejecución** — sirven solo para contabilizar volumen. Y no son
+/// números inventados: salen de correr `MetodologiaMaratoniaV1` sobre
+/// un corredor de referencia declarado (5 km en 30:00, un tiempo
+/// recreativo mediano), así que comparten metodología con todo lo demás.
+enum RitmoDeReferencia {
+
+    /// El corredor de referencia. Fecha fija: esto tiene que ser
+    /// determinístico entre ejecuciones.
+    static let referencia = ReferenciaRendimiento(
+        fecha: Date(timeIntervalSince1970: 0), fuente: .estimacionInicial,
+        distanciaMetros: 5000, segundos: 1800)
+
+    static var baseline: PerformanceBaseline? { PerformanceBaseline(referencia: referencia) }
+
+    /// Ritmo medio de una zona, en seg/km. Si la metodología no puede
+    /// resolverla (no debería ocurrir con este baseline), cae al ritmo
+    /// fácil de referencia antes que devolver nada.
+    static func segKm(_ tipo: TipoRitmo) -> Int {
+        if let baseline, case .resuelto(let rango, _) = Metodologias.resolver(tipo, baseline: baseline) {
+            return (rango.minSegKm + rango.maxSegKm) / 2
+        }
+        return 480   // 8:00/km — el fácil del corredor de referencia, redondeado
+    }
+}
+
+/// El cálculo de volumen, en UN solo lugar. Todo el resto de la app
+/// —Progreso, validador, arranque conservador, detector, DTO del
+/// Coach— pasa por acá.
+enum CalculoVolumen {
+
+    /// Un segmento reducido a lo que el cálculo necesita. Permite que
+    /// `Segmento` (dominio) y `SegmentoBase` (catálogo) compartan
+    /// exactamente la misma semántica sin duplicar lógica.
+    struct Entrada {
+        var distanciaKm: Double?
+        var duracionSegundos: Int?
+        var ritmo: RitmoObjetivo
+    }
+
+    static func volumen(_ segmentos: [Entrada],
+                        baseline: PerformanceBaseline? = nil) -> VolumenPlanificado {
+        var v = VolumenPlanificado()
+        for segmento in segmentos {
+            // DISTANCIA manda si el segmento trae las dos metas: es la
+            // misma regla que usa el motor para ejecutar (tramosEjecutables),
+            // y es lo que garantiza que nada se cuente dos veces.
+            if let km = segmento.distanciaKm {
+                v.kmMedidos += km
+                continue
+            }
+            guard let segundos = segmento.duracionSegundos, segundos > 0 else { continue }
+            v.segundosPorTiempo += segundos
+            let (segKm, estimado) = ritmo(de: segmento.ritmo, baseline: baseline)
+            v.kmEquivalentes += Double(segundos) / Double(segKm)
+            if estimado { v.hayEstimacion = true }
+        }
+        return v
+    }
+
+    /// Seg/km con el que convertir un segmento, y si hubo que estimar.
+    /// Orden: ritmo ya resuelto → metodología contra el baseline real →
+    /// ritmo de referencia.
+    static func ritmo(de objetivo: RitmoObjetivo,
+                      baseline: PerformanceBaseline?) -> (segKm: Int, estimado: Bool) {
+        switch objetivo {
+        case .absoluto(let rapido, let lento):
+            if let rapido, let lento { return ((rapido + lento) / 2, false) }
+            if let rapido { return (rapido, false) }
+            if let lento { return (lento, false) }
+            return (RitmoDeReferencia.segKm(.facil), true)
+        case .simbolico(let tipo):
+            if let baseline,
+               case .resuelto(let rango, _) = Metodologias.resolver(tipo, baseline: baseline) {
+                return ((rango.minSegKm + rango.maxSegKm) / 2, false)
+            }
+            return (RitmoDeReferencia.segKm(tipo), true)
+        case .libre:
+            // Sin zona declarada no hay nada mejor que el fácil de
+            // referencia. Devolver 0 km sería esconder el problema.
+            return (RitmoDeReferencia.segKm(.facil), true)
+        }
+    }
+}
+
 extension DefinicionEntrenamiento {
 
-    /// Distancia total prevista (nil si ningún segmento es por distancia).
+    /// EL volumen de esta sesión. Pasar el baseline del corredor cuando
+    /// exista: sin él la conversión usa el ritmo de referencia y marca
+    /// `hayEstimacion`.
+    func volumen(baseline: PerformanceBaseline? = nil) -> VolumenPlanificado {
+        CalculoVolumen.volumen(segmentos.map {
+            CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
+                                   duracionSegundos: $0.duracionSegundos,
+                                   ritmo: $0.ritmo)
+        }, baseline: baseline)
+    }
+
+    /// Volumen total en km, contando los bloques por tiempo. Es lo que
+    /// hay que usar para CONTABILIDAD (semana, progreso, validador).
+    func volumenKm(baseline: PerformanceBaseline? = nil) -> Double {
+        volumen(baseline: baseline).totalKm
+    }
+
+    /// Distancia DECLARADA en segmentos por distancia. Sirve para saber
+    /// si la sesión tiene algo que escalar (reducir) — NO para
+    /// contabilidad. Para eso está `volumenKm`.
     var distanciaTotalKm: Double? {
         let kms = segmentos.compactMap(\.distanciaKm)
         guard !kms.isEmpty else { return nil }
@@ -236,6 +383,14 @@ enum TipoSemana: String, Codable, CaseIterable {
     case semanaDeCarrera    // la carrera cae acá
     /// Compatibilidad: los arquetipos v1 usaban `carga` como genérico.
     case carga
+
+    /// Semanas en las que la carga SOLO puede bajar. El validador las
+    /// trata como zona protegida: acá no se agrega trabajo, no se sube
+    /// intensidad y no se reorganiza la recuperación.
+    var esProtegida: Bool { self == .taper || self == .semanaDeCarrera }
+
+    /// ¿Es una semana de construcción? (las que auditan proporción).
+    var esDeConstruccion: Bool { !esProtegida }
 }
 
 /// Qué se le puede hacer a una sesión sin traicionar su intención.
@@ -440,9 +595,17 @@ struct SemanaPlan: Codable, Equatable, Identifiable {
     /// validador entonces solo aplica las reglas que no dependen de él.
     var reglas: ReglasSemana? = nil
 
-    /// Km prescritos por los pendientes + resueltos de la semana.
-    var kmPrescritos: Double {
-        programados.compactMap(\.definicion.distanciaTotalKm).reduce(0, +)
+    /// EL volumen prescrito de la semana, contando los bloques por
+    /// tiempo (ver `CalculoVolumen`).
+    func volumenPlanificado(baseline: PerformanceBaseline? = nil) -> VolumenPlanificado {
+        programados.reduce(VolumenPlanificado()) { $0 + $1.definicion.volumen(baseline: baseline) }
+    }
+
+    /// Km prescritos de la semana. Antes sumaba solo distancias
+    /// declaradas y perdía todos los bloques de calidad medidos en
+    /// tiempo; ahora pasa por el cálculo único.
+    func kmPrescritos(baseline: PerformanceBaseline? = nil) -> Double {
+        volumenPlanificado(baseline: baseline).totalKm
     }
 
     /// Cuántas sesiones de calidad (principal o secundaria) tiene.
@@ -1130,13 +1293,19 @@ struct AlmacenV2: Codable, Equatable {
         }
     }
 
-    /// Escala la distancia de TODOS los segmentos por distancia. No
-    /// toca los segmentos por tiempo ni los ritmos: reducir es hacer
-    /// MENOS de lo mismo, nunca otra cosa (para eso está convertir).
+    /// Escala TODOS los segmentos —los medidos en distancia y los
+    /// medidos en tiempo— por el mismo factor. No toca los ritmos:
+    /// reducir es hacer MENOS de lo mismo, nunca otra cosa (para eso
+    /// está convertir).
+    ///
+    /// Escalar solo las distancias era un recorte falso: sobre un
+    /// `umbral 32′` (1,5 km + 32′ + 1 km) un factor 0,8 recortaba
+    /// medio kilómetro de calentamiento y dejaba el bloque duro
+    /// intacto — un 6 % de reducción real donde el corredor veía 20 %.
     ///
     /// Rechaza si: el programado no existe, no está pendiente, su
-    /// contrato no permite reducir, o el factor cae fuera de
-    /// [factorMinimo, 1].
+    /// contrato no permite reducir, el factor cae fuera de
+    /// [factorMinimo, 1), o no hay nada que escalar.
     @discardableResult
     mutating func reducir(programadoID: UUID, factor: Double) -> Bool {
         guard let (s, p) = indiceDe(programadoID: programadoID),
@@ -1144,12 +1313,17 @@ struct AlmacenV2: Codable, Equatable {
               actual.resolucion == .pendiente,
               actual.adaptabilidad.sePuedeReducir,
               factor >= actual.adaptabilidad.factorMinimo, factor < 1,
-              actual.definicion.distanciaTotalKm != nil else { return false }
+              !actual.definicion.volumen().esVacio else { return false }
         planActivo?.semanas[s].programados[p].congelarOriginalSiHaceFalta()
         for g in actual.definicion.segmentos.indices {
             if let km = actual.definicion.segmentos[g].distanciaKm {
                 planActivo?.semanas[s].programados[p].definicion.segmentos[g].distanciaKm =
                     (km * factor * 10).rounded() / 10
+            } else if let segundos = actual.definicion.segmentos[g].duracionSegundos, segundos > 0 {
+                // Redondeo a 10 s: un bloque de "25 min 36 s" no es una
+                // prescripción, es ruido.
+                planActivo?.semanas[s].programados[p].definicion.segmentos[g].duracionSegundos =
+                    max(30, Int((Double(segundos) * factor / 10).rounded()) * 10)
             }
         }
         return true
@@ -1160,12 +1334,17 @@ struct AlmacenV2: Codable, Equatable {
     /// honesta a omitir cuando el corredor llegó cansado — mantiene el
     /// hábito y el volumen sin la carga de intensidad.
     @discardableResult
-    mutating func convertirEnFacil(programadoID: UUID) -> Bool {
+    mutating func convertirEnFacil(programadoID: UUID,
+                                   baseline: PerformanceBaseline? = nil) -> Bool {
         guard let (s, p) = indiceDe(programadoID: programadoID),
               let actual = planActivo?.semanas[s].programados[p],
               actual.resolucion == .pendiente,
-              actual.adaptabilidad.sePuedeConvertirEnFacil,
-              let km = actual.definicion.distanciaTotalKm, km > 0 else { return false }
+              actual.adaptabilidad.sePuedeConvertirEnFacil else { return false }
+        // El rodaje equivalente conserva el VOLUMEN de la sesión, no su
+        // distancia declarada: convertir un `umbral 32′` producía antes
+        // un rodaje de 2,5 km — un cuarto del trabajo original.
+        let km = (actual.definicion.volumenKm(baseline: baseline) * 10).rounded() / 10
+        guard km > 0 else { return false }
         planActivo?.semanas[s].programados[p].congelarOriginalSiHaceFalta()
         planActivo?.semanas[s].programados[p].definicion = DefinicionEntrenamiento(
             id: actual.definicion.id,          // identidad estable

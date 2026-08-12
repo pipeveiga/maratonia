@@ -199,18 +199,27 @@ final class ElegibilidadTests: XCTestCase {
     }
 
     func testMaratonConVolumenJustoPorDebajoEsConservador() {
-        // Requisito de "primera maratón": 42·1.5 = 63 km/sem, larga 19.
+        // Requisito de "primera maratón" tras la recalibración: 40
+        // km/sem y una larga de 12 km, anclados a lo que el propio plan
+        // pide en su primera semana (antes eran 63 km por una fórmula
+        // lineal que superaba el pico del plan que habilitaba).
         let v = EvaluadorElegibilidad.evaluar(
-            entrada(.maraton, km: 50, larga: 22, dias: 4, meses: 12))
+            entrada(.maraton, km: 30, larga: 14, dias: 4, meses: 12))
         XCTAssertTrue(v.esConservador)
         XCTAssertTrue(v.motivos.contains(.volumenBajo))
         XCTAssertTrue(v.generaPlan, "conservador todavía genera plan")
     }
 
+    func testMaratonConRequisitoJustoEsElegible() {
+        let v = EvaluadorElegibilidad.evaluar(
+            entrada(.maraton, km: 42, larga: 13, dias: 4, meses: 12))
+        XCTAssertEqual(v, .elegible)
+    }
+
     func testMaratonConVolumenMuyPorDebajoPideBase() {
         // Por debajo del 40 % del requisito → falta base de verdad.
         let v = EvaluadorElegibilidad.evaluar(
-            entrada(.maraton, km: 15, larga: 6, dias: 4, meses: 12))
+            entrada(.maraton, km: 12, larga: 4, dias: 4, meses: 12))
         if case .requiereFaseBase(let motivos) = v {
             XCTAssertTrue(motivos.contains(.volumenBajo))
         } else {
@@ -538,14 +547,17 @@ final class DetectorEventosTests: XCTestCase {
                        "la mayoría de las carreras NO deben terminar en un ajuste")
     }
 
-    func testEsfuerzoMuyAltoEsEventoDeAltaSeveridad() {
+    /// Cambió con la inercia (§17): un "muy exigido" AISLADO ya no es
+    /// evento. Los casos con confirmación viven en InerciaAdaptadorTests.
+    func testEsfuerzoMuyAltoAisladoYaNoDisparaNada() {
         let almacen = almacenDeSemana()
         let eventos = DetectorEventos.detectar(EntradaDeteccion(
             hoy: hoy, almacen: almacen,
             analisis: analisis(km: 8, prescritos: 8, completa: true,
                                sensacion: .muyExigido)))
-        XCTAssertTrue(DetectorEventos.ameritaIA(eventos))
-        XCTAssertTrue(eventos.contains { if case .esfuerzoMuyAlto = $0 { return true }; return false })
+        XCTAssertFalse(eventos.contains { if case .esfuerzoMuyAlto = $0 { return true }; return false },
+                       "hace falta una segunda señal coherente")
+        XCTAssertFalse(DetectorEventos.ameritaIA(eventos))
     }
 
     func testSentirseMuyBienNoGeneraNada() {
@@ -584,11 +596,13 @@ final class DetectorEventosTests: XCTestCase {
         XCTAssertTrue(DetectorEventos.ameritaIA(eventos))
     }
 
-    func testUnaSolaAusenciaEsSesionPerdida() {
+    func testUnaSolaAusenciaEsSesionPerdidaYNoAmeritaIA() {
         let almacen = conVencido(almacenDeSemana(), dia: 11)
         let eventos = DetectorEventos.detectar(EntradaDeteccion(hoy: hoy, almacen: almacen))
         XCTAssertTrue(eventos.contains { if case .sesionPerdida = $0 { return true }; return false })
         XCTAssertFalse(eventos.contains { if case .variasAusencias = $0 { return true }; return false })
+        XCTAssertFalse(DetectorEventos.ameritaIA(eventos),
+                       "perder un rodaje suelto se registra, no reescribe la semana")
     }
 
     func testVariasAusenciasSeDetectan() {

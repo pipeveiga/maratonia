@@ -193,7 +193,7 @@ struct OnboardingDeportivo: View {
                     molestias = opcion
                 }
             }
-            Text("Maratonia no diagnostica ni trata lesiones. Si marcás una molestia, el plan simplemente arranca más prudente.")
+            Text("Maratonia no diagnostica ni trata lesiones. Si marcás una molestia, el plan arranca más abajo y sube más despacio.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

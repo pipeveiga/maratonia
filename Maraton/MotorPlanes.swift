@@ -104,13 +104,13 @@ enum BibliotecaArquetipos {
             PlanArquetipo(id: "media-maraton", version: 1, objetivo: .mediaMaraton,
                           nombre: "Media maratón",
                           semanasMinimas: 12, semanasRecomendadas: 12,
-                          diasMinimos: 3, diasMaximos: 5,
+                          diasMinimos: 4, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mediaMaraton()),
             PlanArquetipo(id: "mejorar-media", version: 1, objetivo: .mejorarMedia,
                           nombre: "Mejorar mi media",
                           semanasMinimas: 12, semanasRecomendadas: 12,
-                          diasMinimos: 3, diasMaximos: 5,
+                          diasMinimos: 4, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mejorarMedia()),
             PlanArquetipo(id: "media-rendimiento", version: 1, objetivo: .mediaRendimiento,
@@ -123,7 +123,7 @@ enum BibliotecaArquetipos {
             PlanArquetipo(id: "maraton", version: 1, objetivo: .maraton,
                           nombre: "Maratón",
                           semanasMinimas: 16, semanasRecomendadas: 16,
-                          diasMinimos: 3, diasMaximos: 5,
+                          diasMinimos: 4, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.maraton()),
             PlanArquetipo(id: "mejorar-maraton", version: 1, objetivo: .mejorarMaraton,
@@ -325,8 +325,11 @@ enum MotorPlanificacion {
 
         // ---- Arranque conservador: el plan empieza DONDE ESTÁ el
         // corredor, no donde el template asume que está.
+        // "Conservador" no es una etiqueta: baja el techo de entrada y
+        // alarga la rampa. La diferencia es real y testeable.
         let ajuste = ajustarArranque(recortada,
-                                     kmSemanalesActuales: volumenActual(pedido))
+                                     kmSemanalesActuales: volumenActual(pedido),
+                                     conservador: veredicto.esConservador)
         recortada = ajuste.base
         let factorArranque = ajuste.factor
 
@@ -378,9 +381,9 @@ enum MotorPlanificacion {
         }
         plan.semanas.removeAll { $0.programados.isEmpty }
 
-        let primeraSemanaKm = plan.semanas.first?.programados
-            .compactMap { $0.definicion.distanciaTotalKm }
-            .reduce(0, +)
+        let baselineVolumen = PerformanceBaseline(referencia: pedido.referencia)
+        let primeraSemanaKm = plan.semanas.first?
+            .kmPrescritos(baseline: baselineVolumen)
 
         return .propuesta(PropuestaPlan(
             arquetipoID: arquetipo.id,
@@ -415,34 +418,55 @@ enum MotorPlanificacion {
     /// corre 10 km/semana de quien corre 90 — sino un techo de ENTRADA
     /// al plan, aplicado una sola vez.
     static let factorEntradaMaximo = 1.2
+    /// El MISMO techo cuando la elegibilidad dio "conservador": la
+    /// primera semana no puede superar lo que el corredor ya hace.
+    /// Esto es lo que hace que "conservador" signifique algo — antes
+    /// era una etiqueta que se mostraba y no cambiaba una sola línea
+    /// del plan generado, mientras el onboarding prometía que "el plan
+    /// arranca más prudente".
+    static let factorEntradaConservador = 1.0
     /// Piso: por debajo de esto el plan ya no es el plan. Si hace falta
     /// recortar más, el problema es de elegibilidad, no de arranque.
     static let factorArranqueMinimo = 0.5
     /// En cuántas semanas se vuelve al volumen del template.
     static let semanasDeRampa = 3
+    /// Conservador sube más despacio: una semana más de rampa.
+    static let semanasDeRampaConservador = 5
 
     /// Atenúa las primeras semanas para que el salto de entrada sea
     /// razonable, y vuelve al template con una rampa lineal. NUNCA
     /// escala hacia arriba (§40) ni toca la carrera objetivo.
-    static func ajustarArranque(_ base: PlanBase, kmSemanalesActuales: Double?)
+    ///
+    /// El volumen de la primera semana se mide con `CalculoVolumen`,
+    /// no sumando distancias declaradas: si no, el techo de entrada se
+    /// calculaba contra un número que ignoraba las sesiones de calidad
+    /// y la atenuación salía mal por varios kilómetros.
+    static func ajustarArranque(_ base: PlanBase, kmSemanalesActuales: Double?,
+                                conservador: Bool = false)
         -> (base: PlanBase, factor: Double) {
         guard let actuales = kmSemanalesActuales, actuales > 0,
               let primera = base.semanas.first else { return (base, 1) }
-        let kmPrimera = primera.entrenamientos
-            .flatMap(\.segmentos).compactMap(\.distanciaKm).reduce(0, +)
+        let kmPrimera = CalculoVolumen.volumen(
+            primera.entrenamientos.flatMap(\.segmentos).map {
+                CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
+                                       duracionSegundos: $0.duracionSegundos,
+                                       ritmo: $0.ritmo)
+            }).totalKm
         guard kmPrimera > 0 else { return (base, 1) }
 
-        let permitido = actuales * factorEntradaMaximo
+        let techo = conservador ? factorEntradaConservador : factorEntradaMaximo
+        let rampa = conservador ? semanasDeRampaConservador : semanasDeRampa
+        let permitido = actuales * techo
         guard kmPrimera > permitido else { return (base, 1) }
         let factor = max(factorArranqueMinimo, permitido / kmPrimera)
 
         var resultado = base
         resultado.semanas = base.semanas.map { semana in
             let indice = semana.numero - 1
-            guard indice >= 0, indice < semanasDeRampa else { return semana }
+            guard indice >= 0, indice < rampa else { return semana }
             // Rampa lineal: semana 1 = factor, y de ahí a 1 en
-            // `semanasDeRampa` semanas.
-            let avance = Double(indice) / Double(semanasDeRampa)
+            // `rampa` semanas.
+            let avance = Double(indice) / Double(rampa)
             let factorSemana = factor + (1 - factor) * avance
             var nueva = semana
             nueva.entrenamientos = semana.entrenamientos.map { entrenamiento in
@@ -462,21 +486,94 @@ enum MotorPlanificacion {
         return (resultado, factor)
     }
 
+    /// Cuánto puede crecer una sesión fácil al absorber el volumen de
+    /// otra que se eliminó. DECISIÓN MARATONIA: 1,6× su distancia
+    /// original. Sin tope, un corredor de 3 días terminaba con un
+    /// "rodaje suave" de 21 km.
+    static let topeAbsorcion = 1.6
+
     /// Recorte por disponibilidad: en cada semana quedan las `dias`
     /// sesiones de MAYOR prioridad de rol (carrera > larga > calidad >
     /// fácil > recuperación), conservando el orden de días.
+    ///
+    /// Y —esto es lo que cambió— el volumen FÁCIL de las sesiones
+    /// eliminadas se REDISTRIBUYE entre las fáciles que quedan, en vez
+    /// de tirarse. Antes, recortar de 5 a 3 días no achicaba la tirada
+    /// larga pero sí borraba dos rodajes enteros: la larga pasaba de
+    /// ocupar el 51 % de la semana a ocupar el 66 %, y el corredor con
+    /// menos disponibilidad —normalmente el menos entrenado— recibía la
+    /// semana peor proporcionada. La redistribución hace que la
+    /// proporción deje de depender de cuántos días marcaste.
+    ///
+    /// Qué NO absorbe volumen: la tirada larga (crecería sin control),
+    /// las sesiones de calidad (su carga es intensidad, no distancia) y
+    /// la carrera objetivo.
     static func recortar(_ base: PlanBase, aDias dias: Int) -> PlanBase {
         var resultado = base
         resultado.semanas = base.semanas.map { semana in
-            var recortadaSemana = semana
+            var nueva = semana
             let ordenadas = semana.entrenamientos.enumerated().sorted {
                 let rolA = PlanArquetipo.rol(de: $0.element.tipo)
                 let rolB = PlanArquetipo.rol(de: $1.element.tipo)
                 return rolA == rolB ? $0.offset < $1.offset : rolA < rolB
             }
-            let elegidas = ordenadas.prefix(dias).map(\.offset).sorted()
-            recortadaSemana.entrenamientos = elegidas.map { semana.entrenamientos[$0] }
-            return recortadaSemana
+            let elegidas = Set(ordenadas.prefix(dias).map(\.offset))
+            guard elegidas.count < semana.entrenamientos.count else { return nueva }
+
+            // Volumen fácil que se pierde con el recorte.
+            let huerfano = semana.entrenamientos.enumerated()
+                .filter { !elegidas.contains($0.offset) && esAbsorbente($0.element.tipo) }
+                .reduce(0.0) { $0 + volumenBase($1.element) }
+
+            nueva.entrenamientos = elegidas.sorted().map { semana.entrenamientos[$0] }
+            guard huerfano > 0 else { return nueva }
+            nueva.entrenamientos = redistribuir(huerfano, en: nueva.entrenamientos)
+            return nueva
+        }
+        return resultado
+    }
+
+    /// Qué sesiones pueden crecer para absorber volumen ajeno.
+    private static func esAbsorbente(_ tipo: TipoEntrenamiento) -> Bool {
+        let rol = RolSesion.para(tipo)
+        return rol == .facil || rol == .recuperacion
+    }
+
+    private static func volumenBase(_ entrenamiento: EntrenamientoBase) -> Double {
+        CalculoVolumen.volumen(entrenamiento.segmentos.map {
+            CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
+                                   duracionSegundos: $0.duracionSegundos,
+                                   ritmo: $0.ritmo)
+        }).totalKm
+    }
+
+    /// Reparte `huerfano` km entre las sesiones absorbentes, en
+    /// proporción a la capacidad de cada una y sin pasar el tope. Lo que
+    /// no entra se pierde: es la señal correcta de que esa frecuencia no
+    /// alcanza para ese plan, y el invariante de catálogo la detecta.
+    private static func redistribuir(_ huerfano: Double,
+                                     en entrenamientos: [EntrenamientoBase]) -> [EntrenamientoBase] {
+        let indices = entrenamientos.indices.filter {
+            esAbsorbente(entrenamientos[$0].tipo)
+                && entrenamientos[$0].segmentos.contains { $0.distanciaKm != nil }
+        }
+        guard !indices.isEmpty else { return entrenamientos }
+        let capacidades = indices.map { volumenBase(entrenamientos[$0]) * (topeAbsorcion - 1) }
+        let capacidadTotal = capacidades.reduce(0, +)
+        guard capacidadTotal > 0 else { return entrenamientos }
+        let reparto = min(huerfano, capacidadTotal)
+
+        var resultado = entrenamientos
+        for (indice, capacidad) in zip(indices, capacidades) {
+            let extra = reparto * (capacidad / capacidadTotal)
+            let kmDeclarados = resultado[indice].segmentos.compactMap(\.distanciaKm).reduce(0, +)
+            guard kmDeclarados > 0, extra > 0 else { continue }
+            let factor = (kmDeclarados + extra) / kmDeclarados
+            for g in resultado[indice].segmentos.indices {
+                if let km = resultado[indice].segmentos[g].distanciaKm {
+                    resultado[indice].segmentos[g].distanciaKm = (km * factor * 10).rounded() / 10
+                }
+            }
         }
         return resultado
     }

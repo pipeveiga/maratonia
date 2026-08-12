@@ -50,6 +50,7 @@
 		A10000000000000000000092 /* Adaptacion.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000091 /* Adaptacion.swift */; };
 		A10000000000000000000094 /* PerfilYFeedbackUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000093 /* PerfilYFeedbackUI.swift */; };
 		A10000000000000000000096 /* MotorAdaptativoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000095 /* MotorAdaptativoTests.swift */; };
+		A10000000000000000000098 /* CalibracionDeportivaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000097 /* CalibracionDeportivaTests.swift */; };
 		A10000000000000000000083 /* DominioV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000081 /* DominioV2Tests.swift */; };
 		A10000000000000000000084 /* LogicaDeportivaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000082 /* LogicaDeportivaTests.swift */; };
 		A1000000000000000000005D /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005C /* Localizable.xcstrings */; };
@@ -132,6 +133,7 @@
 		A10000000000000000000091 /* Adaptacion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Adaptacion.swift; sourceTree = "<group>"; };
 		A10000000000000000000093 /* PerfilYFeedbackUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfilYFeedbackUI.swift; sourceTree = "<group>"; };
 		A10000000000000000000095 /* MotorAdaptativoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotorAdaptativoTests.swift; sourceTree = "<group>"; };
+		A10000000000000000000097 /* CalibracionDeportivaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibracionDeportivaTests.swift; sourceTree = "<group>"; };
 		A10000000000000000000080 /* MaratonTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaratonTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000081 /* DominioV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DominioV2Tests.swift; sourceTree = "<group>"; };
 		A10000000000000000000082 /* LogicaDeportivaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicaDeportivaTests.swift; sourceTree = "<group>"; };
@@ -261,6 +263,7 @@
 				A10000000000000000000081 /* DominioV2Tests.swift */,
 				A10000000000000000000082 /* LogicaDeportivaTests.swift */,
 				A10000000000000000000095 /* MotorAdaptativoTests.swift */,
+				A10000000000000000000097 /* CalibracionDeportivaTests.swift */,
 			);
 			path = "Tests/MaratonTests";
 			sourceTree = "<group>";
@@ -462,6 +465,7 @@
 				A10000000000000000000083 /* DominioV2Tests.swift in Sources */,
 				A10000000000000000000084 /* LogicaDeportivaTests.swift in Sources */,
 				A10000000000000000000096 /* MotorAdaptativoTests.swift in Sources */,
+				A10000000000000000000098 /* CalibracionDeportivaTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -634,7 +638,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Maraton/Maraton.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 61;
+				CURRENT_PROJECT_VERSION = 62;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -671,7 +675,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Maraton/Maraton.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 61;
+				CURRENT_PROJECT_VERSION = 62;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -709,7 +713,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Maraton Watch App/MaratonWatchApp.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 61;
+				CURRENT_PROJECT_VERSION = 62;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -746,7 +750,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Maraton Watch App/MaratonWatchApp.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 61;
+				CURRENT_PROJECT_VERSION = 62;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;

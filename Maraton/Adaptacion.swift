@@ -47,10 +47,14 @@ struct AnalisisPostCarrera: Equatable, Identifiable {
 
     var esLibre: Bool { programadoID == nil }
 
+    /// `baseline` se usa SOLO para convertir a distancia los bloques de
+    /// la sesión prescrita medidos en tiempo. Sin él la conversión cae
+    /// al ritmo de referencia (nunca a cero).
     static func desde(sesion: SesionMetrica, sesionID: UUID,
                       programado: EntrenamientoProgramado?,
                       registro: RegistroSesion?,
-                      estructuraCompleta: Bool) -> AnalisisPostCarrera {
+                      estructuraCompleta: Bool,
+                      baseline: PerformanceBaseline? = nil) -> AnalisisPostCarrera {
         AnalisisPostCarrera(
             sesionID: sesionID,
             fecha: sesion.fecha,
@@ -59,7 +63,7 @@ struct AnalisisPostCarrera: Equatable, Identifiable {
             ritmoSegKm: MetricasSesion.ritmoSegKm(metros: sesion.metros,
                                                   segundos: sesion.segundos),
             programadoID: programado?.id,
-            kmPrescritos: programado?.definicion.distanciaTotalKm,
+            kmPrescritos: programado?.definicion.volumenKm(baseline: baseline),
             estructuraCompleta: estructuraCompleta,
             sensacion: registro?.sensacion,
             conMolestia: registro?.conMolestia ?? false)
@@ -92,13 +96,20 @@ enum EventoEntrenamiento: Equatable {
 
     var severidad: Severidad {
         switch self {
+        // Atención inmediata: una molestia, un patrón de ausencias, un
+        // esfuerzo alto YA CONFIRMADO por una segunda señal, o algo que
+        // el corredor pidió explícitamente.
         case .variasAusencias, .molestiaReportada, .esfuerzoMuyAlto,
              .cambioDeDisponibilidad, .pedidoDelUsuario:
             return .alta
-        case .sesionPerdida, .fondoComprometido, .volumenSemanalBajo,
+        // Importante pero no urgente: perder el fondo sí mueve la
+        // preparación; una semana muy por debajo, también.
+        case .fondoComprometido, .volumenSemanalBajo,
              .carreraLibreSignificativa:
             return .media
-        case .sesionParcial, .cercaDeLaCarrera:
+        // Contexto. Una sesión suelta perdida o acortada es parte de
+        // entrenar: se registra, no reescribe la semana (§15).
+        case .sesionPerdida, .sesionParcial, .cercaDeLaCarrera:
             return .baja
         }
     }
@@ -116,6 +127,65 @@ struct EntradaDeteccion {
     var pedidoExplicito: Bool = false
     /// Cambió los días que puede correr desde que adoptó el plan.
     var disponibilidadCambio: Bool = false
+}
+
+// MARK: - Señales e inercia (§14-17)
+
+/// La memoria del adaptador. Existe porque el detector no la tenía: el
+/// historial de sensaciones se guardaba en `RegistroSesion` y **nunca
+/// se leía**, así que tres "muy exigido" seguidos y uno aislado
+/// producían exactamente la misma reacción.
+///
+/// El principio es el que ya funciona en el corrector de ritmo del
+/// reloj (`SupervisorCorreccionRitmo`, con su racha y su ventana de
+/// enfriamiento): una lectura suelta no corrige nada; varias señales
+/// coherentes sí.
+enum Senales {
+
+    /// Cuántos días hacia atrás se busca la segunda señal.
+    static let ventanaDias = 14
+    /// Cuánto tiene que faltarle a una sesión para que su parcialidad
+    /// cuente como señal (no como un redondeo del GPS).
+    static let parcialSignificativa = 0.8
+
+    /// ¿Este "muy exigido" está acompañado? Devuelve true si:
+    /// - la sesión además quedó incompleta de forma significativa, o
+    /// - hubo otra sesión reciente marcada exigido/muy exigido.
+    ///
+    /// Una molestia NO pasa por acá: se atiende siempre y de inmediato.
+    static func confirmaEsfuerzoAlto(_ analisis: AnalisisPostCarrera,
+                                     en almacen: AlmacenV2, hoy: DiaLocal,
+                                     calendario: Calendar = .current) -> Bool {
+        if let cumplimiento = analisis.cumplimiento, cumplimiento < parcialSignificativa {
+            return true
+        }
+        return sesionesDuras(en: almacen, hoy: hoy, salvo: analisis.sesionID,
+                             calendario: calendario) >= 1
+    }
+
+    /// Cuántas sesiones de la ventana el corredor marcó como exigidas o
+    /// muy exigidas. Lee el historial REAL de `RegistroSesion`.
+    static func sesionesDuras(en almacen: AlmacenV2, hoy: DiaLocal, salvo: UUID? = nil,
+                              calendario: Calendar = .current) -> Int {
+        guard let desde = hoy.sumando(dias: -ventanaDias, calendario: calendario)
+            .fecha(calendario: calendario) else { return 0 }
+        return almacen.sesiones.filter { sesion in
+            guard sesion.id != salvo, sesion.fecha >= desde else { return false }
+            guard let sensacion = sesion.sensacion else { return false }
+            return sensacion == .exigido || sensacion == .muyExigido
+        }.count
+    }
+
+    /// Cuántas sesiones recientes el corredor marcó explícitamente como
+    /// MUY exigidas. Es la señal fuerte.
+    static func sesionesMuyDuras(en almacen: AlmacenV2, hoy: DiaLocal,
+                                 calendario: Calendar = .current) -> Int {
+        guard let desde = hoy.sumando(dias: -ventanaDias, calendario: calendario)
+            .fecha(calendario: calendario) else { return 0 }
+        return almacen.sesiones.filter {
+            $0.fecha >= desde && $0.sensacion == .muyExigido
+        }.count
+    }
 }
 
 enum DetectorEventos {
@@ -143,7 +213,16 @@ enum DetectorEventos {
         // ---- Lo recién corrido.
         if let analisis = entrada.analisis {
             if analisis.conMolestia { eventos.append(.molestiaReportada(sesionID: analisis.sesionID)) }
-            if analisis.sensacion?.pideAtencion == true {
+            // INERCIA (§14-17): un "muy exigido" suelto NO es un evento.
+            // Sentirse muy exigido después de un umbral de 32 minutos es
+            // la respuesta normal a un umbral de 32 minutos; si eso
+            // degradara la próxima calidad, un corredor honesto perdería
+            // todo el trabajo de calidad del plan, sesión tras sesión.
+            // Hace falta una SEGUNDA señal coherente: otra sesión dura
+            // reciente, o que esta misma haya quedado incompleta.
+            if analisis.sensacion?.pideAtencion == true,
+               Senales.confirmaEsfuerzoAlto(analisis, en: almacen, hoy: hoy,
+                                            calendario: calendario) {
                 eventos.append(.esfuerzoMuyAlto(sesionID: analisis.sesionID))
             }
             if let programadoID = analisis.programadoID,
@@ -207,10 +286,11 @@ enum DetectorEventos {
     static func kmPrevistosSemana(_ almacen: AlmacenV2, hoy: DiaLocal,
                                   calendario: Calendar = .current) -> Double? {
         let lunes = hoy.lunesDeLaSemana(calendario: calendario)
-        let km = almacen.todosLosProgramados
+        let programados = almacen.todosLosProgramados
             .filter { $0.dia?.lunesDeLaSemana(calendario: calendario) == lunes }
-            .compactMap(\.definicion.distanciaTotalKm)
-        return km.isEmpty ? nil : km.reduce(0, +)
+        guard !programados.isEmpty else { return nil }
+        let baseline = PerformanceBaseline(referencia: almacen.referenciaVigente)
+        return programados.reduce(0) { $0 + $1.definicion.volumenKm(baseline: baseline) }
     }
 
     /// Antes del jueves, "vas por debajo del volumen" es matemática
@@ -306,6 +386,19 @@ enum ValidadorDeCoach {
             return .no(String(localized: "Tu carrera objetivo no se mueve ni se cambia."))
         }
 
+        // ---- FASE PROTEGIDA (taper / semana de carrera). Esta barrera
+        // vivía SOLO en el prompt del backend, es decir: no existía. Un
+        // modelo de lenguaje no puede ser la garantía de seguridad.
+        //
+        // La fase se lee del PLAN (`ReglasSemana.fase`), no de "faltan
+        // X días": el plan es quien sabe si esta semana es taper. Si el
+        // plan no la declara (planes viejos, catálogo de principiante),
+        // esta regla no opina — nunca infiere un taper que nadie declaró.
+        if let fase = almacen.semanaDe(programadoID: programado.id)?.reglas?.fase,
+           fase.esProtegida {
+            if let motivo = prohibidoEnFaseProtegida(cambio, fase: fase) { return .no(motivo) }
+        }
+
         let contrato = programado.adaptabilidad
         let carrera = almacen.perfilDeportivo.fechaObjetivo
 
@@ -346,8 +439,8 @@ enum ValidadorDeCoach {
             guard factor >= contrato.factorMinimo else {
                 return .no(String(localized: "Recortarla tanto ya sería otra sesión distinta."))
             }
-            guard programado.definicion.distanciaTotalKm != nil else {
-                return .no(String(localized: "Esta sesión no se mide por distancia: no se puede acortar así."))
+            guard !programado.definicion.volumen().esVacio else {
+                return .no(String(localized: "Esta sesión no tiene distancia ni duración: no hay nada que acortar."))
             }
             if let motivo = rompeVolumenSemanal(programado, factor: factor, almacen: almacen) {
                 return .no(motivo)
@@ -358,8 +451,8 @@ enum ValidadorDeCoach {
             guard contrato.sePuedeConvertirEnFacil else {
                 return .no(String(localized: "Esta sesión no se puede convertir en un rodaje fácil."))
             }
-            guard programado.definicion.distanciaTotalKm != nil else {
-                return .no(String(localized: "Esta sesión no se mide por distancia: no se puede convertir."))
+            guard programado.definicion.volumenKm() > 0 else {
+                return .no(String(localized: "Esta sesión no tiene volumen: no se puede convertir."))
             }
             return .ok
 
@@ -381,6 +474,32 @@ enum ValidadorDeCoach {
     }
 
     // MARK: reglas auxiliares
+
+    /// Qué NO se puede hacer en taper ni en semana de carrera.
+    ///
+    /// Lo único que sobrevive es lo REDUCTIVO: acortar y omitir siguen
+    /// siendo válidos (si el resto de las reglas los permite), porque
+    /// bajar carga nunca compromete un taper. Todo lo demás se frena:
+    /// - MOVER reorganiza la recuperación, que es justo lo que el taper
+    ///   está protegiendo, y puede juntar dos sesiones exigentes en los
+    ///   días previos a la carrera;
+    /// - CONVERTIR cambia el carácter de la sesión. La evidencia del
+    ///   taper (Bosquet 2007) es explícita en MANTENER la intensidad
+    ///   mientras baja el volumen: convertir una calidad en rodaje
+    ///   fácil hace exactamente lo contrario.
+    private static func prohibidoEnFaseProtegida(_ cambio: CambioPropuesto,
+                                                 fase: TipoSemana) -> String? {
+        switch cambio {
+        case .mantener, .reducir, .omitir:
+            return nil
+        case .reprogramar:
+            return fase == .semanaDeCarrera
+                ? String(localized: "Es la semana de tu carrera: los entrenamientos no se mueven.")
+                : String(localized: "Estás en taper: mover sesiones acá desarma la recuperación previa a tu carrera.")
+        case .convertirEnFacil:
+            return String(localized: "Estás en taper: la intensidad se mantiene y el volumen ya está bajando. Acortarla sí se puede.")
+        }
+    }
 
     /// El día tiene que ser uno de los que el corredor dijo que puede
     /// correr, y nunca uno de los imposibles (§9).
@@ -427,9 +546,11 @@ enum ValidadorDeCoach {
     private static func rompeVolumenSemanal(_ programado: EntrenamientoProgramado,
                                             factor: Double, almacen: AlmacenV2) -> String? {
         guard let semana = almacen.semanaDe(programadoID: programado.id),
-              let reglas = semana.reglas, let minimo = reglas.volumenMinimoKm,
-              let km = programado.definicion.distanciaTotalKm else { return nil }
-        let nuevo = semana.kmPrescritos - km + km * factor
+              let reglas = semana.reglas, let minimo = reglas.volumenMinimoKm else { return nil }
+        let baseline = PerformanceBaseline(referencia: almacen.referenciaVigente)
+        let km = programado.definicion.volumenKm(baseline: baseline)
+        guard km > 0 else { return nil }
+        let nuevo = semana.kmPrescritos(baseline: baseline) - km + km * factor
         guard nuevo < minimo else { return nil }
         return String(localized: "Con ese recorte la semana queda por debajo de su volumen mínimo.")
     }
@@ -498,7 +619,8 @@ enum AplicadorAdaptacion {
     static func descripcion(_ programado: EntrenamientoProgramado,
                             calendario: Calendar = .current) -> String {
         var partes: [String] = []
-        if let km = programado.definicion.distanciaTotalKm {
+        let km = programado.definicion.volumenKm()
+        if km > 0 {
             partes.append(km == km.rounded() ? "\(Int(km)) km"
                                              : String(format: "%.1f km", km))
         }
