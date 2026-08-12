@@ -62,7 +62,13 @@ final class VolumenPlanificadoTests: XCTestCase {
         let v = sesion.volumen()
         XCTAssertEqual(v.kmMedidos, 3, accuracy: 0.01)
         XCTAssertEqual(v.segundosPorTiempo, 5 * 180 + 5 * 120)
-        XCTAssertGreaterThan(v.totalKm, 7, "los intervalos y sus pausas son casi toda la sesión")
+        // 25′ del corredor de referencia: 15′ a ritmo de intervalo
+        // (~5:50/km) y 10′ de pausa trotada (~8:49/km) son ~3,7 km. La
+        // propiedad es que los bloques por tiempo pesan MÁS que los
+        // 3 km declarados — antes valían 0.
+        XCTAssertGreaterThan(v.kmEquivalentes, v.kmMedidos,
+                             "los intervalos y sus pausas son casi toda la sesión")
+        XCTAssertGreaterThan(v.totalKm, 6.5)
     }
 
     /// Un segmento con distancia Y duración se cuenta UNA vez, por
@@ -384,16 +390,29 @@ final class RecorteYRedistribucionTests: XCTestCase {
                        42.195, accuracy: 0.01)
     }
 
+    /// La IDENTIDAD de una sesión del template es su día de la semana,
+    /// no su nombre: el catálogo repite nombres a propósito (dos
+    /// "Rodaje" de 4 km en la misma semana de Rumbo a 10K son dos
+    /// salidas iguales y está bien que lo sean). Lo que el recorte no
+    /// puede hacer es quedarse dos veces con la MISMA sesión ni
+    /// inventar una que el template no tenía.
     func testRecortarNoDuplicaNiPierdeSesiones() {
-        for (_, base) in CatalogoDePrueba.todos {
+        for (arquetipo, base) in CatalogoDePrueba.todos {
+            let id = arquetipo.id
             for dias in 2...6 {
                 let recortado = MotorPlanificacion.recortar(base, aDias: dias)
                 for (original, resultado) in zip(base.semanas, recortado.semanas) {
+                    let dias0 = original.entrenamientos.map(\.diaDeSemana)
+                    let diasRecorte = resultado.entrenamientos.map(\.diaDeSemana)
                     XCTAssertEqual(resultado.entrenamientos.count,
-                                   min(dias, original.entrenamientos.count))
-                    XCTAssertEqual(Set(resultado.entrenamientos.map(\.nombre)).count,
-                                   resultado.entrenamientos.count,
-                                   "no puede haber dos sesiones iguales en la semana")
+                                   min(dias, original.entrenamientos.count),
+                                   "\(id) \(dias)d semana \(original.numero)")
+                    XCTAssertEqual(Set(diasRecorte).count, diasRecorte.count,
+                                   "\(id) \(dias)d semana \(original.numero): la misma sesión dos veces")
+                    XCTAssertTrue(Set(diasRecorte).isSubset(of: Set(dias0)),
+                                  "\(id) \(dias)d semana \(original.numero): sesión que el template no tenía")
+                    XCTAssertEqual(diasRecorte, diasRecorte.sorted(),
+                                   "\(id) \(dias)d semana \(original.numero): el orden de los días no se conserva")
                 }
             }
         }
@@ -1003,7 +1022,35 @@ final class Contenido42KTests: XCTestCase {
     /// no puede devolver una sesión SIN techo de duración. Era una
     /// puerta trasera real — `convertirEnFacil` construía una
     /// definición nueva desde cero.
+    ///
+    /// La sesión que se convierte es de CALIDAD: la tirada larga no se
+    /// convierte por contrato (`Adaptabilidad.para(.tiradaLarga)`), se
+    /// mueve o se acorta. El invariante de acá es el tope, no el rol.
     func testConvertirEnFacilConservaElTope() {
+        var almacen = AlmacenV2()
+        let definicion = DefinicionEntrenamiento(
+            tipo: .umbral, nombre: "Umbral 30′",
+            segmentos: [Segmento(nombre: "Calentamiento", distanciaKm: 2,
+                                 ritmo: .simbolico(.facil)),
+                        Segmento(nombre: "Bloque", duracionSegundos: 30 * 60,
+                                 ritmo: .simbolico(.umbral))],
+            topeDuracionSegundos: 180 * 60)
+        let programado = EntrenamientoProgramado(
+            definicion: definicion, dia: DiaLocal(anio: 2026, mes: 8, dia: 10),
+            rolGuardado: .calidadPrincipal,
+            adaptabilidadGuardada: .para(.calidadPrincipal))
+        almacen.planActivo = PlanUsuario(
+            nombre: "Prueba", origen: .personalizado, fechaAdopcion: Date(),
+            semanas: [SemanaPlan(numero: 1, programados: [programado])])
+
+        XCTAssertTrue(almacen.convertirEnFacil(programadoID: programado.id))
+        let resultado = almacen.planActivo?.semanas[0].programados[0].definicion
+        XCTAssertEqual(resultado?.topeDuracionSegundos, 180 * 60,
+                       "convertir en fácil no puede quitar el tope de duración")
+    }
+
+    /// El contrato del otro lado: la larga NO se convierte en rodaje.
+    func testLaLargaNoSeConvierteEnFacil() {
         var almacen = AlmacenV2()
         let definicion = DefinicionEntrenamiento(
             tipo: .largo, nombre: "Tirada larga",
@@ -1017,10 +1064,9 @@ final class Contenido42KTests: XCTestCase {
             nombre: "Prueba", origen: .personalizado, fechaAdopcion: Date(),
             semanas: [SemanaPlan(numero: 1, programados: [programado])])
 
-        XCTAssertTrue(almacen.convertirEnFacil(programadoID: programado.id))
-        let resultado = almacen.planActivo?.semanas[0].programados[0].definicion
-        XCTAssertEqual(resultado?.topeDuracionSegundos, 180 * 60,
-                       "convertir en fácil no puede quitar el tope de duración")
+        XCTAssertFalse(almacen.convertirEnFacil(programadoID: programado.id))
+        XCTAssertEqual(almacen.planActivo?.semanas[0].programados[0].definicion, definicion,
+                       "una conversión rechazada no puede tocar la sesión")
     }
 
     /// Reducir tampoco lo pierde (y solo puede achicar: el factor es < 1

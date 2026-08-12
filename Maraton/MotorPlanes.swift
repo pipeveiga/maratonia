@@ -441,21 +441,28 @@ enum MotorPlanificacion {
     /// no sumando distancias declaradas: si no, el techo de entrada se
     /// calculaba contra un número que ignoraba las sesiones de calidad
     /// y la atenuación salía mal por varios kilómetros.
+    ///
+    /// Y el factor se BUSCA contra el volumen que va a quedar, no se
+    /// deduce como `permitido / kmPrimera`: escalar solo mueve los
+    /// segmentos por DISTANCIA. Los bloques por tiempo (un umbral de
+    /// 18′ dura 18′), el piso de 1 km por segmento y el tope de
+    /// duración no responden al factor, así que la regla de tres
+    /// prometía un techo que la semana resultante no cumplía — el
+    /// arranque de Mejorar 10K contra 20 km/semana daba 25,4 km, un
+    /// +27 % donde el contrato dice +20 %.
     static func ajustarArranque(_ base: PlanBase, kmSemanalesActuales: Double?,
                                 conservador: Bool = false)
         -> (base: PlanBase, factor: Double) {
         guard let actuales = kmSemanalesActuales, actuales > 0,
               let primera = base.semanas.first else { return (base, 1) }
-        // Sesión por sesión: el tope de duración es por sesión y
-        // aplanar la semana lo haría desaparecer.
-        let kmPrimera = primera.entrenamientos.reduce(0.0) { $0 + volumenBase($1) }
-        guard kmPrimera > 0 else { return (base, 1) }
+        guard volumenSemanaBase(primera) > 0 else { return (base, 1) }
 
         let techo = conservador ? factorEntradaConservador : factorEntradaMaximo
         let rampa = conservador ? semanasDeRampaConservador : semanasDeRampa
         let permitido = actuales * techo
-        guard kmPrimera > permitido else { return (base, 1) }
-        let factor = max(factorArranqueMinimo, permitido / kmPrimera)
+        guard let factor = factorDeArranque(primera, permitido: permitido) else {
+            return (base, 1)
+        }
 
         var resultado = base
         resultado.semanas = base.semanas.map { semana in
@@ -464,23 +471,57 @@ enum MotorPlanificacion {
             // Rampa lineal: semana 1 = factor, y de ahí a 1 en
             // `rampa` semanas.
             let avance = Double(indice) / Double(rampa)
-            let factorSemana = factor + (1 - factor) * avance
-            var nueva = semana
-            nueva.entrenamientos = semana.entrenamientos.map { entrenamiento in
-                // La carrera objetivo jamás se escala.
-                guard entrenamiento.tipo != .ritmoCarrera else { return entrenamiento }
-                var ajustado = entrenamiento
-                ajustado.segmentos = entrenamiento.segmentos.map { segmento in
-                    guard let km = segmento.distanciaKm else { return segmento }
-                    var nuevoSegmento = segmento
-                    nuevoSegmento.distanciaKm = max(1, (km * factorSemana * 10).rounded() / 10)
-                    return nuevoSegmento
-                }
-                return ajustado
-            }
-            return nueva
+            return escalarDistancias(semana, factor: factor + (1 - factor) * avance)
         }
         return (resultado, factor)
+    }
+
+    /// El MAYOR factor que deja la semana dentro del techo, o nil si el
+    /// techo ya se cumple sin tocar nada. El volumen es monótono no
+    /// decreciente en el factor (cada segmento crece o se queda en su
+    /// piso), así que la bisección es exacta y determinística. Si ni
+    /// siquiera `factorArranqueMinimo` alcanza, devuelve ese piso: por
+    /// debajo el plan deja de ser el plan y el problema es de
+    /// elegibilidad, no de arranque.
+    private static func factorDeArranque(_ semana: SemanaBase,
+                                         permitido: Double) -> Double? {
+        guard volumenSemanaBase(semana) > permitido else { return nil }
+        var bajo = factorArranqueMinimo
+        var alto = 1.0
+        for _ in 0..<30 {
+            let medio = (bajo + alto) / 2
+            if volumenSemanaBase(escalarDistancias(semana, factor: medio)) > permitido {
+                alto = medio
+            } else {
+                bajo = medio
+            }
+        }
+        return bajo
+    }
+
+    /// Escala los segmentos por DISTANCIA de la semana. Los bloques por
+    /// tiempo no se tocan y la carrera objetivo jamás se escala.
+    private static func escalarDistancias(_ semana: SemanaBase,
+                                          factor: Double) -> SemanaBase {
+        var nueva = semana
+        nueva.entrenamientos = semana.entrenamientos.map { entrenamiento in
+            guard entrenamiento.tipo != .ritmoCarrera else { return entrenamiento }
+            var ajustado = entrenamiento
+            ajustado.segmentos = entrenamiento.segmentos.map { segmento in
+                guard let km = segmento.distanciaKm else { return segmento }
+                var nuevoSegmento = segmento
+                nuevoSegmento.distanciaKm = max(1, (km * factor * 10).rounded() / 10)
+                return nuevoSegmento
+            }
+            return ajustado
+        }
+        return nueva
+    }
+
+    /// Volumen de la semana, sesión por sesión: el tope de duración es
+    /// por sesión y aplanar la semana lo haría desaparecer.
+    private static func volumenSemanaBase(_ semana: SemanaBase) -> Double {
+        semana.entrenamientos.reduce(0.0) { $0 + volumenBase($1) }
     }
 
     /// Cuánto puede crecer una sesión fácil al absorber el volumen de
