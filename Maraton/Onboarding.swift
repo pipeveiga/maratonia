@@ -403,7 +403,13 @@ struct OnboardingDeportivo: View {
                         // contradicción en pantalla.
                         Text("\(diasElegidos.count) de \(cantidad) días marcados")
                             .font(.footnote)
-                            .foregroundStyle(diasElegidos.count == cantidad ? .secondary : .orange)
+                            // `Color.` explícito en las DOS ramas: sin
+                            // eso, `.secondary` resuelve por la extensión
+                            // de ShapeStyle donde Self == HierarchicalShapeStyle
+                            // y `.orange` por la de Self == Color, y el
+                            // ternario se queda sin un único tipo posible.
+                            .foregroundStyle(diasElegidos.count == cantidad
+                                             ? Color.secondary : Color.orange)
                     }
                 }
                 // Día de fondo: la app NO fuerza domingo (§9). Si el

@@ -127,6 +127,32 @@ struct ContentView: View {
     }
 }
 
+/// Fila de navegación con ícono de color, título y subtítulo.
+///
+/// Vive a nivel de ARCHIVO y no dentro de `PlanTab` porque la usan dos
+/// pestañas distintas (Plan y Perfil). Estaba declarada `private` dentro
+/// de `PlanTab` y `PerfilTab` la llamaba igual: eso no compila, un
+/// miembro privado no cruza el borde del tipo. `private` a nivel de
+/// archivo alcanza — las dos pestañas viven acá.
+///
+/// - titulo: literal → LocalizedStringKey (se traduce).
+/// - subtitulo: String YA localizado por quien lo arma (son propiedades
+///   computadas con `String(localized:)`).
+private func filaNavegacion(icono: String, color: Color,
+                            titulo: LocalizedStringKey,
+                            subtitulo: String) -> some View {
+    HStack(spacing: 12) {
+        IconoAjuste(sistema: icono, color: color)
+        VStack(alignment: .leading, spacing: 2) {
+            Text(titulo)
+            Text(subtitulo)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+    .padding(.vertical, 2)
+}
+
 // MARK: - Pestaña Plan
 
 struct PlanTab: View {
@@ -392,25 +418,6 @@ struct PlanTab: View {
                 }
             }
         }
-    }
-
-    /// Tarjeta hero con degradado de marca: el nombre del plan editable
-    /// titulo: literal → LocalizedStringKey (se traduce).
-    /// subtitulo: String YA localizado por quien lo arma (son
-    /// propiedades computadas con String(localized:)).
-    private func filaNavegacion(icono: String, color: Color,
-                                titulo: LocalizedStringKey,
-                                subtitulo: String) -> some View {
-        HStack(spacing: 12) {
-            IconoAjuste(sistema: icono, color: color)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(titulo)
-                Text(subtitulo)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 2)
     }
 
     /// Una sola interpretación de HOY (bug de build 39: Correr decía

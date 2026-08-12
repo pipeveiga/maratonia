@@ -45,7 +45,11 @@ struct FeedbackSesionView: View {
                     }
                 }
 
-                Section("¿Cómo te sentiste?") {
+                // `Section(titulo) { } footer: { }` NO existe en
+                // SwiftUI: los inits son (titulo, content),
+                // (content, header, footer), (content, footer) y
+                // (content, header). El título va como `header:`.
+                Section {
                     ForEach(SensacionEsfuerzo.allCases, id: \.self) { opcion in
                         Button {
                             sensacion = opcion
@@ -62,6 +66,8 @@ struct FeedbackSesionView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                } header: {
+                    Text("¿Cómo te sentiste?")
                 } footer: {
                     Text("Opcional. Nadie te va a insistir con esto.")
                 }
@@ -102,7 +108,7 @@ struct FeedbackSesionView: View {
                     .font(.subheadline)
             }
         } else {
-            Section("Ajuste sugerido") {
+            Section {
                 ForEach(Array(propuesta.enumerated()), id: \.offset) { _, cambio in
                     filaPropuesta(cambio)
                 }
@@ -115,6 +121,8 @@ struct FeedbackSesionView: View {
                     Label("Aplicar el ajuste", systemImage: "checkmark.circle")
                 }
                 Button("Dejar el plan como está", role: .cancel) { propuesta = [] }
+            } header: {
+                Text("Ajuste sugerido")
             } footer: {
                 Text(motivoDelAjuste)
             }
