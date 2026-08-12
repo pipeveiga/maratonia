@@ -1626,8 +1626,14 @@ final class MotorPlanesTests: XCTestCase {
     func testValidadorDeCoach() {
         var almacen = AlmacenV2()
         almacen.activado = true
+        // Con distancia real: sin segmentos, `reducir` se rechazaría por
+        // "no hay nada que acortar" y la prueba del factor pasaría por
+        // el motivo equivocado.
         let programado = EntrenamientoProgramado(
-            definicion: DefinicionEntrenamiento(tipo: .facil, nombre: "R", segmentos: []),
+            definicion: DefinicionEntrenamiento(
+                tipo: .facil, nombre: "R",
+                segmentos: [Segmento(nombre: "Rodaje", distanciaKm: 8,
+                                     ritmo: .simbolico(.facil))]),
             dia: hoy.sumando(dias: 2))
         almacen.planActivo = PlanUsuario(nombre: "P", origen: .personalizado,
                                          fechaAdopcion: Date(timeIntervalSince1970: 0),
@@ -1640,9 +1646,31 @@ final class MotorPlanesTests: XCTestCase {
         XCTAssertFalse(ValidadorDeCoach.validar(
             .reprogramar(programadoID: programado.id, a: hoy.sumando(dias: -1)),
             en: almacen, hoy: hoy).permitido)
-        // Ajustar volumen sin metodología: rechazado SIEMPRE.
+        // SUBIR carga: rechazado SIEMPRE.
+        //
+        // Hasta el build 61 esto se probaba con
+        // `.ajustarVolumenSemana(numero:factor:)`, un caso que el motor
+        // de planes (RC1-H) declaró como MARCADOR DE POSICIÓN —"requiere
+        // metodología versionada"— y que el validador rechazaba en
+        // bloque, sin mirar el factor. El build 61 trajo esa metodología
+        // (roles, fases, contrato de Adaptabilidad, bandas de
+        // ReglasSemana) y reemplazó el ajuste difuso "toda la semana ×
+        // 1,4" por operaciones POR SESIÓN con contrato explícito. El
+        // caso se eliminó ahí; este test quedó apuntando a un símbolo
+        // que ya no existe.
+        //
+        // La regla NO se aflojó: se endureció. Antes había un caso del
+        // enum capaz de expresar un aumento y una regla que lo frenaba;
+        // hoy ninguna operación puede expresarlo (mantener/reprogramar/
+        // convertir no cambian volumen, omitir lo saca, y reducir exige
+        // factor < 1). Se conserva el mismo +40 % de entonces.
         XCTAssertFalse(ValidadorDeCoach.validar(
-            .ajustarVolumenSemana(numero: 1, factor: 1.4),
+            .reducir(programadoID: programado.id, factor: 1.4),
+            en: almacen, hoy: hoy).permitido)
+        // Y el rechazo es POR el factor, no de rebote por otra regla:
+        // la misma sesión con un factor válido sí se acepta.
+        XCTAssertTrue(ValidadorDeCoach.validar(
+            .reducir(programadoID: programado.id, factor: 0.8),
             en: almacen, hoy: hoy).permitido)
         // Omitir inexistente: rechazado.
         XCTAssertFalse(ValidadorDeCoach.validar(
@@ -1994,6 +2022,36 @@ final class CoachTests: XCTestCase {
         if case .reprogramar(_, let dia) = ajuste.propuestas[0] {
             XCTAssertEqual(dia, DiaLocal(anio: 2026, mes: 8, dia: 13))
         } else { XCTFail() }
+    }
+
+    /// El aumento de carga muere en la TRADUCCIÓN, antes del validador.
+    ///
+    /// Es la capa que faltaba: el dominio (`AlmacenV2.reducir`) y el
+    /// validador ya rechazan factores ≥ 1, pero nadie probaba el borde
+    /// exacto donde entra el JSON del modelo. Si el Coach pide "reducí
+    /// al 140 %", el cambio ni siquiera llega a ser un `CambioPropuesto`
+    /// — y esa es la razón por la que el motor puede confiar en que
+    /// ninguna propuesta que le llega sube carga.
+    func testElAjusteDelCoachNoPuedeExpresarUnAumento() throws {
+        let id = UUID().uuidString.lowercased()
+        let json = """
+        {"explicacion":"x","cambios":[
+          {"tipo":"reducir","programadoID":"\(id)","factor":0.8},
+          {"tipo":"reducir","programadoID":"\(id)","factor":1.4},
+          {"tipo":"reducir","programadoID":"\(id)","factor":1.0},
+          {"tipo":"reducir","programadoID":"\(id)","factor":0.0},
+          {"tipo":"reducir","programadoID":"\(id)","factor":-0.5},
+          {"tipo":"reducir","programadoID":"\(id)"}
+        ]}
+        """
+        let ajuste = try JSONDecoder().decode(CoachWeekAdjustment.self, from: Data(json.utf8))
+        // De seis "reducir", sobrevive UNO: el único que achica.
+        XCTAssertEqual(ajuste.propuestas.count, 1)
+        let unico = try XCTUnwrap(ajuste.propuestas.first)
+        guard case .reducir(_, let factor) = unico else {
+            return XCTFail("el único cambio válido tenía que ser un reducir")
+        }
+        XCTAssertEqual(factor, 0.8, accuracy: 0.0001)
     }
 
     func testFechaIdaYVuelta() {
