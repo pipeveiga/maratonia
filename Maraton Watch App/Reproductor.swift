@@ -136,7 +136,7 @@ final class Reproductor: NSObject, ObservableObject {
             FileManager.default.fileExists(atPath: urlDe($0).path)
         }
         guard !disponibles.isEmpty else {
-            mensajeError = "No hay ninguna pista en el reloj todavía."
+            mensajeError = String(localized: "No hay ninguna pista en el reloj todavía.")
             alArrancarPendiente = nil
             return
         }
@@ -153,7 +153,7 @@ final class Reproductor: NSObject, ObservableObject {
         do {
             try sesion.setCategory(.playback, mode: .default, policy: .longFormAudio, options: [])
         } catch {
-            mensajeError = "No pude configurar el audio: \(error.localizedDescription)"
+            mensajeError = String(localized: "No pude configurar el audio: \(error.localizedDescription)")
             preparando = false  // sin esto la UI quedaba clavada en "Activando audio…"
             alArrancarPendiente = nil
             return
@@ -181,7 +181,7 @@ final class Reproductor: NSObject, ObservableObject {
                     self.empezarSesion(plan: plan)
                 } catch {
                     self.preparando = false
-                    self.mensajeError = "No pude activar el audio: \(error.localizedDescription)"
+                    self.mensajeError = String(localized: "No pude activar el audio: \(error.localizedDescription)")
                     self.alArrancarPendiente = nil
                 }
             }
@@ -318,7 +318,7 @@ final class Reproductor: NSObject, ObservableObject {
             if intentosFallidos < pistas.count {
                 avanzarPista()
             } else {
-                mensajeError = "Ninguna pista se pudo reproducir."
+                mensajeError = String(localized: "Ninguna pista se pudo reproducir.")
                 detener()
             }
         }

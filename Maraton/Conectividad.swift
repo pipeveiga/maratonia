@@ -42,7 +42,7 @@ final class Conectividad: NSObject, ObservableObject {
     func enviar(plan: Plan, urlDePista: (String) -> URL) {
         let sesion = WCSession.default
         guard sesion.activationState == .activated else {
-            mensajeError = "La conexión con el reloj no está activa todavía. Probá de nuevo en unos segundos."
+            mensajeError = String(localized: "La conexión con el reloj no está activa todavía. Probá de nuevo en unos segundos.")
             return
         }
         mensajeError = nil
@@ -184,7 +184,7 @@ extension Conectividad: WCSessionDelegate {
     func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
         DispatchQueue.main.async {
             if let error {
-                self.mensajeError = "Falló el envío de un archivo: \(error.localizedDescription)"
+                self.mensajeError = String(localized: "Falló el envío de un archivo: \(error.localizedDescription)")
             }
             self.actualizarProgreso()
         }

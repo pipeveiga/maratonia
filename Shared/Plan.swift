@@ -64,7 +64,7 @@ struct Tramo: Codable, Equatable, Identifiable, Hashable {
         case let (rapido?, nil):
             return "\(meta) sin pasar de \(formatearRitmo(rapido)) /km"
         default:
-            return "\(meta) libre"
+            return String(localized: "\(meta) libre")
         }
     }
 }
@@ -682,5 +682,87 @@ struct EstimadorRitmoLive {
         ritmoSegKm = Int(nuevo.rounded())
         esConfiable = true
         return ritmoSegKm
+    }
+}
+
+// MARK: - Supervisor de corrección de ritmo (build 59)
+
+/// La decisión de CUÁNDO el coach de voz corrige el ritmo, como unidad
+/// pura y testeable — mismo patrón que AutoPausa y EstimadorRitmoLive.
+/// Vivía enterrada dentro de EntrenadorRitmo (target Watch), donde
+/// ningún test la alcanzaba, justo después de haberla cambiado para
+/// arreglar el "aflojá" falso de la prueba física.
+///
+/// Cuatro filtros, en orden:
+/// 1. ritmo CONFIABLE (nil = warm-up o GPS degradado → callar);
+/// 2. gracia al empezar el tramo (el ritmo tarda en acomodarse);
+/// 3. como mucho una corrección por minuto;
+/// 4. la desviación tiene que SOSTENERSE varios ticks en la MISMA
+///    dirección — una lectura suelta jamás dispara una corrección.
+struct SupervisorCorreccionRitmo {
+
+    enum Decision: Equatable {
+        case callar
+        /// Vas más rápido que el objetivo: aflojar hacia `objetivoSegKm`.
+        case aflojar(objetivoSegKm: Int)
+        /// Vas más lento que el objetivo: apurar hacia `objetivoSegKm`.
+        case apurar(objetivoSegKm: Int)
+    }
+
+    /// Tolerancia antes de considerar que estás fuera del rango.
+    var margenSegKm = 5
+    /// Ticks consecutivos (≈ segundos) fuera de rango en la misma
+    /// dirección antes de hablar.
+    var ticksParaCorregir = 5
+    var segundosDeGracia: TimeInterval = 45
+    var segundosEntreCorrecciones: TimeInterval = 60
+
+    private var ticks = 0
+    private var direccion = 0
+
+    mutating func reiniciar() {
+        ticks = 0
+        direccion = 0
+    }
+
+    /// `ritmoSegKm` nil = sin dato confiable. `segundosDesdeUltima`
+    /// nil = todavía no hubo ninguna corrección en este tramo.
+    mutating func evaluar(ritmoSegKm: Int?,
+                          minSegKm: Int?, maxSegKm: Int?,
+                          segundosEnTramo: TimeInterval,
+                          segundosDesdeUltima: TimeInterval?) -> Decision {
+        guard let ritmo = ritmoSegKm else {
+            // Sin dato fiable el contador se cae: al volver el ritmo
+            // hay que sostener la desviación de nuevo.
+            ticks = 0
+            return .callar
+        }
+        guard segundosEnTramo >= segundosDeGracia else { return .callar }
+        if let ultima = segundosDesdeUltima, ultima < segundosEntreCorrecciones {
+            return .callar
+        }
+
+        let nuevaDireccion: Int
+        if let rapido = minSegKm, ritmo < rapido - margenSegKm {
+            nuevaDireccion = -1
+        } else if let lento = maxSegKm, ritmo > lento + margenSegKm {
+            nuevaDireccion = 1
+        } else {
+            ticks = 0
+            return .callar
+        }
+
+        ticks = direccion == nuevaDireccion ? ticks + 1 : 1
+        direccion = nuevaDireccion
+        guard ticks >= ticksParaCorregir else { return .callar }
+        ticks = 0
+
+        if nuevaDireccion == -1, let rapido = minSegKm {
+            return .aflojar(objetivoSegKm: rapido)
+        }
+        if nuevaDireccion == 1, let lento = maxSegKm {
+            return .apurar(objetivoSegKm: lento)
+        }
+        return .callar
     }
 }

@@ -93,7 +93,7 @@ struct TramoEditor: View {
                 tramo.nombre = "Tramo"
             }
             if let a = tramo.ritmoMinSegKm, let b = tramo.ritmoMaxSegKm, a > b {
-                mensajeError = "El ritmo «más rápido» tiene que ser menor que el «más lento». Ej: 3:50 a 4:10."
+                mensajeError = String(localized: "El ritmo «más rápido» tiene que ser menor que el «más lento». Ej: 3:50 a 4:10.")
                 return
             }
             alGuardar(tramo)

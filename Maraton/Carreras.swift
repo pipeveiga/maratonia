@@ -97,7 +97,7 @@ final class CarrerasStore: ObservableObject {
         }
         yaCargo = true
         guard HKHealthStore.isHealthDataAvailable() else {
-            mensaje = "Salud no está disponible en este dispositivo."
+            mensaje = String(localized: "Salud no está disponible en este dispositivo.")
             return
         }
         let paraLeer: Set<HKObjectType> = [
@@ -147,9 +147,9 @@ final class CarrerasStore: ObservableObject {
                 self.carreras = nuestras.map { previos[$0.uuid] ?? CarreraResumen(workout: $0) }
                 nuevos.forEach { self.cargarDetalles(de: $0) }
                 if let error {
-                    self.mensaje = "No pude leer Salud: \(error.localizedDescription)"
+                    self.mensaje = String(localized: "No pude leer Salud: \(error.localizedDescription)")
                 } else if nuestras.isEmpty {
-                    self.mensaje = "Todavía no hay carreras. Corré con «Registrar carrera» activado y van a aparecer acá solas (la sincronización desde el reloj tarda unos minutos — tirá hacia abajo para actualizar). Si corriste y no aparecen, revisá los permisos en Salud → Compartir → Apps → Maratonia."
+                    self.mensaje = String(localized: "Todavía no hay carreras. Corré con «Registrar carrera» activado y van a aparecer acá solas (la sincronización desde el reloj tarda unos minutos — tirá hacia abajo para actualizar). Si corriste y no aparecen, revisá los permisos en Salud → Compartir → Apps → Maratonia.")
                 } else {
                     self.mensaje = nil
                 }

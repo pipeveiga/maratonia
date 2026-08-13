@@ -38,26 +38,56 @@ struct ContextoCoach: Codable {
         var km: Double?
         var ritmoSegKm: Int?
         var cumplida: Bool
+        /// Esfuerzo percibido, si el corredor lo respondió.
+        var sensacion: String?
+    }
+
+    /// Resumen AGREGADO de una ventana. Números, nunca muestras.
+    struct VentanaDTO: Codable {
+        var dias: Int
+        var km: Double
+        var salidas: Int
+        var tiradaMasLargaKm: Double
+        var mayorPausaDias: Int
+    }
+
+    /// Qué detectó el motor determinístico. La IA no tiene que
+    /// adivinarlo: se lo decimos, y solo elige entre alternativas.
+    struct EventoDTO: Codable {
+        var tipo: String
+        var severidad: String
+        var programadoID: String?
+        var detalle: String?
     }
 
     var idioma: String
     var objetivo: String
     var fechaCarrera: String?
     var diasElegidos: [Int]
+    var diasImposibles: [Int]
     var baseline: BaselineDTO?
     var semanaActual: Int?
     var semanasTotales: Int?
+    var faseSemanaActual: String?
     var cumplimientoPorciento: Double?
     var kmUltimas4Semanas: Double?
+    var ventanas: [VentanaDTO]
+    var eventos: [EventoDTO]
     var proximosEntrenamientos: [ProgramadoDTO]
     var ultimasSesiones: [SesionDTO]
 
     /// Construye el DTO desde el dominio. TODO lo que sale está acá a
-    /// la vista — auditable en un solo lugar. Jamás GPS ni FC cruda.
+    /// la vista — auditable en un solo lugar. Jamás GPS, coordenadas,
+    /// FC cruda ni muestras de HealthKit: solo agregados.
     @MainActor
-    static func desde(_ almacen: AlmacenV2, hoy: DiaLocal) -> ContextoCoach {
+    static func desde(_ almacen: AlmacenV2, hoy: DiaLocal,
+                      historial: [SesionMetrica] = [],
+                      eventos: [EventoEntrenamiento] = [],
+                      ahora: Date = Date()) -> ContextoCoach {
         let perfil = almacen.perfilDeportivo
         let referencia = almacen.referenciaVigente
+        // Para convertir a distancia los bloques por tiempo del plan.
+        let baselineCoach = PerformanceBaseline(referencia: referencia)
         let proximos = almacen.todosLosProgramados
             .filter { $0.resolucion == .pendiente && !(($0.dia ?? hoy) < hoy) }
             .sorted { ($0.dia ?? hoy) < ($1.dia ?? hoy) }
@@ -67,25 +97,108 @@ struct ContextoCoach: Codable {
                               dia: Self.texto(programado.dia ?? hoy),
                               nombre: programado.definicion.nombre,
                               tipo: programado.definicion.tipo.rawValue,
-                              km: programado.definicion.distanciaTotalKm)
+                              km: (programado.definicion.volumenKm(baseline: baselineCoach) * 10).rounded() / 10)
             }
+
+        let indiceSemana = almacen.planActivo.flatMap { plan in
+            plan.semanas.firstIndex { semana in
+                semana.programados.contains { ($0.dia?.lunesDeLaSemana()) == hoy.lunesDeLaSemana() }
+            }
+        }
+        let (hechos, total) = CalculoProgreso.cumplimiento(almacen: almacen, hoy: hoy)
+
+        // Las ÚLTIMAS SESIONES salen del calendario del plan (no de
+        // HealthKit): tipo, km previstos y si se cumplió. El ritmo se
+        // envía redondeado a seg/km — un agregado, no una muestra.
+        let ultimas = almacen.todosLosProgramados
+            .filter { $0.resolucion != .pendiente && $0.dia != nil && ($0.dia ?? hoy) <= hoy }
+            .sorted { ($0.dia ?? hoy) > ($1.dia ?? hoy) }
+            .prefix(10)
+            .map { programado -> SesionDTO in
+                let registro = programado.sesionVinculadaID.flatMap { id in
+                    almacen.sesiones.first { $0.id == id }
+                }
+                return SesionDTO(fecha: Self.texto(programado.dia ?? hoy),
+                                 tipo: programado.definicion.tipo.rawValue,
+                                 km: (programado.definicion.volumenKm(baseline: baselineCoach) * 10).rounded() / 10,
+                                 ritmoSegKm: nil,
+                                 cumplida: programado.resolucion == .cumplido,
+                                 sensacion: registro?.sensacion?.rawValue)
+            }
+
         return ContextoCoach(
             idioma: FormatoFecha.locale.language.languageCode?.identifier == "en" ? "en" : "es",
             objetivo: perfil.objetivo?.rawValue ?? "sin-objetivo",
             fechaCarrera: perfil.fechaObjetivo.map(Self.texto),
             diasElegidos: perfil.diasElegidos ?? [],
+            diasImposibles: perfil.preferencias?.diasImposibles ?? [],
             baseline: referencia.map { BaselineDTO(distanciaMetros: $0.distanciaMetros,
                                                    segundos: $0.segundos) },
-            semanaActual: almacen.planActivo.flatMap { plan in
-                plan.semanas.firstIndex { semana in
-                    semana.programados.contains { ($0.dia?.lunesDeLaSemana()) == hoy.lunesDeLaSemana() }
-                }.map { $0 + 1 }
-            },
+            semanaActual: indiceSemana.map { $0 + 1 },
             semanasTotales: almacen.planActivo?.semanas.count,
-            cumplimientoPorciento: nil,
-            kmUltimas4Semanas: nil,
+            faseSemanaActual: indiceSemana
+                .flatMap { almacen.planActivo?.semanas[$0].reglas?.fase?.rawValue },
+            cumplimientoPorciento: total > 0
+                ? (Double(hechos) / Double(total) * 100).rounded() : nil,
+            kmUltimas4Semanas: historial.isEmpty ? nil
+                : (ResumenHistorial.ventana(historial, dias: 28, hoy: ahora).km * 10).rounded() / 10,
+            ventanas: historial.isEmpty ? [] : ResumenHistorial.ventanasEstandar.map { dias in
+                let v = ResumenHistorial.ventana(historial, dias: dias, hoy: ahora)
+                return VentanaDTO(dias: dias, km: (v.km * 10).rounded() / 10,
+                                  salidas: v.salidas,
+                                  tiradaMasLargaKm: (v.tiradaMasLargaKm * 10).rounded() / 10,
+                                  mayorPausaDias: v.mayorPausaDias)
+            },
+            eventos: eventos.map(Self.dto),
             proximosEntrenamientos: Array(proximos),
-            ultimasSesiones: [])
+            ultimasSesiones: Array(ultimas))
+    }
+
+    static func dto(_ evento: EventoEntrenamiento) -> EventoDTO {
+        let severidad: String
+        switch evento.severidad {
+        case .baja: severidad = "baja"
+        case .media: severidad = "media"
+        case .alta: severidad = "alta"
+        }
+        switch evento {
+        case .sesionPerdida(let id):
+            return EventoDTO(tipo: "sesion-perdida", severidad: severidad,
+                             programadoID: id.uuidString.lowercased(), detalle: nil)
+        case .sesionParcial(let id, let cumplimiento):
+            return EventoDTO(tipo: "sesion-parcial", severidad: severidad,
+                             programadoID: id.uuidString.lowercased(),
+                             detalle: String(format: "%.0f%%", cumplimiento * 100))
+        case .variasAusencias(let cantidad):
+            return EventoDTO(tipo: "varias-ausencias", severidad: severidad,
+                             programadoID: nil, detalle: "\(cantidad)")
+        case .volumenSemanalBajo(let hecho, let previsto):
+            return EventoDTO(tipo: "volumen-bajo", severidad: severidad, programadoID: nil,
+                             detalle: String(format: "%.0f/%.0f km", hecho, previsto))
+        case .esfuerzoMuyAlto:
+            return EventoDTO(tipo: "esfuerzo-muy-alto", severidad: severidad,
+                             programadoID: nil, detalle: nil)
+        case .molestiaReportada:
+            // A propósito SIN detalle: una molestia declarada es una
+            // bandera, no un dato clínico que se manda a un tercero.
+            return EventoDTO(tipo: "molestia", severidad: severidad,
+                             programadoID: nil, detalle: nil)
+        case .fondoComprometido(let id):
+            return EventoDTO(tipo: "fondo-comprometido", severidad: severidad,
+                             programadoID: id.uuidString.lowercased(), detalle: nil)
+        case .carreraLibreSignificativa(_, let km):
+            return EventoDTO(tipo: "carrera-libre", severidad: severidad, programadoID: nil,
+                             detalle: String(format: "%.1f km", km))
+        case .cambioDeDisponibilidad:
+            return EventoDTO(tipo: "cambio-disponibilidad", severidad: severidad,
+                             programadoID: nil, detalle: nil)
+        case .pedidoDelUsuario:
+            return EventoDTO(tipo: "pedido-usuario", severidad: severidad,
+                             programadoID: nil, detalle: nil)
+        case .cercaDeLaCarrera(let dias):
+            return EventoDTO(tipo: "cerca-de-carrera", severidad: severidad,
+                             programadoID: nil, detalle: "\(dias)")
+        }
     }
 
     static func texto(_ dia: DiaLocal) -> String {
@@ -111,21 +224,33 @@ struct CoachWorkoutExplanation: Codable {
 
 struct CoachWeekAdjustment: Codable {
     struct Cambio: Codable {
-        var tipo: String            // "reprogramar" | "omitir"
+        /// "mantener" | "reprogramar" | "reducir" | "convertir" | "omitir"
+        var tipo: String
         var programadoID: String
         var nuevoDia: String?
+        /// Solo para "reducir": fracción de lo prescrito (0,5…0,95).
+        var factor: Double?
     }
     var explicacion: String
     var cambios: [Cambio]
 
     /// Traducción ESTRICTA a CambioPropuesto: cualquier campo que no
     /// parsee descarta ESE cambio (nunca se interpreta texto libre).
+    /// Un tipo desconocido se descarta entero — no se "adivina" a qué
+    /// se parecía.
     var propuestas: [CambioPropuesto] {
         cambios.compactMap { cambio in
             guard let id = UUID(uuidString: cambio.programadoID) else { return nil }
             switch cambio.tipo {
+            case "mantener":
+                return .mantener(programadoID: id)
             case "omitir":
                 return .omitir(programadoID: id)
+            case "convertir":
+                return .convertirEnFacil(programadoID: id)
+            case "reducir":
+                guard let factor = cambio.factor, factor > 0, factor < 1 else { return nil }
+                return .reducir(programadoID: id, factor: factor)
             case "reprogramar":
                 guard let texto = cambio.nuevoDia,
                       let dia = ContextoCoach.dia(desde: texto) else { return nil }
@@ -134,6 +259,12 @@ struct CoachWeekAdjustment: Codable {
                 return nil
             }
         }
+    }
+
+    /// Las que efectivamente cambian algo (para no mostrar una
+    /// "propuesta" que es toda "mantener").
+    var propuestasQueMutan: [CambioPropuesto] {
+        propuestas.filter { $0.tipoDeAdaptacion != nil }
     }
 }
 
@@ -234,6 +365,8 @@ final class ServicioCoach: ObservableObject {
 struct CoachView: View {
     @ObservedObject var almacen: AlmacenStore
     @ObservedObject private var servicio = ServicioCoach.compartido
+    /// Las ventanas agregadas del DTO salen de acá. Solo lectura.
+    @StateObject private var lector = LectorProgreso()
 
     @State private var explicacion: CoachWorkoutExplanation?
     @State private var ajuste: CoachWeekAdjustment?
@@ -305,6 +438,7 @@ struct CoachView: View {
         }
         .navigationTitle("Maratonia Coach")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { lector.cargar(semanas: 8) }
     }
 
     /// ANTES vs PROPUESTO, con la validación del motor a la vista, y
@@ -315,6 +449,12 @@ struct CoachView: View {
             Text(ajuste.explicacion).font(.footnote)
             ForEach(Array(ajuste.propuestas.enumerated()), id: \.offset) { _, cambio in
                 filaCambio(cambio)
+            }
+            if ajuste.propuestasQueMutan.isEmpty {
+                Label("El Coach no propone cambios: tu plan sigue según lo previsto.",
+                      systemImage: "checkmark.seal")
+                    .font(.footnote)
+                    .foregroundStyle(.green)
             }
             if aplicado {
                 Label("Cambios aplicados", systemImage: "checkmark.circle.fill")
@@ -336,18 +476,29 @@ struct CoachView: View {
         }
     }
 
+    /// ANTES → PROPUESTO, con el veredicto del motor a la vista. Un
+    /// cambio rechazado se muestra igual (transparencia): el corredor
+    /// ve qué pidió el Coach y por qué el motor lo frenó.
     private func filaCambio(_ cambio: CambioPropuesto) -> some View {
         let validacion = ValidadorDeCoach.validar(cambio, en: almacen.almacen, hoy: hoy)
         return VStack(alignment: .leading, spacing: 4) {
             switch cambio {
+            case .mantener(let id):
+                Label(String(localized: "Sin cambios: \(nombreDe(id))"),
+                      systemImage: "equal.circle")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             case .reprogramar(let id, let dia):
-                let nombre = nombreDe(id)
-                Text("\(nombre): \(textoDia(diaDe(id))) → \(textoDia(dia))")
+                Text("\(nombreDe(id)): \(textoDia(diaDe(id))) → \(textoDia(dia))")
+                    .font(.subheadline)
+            case .reducir(let id, let factor):
+                Text("\(nombreDe(id)): acortar a \(Int((factor * 100).rounded())) %")
+                    .font(.subheadline)
+            case .convertirEnFacil(let id):
+                Text("\(nombreDe(id)): pasar a rodaje fácil")
                     .font(.subheadline)
             case .omitir(let id):
                 Text("Omitir: \(nombreDe(id))").font(.subheadline)
-            case .ajustarVolumenSemana:
-                Text("Ajuste de volumen").font(.subheadline)
             }
             if !validacion.permitido {
                 Label(validacion.motivo ?? String(localized: "Rechazado por el motor."),
@@ -367,8 +518,16 @@ struct CoachView: View {
             .first
     }
 
-    private func contexto() -> ContextoCoach {
-        ContextoCoach.desde(almacen.almacen, hoy: hoy)
+    /// El contexto que viaja: dominio + ventanas agregadas de Salud +
+    /// lo que el detector determinístico ya concluyó. Decirle a la IA
+    /// qué pasó (en vez de que lo deduzca) es lo que la mantiene
+    /// eligiendo entre alternativas válidas y no inventando.
+    private func contexto(pedidoExplicito: Bool = false) -> ContextoCoach {
+        let eventos = DetectorEventos.detectar(EntradaDeteccion(
+            hoy: hoy, almacen: almacen.almacen, analisis: nil,
+            kmSemanaActual: nil, pedidoExplicito: pedidoExplicito))
+        return ContextoCoach.desde(almacen.almacen, hoy: hoy,
+                                   historial: lector.sesiones, eventos: eventos)
     }
 
     private func explicarProximo() async {
@@ -389,29 +548,22 @@ struct CoachView: View {
     private func pedirReorganizacion() async {
         explicacion = nil; estado = nil; aplicado = false
         ajuste = await servicio.pedir(CoachWeekAdjustment.self,
-                                      accion: "reorganizar", contexto: contexto(),
+                                      accion: "reorganizar",
+                                      contexto: contexto(pedidoExplicito: true),
                                       detalle: motivoCambio)
     }
 
     private func cambiosValidos(_ ajuste: CoachWeekAdjustment) -> [CambioPropuesto] {
-        ajuste.propuestas.filter {
-            ValidadorDeCoach.validar($0, en: almacen.almacen, hoy: hoy).permitido
-        }
+        ValidadorDeCoach.validas(ajuste.propuestasQueMutan, en: almacen.almacen, hoy: hoy)
     }
 
     /// La mutación REAL: motor manda, usuario confirmó, se aplica solo
-    /// lo validado — y por las APIs existentes del dominio.
+    /// lo validado — y por el ÚNICO aplicador, que revalida y deja
+    /// rastro en el historial de adaptaciones.
     private func aplicar(_ ajuste: CoachWeekAdjustment) {
-        for cambio in cambiosValidos(ajuste) {
-            switch cambio {
-            case .reprogramar(let id, let dia):
-                _ = almacen.almacen.reprogramar(programadoID: id, a: dia)
-            case .omitir(let id):
-                _ = almacen.almacen.omitir(programadoID: id)
-            case .ajustarVolumenSemana:
-                break   // el validador ya lo rechazó
-            }
-        }
+        AplicadorAdaptacion.aplicar(cambiosValidos(ajuste), a: &almacen.almacen,
+                                    hoy: hoy, origen: .coach,
+                                    motivo: ajuste.explicacion)
         aplicado = true
     }
 

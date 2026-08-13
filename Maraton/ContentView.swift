@@ -127,6 +127,32 @@ struct ContentView: View {
     }
 }
 
+/// Fila de navegación con ícono de color, título y subtítulo.
+///
+/// Vive a nivel de ARCHIVO y no dentro de `PlanTab` porque la usan dos
+/// pestañas distintas (Plan y Perfil). Estaba declarada `private` dentro
+/// de `PlanTab` y `PerfilTab` la llamaba igual: eso no compila, un
+/// miembro privado no cruza el borde del tipo. `private` a nivel de
+/// archivo alcanza — las dos pestañas viven acá.
+///
+/// - titulo: literal → LocalizedStringKey (se traduce).
+/// - subtitulo: String YA localizado por quien lo arma (son propiedades
+///   computadas con `String(localized:)`).
+private func filaNavegacion(icono: String, color: Color,
+                            titulo: LocalizedStringKey,
+                            subtitulo: String) -> some View {
+    HStack(spacing: 12) {
+        IconoAjuste(sistema: icono, color: color)
+        VStack(alignment: .leading, spacing: 2) {
+            Text(titulo)
+            Text(subtitulo)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+    .padding(.vertical, 2)
+}
+
 // MARK: - Pestaña Plan
 
 struct PlanTab: View {
@@ -156,7 +182,14 @@ struct PlanTab: View {
                         ContentUnavailableView {
                             Label("Sin plan activo", systemImage: "figure.run.square.stack")
                         } description: {
-                            Text("Elegí un objetivo y armá tu plan — o explorá el catálogo.")
+                            // Con objetivo ya elegido, el texto genérico
+                            // ("elegí un objetivo") mandaba a hacer algo
+                            // que ya estaba hecho.
+                            if let objetivo = almacen.almacen.perfilDeportivo.objetivo {
+                                Text("Tu objetivo es \(TextosObjetivo.nombre(de: objetivo)). Adoptá un plan para empezar a entrenar — o corré libre cuando quieras.")
+                            } else {
+                                Text("Elegí un objetivo y armá tu plan — o explorá el catálogo.")
+                            }
                         } actions: {
                             NavigationLink("Explorar planes") {
                                 CatalogoView(almacen: almacen)
@@ -319,7 +352,7 @@ struct PlanTab: View {
                                     .lineLimit(1)
                             }
                             Spacer()
-                            if let km = programado.definicion.distanciaTotalKm {
+                            if let km = programado.definicion.distanciaPrescritaKm {
                                 Text(km == km.rounded()
                                      ? "\(Int(km)) km"
                                      : String(format: "%.1f km", km))
@@ -336,48 +369,55 @@ struct PlanTab: View {
     }
 
     /// El objetivo con countdown en semanas — motivación, nunca presión.
+    ///
+    /// Lleva encabezado propio y es tocable a propósito: sin eso la fila
+    /// se leía como "un plan" (misma forma que las filas de abajo) y
+    /// aparecía justo debajo de "Sin plan activo", que es la
+    /// contradicción exacta que reportó el uso real. El objetivo es del
+    /// PERFIL y sobrevive a quitar el plan — eso es correcto, pero hay
+    /// que decirlo.
     @ViewBuilder
     private var seccionObjetivo: some View {
         let perfil = almacen.almacen.perfilDeportivo
         if let objetivo = perfil.objetivo {
             Section {
-                HStack(spacing: 12) {
-                    IconoAjuste(sistema: "flag.checkered", color: .red)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(TextosObjetivo.nombre(de: objetivo))
-                        if let cuenta = TextosObjetivo.cuentaRegresiva(
-                            hasta: perfil.fechaObjetivo, hoy: hoy) {
-                            Text(cuenta)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        } else if let dias = perfil.diasPorSemana {
-                            Text("\(dias) días por semana")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                Button {
+                    pestana = .perfil
+                } label: {
+                    HStack(spacing: 12) {
+                        IconoAjuste(sistema: "flag.checkered", color: .red)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(TextosObjetivo.nombre(de: objetivo))
+                            if let cuenta = TextosObjetivo.cuentaRegresiva(
+                                hasta: perfil.fechaObjetivo, hoy: hoy) {
+                                Text(cuenta)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else if let dias = perfil.diasPorSemana {
+                                Text("\(dias) días por semana")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
                     }
+                    .padding(.vertical, 2)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            } header: {
+                Text("Tu objetivo")
+            } footer: {
+                if almacen.almacen.planActivo == nil {
+                    Text("Es tu meta, no un plan de entrenamiento. Adoptá un plan para entrenar hacia ella. Cambiala en Perfil.")
+                } else {
+                    Text("Cambiala en Perfil.")
                 }
             }
         }
-    }
-
-    /// Tarjeta hero con degradado de marca: el nombre del plan editable
-    /// titulo: literal → LocalizedStringKey (se traduce).
-    /// subtitulo: String YA localizado por quien lo arma (son
-    /// propiedades computadas con String(localized:)).
-    private func filaNavegacion(icono: String, color: Color,
-                                titulo: LocalizedStringKey,
-                                subtitulo: String) -> some View {
-        HStack(spacing: 12) {
-            IconoAjuste(sistema: icono, color: color)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(titulo)
-                Text(subtitulo)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 2)
     }
 
     /// Una sola interpretación de HOY (bug de build 39: Correr decía
@@ -1216,6 +1256,17 @@ struct PerfilTab: View {
                         LabeledContent("Tu carrera", value: FormatoFecha.media(fecha))
                     }
                 }
+                if let actividad = perfil.actividad, !actividad.estaVacia {
+                    HStack(spacing: 10) {
+                        IconoAjuste(sistema: "figure.run.circle", color: .mint)
+                        VStack(alignment: .leading, spacing: 2) {
+                            LabeledContent("Actividad actual", value: textoActividad(actividad))
+                            Text(origenActividad(actividad.origen))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
                 Button("Cambiar objetivo") { mostrandoOnboarding = true }
             } else {
                 Button {
@@ -1226,7 +1277,7 @@ struct PerfilTab: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Elegí tu objetivo")
                                 .foregroundStyle(.primary)
-                            Text("2 minutos: meta, experiencia y disponibilidad")
+                            Text("2 minutos: meta, actividad actual y disponibilidad")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -1234,10 +1285,67 @@ struct PerfilTab: View {
                 }
             }
         }
+
+        Section("Tu perfil") {
+            NavigationLink {
+                DatosBasicosView(almacen: almacen)
+            } label: {
+                filaNavegacion(icono: "person.text.rectangle", color: .gray,
+                               titulo: "Datos básicos",
+                               subtitulo: subtituloDatosBasicos)
+            }
+            NavigationLink {
+                HistorialAdaptacionesView(almacen: almacen)
+            } label: {
+                filaNavegacion(icono: "clock.arrow.circlepath", color: .brown,
+                               titulo: "Ajustes del plan",
+                               subtitulo: subtituloAdaptaciones)
+            }
+        }
     }
 
     private func nombreObjetivo(_ objetivo: ObjetivoDeportivo) -> String {
         TextosObjetivo.nombre(de: objetivo)
+    }
+
+    private func textoActividad(_ actividad: ActividadActual) -> String {
+        var partes: [String] = []
+        if let km = actividad.kmSemanales {
+            partes.append(String(format: "%.0f km/sem", km))
+        }
+        if let dias = actividad.diasPorSemana {
+            partes.append(String(format: "%.0f días", dias))
+        }
+        if let larga = actividad.tiradaLargaKm {
+            partes.append(String(format: "larga %.0f km", larga))
+        }
+        return partes.isEmpty ? String(localized: "Sin cargar") : partes.joined(separator: " · ")
+    }
+
+    /// De dónde salió el dato importa: no es lo mismo un número que el
+    /// corredor confirmó que uno que la app dedujo sola.
+    private func origenActividad(_ origen: ActividadActual.Origen) -> String {
+        switch origen {
+        case .declarado: return String(localized: "Lo cargaste vos")
+        case .detectadoSalud: return String(localized: "Detectado en Salud, sin confirmar")
+        case .confirmado: return String(localized: "Detectado en Salud y confirmado por vos")
+        case .corregido: return String(localized: "Detectado en Salud y corregido por vos")
+        }
+    }
+
+    private var subtituloDatosBasicos: String {
+        let datos = almacen.almacen.perfilDeportivo.datosBasicos ?? DatosBasicos()
+        if let edad = datos.edad(a: DiaLocal(fecha: Date())) {
+            return String(localized: "\(edad) años · opcional, solo contexto")
+        }
+        return String(localized: "Edad, sexo, altura y peso — todo opcional")
+    }
+
+    private var subtituloAdaptaciones: String {
+        let total = almacen.almacen.historialAdaptaciones.count
+        return total == 0
+            ? String(localized: "Sin ajustes todavía")
+            : String(localized: "\(total) cambios registrados")
     }
 
     private func textoReferencia(_ referencia: ReferenciaRendimiento) -> String {

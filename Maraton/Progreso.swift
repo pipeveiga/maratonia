@@ -273,8 +273,11 @@ struct ProgresoTab: View {
     }
 
     private var kmPrevistosEstaSemana: Double? {
-        let kms = programadosEstaSemana.compactMap(\.definicion.distanciaTotalKm)
-        return kms.isEmpty ? nil : kms.reduce(0, +)
+        guard !programadosEstaSemana.isEmpty else { return nil }
+        let baseline = PerformanceBaseline(referencia: almacen.almacen.referenciaVigente)
+        let total = programadosEstaSemana
+            .reduce(0) { $0 + $1.definicion.volumenKm(baseline: baseline) }
+        return total > 0 ? total : nil
     }
 
     private var entrenamientosEstaSemana: (Int, Int)? {

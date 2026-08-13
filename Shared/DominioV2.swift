@@ -107,15 +107,230 @@ struct DefinicionEntrenamiento: Codable, Equatable, Identifiable {
     var nombre: String
     var descripcion: String = ""
     var segmentos: [Segmento] = []
+
+    /// TECHO de duración de la sesión, en segundos. No es una meta: es
+    /// un límite. La sesión sigue terminando por DISTANCIA cuando el
+    /// corredor llega a los kilómetros antes del tope; el tope solo
+    /// recorta cuando, al ritmo previsto, esos kilómetros no entran.
+    ///
+    /// Existe porque la distancia sola no describe la carga: 30 km son
+    /// 2:45 para quien corre 5 km en 20:00 y 4:30 para quien los corre
+    /// en 33:00. Ver METODOLOGIA.md §"Tope de duración del fondo".
+    ///
+    /// Opcional: nil = sin tope (todo el contenido anterior decodifica
+    /// igual y se comporta exactamente como antes).
+    var topeDuracionSegundos: Int? = nil
+}
+
+// MARK: - Volumen planificado (UNA sola definición)
+
+/// El volumen de una sesión o de una semana, con su procedencia a la
+/// vista. Existe porque `distanciaTotalKm` contaba SOLO los segmentos
+/// medidos en distancia: un `umbral(32′)` son 1,5 km de entrada + 32
+/// minutos + 1 km de salida, y el motor lo contabilizaba como 2,5 km.
+/// Los 32 minutos —más de 5 km reales— desaparecían del volumen
+/// semanal, del arranque conservador, de las bandas del validador, del
+/// detector y de Progreso.
+///
+/// Regla: los segmentos por DISTANCIA se suman tal cual; los segmentos
+/// por TIEMPO se convierten a distancia equivalente con el ritmo de su
+/// propia zona. Nunca se cuenta un segmento dos veces — cada uno cae en
+/// exactamente una de las dos ramas (distancia tiene prioridad, igual
+/// que en `tramosEjecutables`).
+struct VolumenPlanificado: Equatable {
+    /// Suma de los segmentos que declaran distancia.
+    var kmMedidos: Double = 0
+    /// Suma de los segmentos medidos en tiempo.
+    var segundosPorTiempo: Int = 0
+    /// Esos segundos convertidos a distancia.
+    var kmEquivalentes: Double = 0
+    /// true = al menos una conversión usó el ritmo de REFERENCIA porque
+    /// el ritmo real no se pudo resolver. El número sigue siendo mucho
+    /// mejor que cero, pero no es exacto y quien lo muestre debería
+    /// poder decirlo.
+    var hayEstimacion: Bool = false
+    /// true = el tope de duración recortó kilómetros. El número de
+    /// abajo ya viene recortado: es lo que se va a correr de verdad,
+    /// no lo que declaraba el catálogo.
+    var recortadoPorTope: Bool = false
+
+    var totalKm: Double { kmMedidos + kmEquivalentes }
+    var esVacio: Bool { kmMedidos == 0 && segundosPorTiempo == 0 }
+
+    static func + (a: VolumenPlanificado, b: VolumenPlanificado) -> VolumenPlanificado {
+        VolumenPlanificado(kmMedidos: a.kmMedidos + b.kmMedidos,
+                           segundosPorTiempo: a.segundosPorTiempo + b.segundosPorTiempo,
+                           kmEquivalentes: a.kmEquivalentes + b.kmEquivalentes,
+                           hayEstimacion: a.hayEstimacion || b.hayEstimacion,
+                           recortadoPorTope: a.recortadoPorTope || b.recortadoPorTope)
+    }
+}
+
+/// Ritmos de último recurso para convertir tiempo en distancia cuando
+/// el corredor todavía no tiene baseline.
+///
+/// HEURÍSTICA PROVISIONAL (ver METODOLOGIA.md). No son prescripción:
+/// **nunca se le muestran al corredor ni se usan como objetivo de
+/// ejecución** — sirven solo para contabilizar volumen. Y no son
+/// números inventados: salen de correr `MetodologiaMaratoniaV1` sobre
+/// un corredor de referencia declarado (5 km en 30:00, un tiempo
+/// recreativo mediano), así que comparten metodología con todo lo demás.
+enum RitmoDeReferencia {
+
+    /// El corredor de referencia. Fecha fija: esto tiene que ser
+    /// determinístico entre ejecuciones.
+    static let referencia = ReferenciaRendimiento(
+        fecha: Date(timeIntervalSince1970: 0), fuente: .estimacionInicial,
+        distanciaMetros: 5000, segundos: 1800)
+
+    static var baseline: PerformanceBaseline? { PerformanceBaseline(referencia: referencia) }
+
+    /// Ritmo medio de una zona, en seg/km. Si la metodología no puede
+    /// resolverla (no debería ocurrir con este baseline), cae al ritmo
+    /// fácil de referencia antes que devolver nada.
+    static func segKm(_ tipo: TipoRitmo) -> Int {
+        if let baseline, case .resuelto(let rango, _) = Metodologias.resolver(tipo, baseline: baseline) {
+            return (rango.minSegKm + rango.maxSegKm) / 2
+        }
+        return 480   // 8:00/km — el fácil del corredor de referencia, redondeado
+    }
+}
+
+/// El cálculo de volumen, en UN solo lugar. Todo el resto de la app
+/// —Progreso, validador, arranque conservador, detector, DTO del
+/// Coach— pasa por acá.
+enum CalculoVolumen {
+
+    /// Un segmento reducido a lo que el cálculo necesita. Permite que
+    /// `Segmento` (dominio) y `SegmentoBase` (catálogo) compartan
+    /// exactamente la misma semántica sin duplicar lógica.
+    struct Entrada {
+        var distanciaKm: Double?
+        var duracionSegundos: Int?
+        var ritmo: RitmoObjetivo
+    }
+
+    /// Cuánto hay que escalar los segmentos POR DISTANCIA para que la
+    /// sesión entre en su tope de duración. 1.0 = el tope no muerde
+    /// (o no hay tope), y entonces todo se comporta como antes.
+    ///
+    /// Los bloques por TIEMPO no se tocan: un umbral de 20′ dura 20′
+    /// para cualquiera. Lo que se recorta es la distancia, que es lo
+    /// único cuya duración depende del ritmo de quien corre.
+    static func factorDeTope(_ segmentos: [Entrada],
+                             tope: Int?,
+                             baseline: PerformanceBaseline? = nil) -> Double {
+        guard let tope, tope > 0 else { return 1 }
+        var fijo = 0.0          // segundos que no dependen del ritmo
+        var variable = 0.0      // segundos que sí
+        for segmento in segmentos {
+            if let km = segmento.distanciaKm {
+                variable += km * Double(ritmo(de: segmento.ritmo, baseline: baseline).segKm)
+            } else if let segundos = segmento.duracionSegundos, segundos > 0 {
+                fijo += Double(segundos)
+            }
+        }
+        guard fijo + variable > Double(tope), variable > 0 else { return 1 }
+        return max(0, (Double(tope) - fijo) / variable)
+    }
+
+    static func volumen(_ segmentos: [Entrada],
+                        tope: Int? = nil,
+                        baseline: PerformanceBaseline? = nil) -> VolumenPlanificado {
+        var v = VolumenPlanificado()
+        let factor = factorDeTope(segmentos, tope: tope, baseline: baseline)
+        for segmento in segmentos {
+            // DISTANCIA manda si el segmento trae las dos metas: es la
+            // misma regla que usa el motor para ejecutar (tramosEjecutables),
+            // y es lo que garantiza que nada se cuente dos veces.
+            if let km = segmento.distanciaKm {
+                v.kmMedidos += km * factor
+                if factor < 1 { v.recortadoPorTope = true }
+                continue
+            }
+            guard let segundos = segmento.duracionSegundos, segundos > 0 else { continue }
+            v.segundosPorTiempo += segundos
+            let (segKm, estimado) = ritmo(de: segmento.ritmo, baseline: baseline)
+            v.kmEquivalentes += Double(segundos) / Double(segKm)
+            if estimado { v.hayEstimacion = true }
+        }
+        return v
+    }
+
+    /// Seg/km con el que convertir un segmento, y si hubo que estimar.
+    /// Orden: ritmo ya resuelto → metodología contra el baseline real →
+    /// ritmo de referencia.
+    static func ritmo(de objetivo: RitmoObjetivo,
+                      baseline: PerformanceBaseline?) -> (segKm: Int, estimado: Bool) {
+        switch objetivo {
+        case .absoluto(let rapido, let lento):
+            if let rapido, let lento { return ((rapido + lento) / 2, false) }
+            if let rapido { return (rapido, false) }
+            if let lento { return (lento, false) }
+            return (RitmoDeReferencia.segKm(.facil), true)
+        case .simbolico(let tipo):
+            if let baseline,
+               case .resuelto(let rango, _) = Metodologias.resolver(tipo, baseline: baseline) {
+                return ((rango.minSegKm + rango.maxSegKm) / 2, false)
+            }
+            return (RitmoDeReferencia.segKm(tipo), true)
+        case .libre:
+            // Sin zona declarada no hay nada mejor que el fácil de
+            // referencia. Devolver 0 km sería esconder el problema.
+            return (RitmoDeReferencia.segKm(.facil), true)
+        }
+    }
 }
 
 extension DefinicionEntrenamiento {
 
-    /// Distancia total prevista (nil si ningún segmento es por distancia).
+    /// EL volumen de esta sesión. Pasar el baseline del corredor cuando
+    /// exista: sin él la conversión usa el ritmo de referencia y marca
+    /// `hayEstimacion`.
+    func volumen(baseline: PerformanceBaseline? = nil) -> VolumenPlanificado {
+        CalculoVolumen.volumen(entradasDeVolumen,
+                               tope: topeDuracionSegundos, baseline: baseline)
+    }
+
+    /// Los segmentos reducidos a lo que el cálculo necesita. Un solo
+    /// lugar: volumen, tope y tramos ejecutables leen exactamente lo
+    /// mismo.
+    var entradasDeVolumen: [CalculoVolumen.Entrada] {
+        segmentos.map {
+            CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
+                                   duracionSegundos: $0.duracionSegundos,
+                                   ritmo: $0.ritmo)
+        }
+    }
+
+    /// Cuánto se recorta la distancia para entrar en el tope (1 = nada).
+    func factorDeTope(baseline: PerformanceBaseline? = nil) -> Double {
+        CalculoVolumen.factorDeTope(entradasDeVolumen,
+                                    tope: topeDuracionSegundos, baseline: baseline)
+    }
+
+    /// Volumen total en km, contando los bloques por tiempo. Es lo que
+    /// hay que usar para CONTABILIDAD (semana, progreso, validador).
+    func volumenKm(baseline: PerformanceBaseline? = nil) -> Double {
+        volumen(baseline: baseline).totalKm
+    }
+
+    /// Distancia DECLARADA en segmentos por distancia. Sirve para saber
+    /// si la sesión tiene algo que escalar (reducir) — NO para
+    /// contabilidad. Para eso está `volumenKm`.
     var distanciaTotalKm: Double? {
         let kms = segmentos.compactMap(\.distanciaKm)
         guard !kms.isEmpty else { return nil }
         return kms.reduce(0, +)
+    }
+
+    /// La distancia que se le MUESTRA al corredor y que va a correr: la
+    /// declarada, ya recortada por el tope de duración. Es la que tiene
+    /// que aparecer en tarjetas y detalles — prometer 30 km cuando el
+    /// tope va a cortar en 23 es mentirle al que entrena.
+    var distanciaPrescritaKm: Double? {
+        guard let declarada = distanciaTotalKm else { return nil }
+        return (declarada * factorDeTope() * 10).rounded() / 10
     }
 
     /// Duración total prevista de los segmentos POR TIEMPO (nil si no
@@ -129,7 +344,10 @@ extension DefinicionEntrenamiento {
     /// "8 km · 1 segmento" / "6 km + 12 min · 5 segmentos" para tarjetas.
     var resumenEstructura: String {
         var medidas: [String] = []
-        if let km = distanciaTotalKm {
+        if let declarada = distanciaTotalKm {
+            // Lo que se muestra es lo que se va a correr: si el tope
+            // recorta, la tarjeta no puede seguir prometiendo 30 km.
+            let km = (declarada * factorDeTope() * 10).rounded() / 10
             medidas.append(km == km.rounded() ? "\(Int(km)) km" : String(format: "%.1f km", km))
         }
         if let segundos = duracionPorTiempoSegundos {
@@ -137,7 +355,9 @@ extension DefinicionEntrenamiento {
         }
         var partes: [String] = []
         if !medidas.isEmpty { partes.append(medidas.joined(separator: " + ")) }
-        partes.append(segmentos.count == 1 ? "1 segmento" : "\(segmentos.count) segmentos")
+        partes.append(segmentos.count == 1
+                      ? String(localized: "1 segmento")
+                      : String(localized: "\(segmentos.count) segmentos"))
         return partes.joined(separator: " · ")
     }
 
@@ -145,7 +365,14 @@ extension DefinicionEntrenamiento {
     /// DISTANCIA tiene prioridad si un segmento trae las dos metas; un
     /// segmento sin ninguna meta no es ejecutable y se descarta.
     var tramosEjecutables: [Tramo] {
-        segmentos.compactMap { segmento in
+        // El tope se resuelve acá con el ritmo que el propio segmento
+        // ya declara: al adoptar, el motor deja los ritmos en
+        // `.absoluto`, así que no hace falta baseline y el reloj recibe
+        // los kilómetros que de verdad va a correr. Sin ritmo resuelto
+        // cae al corredor de referencia — la misma regla que el
+        // volumen, no una segunda semántica.
+        let factor = factorDeTope()
+        return segmentos.compactMap { segmento in
             let minimo: Int?
             let maximo: Int?
             switch segmento.ritmo {
@@ -157,7 +384,9 @@ extension DefinicionEntrenamiento {
                 (minimo, maximo) = (rapido, lento)
             }
             if let km = segmento.distanciaKm {
-                return Tramo(nombre: segmento.nombre, kilometros: km,
+                let recortado = (km * factor * 10).rounded() / 10
+                guard recortado > 0 else { return nil }
+                return Tramo(nombre: segmento.nombre, kilometros: recortado,
                              ritmoMinSegKm: minimo, ritmoMaxSegKm: maximo)
             }
             if let segundos = segmento.duracionSegundos, segundos > 0 {
@@ -186,6 +415,141 @@ enum MetadatosSesion {
     static func programadoID(en metadata: [String: Any]?) -> UUID? {
         guard let crudo = metadata?[claveProgramadoID] as? String else { return nil }
         return UUID(uuidString: crudo)
+    }
+}
+
+// MARK: - Rol, fase y adaptabilidad (estructura, no metodología)
+
+/// El rol de una sesión dentro de la semana, en orden de PRIORIDAD
+/// (menor rawValue = más importante). Es lo que permite recortar o
+/// adaptar una semana sin destruir lo que la sostiene: primero se
+/// sacrifica una recuperación, jamás la carrera objetivo.
+///
+/// Vive acá (y no en el motor) porque se persiste dentro del plan y
+/// porque el Watch compila este archivo.
+enum RolSesion: Int, Codable, Comparable, CaseIterable {
+    case carrera = 0            // el día objetivo: nunca se recorta
+    case tiradaLarga = 1
+    case calidadPrincipal = 2
+    case facil = 3
+    case recuperacion = 4
+    case calidadSecundaria = 5
+
+    static func < (a: RolSesion, b: RolSesion) -> Bool { a.rawValue < b.rawValue }
+
+    /// Tabla ESTRUCTURAL fija: qué rol cumple cada tipo de sesión. No
+    /// es metodología deportiva — es cómo se ordenan las prioridades.
+    static func para(_ tipo: TipoEntrenamiento) -> RolSesion {
+        switch tipo {
+        case .ritmoCarrera: return .carrera
+        case .largo: return .tiradaLarga
+        case .tempo, .umbral, .series, .testEvaluacion: return .calidadPrincipal
+        case .recuperacion: return .recuperacion
+        case .facil, .personalizado: return .facil
+        }
+    }
+}
+
+/// Fase del bloque de entrenamiento al que pertenece una semana. Cada
+/// una declara su PROPÓSITO — el corredor tiene que poder leer por qué
+/// esta semana es como es.
+enum TipoSemana: String, Codable, CaseIterable {
+    case base               // construir el hábito y el volumen fácil
+    case construccion       // subir carga con calidad introductoria
+    case especifica         // trabajo al ritmo de la carrera objetivo
+    case pico               // la semana de mayor carga del bloque
+    case descarga           // bajar volumen para asimilar
+    case taper              // afinar antes de competir
+    case semanaDeCarrera    // la carrera cae acá
+    /// Compatibilidad: los arquetipos v1 usaban `carga` como genérico.
+    case carga
+
+    /// Semanas en las que la carga SOLO puede bajar. El validador las
+    /// trata como zona protegida: acá no se agrega trabajo, no se sube
+    /// intensidad y no se reorganiza la recuperación.
+    var esProtegida: Bool { self == .taper || self == .semanaDeCarrera }
+
+    /// ¿Es una semana de construcción? (las que auditan proporción).
+    var esDeConstruccion: Bool { !esProtegida }
+}
+
+/// Qué se le puede hacer a una sesión sin traicionar su intención.
+/// La adaptación (del motor o del coach) SOLO puede hacer lo que acá
+/// está permitido — es el contrato que impide que una propuesta de IA
+/// convierta una tirada larga en un trote de 3 km.
+struct Adaptabilidad: Codable, Equatable {
+    var sePuedeMover: Bool = true
+    var sePuedeReducir: Bool = true
+    var sePuedeConvertirEnFacil: Bool = true
+    var sePuedeOmitir: Bool = true
+    /// Piso de la reducción: 0.7 = no se puede bajar de un 70 % de lo
+    /// prescrito. Reducir por debajo de esto no es adaptar, es otra
+    /// sesión distinta (y entonces corresponde `replace`).
+    var factorMinimo: Double = 0.7
+    /// Días de recuperación que esta sesión necesita ANTES de otra
+    /// sesión exigente. 0 = ninguno.
+    var recuperacionMinimaDias: Int = 0
+
+    /// Contrato por defecto según el rol. Estructural y conservador:
+    /// la carrera objetivo es intocable; la larga se mueve y se acorta
+    /// pero no se convierte; las calidades se convierten a fácil.
+    static func para(_ rol: RolSesion) -> Adaptabilidad {
+        switch rol {
+        case .carrera:
+            return Adaptabilidad(sePuedeMover: false, sePuedeReducir: false,
+                                 sePuedeConvertirEnFacil: false, sePuedeOmitir: false,
+                                 factorMinimo: 1, recuperacionMinimaDias: 0)
+        case .tiradaLarga:
+            return Adaptabilidad(sePuedeMover: true, sePuedeReducir: true,
+                                 sePuedeConvertirEnFacil: false, sePuedeOmitir: true,
+                                 factorMinimo: 0.6, recuperacionMinimaDias: 1)
+        case .calidadPrincipal:
+            return Adaptabilidad(sePuedeMover: true, sePuedeReducir: true,
+                                 sePuedeConvertirEnFacil: true, sePuedeOmitir: true,
+                                 factorMinimo: 0.6, recuperacionMinimaDias: 1)
+        case .calidadSecundaria:
+            return Adaptabilidad(sePuedeMover: true, sePuedeReducir: true,
+                                 sePuedeConvertirEnFacil: true, sePuedeOmitir: true,
+                                 factorMinimo: 0.5, recuperacionMinimaDias: 1)
+        case .facil:
+            return Adaptabilidad(sePuedeMover: true, sePuedeReducir: true,
+                                 sePuedeConvertirEnFacil: true, sePuedeOmitir: true,
+                                 factorMinimo: 0.5, recuperacionMinimaDias: 0)
+        case .recuperacion:
+            return Adaptabilidad(sePuedeMover: true, sePuedeReducir: true,
+                                 sePuedeConvertirEnFacil: true, sePuedeOmitir: true,
+                                 factorMinimo: 0.4, recuperacionMinimaDias: 0)
+        }
+    }
+}
+
+/// Reglas de una semana del plan: el marco dentro del cual una
+/// adaptación sigue siendo válida. Sin esto, "reducir" no tiene techo
+/// ni piso y cualquier propuesta parece razonable.
+struct ReglasSemana: Codable, Equatable {
+    var fase: TipoSemana? = nil
+    var volumenObjetivoKm: Double? = nil
+    /// Rango aceptable de volumen semanal (km). Fuera de esto el
+    /// validador rechaza — NO existe una regla universal de +10 %.
+    var volumenMinimoKm: Double? = nil
+    var volumenMaximoKm: Double? = nil
+    /// Cuántas sesiones de calidad tolera la semana.
+    var maximoCalidad: Int? = nil
+
+    /// Propósito legible de la fase, para que el corredor entienda
+    /// POR QUÉ la semana es así. nil = fase sin declarar.
+    var propositoFase: String? {
+        switch fase {
+        case .base: return String(localized: "Construir el hábito y el volumen cómodo.")
+        case .construccion: return String(localized: "Subir la carga de a poco, con calidad introductoria.")
+        case .especifica: return String(localized: "Trabajo específico al ritmo de tu carrera.")
+        case .pico: return String(localized: "La semana más exigente del bloque.")
+        case .descarga: return String(localized: "Bajar el volumen para asimilar lo hecho.")
+        case .taper: return String(localized: "Afinar: menos volumen, la intensidad se mantiene.")
+        case .semanaDeCarrera: return String(localized: "Tu carrera. Todo lo demás acompaña.")
+        case .carga: return String(localized: "Semana de carga.")
+        case nil: return nil
+        }
     }
 }
 
@@ -220,6 +584,39 @@ struct EntrenamientoProgramado: Codable, Equatable, Identifiable {
     var diaOriginal: DiaLocal?            // primera fecha si fue reprogramado
     var resolucion: ResolucionProgramado = .pendiente
     var sesionVinculadaID: UUID?          // HKWorkout.uuid de la evidencia
+
+    // ---- Motor adaptativo (opcionales: los planes ya adoptados
+    // decodifican igual y siguen funcionando con los defaults).
+
+    /// Prioridad de esta sesión dentro de su semana. nil = derivar del
+    /// tipo con `RolSesion.para(_:)`.
+    var rolGuardado: RolSesion? = nil
+    /// Qué se le puede hacer sin traicionar su intención. nil =
+    /// derivar del rol.
+    var adaptabilidadGuardada: Adaptabilidad? = nil
+    /// La PRESCRIPCIÓN ORIGINAL, congelada al adoptar el plan. Se
+    /// escribe UNA sola vez, la primera vez que la sesión se adapta:
+    /// así "plan original vs plan actual" es siempre respondible y
+    /// adaptar no destruye historia (§45).
+    var definicionOriginal: DefinicionEntrenamiento? = nil
+
+    var rol: RolSesion { rolGuardado ?? RolSesion.para(definicion.tipo) }
+    var adaptabilidad: Adaptabilidad { adaptabilidadGuardada ?? .para(rol) }
+
+    /// ¿Esta sesión fue modificada respecto de lo planificado?
+    var fueAdaptada: Bool {
+        definicionOriginal != nil || (diaOriginal != nil && diaOriginal != dia)
+    }
+
+    /// Lo que se planificó originalmente (o lo actual, si nunca cambió).
+    var prescripcionOriginal: DefinicionEntrenamiento { definicionOriginal ?? definicion }
+
+    /// Congela la prescripción original antes de la PRIMERA
+    /// modificación. Idempotente: llamarla de nuevo no pisa el
+    /// original con una versión ya adaptada.
+    mutating func congelarOriginalSiHaceFalta() {
+        if definicionOriginal == nil { definicionOriginal = definicion }
+    }
 
     func estado(hoy: DiaLocal) -> EstadoProgramado {
         switch resolucion {
@@ -273,6 +670,28 @@ struct SemanaPlan: Codable, Equatable, Identifiable {
     var id = UUID()
     var numero: Int
     var programados: [EntrenamientoProgramado] = []
+    /// Marco de la semana (fase, volumen objetivo y rango, tope de
+    /// calidad). Opcional: los planes ya adoptados no lo tienen y el
+    /// validador entonces solo aplica las reglas que no dependen de él.
+    var reglas: ReglasSemana? = nil
+
+    /// EL volumen prescrito de la semana, contando los bloques por
+    /// tiempo (ver `CalculoVolumen`).
+    func volumenPlanificado(baseline: PerformanceBaseline? = nil) -> VolumenPlanificado {
+        programados.reduce(VolumenPlanificado()) { $0 + $1.definicion.volumen(baseline: baseline) }
+    }
+
+    /// Km prescritos de la semana. Antes sumaba solo distancias
+    /// declaradas y perdía todos los bloques de calidad medidos en
+    /// tiempo; ahora pasa por el cálculo único.
+    func kmPrescritos(baseline: PerformanceBaseline? = nil) -> Double {
+        volumenPlanificado(baseline: baseline).totalKm
+    }
+
+    /// Cuántas sesiones de calidad (principal o secundaria) tiene.
+    var sesionesDeCalidad: Int {
+        programados.filter { $0.rol == .calidadPrincipal || $0.rol == .calidadSecundaria }.count
+    }
 }
 
 // MARK: - Sesión realizada (QUÉ se hizo)
@@ -287,7 +706,53 @@ struct RegistroSesion: Codable, Equatable, Identifiable {
     var fecha: Date
     var vinculoProgramadoID: UUID?
 
+    /// Cómo dijo el corredor que se sintió. SIEMPRE opcional: la
+    /// pregunta es de un toque y se puede ignorar (§33).
+    var sensacion: SensacionEsfuerzo? = nil
+    /// Declaró una molestia en esta sesión. Bandera, no diagnóstico.
+    var conMolestia: Bool? = nil
+
     var esLibre: Bool { vinculoProgramadoID == nil }
+}
+
+/// Esfuerzo percibido, en cuatro opciones que cualquiera entiende sin
+/// explicación. Es el único dato subjetivo que la app pide.
+enum SensacionEsfuerzo: String, Codable, CaseIterable {
+    case muyBien, bien, exigido, muyExigido
+
+    /// ¿Amerita mirar la semana? Solo el extremo alto — "muy bien" es
+    /// una buena noticia, no un motivo para subir carga (§40).
+    var pideAtencion: Bool { self == .muyExigido }
+
+    var texto: String {
+        switch self {
+        case .muyBien: return String(localized: "Muy bien")
+        case .bien: return String(localized: "Bien")
+        case .exigido: return String(localized: "Exigido")
+        case .muyExigido: return String(localized: "Muy exigido")
+        }
+    }
+}
+
+// MARK: - Historial de adaptaciones (§44)
+
+/// Qué le pasó a una sesión y por qué. NO guarda razonamiento del
+/// modelo (chain-of-thought): solo el hecho, el antes, el después y un
+/// motivo corto que el corredor pueda leer.
+struct RegistroAdaptacion: Codable, Equatable, Identifiable {
+    enum Origen: String, Codable { case motor, coach, usuario }
+    enum Tipo: String, Codable { case mover, reducir, convertir, omitir }
+
+    var id = UUID()
+    var fecha: Date
+    var programadoID: UUID
+    var tipo: Tipo
+    var origen: Origen
+    /// Descripción corta del estado previo ("8 km umbral · mar 12").
+    var antes: String
+    var despues: String
+    /// Motivo en una frase, en el idioma del corredor.
+    var motivo: String
 }
 
 // MARK: - Configuración de audio (separada del entrenamiento)
@@ -306,10 +771,77 @@ struct ConfiguracionAudio: Codable, Equatable {
 
 // MARK: - Perfil deportivo (Fase F: onboarding)
 
-/// La meta que el corredor eligió. Enum cerrado a propósito: el plan
-/// generator y el coach futuro razonan sobre esto.
+/// La distancia de la carrera objetivo. El corredor elige DISTANCIA e
+/// INTENCIÓN por separado (dos preguntas cortas) y de ahí sale el
+/// objetivo — mucho mejor que diez tarjetas gigantes en una lista.
+enum DistanciaObjetivo: String, Codable, CaseIterable {
+    case cinco, diez, media, maraton
+
+    var metros: Double {
+        switch self {
+        case .cinco: return 5000
+        case .diez: return 10000
+        case .media: return 21097.5
+        case .maraton: return 42195
+        }
+    }
+
+    /// Las intenciones que tienen sentido para esta distancia. Un 5K
+    /// "de rendimiento" no es una categoría distinta de "mejorar";
+    /// media y maratón sí (el salto de carga es real).
+    var intencionesPosibles: [IntencionObjetivo] {
+        switch self {
+        case .cinco, .diez: return [.completar, .mejorar]
+        case .media, .maraton: return [.completar, .mejorar, .rendimiento]
+        }
+    }
+}
+
+/// Qué quiere hacer con esa distancia.
+enum IntencionObjetivo: String, Codable, CaseIterable {
+    case completar      // primera vez / terminarla
+    case mejorar        // ya la corre, quiere bajar la marca
+    case rendimiento    // buscar el techo (exige base real)
+}
+
+/// La meta que el corredor eligió. Enum cerrado a propósito: el motor y
+/// el coach razonan sobre esto.
+///
+/// Los cinco casos originales conservan su rawValue EXACTO: los
+/// perfiles ya guardados en `dominio-v2.json` siguen decodificando sin
+/// migración. Los cinco nuevos se suman al final.
 enum ObjetivoDeportivo: String, Codable, CaseIterable {
-    case primeros5K, mejorar5K, diez, mediaMaraton, maraton
+    case primeros5K, mejorar5K
+    case diez                       // primeros 10K (rawValue histórico)
+    case mejorar10K
+    case mediaMaraton               // primera media (rawValue histórico)
+    case mejorarMedia, mediaRendimiento
+    case maraton                    // primera maratón (rawValue histórico)
+    case mejorarMaraton, maratonRendimiento
+
+    var distancia: DistanciaObjetivo {
+        switch self {
+        case .primeros5K, .mejorar5K: return .cinco
+        case .diez, .mejorar10K: return .diez
+        case .mediaMaraton, .mejorarMedia, .mediaRendimiento: return .media
+        case .maraton, .mejorarMaraton, .maratonRendimiento: return .maraton
+        }
+    }
+
+    var intencion: IntencionObjetivo {
+        switch self {
+        case .primeros5K, .diez, .mediaMaraton, .maraton: return .completar
+        case .mejorar5K, .mejorar10K, .mejorarMedia, .mejorarMaraton: return .mejorar
+        case .mediaRendimiento, .maratonRendimiento: return .rendimiento
+        }
+    }
+
+    /// La combinación inversa (lo que arma el onboarding en dos pasos).
+    /// nil = combinación inexistente (5K rendimiento).
+    static func combinando(_ distancia: DistanciaObjetivo,
+                           _ intencion: IntencionObjetivo) -> ObjetivoDeportivo? {
+        allCases.first { $0.distancia == distancia && $0.intencion == intencion }
+    }
 }
 
 /// Lo que el onboarding recolecta. TODO opcional: el perfil incompleto
@@ -329,6 +861,106 @@ struct PerfilDeportivo: Codable, Equatable {
     var fechaOnboarding: Date?
     /// Eligió "hacer el test de 5K" y todavía no lo corrió.
     var testPendiente: Bool = false
+
+    // ---- Motor adaptativo. TODO opcional y con default: un
+    // dominio-v2.json de cualquier build anterior decodifica igual.
+
+    /// Contexto biométrico. NO produce carga por sí solo (§2): el
+    /// rendimiento real y el historial pesan mucho más.
+    var datosBasicos: DatosBasicos? = nil
+    /// Lo que el corredor viene haciendo HOY. Es el input más
+    /// importante para elegibilidad y punto de partida.
+    var actividad: ActividadActual? = nil
+    /// Declaración conservadora de molestias. Jamás diagnóstico.
+    var molestias: EstadoMolestias? = nil
+    /// Preferencias de la semana (día de fondo, día imposible).
+    var preferencias: PreferenciasSemana? = nil
+}
+
+// MARK: - Perfil del corredor: contexto, actividad, molestias
+
+enum Sexo: String, Codable, CaseIterable {
+    case femenino, masculino, otro, prefiereNoDecir
+}
+
+/// Datos biométricos. TODOS opcionales — la app funciona entera sin
+/// ninguno. Se guarda la FECHA de nacimiento y no la edad: una edad
+/// guardada envejece mal (queda congelada y miente al año siguiente).
+struct DatosBasicos: Codable, Equatable {
+    var fechaNacimiento: DiaLocal? = nil
+    var sexo: Sexo? = nil
+    var alturaCm: Double? = nil
+    var pesoKg: Double? = nil
+
+    /// Edad en años cumplidos a una fecha dada. nil sin fecha de
+    /// nacimiento o ante datos absurdos.
+    func edad(a hoy: DiaLocal, calendario: Calendar = .current) -> Int? {
+        guard let nacimiento = fechaNacimiento,
+              let desde = nacimiento.fecha(calendario: calendario),
+              let hasta = hoy.fecha(calendario: calendario),
+              let anios = calendario.dateComponents([.year], from: desde, to: hasta).year,
+              (5...110).contains(anios) else { return nil }
+        return anios
+    }
+}
+
+/// Otros deportes que el corredor practica. Cambian el contexto de
+/// recuperación, NO la prescripción de carrera.
+enum OtroDeporte: String, Codable, CaseIterable {
+    case fuerza, ciclismo, natacion, futbol, otroEquipo, otro
+}
+
+/// Cuánto y cómo viene corriendo AHORA. Cuantificable a propósito
+/// (§3): nada de "sedentario / activo", que no sirve para decidir nada.
+/// Todo opcional: un perfil a medio llenar es un estado válido.
+struct ActividadActual: Codable, Equatable {
+    /// De dónde salió: lo declaró el corredor o lo calculamos de Salud.
+    enum Origen: String, Codable { case declarado, detectadoSalud, confirmado, corregido }
+
+    var origen: Origen = .declarado
+    var fecha: Date? = nil
+
+    var diasPorSemana: Double? = nil        // salidas por semana (promedio)
+    var kmSemanales: Double? = nil
+    var minutosSemanales: Double? = nil
+    var tiradaLargaKm: Double? = nil
+    /// Hace cuántos meses corre de forma regular (nil = no lo dijo).
+    var mesesCorriendoRegular: Int? = nil
+    /// Volviendo después de una pausa larga: cambia el punto de partida
+    /// aunque el historial viejo sea bueno.
+    var volviendoDePausa: Bool? = nil
+    var otrosDeportes: [OtroDeporte]? = nil
+
+    var estaVacia: Bool {
+        diasPorSemana == nil && kmSemanales == nil
+            && minutosSemanales == nil && tiradaLargaKm == nil
+    }
+}
+
+/// Declaración de molestias. Escala CONSERVADORA y no clínica: la app
+/// no diagnostica, no trata y no nombra patologías. Lo único que hace
+/// con esto es proponer un enfoque más prudente.
+enum EstadoMolestias: String, Codable, CaseIterable {
+    case ninguna
+    case molestiaLeve          // molesta pero puede correr
+    case lesionReciente        // dejó de correr por eso
+    case enRecuperacion        // volviendo bajo indicación externa
+
+    /// ¿Obliga al motor a la variante conservadora?
+    var exigeCautela: Bool { self != .ninguna }
+    /// ¿Bloquea directamente los objetivos de rendimiento?
+    var bloqueaRendimiento: Bool {
+        self == .lesionReciente || self == .enRecuperacion
+    }
+}
+
+/// Preferencias de forma de la semana. Sin esto, el motor NO fuerza
+/// domingo como día de fondo (§9): usa el último día disponible.
+struct PreferenciasSemana: Codable, Equatable {
+    /// 1 = lunes … 7 = domingo. nil = sin preferencia.
+    var diaPreferidoFondo: Int? = nil
+    /// Días en que NUNCA puede entrenar (además de los no elegidos).
+    var diasImposibles: [Int]? = nil
 }
 
 // MARK: - Referencia de rendimiento (baseline, se llena en Fase F)
@@ -568,6 +1200,11 @@ struct AlmacenV2: Codable, Equatable {
     /// campo — cero duplicación, el contenido no se toca.
     var usuarioID: UUID? = nil
 
+    /// Qué se adaptó, cuándo y por qué (§44). Opcional para que los
+    /// almacenes anteriores decodifiquen.
+    var adaptaciones: [RegistroAdaptacion]? = nil
+    var historialAdaptaciones: [RegistroAdaptacion] { adaptaciones ?? [] }
+
     var historialDePlanes: [PlanUsuario] { planesAnteriores ?? [] }
     var perfilDeportivo: PerfilDeportivo { perfil ?? PerfilDeportivo() }
 
@@ -724,6 +1361,104 @@ struct AlmacenV2: Codable, Equatable {
               programado.resolucion == .omitido,
               programado.sesionVinculadaID == nil else { return false }
         planActivo?.semanas[s].programados[p].resolucion = .pendiente
+        return true
+    }
+
+    // MARK: Adaptación (reducir / convertir) — §36, §38
+
+    /// La semana que contiene un programado (para las reglas semanales).
+    func semanaDe(programadoID: UUID) -> SemanaPlan? {
+        planActivo?.semanas.first { semana in
+            semana.programados.contains { $0.id == programadoID }
+        }
+    }
+
+    /// Escala TODOS los segmentos —los medidos en distancia y los
+    /// medidos en tiempo— por el mismo factor. No toca los ritmos:
+    /// reducir es hacer MENOS de lo mismo, nunca otra cosa (para eso
+    /// está convertir).
+    ///
+    /// Escalar solo las distancias era un recorte falso: sobre un
+    /// `umbral 32′` (1,5 km + 32′ + 1 km) un factor 0,8 recortaba
+    /// medio kilómetro de calentamiento y dejaba el bloque duro
+    /// intacto — un 6 % de reducción real donde el corredor veía 20 %.
+    ///
+    /// Rechaza si: el programado no existe, no está pendiente, su
+    /// contrato no permite reducir, el factor cae fuera de
+    /// [factorMinimo, 1), o no hay nada que escalar.
+    @discardableResult
+    mutating func reducir(programadoID: UUID, factor: Double) -> Bool {
+        guard let (s, p) = indiceDe(programadoID: programadoID),
+              let actual = planActivo?.semanas[s].programados[p],
+              actual.resolucion == .pendiente,
+              actual.adaptabilidad.sePuedeReducir,
+              factor >= actual.adaptabilidad.factorMinimo, factor < 1,
+              !actual.definicion.volumen().esVacio else { return false }
+        planActivo?.semanas[s].programados[p].congelarOriginalSiHaceFalta()
+        for g in actual.definicion.segmentos.indices {
+            if let km = actual.definicion.segmentos[g].distanciaKm {
+                planActivo?.semanas[s].programados[p].definicion.segmentos[g].distanciaKm =
+                    (km * factor * 10).rounded() / 10
+            } else if let segundos = actual.definicion.segmentos[g].duracionSegundos, segundos > 0 {
+                // Redondeo a 10 s: un bloque de "25 min 36 s" no es una
+                // prescripción, es ruido.
+                planActivo?.semanas[s].programados[p].definicion.segmentos[g].duracionSegundos =
+                    max(30, Int((Double(segundos) * factor / 10).rounded()) * 10)
+            }
+        }
+        return true
+    }
+
+    /// Convierte una sesión de calidad en una salida fácil de la misma
+    /// distancia: un solo segmento a ritmo libre. Es la alternativa
+    /// honesta a omitir cuando el corredor llegó cansado — mantiene el
+    /// hábito y el volumen sin la carga de intensidad.
+    @discardableResult
+    mutating func convertirEnFacil(programadoID: UUID,
+                                   baseline: PerformanceBaseline? = nil) -> Bool {
+        guard let (s, p) = indiceDe(programadoID: programadoID),
+              let actual = planActivo?.semanas[s].programados[p],
+              actual.resolucion == .pendiente,
+              actual.adaptabilidad.sePuedeConvertirEnFacil else { return false }
+        // El rodaje equivalente conserva el VOLUMEN de la sesión, no su
+        // distancia declarada: convertir un `umbral 32′` producía antes
+        // un rodaje de 2,5 km — un cuarto del trabajo original.
+        let km = (actual.definicion.volumenKm(baseline: baseline) * 10).rounded() / 10
+        guard km > 0 else { return false }
+        planActivo?.semanas[s].programados[p].congelarOriginalSiHaceFalta()
+        planActivo?.semanas[s].programados[p].definicion = DefinicionEntrenamiento(
+            id: actual.definicion.id,          // identidad estable
+            tipo: .facil,
+            nombre: String(localized: "Rodaje fácil"),
+            descripcion: String(localized: "Versión suave de la sesión original: mismo tiempo en pie, sin la carga de intensidad."),
+            segmentos: [Segmento(nombre: String(localized: "Rodaje"),
+                                 distanciaKm: km, duracionSegundos: nil, ritmo: .libre)],
+            // El TOPE viaja con la sesión. Convertir es aliviar, no una
+            // puerta trasera para quitarle el techo de duración a un
+            // fondo: sin esta línea, convertir la larga en rodaje
+            // devolvía una sesión sin límite de tiempo.
+            topeDuracionSegundos: actual.definicion.topeDuracionSegundos)
+        // El rol baja a fácil: la semana ya no cuenta esto como calidad.
+        planActivo?.semanas[s].programados[p].rolGuardado = .facil
+        planActivo?.semanas[s].programados[p].adaptabilidadGuardada = .para(.facil)
+        return true
+    }
+
+    /// Anota una adaptación en el historial. Siempre se llama DESPUÉS
+    /// de que la mutación haya devuelto true.
+    mutating func registrarAdaptacion(_ registro: RegistroAdaptacion) {
+        adaptaciones = historialAdaptaciones + [registro]
+    }
+
+    /// Guarda el feedback subjetivo de una sesión ya registrada.
+    /// Idempotente y no destructivo: si la sesión no existe, no crea
+    /// una fantasma (el registro nace del guardado en Salud).
+    @discardableResult
+    mutating func registrarSensacion(sesionID: UUID, sensacion: SensacionEsfuerzo?,
+                                     conMolestia: Bool?) -> Bool {
+        guard let indice = sesiones.firstIndex(where: { $0.id == sesionID }) else { return false }
+        if let sensacion { sesiones[indice].sensacion = sensacion }
+        if let conMolestia { sesiones[indice].conMolestia = conMolestia }
         return true
     }
 

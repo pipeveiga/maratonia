@@ -24,6 +24,12 @@ enum Plurales {
     static func entrenamientos(_ n: Int) -> String {
         n == 1 ? String(localized: "1 entrenamiento") : String(localized: "\(n) entrenamientos")
     }
+    static func carreras(_ n: Int) -> String {
+        n == 1 ? String(localized: "1 carrera") : String(localized: "\(n) carreras")
+    }
+    static func semanas(_ n: Int) -> String {
+        n == 1 ? String(localized: "1 semana") : String(localized: "\(n) semanas")
+    }
 }
 
 enum DV2 {
@@ -262,20 +268,45 @@ enum TextosObjetivo {
         case .primeros5K: return String(localized: "Mis primeros 5K")
         case .mejorar5K: return String(localized: "Mejorar mis 5K")
         case .diez: return String(localized: "Correr 10K")
+        case .mejorar10K: return String(localized: "Mejorar mis 10K")
         case .mediaMaraton: return String(localized: "Media maratón")
+        case .mejorarMedia: return String(localized: "Mejorar mi media")
+        case .mediaRendimiento: return String(localized: "Media · rendimiento")
         case .maraton: return String(localized: "Maratón")
+        case .mejorarMaraton: return String(localized: "Mejorar mi maratón")
+        case .maratonRendimiento: return String(localized: "Maratón · rendimiento")
+        }
+    }
+
+    static func nombre(de distancia: DistanciaObjetivo) -> String {
+        switch distancia {
+        case .cinco: return String(localized: "5 km")
+        case .diez: return String(localized: "10 km")
+        case .media: return String(localized: "Media maratón")
+        case .maraton: return String(localized: "Maratón")
+        }
+    }
+
+    static func nombre(de intencion: IntencionObjetivo) -> String {
+        switch intencion {
+        case .completar: return String(localized: "Completarla")
+        case .mejorar: return String(localized: "Mejorar mi marca")
+        case .rendimiento: return String(localized: "Buscar mi techo")
+        }
+    }
+
+    static func detalle(de intencion: IntencionObjetivo) -> String {
+        switch intencion {
+        case .completar: return String(localized: "Todavía no la corrí, o quiero terminarla entera y bien.")
+        case .mejorar: return String(localized: "Ya la corro — ahora quiero bajar el tiempo.")
+        case .rendimiento: return String(localized: "Máxima carga y especificidad. Necesita base real.")
         }
     }
 
     /// Distancia en metros de la carrera objetivo (para filtrar el
     /// catálogo y recomendar de forma determinística).
     static func distanciaMetros(de objetivo: ObjetivoDeportivo) -> Double {
-        switch objetivo {
-        case .primeros5K, .mejorar5K: return 5000
-        case .diez: return 10000
-        case .mediaMaraton: return 21097.5
-        case .maraton: return 42195
-        }
+        objetivo.distancia.metros
     }
 
     /// "Faltan 14 semanas para tu carrera" — motivación con días
@@ -438,7 +469,7 @@ struct TarjetaEntrenamientoV2: View {
                 }
 
                 HStack(spacing: DV2.Espacio.xl) {
-                    if let km = programado.definicion.distanciaTotalKm {
+                    if let km = programado.definicion.distanciaPrescritaKm {
                         MetricaV2(titulo: "distancia",
                                   valor: km == km.rounded()
                                     ? "\(Int(km)) km"

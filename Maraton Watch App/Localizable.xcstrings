@@ -12,6 +12,39 @@
         }
       }
     },
+    "%@ libre": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ open"
+          }
+        }
+      }
+    },
+    "%@: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: %@"
+          }
+        }
+      }
+    },
+    "%lld kcal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld kcal"
+          }
+        }
+      }
+    },
     "%lld minutos": {
       "extractionState": "manual",
       "localizations": {
@@ -30,6 +63,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld minutes %lld seconds"
+          }
+        }
+      }
+    },
+    "%lld segmentos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld segments"
           }
         }
       }
@@ -122,6 +166,17 @@
         }
       }
     },
+    "1 segmento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 segment"
+          }
+        }
+      }
+    },
     "Activando audio…": {
       "extractionState": "manual",
       "localizations": {
@@ -129,6 +184,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Activating audio…"
+          }
+        }
+      }
+    },
+    "Afinar: menos volumen, la intensidad se mantiene.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sharpen up: less volume, intensity stays."
           }
         }
       }
@@ -173,6 +239,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cue"
+          }
+        }
+      }
+    },
+    "Bajar el volumen para asimilar lo hecho.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop the volume to absorb the work."
+          }
+        }
+      }
+    },
+    "Bien": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good"
           }
         }
       }
@@ -232,6 +320,17 @@
         }
       }
     },
+    "Construir el hábito y el volumen cómodo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build the habit and comfortable volume."
+          }
+        }
+      }
+    },
     "Descartar todo": {
       "extractionState": "manual",
       "localizations": {
@@ -250,6 +349,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "The workout is NOT saved to Health. This cannot be undone."
+          }
+        }
+      }
+    },
+    "Empezar %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start %@"
           }
         }
       }
@@ -309,6 +419,39 @@
         }
       }
     },
+    "Entrenamiento: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workout: %@"
+          }
+        }
+      }
+    },
+    "Exigido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hard"
+          }
+        }
+      }
+    },
+    "Faltan %lld de %lld pistas": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Missing %lld of %lld tracks"
+          }
+        }
+      }
+    },
     "GPS, pulso y guardado en Salud.": {
       "extractionState": "manual",
       "localizations": {
@@ -364,6 +507,39 @@
         }
       }
     },
+    "Km %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Km %lld"
+          }
+        }
+      }
+    },
+    "La app se cerró en plena carrera: recuperé el entrenamiento y lo guardé en Salud.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app quit mid-run: I recovered the workout and saved it to Health."
+          }
+        }
+      }
+    },
+    "La carrera NO se pudo guardar en Salud: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The run could NOT be saved to Health: %@"
+          }
+        }
+      }
+    },
     "La carrera se guarda en Salud.": {
       "extractionState": "manual",
       "localizations": {
@@ -382,6 +558,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Another app handles the music (Spotify). Use its controls or the watch's Now Playing."
+          }
+        }
+      }
+    },
+    "La semana más exigente del bloque.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hardest week of the block."
           }
         }
       }
@@ -419,6 +606,28 @@
         }
       }
     },
+    "Muy bien": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Very good"
+          }
+        }
+      }
+    },
+    "Muy exigido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Very hard"
+          }
+        }
+      }
+    },
     "MÚSICA": {
       "extractionState": "manual",
       "localizations": {
@@ -437,6 +646,61 @@
           "stringUnit": {
             "state": "translated",
             "value": "Music from another app"
+          }
+        }
+      }
+    },
+    "Ninguna pista se pudo reproducir.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No track could be played."
+          }
+        }
+      }
+    },
+    "No hay ninguna pista en el reloj todavía.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There are no tracks on the watch yet."
+          }
+        }
+      }
+    },
+    "No pude activar el audio: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't start audio: %@"
+          }
+        }
+      }
+    },
+    "No pude configurar el audio: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't set up audio: %@"
+          }
+        }
+      }
+    },
+    "No pude iniciar el entrenamiento: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't start the workout: %@"
           }
         }
       }
@@ -551,6 +815,17 @@
         }
       }
     },
+    "Próximo: «%@» en %lld min": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next: “%@” in %lld min"
+          }
+        }
+      }
+    },
     "RITMO /KM": {
       "extractionState": "manual",
       "localizations": {
@@ -584,6 +859,39 @@
         }
       }
     },
+    "Ritmo %@ /km": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pace %@ /km"
+          }
+        }
+      }
+    },
+    "Rodaje": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run"
+          }
+        }
+      }
+    },
+    "Rodaje fácil": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Easy run"
+          }
+        }
+      }
+    },
     "Ruta GPS": {
       "extractionState": "manual",
       "localizations": {
@@ -591,6 +899,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "GPS route"
+          }
+        }
+      }
+    },
+    "Salud no está disponible en este reloj.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health isn't available on this watch."
+          }
+        }
+      }
+    },
+    "Salud tiene negado el permiso de guardar entrenamientos: la carrera NO se va a guardar. Activalo en el iPhone: Salud → Compartir → Apps → Maratonia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health has workout-saving permission denied: the run will NOT be saved. Enable it on the iPhone: Health → Sharing → Apps → Maratonia."
           }
         }
       }
@@ -617,6 +947,17 @@
         }
       }
     },
+    "Semana de carga.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load week."
+          }
+        }
+      }
+    },
     "Sin música cargada": {
       "extractionState": "manual",
       "localizations": {
@@ -628,6 +969,17 @@
         }
       }
     },
+    "Sin permisos de Salud: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Health permissions: %@"
+          }
+        }
+      }
+    },
     "Solo música y avisos": {
       "extractionState": "manual",
       "localizations": {
@@ -635,6 +987,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Music and cues only"
+          }
+        }
+      }
+    },
+    "Subir la carga de a poco, con calidad introductoria.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build load gradually, with introductory quality work."
           }
         }
       }
@@ -672,6 +1035,28 @@
         }
       }
     },
+    "Todavía estoy cerrando la sesión anterior. Esperá unos segundos y volvé a dar Play.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I'm still closing the previous session. Wait a few seconds and hit Play again."
+          }
+        }
+      }
+    },
+    "Trabajo específico al ritmo de tu carrera.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Specific work at your race pace."
+          }
+        }
+      }
+    },
     "Tramo %lld: %@. %@": {
       "extractionState": "manual",
       "localizations": {
@@ -679,6 +1064,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "Interval %lld: %@. %@"
+          }
+        }
+      }
+    },
+    "Tu carrera. Todo lo demás acompaña.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your race. Everything else supports it."
+          }
+        }
+      }
+    },
+    "Ubicación negada: esta carrera queda sin recorrido. Activala en Ajustes → Privacidad → Localización → Maratonia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location denied: this run will have no route. Enable it in Settings → Privacy → Location → Maratonia."
+          }
+        }
+      }
+    },
+    "Ubicación negada: la carrera se guarda SIN recorrido. Activala en el reloj: Ajustes → Privacidad → Localización → Maratonia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location denied: the run is saved WITHOUT a route. Enable it on the watch: Settings → Privacy → Location → Maratonia."
           }
         }
       }
@@ -705,6 +1123,17 @@
         }
       }
     },
+    "Versión suave de la sesión original: mismo tiempo en pie, sin la carga de intensidad.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A gentle version of the original session: same time on feet, without the intensity."
+          }
+        }
+      }
+    },
     "ZONA": {
       "extractionState": "manual",
       "localizations": {
@@ -723,6 +1152,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zone %lld."
+          }
+        }
+      }
+    },
+    "los rechazaste": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "you declined them"
           }
         }
       }

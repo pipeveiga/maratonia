@@ -487,10 +487,8 @@ final class ProgresoTramosTests: XCTestCase {
                        String(localized: "1 kilómetro"))
         XCTAssertEqual(metaParaHablar(Tramo(nombre: "D", kilometros: 7.5)),
                        String(localized: "\("7.5") kilómetros"))
-        // Tramo.descripcion arma "libre" con un literal (la UI usa
-        // DV2.textoRitmo, que sí localiza): literal también acá.
         XCTAssertEqual(Tramo(nombre: "T", kilometros: 0, duracionSegundos: 120).descripcion,
-                       "2 min libre")
+                       String(localized: "\("2 min") libre"))
     }
 }
 
@@ -884,5 +882,196 @@ final class AnalisisSesionTests: XCTestCase {
         }
         let desnivel = AnalisisSesion.desnivelPositivo(puntos)!
         XCTAssertEqual(desnivel, 30, accuracy: 3)
+    }
+}
+
+// MARK: - Build 59: el coach de ritmo del Watch (lógica pura)
+
+/// Cubre la decisión que antes vivía enterrada en EntrenadorRitmo
+/// (target Watch, sin ningún test) — justo lo que se cambió para
+/// arreglar el "aflojá" falso de la prueba física de 11 km.
+final class SupervisorCorreccionRitmoTests: XCTestCase {
+
+    /// Tramo objetivo 5:00–5:30 /km (300–330 s/km).
+    private let rapido = 300
+    private let lento = 330
+
+    private func sostener(_ s: inout SupervisorCorreccionRitmo, ritmo: Int?,
+                          veces: Int, enTramo: TimeInterval = 60)
+        -> [SupervisorCorreccionRitmo.Decision] {
+        (0..<veces).map { _ in
+            s.evaluar(ritmoSegKm: ritmo, minSegKm: rapido, maxSegKm: lento,
+                      segundosEnTramo: enTramo, segundosDesdeUltima: nil)
+        }
+    }
+
+    // Una lectura suelta fuera de rango NO habla (el bug reportado).
+    func testUnaLecturaSueltaNoCorrige() {
+        var s = SupervisorCorreccionRitmo()
+        let d = sostener(&s, ritmo: 120, veces: 1)   // 2:00/km absurdo
+        XCTAssertEqual(d, [.callar])
+    }
+
+    // Desviación REAL sostenida sí corrige, al 5º tick.
+    func testDesviacionSostenidaCorrige() {
+        var s = SupervisorCorreccionRitmo()
+        let d = sostener(&s, ritmo: 270, veces: 5)   // 4:30, más rápido
+        XCTAssertEqual(d, [.callar, .callar, .callar, .callar,
+                           .aflojar(objetivoSegKm: rapido)])
+    }
+
+    func testDemasiadoLentoApura() {
+        var s = SupervisorCorreccionRitmo()
+        let d = sostener(&s, ritmo: 400, veces: 5)
+        XCTAssertEqual(d.last, .apurar(objetivoSegKm: lento))
+    }
+
+    // Un outlier en medio de una racha reinicia el contador: no basta
+    // con acumular ticks sueltos.
+    func testOutlierIntercaladoReiniciaElContador() {
+        var s = SupervisorCorreccionRitmo()
+        _ = sostener(&s, ritmo: 270, veces: 4)       // 4 fuera de rango
+        _ = sostener(&s, ritmo: 315, veces: 1)       // 1 DENTRO del rango
+        let d = sostener(&s, ritmo: 270, veces: 4)   // vuelve a salir
+        XCTAssertTrue(d.allSatisfy { $0 == .callar }, "no debía corregir todavía")
+        XCTAssertEqual(sostener(&s, ritmo: 270, veces: 1), [.aflojar(objetivoSegKm: rapido)])
+    }
+
+    // Cambiar de dirección también reinicia (rápido → lento).
+    func testCambioDeDireccionReinicia() {
+        var s = SupervisorCorreccionRitmo()
+        _ = sostener(&s, ritmo: 270, veces: 4)       // yendo rápido
+        let d = sostener(&s, ritmo: 400, veces: 4)   // ahora lento
+        XCTAssertTrue(d.allSatisfy { $0 == .callar })
+    }
+
+    // Ritmo NO confiable (nil): el coach calla y pierde la racha.
+    func testSinRitmoConfiableCallaYPierdeLaRacha() {
+        var s = SupervisorCorreccionRitmo()
+        _ = sostener(&s, ritmo: 270, veces: 4)
+        XCTAssertEqual(sostener(&s, ritmo: nil, veces: 1), [.callar])
+        XCTAssertTrue(sostener(&s, ritmo: 270, veces: 4).allSatisfy { $0 == .callar })
+    }
+
+    // Gracia al empezar el tramo: el ritmo se está acomodando.
+    func testNoOpinaEnLosPrimerosSegundosDelTramo() {
+        var s = SupervisorCorreccionRitmo()
+        let d = sostener(&s, ritmo: 270, veces: 10, enTramo: 20)
+        XCTAssertTrue(d.allSatisfy { $0 == .callar })
+    }
+
+    // Como mucho una corrección por minuto.
+    func testNoRepiteAntesDelMinuto() {
+        var s = SupervisorCorreccionRitmo()
+        for _ in 0..<10 {
+            let d = s.evaluar(ritmoSegKm: 270, minSegKm: rapido, maxSegKm: lento,
+                              segundosEnTramo: 200, segundosDesdeUltima: 30)
+            XCTAssertEqual(d, .callar)
+        }
+    }
+
+    // Dentro del rango (con su margen) nunca corrige.
+    func testDentroDelRangoNoCorrige() {
+        var s = SupervisorCorreccionRitmo()
+        for ritmo in [rapido, 315, lento, rapido - 4, lento + 4] {
+            XCTAssertTrue(sostener(&s, ritmo: ritmo, veces: 10).allSatisfy { $0 == .callar },
+                          "corrigió a \(ritmo) estando en rango")
+        }
+    }
+
+    // Tramo sin objetivo de ritmo (libre): nunca opina.
+    func testTramoLibreNuncaCorrige() {
+        var s = SupervisorCorreccionRitmo()
+        let d = (0..<10).map { _ in
+            s.evaluar(ritmoSegKm: 270, minSegKm: nil, maxSegKm: nil,
+                      segundosEnTramo: 120, segundosDesdeUltima: nil)
+        }
+        XCTAssertTrue(d.allSatisfy { $0 == .callar })
+    }
+
+    func testReiniciarLimpiaLaRacha() {
+        var s = SupervisorCorreccionRitmo()
+        _ = sostener(&s, ritmo: 270, veces: 4)
+        s.reiniciar()
+        XCTAssertTrue(sostener(&s, ritmo: 270, veces: 4).allSatisfy { $0 == .callar })
+    }
+}
+
+// MARK: - Coherencia del catálogo de arquetipos
+//
+// El onboarding ofrece cadencias (2/3/4/5 días) y el motor reparte las
+// sesiones de la semana del template entre los días marcados. Si un
+// arquetipo declara diasMaximos mayor que las sesiones que su contenido
+// trae, la app ofrece días que nunca se van a usar y el corredor cree
+// que entrena más de lo que el plan pide. Eso fue un bug real:
+// "Primeros 5K" (3 sesiones) dejaba marcar los 7 días de la semana.
+
+final class RangoDeDiasArquetiposTests: XCTestCase {
+
+    private var conContenido: [PlanArquetipo] {
+        BibliotecaArquetipos.v1().filter { $0.contenido != nil }
+    }
+
+    func testLaBibliotecaTieneContenido() {
+        XCTAssertFalse(conContenido.isEmpty)
+    }
+
+    func testMinimoNoSuperaAlMaximo() {
+        for arq in BibliotecaArquetipos.v1() {
+            XCTAssertLessThanOrEqual(arq.diasMinimos, arq.diasMaximos,
+                                     "\(arq.id): rango de días invertido")
+        }
+    }
+
+    /// El tope declarado tiene que ser alcanzable: alguna semana del
+    /// contenido debe tener al menos esa cantidad de entrenamientos.
+    func testElMaximoDeclaradoLoBancaElContenido() {
+        for arq in conContenido {
+            let maxSesiones = arq.contenido!.semanas
+                .map(\.entrenamientos.count).max() ?? 0
+            XCTAssertGreaterThanOrEqual(
+                maxSesiones, arq.diasMaximos,
+                "\(arq.id) declara hasta \(arq.diasMaximos) días pero su semana " +
+                "más cargada tiene \(maxSesiones) entrenamientos")
+        }
+    }
+
+    /// Ninguna semana pide más días de los que el arquetipo permite
+    /// elegir: si no, el reparto recorta sesiones en silencio.
+    func testNingunaSemanaExcedeElMaximo() {
+        for arq in conContenido {
+            for semana in arq.contenido!.semanas {
+                XCTAssertLessThanOrEqual(
+                    semana.entrenamientos.count, arq.diasMaximos,
+                    "\(arq.id) semana \(semana.numero): " +
+                    "\(semana.entrenamientos.count) sesiones con tope \(arq.diasMaximos)")
+            }
+        }
+    }
+
+    /// Las cadencias que el onboarding ofrece caen dentro de lo que
+    /// diasSugeridos() sabe repartir (2...5).
+    func testLasCadenciasOfrecidasTienenRepartoSugerido() {
+        for arq in BibliotecaArquetipos.v1() {
+            for cantidad in arq.diasMinimos...arq.diasMaximos {
+                let sugeridos = OnboardingDeportivo.diasSugeridos(para: cantidad)
+                XCTAssertEqual(Set(sugeridos).count, cantidad,
+                               "\(arq.id): reparto de \(cantidad) días mal formado")
+                XCTAssertTrue(sugeridos.allSatisfy { (1...7).contains($0) })
+            }
+        }
+    }
+
+    /// Con los días concretos marcados, el plan cae SOLO ahí y en tantos
+    /// días como sesiones tenga la semana — la promesa de la pantalla.
+    func testDistribuirRespetaLosDiasMarcados() {
+        for arq in conContenido {
+            let dias = OnboardingDeportivo.diasSugeridos(para: arq.diasMaximos)
+            let repartido = MotorPlanificacion.distribuir(arq.contenido!, enDias: dias)
+            for semana in repartido.semanas {
+                XCTAssertTrue(semana.entrenamientos.allSatisfy { dias.contains($0.diaDeSemana) },
+                              "\(arq.id) semana \(semana.numero): cayó fuera de los días marcados")
+            }
+        }
     }
 }

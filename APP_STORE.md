@@ -70,11 +70,16 @@ No ads. No data selling. Your GPS routes never leave your device.
 
 ## App Privacy (formulario)
 
-Ver PRIVACIDAD.md — resumen: Health & Fitness (funcionalidad, sin
-tracking), Location (funcionalidad), Contact Info email + User ID (solo
-con cuenta, funcionalidad), sin ATT, sin analytics. Si el Coach se
-activa en V1: "Other Usage Data" (resúmenes de entrenamiento) enviados
-al backend propio + OpenAI como service provider, solo funcionalidad.
+Ver PRIVACIDAD.md. Resumen: se declaran **solo dos** tipos de dato —
+Contact Info → Email Address y Identifiers → User ID, ambos *linked*,
+propósito App Functionality, sin tracking.
+
+Health & Fitness y Location NO se declaran: Apple define "collect"
+como transmitir el dato fuera del dispositivo, y en Maratonia los
+workouts y la ruta GPS nunca salen de HealthKit. Sin ATT, sin
+analytics. Si el Coach se activa en V1, agregar "Other Usage Data"
+(resúmenes de entrenamiento) enviados al backend propio + OpenAI como
+service provider, solo funcionalidad.
 
 ## URLs
 

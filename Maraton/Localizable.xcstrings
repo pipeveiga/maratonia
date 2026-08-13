@@ -34,6 +34,72 @@
         }
       }
     },
+    "%@ libre": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ open"
+          }
+        }
+      }
+    },
+    "%@ · %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@: %@ → %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: %2$@ → %3$@"
+          }
+        }
+      }
+    },
+    "%@: acortar a %lld %": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: shorten to %2$lld %"
+          }
+        }
+      }
+    },
+    "%@: pasar a rodaje fácil": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: switch to an easy run"
+          }
+        }
+      }
+    },
+    "%lld % de lo previsto": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld % of what was planned"
+          }
+        }
+      }
+    },
     "%lld avisos": {
       "extractionState": "manual",
       "localizations": {
@@ -56,6 +122,39 @@
         }
       }
     },
+    "%lld años · opcional, solo contexto": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld years old · optional, context only"
+          }
+        }
+      }
+    },
+    "%lld cambios registrados": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld changes recorded"
+          }
+        }
+      }
+    },
+    "%lld carreras": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld runs"
+          }
+        }
+      }
+    },
     "%lld de %@ de la semana": {
       "extractionState": "manual",
       "localizations": {
@@ -67,13 +166,24 @@
         }
       }
     },
-    "%lld días marcados": {
+    "%lld de %lld días marcados": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld days marked"
+            "value": "%1$lld of %2$lld days selected"
+          }
+        }
+      }
+    },
+    "%lld días": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld days"
           }
         }
       }
@@ -221,6 +331,17 @@
         }
       }
     },
+    "1 carrera": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 run"
+          }
+        }
+      }
+    },
     "1 entrenamiento": {
       "extractionState": "manual",
       "localizations": {
@@ -287,6 +408,17 @@
         }
       }
     },
+    "1 semana": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 week"
+          }
+        }
+      }
+    },
     "1 tramo": {
       "extractionState": "manual",
       "localizations": {
@@ -294,6 +426,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 interval"
+          }
+        }
+      }
+    },
+    "1-3 meses": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1-3 months"
+          }
+        }
+      }
+    },
+    "10 km": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "10 km"
+          }
+        }
+      }
+    },
+    "10K": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "10K"
+          }
+        }
+      }
+    },
+    "2 minutos: meta, actividad actual y disponibilidad": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 minutes: goal, current activity and availability"
           }
         }
       }
@@ -320,6 +496,61 @@
         }
       }
     },
+    "21,1 km con una preparación seria.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "21.1 km with a serious build-up."
+          }
+        }
+      }
+    },
+    "21K": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "21K"
+          }
+        }
+      }
+    },
+    "3-6 meses": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3-6 months"
+          }
+        }
+      }
+    },
+    "42K": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "42K"
+          }
+        }
+      }
+    },
+    "5 km": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 km"
+          }
+        }
+      }
+    },
     "5 km fuerte pero controlado. Tu tiempo se vuelve la referencia para personalizar los ritmos del plan.": {
       "extractionState": "manual",
       "localizations": {
@@ -327,6 +558,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "5 km hard but controlled. Your time becomes the reference to personalize your plan paces."
+          }
+        }
+      }
+    },
+    "5K": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5K"
+          }
+        }
+      }
+    },
+    "6-12 meses": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "6-12 months"
+          }
+        }
+      }
+    },
+    "A tener en cuenta": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Worth knowing"
           }
         }
       }
@@ -342,6 +606,28 @@
         }
       }
     },
+    "ANTES: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BEFORE: %@"
+          }
+        }
+      }
+    },
+    "Actividad actual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current activity"
+          }
+        }
+      }
+    },
     "Adoptar este plan": {
       "extractionState": "manual",
       "localizations": {
@@ -349,6 +635,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Adopt this plan"
+          }
+        }
+      }
+    },
+    "Afinar: menos volumen, la intensidad se mantiene.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sharpen up: less volume, intensity stays."
           }
         }
       }
@@ -419,6 +716,28 @@
         }
       }
     },
+    "Ajuste sugerido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggested adjustment"
+          }
+        }
+      }
+    },
+    "Ajustes del plan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plan adjustments"
+          }
+        }
+      }
+    },
     "Al confirmar, tu plan actual (si existe) queda archivado con su historial.": {
       "extractionState": "manual",
       "localizations": {
@@ -430,6 +749,28 @@
         }
       }
     },
+    "Altura: %lld cm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Height: %lld cm"
+          }
+        }
+      }
+    },
+    "Altura: sin cargar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Height: not set"
+          }
+        }
+      }
+    },
     "Aplicar cambios": {
       "extractionState": "manual",
       "localizations": {
@@ -437,6 +778,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Apply changes"
+          }
+        }
+      }
+    },
+    "Aplicar el ajuste": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply the adjustment"
           }
         }
       }
@@ -474,6 +826,17 @@
         }
       }
     },
+    "Arranque adaptado a tu volumen actual: las primeras semanas empiezan más abajo y suben hasta el plan completo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start adapted to your current volume: the first weeks begin lower and ramp up to the full plan."
+          }
+        }
+      }
+    },
     "Atrás": {
       "extractionState": "manual",
       "localizations": {
@@ -481,6 +844,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Back"
+          }
+        }
+      }
+    },
+    "Audio de la sesión": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session audio"
           }
         }
       }
@@ -573,6 +947,28 @@
         }
       }
     },
+    "Bajar el volumen para asimilar lo hecho.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drop the volume to absorb the work."
+          }
+        }
+      }
+    },
+    "Bien": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good"
+          }
+        }
+      }
+    },
     "Borrar": {
       "extractionState": "manual",
       "localizations": {
@@ -580,6 +976,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete"
+          }
+        }
+      }
+    },
+    "Buen entrenamiento. Tu preparación sigue según lo previsto.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Good session. Your build-up is on track."
+          }
+        }
+      }
+    },
+    "Buscar mi techo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find my ceiling"
           }
         }
       }
@@ -628,6 +1046,17 @@
         }
       }
     },
+    "Calculado sobre %@ de las últimas 6 semanas.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Based on %@ from the last 6 weeks."
+          }
+        }
+      }
+    },
     "Calendario": {
       "extractionState": "manual",
       "localizations": {
@@ -635,6 +1064,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Calendar"
+          }
+        }
+      }
+    },
+    "Cambiala en Perfil.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change it in Profile."
           }
         }
       }
@@ -683,6 +1123,17 @@
         }
       }
     },
+    "Carga de rendimiento — pide base real": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Performance load — requires a real base"
+          }
+        }
+      }
+    },
     "Cargando recorrido…": {
       "extractionState": "manual",
       "localizations": {
@@ -690,6 +1141,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Loading route…"
+          }
+        }
+      }
+    },
+    "Cargar mi fecha de nacimiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter my date of birth"
           }
         }
       }
@@ -771,6 +1233,28 @@
         }
       }
     },
+    "Completarla": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Complete it"
+          }
+        }
+      }
+    },
+    "Con ese recorte la semana queda por debajo de su volumen mínimo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That cut would leave the week below its minimum volume."
+          }
+        }
+      }
+    },
     "Con minuto límite": {
       "extractionState": "manual",
       "localizations": {
@@ -848,6 +1332,17 @@
         }
       }
     },
+    "Construir el hábito y el volumen cómodo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build the habit and comfortable volume."
+          }
+        }
+      }
+    },
     "Contale qué pasó (ej.: no puedo correr el jueves)": {
       "extractionState": "manual",
       "localizations": {
@@ -921,6 +1416,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Runs with your custom structure: the watch announces each interval and coaches you by voice."
+          }
+        }
+      }
+    },
+    "Corregir a mano": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Correct it manually"
           }
         }
       }
@@ -1024,6 +1530,17 @@
         }
       }
     },
+    "Cuando el plan se adapte a algo que te pasó, el cambio queda anotado acá.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When the plan adapts to something that happened, the change is recorded here."
+          }
+        }
+      }
+    },
     "Cuenta": {
       "extractionState": "manual",
       "localizations": {
@@ -1090,6 +1607,17 @@
         }
       }
     },
+    "Datos básicos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basic details"
+          }
+        }
+      }
+    },
     "Datos y sincronización": {
       "extractionState": "manual",
       "localizations": {
@@ -1123,6 +1651,28 @@
         }
       }
     },
+    "Declaraste una molestia reciente: vamos con cuidado.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You reported a recent niggle — let's be careful."
+          }
+        }
+      }
+    },
+    "Declaraste una molestia: la próxima sesión exigente va más suave.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You reported a niggle — the next hard session goes easier."
+          }
+        }
+      }
+    },
     "Deja de aparecer en Maratonia y en sus estadísticas. El entrenamiento NO se borra: sigue intacto en Apple Health, y podés restaurarlo desde Perfil → Carreras ocultas.": {
       "extractionState": "manual",
       "localizations": {
@@ -1130,6 +1680,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "It stops appearing in Maratonia and its stats. The workout is NOT deleted: it stays intact in Apple Health, and you can restore it from Profile → Hidden runs."
+          }
+        }
+      }
+    },
+    "Dejar el plan como está": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave the plan as it is"
           }
         }
       }
@@ -1189,6 +1750,39 @@
         }
       }
     },
+    "Detectado en Salud y confirmado por vos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detected in Health and confirmed by you"
+          }
+        }
+      }
+    },
+    "Detectado en Salud y corregido por vos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detected in Health and corrected by you"
+          }
+        }
+      }
+    },
+    "Detectado en Salud, sin confirmar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detected in Health, not confirmed"
+          }
+        }
+      }
+    },
     "Disponibilidad": {
       "extractionState": "manual",
       "localizations": {
@@ -1229,6 +1823,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "Duration"
+          }
+        }
+      }
+    },
+    "Día de la tirada larga": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Long run day"
+          }
+        }
+      }
+    },
+    "Edad": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Age"
+          }
+        }
+      }
+    },
+    "Edad, sexo, altura y peso — todo opcional": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Age, sex, height and weight — all optional"
           }
         }
       }
@@ -1277,6 +1904,17 @@
         }
       }
     },
+    "El Coach no propone cambios: tu plan sigue según lo previsto.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Coach proposes no changes — your plan is on track."
+          }
+        }
+      }
+    },
     "El Coach no pudo responder. Tu plan no depende de él: seguí entrenando.": {
       "extractionState": "manual",
       "localizations": {
@@ -1284,6 +1922,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "The Coach couldn't answer. Your plan doesn't depend on it: keep training."
+          }
+        }
+      }
+    },
+    "El Coach no puede aumentar la carga: eso lo decide el motor.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Coach can't increase your load — the engine decides that."
           }
         }
       }
@@ -1354,6 +2003,17 @@
         }
       }
     },
+    "El plan no se está respaldando: no hay sesión de iCloud activa.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your plan isn't being backed up: no active iCloud session."
+          }
+        }
+      }
+    },
     "El plan se archiva — no se borra nada: tus carreras, historial y tramos personalizados quedan intactos. La app pasa a modo libre y podés adoptar otro plan cuando quieras.": {
       "extractionState": "manual",
       "localizations": {
@@ -1387,6 +2047,17 @@
         }
       }
     },
+    "El ritmo «más rápido» tiene que ser menor que el «más lento». Ej: 3:50 a 4:10.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The “faster” pace must be lower than the “slower” one. E.g.: 3:50 to 4:10."
+          }
+        }
+      }
+    },
     "El siguiente escalón de distancia": {
       "extractionState": "manual",
       "localizations": {
@@ -1394,6 +2065,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "The next step up in distance"
+          }
+        }
+      }
+    },
+    "El siguiente escalón de distancia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The next step up in distance."
           }
         }
       }
@@ -1596,6 +2278,83 @@
         }
       }
     },
+    "Es el dato que más cambia tu plan: define dónde arranca, no dónde termina.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It's the single input that changes your plan the most: it sets where you start, not where you finish."
+          }
+        }
+      }
+    },
+    "Es la semana de tu carrera: los entrenamientos no se mueven.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It's your race week — workouts don't move."
+          }
+        }
+      }
+    },
+    "Es la única tirada larga de la semana: mejor acortarla o moverla que borrarla.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It's the only long run of the week — better to shorten or move it than delete it."
+          }
+        }
+      }
+    },
+    "Es tu meta, no un plan de entrenamiento. Adoptá un plan para entrenar hacia ella. Cambiala en Perfil.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It's your goal, not a training plan. Adopt a plan to train toward it. Change it in Profile."
+          }
+        }
+      }
+    },
+    "Es una señal para que el plan vaya más prudente, no un diagnóstico.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It's a signal for the plan to go easier, not a diagnosis."
+          }
+        }
+      }
+    },
+    "Esa fecha no es válida.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That date isn't valid."
+          }
+        }
+      }
+    },
+    "Ese día ya tiene otro entrenamiento.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That day already has another workout."
+          }
+        }
+      }
+    },
     "Ese día ya tiene «%@». Pueden convivir los dos, pero vas a tener doble entrenamiento.": {
       "extractionState": "manual",
       "localizations": {
@@ -1640,6 +2399,39 @@
         }
       }
     },
+    "Ese entrenamiento no existe en tu plan.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That workout isn't in your plan."
+          }
+        }
+      }
+    },
+    "Ese entrenamiento ya está resuelto: no se toca.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That workout is already resolved — it stays as is."
+          }
+        }
+      }
+    },
+    "Ese no es uno de los días que elegiste para correr.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That isn't one of the days you chose to run."
+          }
+        }
+      }
+    },
     "Ese plan está en camino": {
       "extractionState": "manual",
       "localizations": {
@@ -1669,6 +2461,72 @@
           "stringUnit": {
             "state": "translated",
             "value": "This week"
+          }
+        }
+      }
+    },
+    "Esta sesión no se puede acortar.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This session can't be shortened."
+          }
+        }
+      }
+    },
+    "Esta sesión no se puede convertir en un rodaje fácil.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This session can't be turned into an easy run."
+          }
+        }
+      }
+    },
+    "Esta sesión no se puede mover de día.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This session can't be moved to another day."
+          }
+        }
+      }
+    },
+    "Esta sesión no se puede omitir.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This session can't be skipped."
+          }
+        }
+      }
+    },
+    "Esta sesión no tiene distancia ni duración: no hay nada que acortar.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This session has no distance or duration — there's nothing to shorten."
+          }
+        }
+      }
+    },
+    "Esta sesión no tiene volumen: no se puede convertir.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This session has no volume — it can't be converted."
           }
         }
       }
@@ -1739,6 +2597,28 @@
         }
       }
     },
+    "Estoy en recuperación": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I'm in recovery"
+          }
+        }
+      }
+    },
+    "Estoy volviendo con indicación de alguien": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I'm coming back under someone's guidance"
+          }
+        }
+      }
+    },
     "Estructura": {
       "extractionState": "manual",
       "localizations": {
@@ -1750,6 +2630,50 @@
         }
       }
     },
+    "Estás corriendo menos días por semana de los que este objetivo necesita.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're running fewer days per week than this goal needs."
+          }
+        }
+      }
+    },
+    "Estás en taper: la intensidad se mantiene y el volumen ya está bajando. Acortarla sí se puede.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're tapering: intensity stays and volume is already dropping. Shortening it is fine."
+          }
+        }
+      }
+    },
+    "Estás en taper: mover sesiones acá desarma la recuperación previa a tu carrera.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're tapering — moving sessions now undoes the recovery before your race."
+          }
+        }
+      }
+    },
+    "Estás volviendo después de una pausa.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're coming back after a break."
+          }
+        }
+      }
+    },
     "Evaluación": {
       "extractionState": "manual",
       "localizations": {
@@ -1757,6 +2681,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Assessment"
+          }
+        }
+      }
+    },
+    "Exigido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hard"
           }
         }
       }
@@ -1794,6 +2729,17 @@
         }
       }
     },
+    "Falló el envío de un archivo: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A file transfer failed: %@"
+          }
+        }
+      }
+    },
     "Falta 1 semana para tu carrera": {
       "extractionState": "manual",
       "localizations": {
@@ -1801,6 +2747,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 week until your race"
+          }
+        }
+      }
+    },
+    "Falta base para ese objetivo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That goal needs more base"
           }
         }
       }
@@ -1867,6 +2824,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Original date: %@"
+          }
+        }
+      }
+    },
+    "Femenino": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Female"
           }
         }
       }
@@ -2003,6 +2971,28 @@
         }
       }
     },
+    "Hace cuánto corrés seguido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How long you've been running regularly"
+          }
+        }
+      }
+    },
+    "Hace poco que corrés de forma regular.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You've only been running regularly for a short while."
+          }
+        }
+      }
+    },
     "Hacer el Test 5K primero": {
       "extractionState": "manual",
       "localizations": {
@@ -2032,6 +3022,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Until minute"
+          }
+        }
+      }
+    },
+    "Hay un respaldo pero no lo puedo leer con esta versión de la app. Actualizá Maratonia e intentá de nuevo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There's a backup but this app version can't read it. Update Maratonia and try again."
           }
         }
       }
@@ -2245,6 +3246,28 @@
         }
       }
     },
+    "Kilómetros por semana: %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kilometres per week: %lld"
+          }
+        }
+      }
+    },
+    "La carrera NO se pudo guardar en Salud: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The run could NOT be saved to Health: %@"
+          }
+        }
+      }
+    },
     "La carrera se guarda en Salud.": {
       "extractionState": "manual",
       "localizations": {
@@ -2252,6 +3275,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "The run is saved to Health."
+          }
+        }
+      }
+    },
+    "La conexión con el reloj no está activa todavía. Probá de nuevo en unos segundos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The watch connection isn't active yet. Try again in a few seconds."
           }
         }
       }
@@ -2278,6 +3312,17 @@
         }
       }
     },
+    "La puerta de entrada. Se puede desde cero.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The way in. You can start from zero."
+          }
+        }
+      }
+    },
     "La semana en curso todavía no corta la racha.": {
       "extractionState": "manual",
       "localizations": {
@@ -2285,6 +3330,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "The current week doesn't break the streak yet."
+          }
+        }
+      }
+    },
+    "La semana más exigente del bloque.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The hardest week of the block."
+          }
+        }
+      }
+    },
+    "La sesión anterior resultó más exigente de lo previsto.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The previous session turned out harder than planned."
           }
         }
       }
@@ -2322,6 +3389,17 @@
         }
       }
     },
+    "Las primeras semanas ya empiezan lo más abajo que permite este plan, y aun así piden más de lo que venís haciendo. Arrancá con calma y adaptá las sesiones que te queden largas.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The first weeks already start as low as this plan allows, and they still ask for more than you've been doing. Ease into it and scale back any session that runs long."
+          }
+        }
+      }
+    },
     "Listo": {
       "extractionState": "manual",
       "localizations": {
@@ -2355,6 +3433,17 @@
         }
       }
     },
+    "Lo cargaste vos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You entered it"
+          }
+        }
+      }
+    },
     "Lo mínimo para progresar": {
       "extractionState": "manual",
       "localizations": {
@@ -2366,6 +3455,17 @@
         }
       }
     },
+    "Lo que vimos en Salud": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What we saw in Health"
+          }
+        }
+      }
+    },
     "Los 42,2 km — el grande": {
       "extractionState": "manual",
       "localizations": {
@@ -2373,6 +3473,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "The full 42.2 km — the big one"
+          }
+        }
+      }
+    },
+    "Los 42,2 km — el grande.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The 42.2 km — the big one."
           }
         }
       }
@@ -2432,6 +3543,17 @@
         }
       }
     },
+    "Maratonia no diagnostica ni trata lesiones. Si marcás una molestia, el plan se vuelve más cauto con el arranque y con la progresión.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maratonia doesn't diagnose or treat injuries. If you flag something, the plan gets more cautious about how it starts and how it builds."
+          }
+        }
+      }
+    },
     "Maratonia — hecha para correr. 🏃": {
       "extractionState": "manual",
       "localizations": {
@@ -2454,6 +3576,17 @@
         }
       }
     },
+    "Maratón · rendimiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marathon · performance"
+          }
+        }
+      }
+    },
     "Marcas · 12 semanas": {
       "extractionState": "manual",
       "localizations": {
@@ -2465,13 +3598,46 @@
         }
       }
     },
-    "Marcá al menos 2 días.": {
+    "Marcaste ese día como imposible para entrenar.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mark at least 2 days."
+            "value": "You marked that day as impossible to train."
+          }
+        }
+      }
+    },
+    "Marcá %lld días, o elegí otra cantidad arriba.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select %lld days, or pick a different number above."
+          }
+        }
+      }
+    },
+    "Masculino": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Male"
+          }
+        }
+      }
+    },
+    "Me hizo dejar de correr en el último tiempo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It made me stop running recently"
           }
         }
       }
@@ -2483,6 +3649,72 @@
           "stringUnit": {
             "state": "translated",
             "value": "Half marathon"
+          }
+        }
+      }
+    },
+    "Media · rendimiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Half · performance"
+          }
+        }
+      }
+    },
+    "Medidas": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Measurements"
+          }
+        }
+      }
+    },
+    "Mejorar mi maratón": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improve my marathon"
+          }
+        }
+      }
+    },
+    "Mejorar mi marca": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improve my time"
+          }
+        }
+      }
+    },
+    "Mejorar mi media": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improve my half"
+          }
+        }
+      }
+    },
+    "Mejorar mis 10K": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improve my 10K"
           }
         }
       }
@@ -2542,6 +3774,61 @@
         }
       }
     },
+    "Molesta, pero puedo correr": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It bothers me, but I can run"
+          }
+        }
+      }
+    },
+    "Molestias": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Niggles and injuries"
+          }
+        }
+      }
+    },
+    "Motor de Maratonia": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maratonia engine"
+          }
+        }
+      }
+    },
+    "Muy bien": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Very good"
+          }
+        }
+      }
+    },
+    "Muy exigido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Very hard"
+          }
+        }
+      }
+    },
     "Más adelante": {
       "extractionState": "manual",
       "localizations": {
@@ -2549,6 +3836,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Later"
+          }
+        }
+      }
+    },
+    "Más de un año": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More than a year"
           }
         }
       }
@@ -2571,6 +3869,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Faster"
+          }
+        }
+      }
+    },
+    "Máxima carga y especificidad. Necesita base real.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maximum load and specificity. Requires a real base."
           }
         }
       }
@@ -2619,6 +3928,39 @@
         }
       }
     },
+    "Nací el": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Born on"
+          }
+        }
+      }
+    },
+    "Nada de esto es obligatorio y nada de esto define tu plan. Tu rendimiento real y tu historial pesan mucho más — esto es solo contexto.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None of this is required and none of it defines your plan. Your actual performance and history matter far more — this is just context."
+          }
+        }
+      }
+    },
+    "Ninguna, estoy bien": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None, I'm fine"
+          }
+        }
+      }
+    },
     "No encontré esta carrera.": {
       "extractionState": "manual",
       "localizations": {
@@ -2626,6 +3968,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't find this run."
+          }
+        }
+      }
+    },
+    "No es un “no”: es un “todavía no”. Armar ese plan ahora sería venderte semanas que no se sostienen.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This isn't a “no” — it's a “not yet”. Building that plan now would sell you weeks that don't hold up."
           }
         }
       }
@@ -2652,6 +4005,39 @@
         }
       }
     },
+    "No pude activar el audio: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't start audio: %@"
+          }
+        }
+      }
+    },
+    "No pude borrar el respaldo de iCloud: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't delete the iCloud backup: %@"
+          }
+        }
+      }
+    },
+    "No pude leer Salud: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't read Health: %@"
+          }
+        }
+      }
+    },
     "No pude leer la credencial de Apple.": {
       "extractionState": "manual",
       "localizations": {
@@ -2663,6 +4049,17 @@
         }
       }
     },
+    "No pude reproducir %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't play %@."
+          }
+        }
+      }
+    },
     "No se guarda nada. No se puede deshacer.": {
       "extractionState": "manual",
       "localizations": {
@@ -2670,6 +4067,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Nothing is saved. This cannot be undone."
+          }
+        }
+      }
+    },
+    "No se modifican entrenamientos de días que ya pasaron.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Workouts from days that already passed can't be changed."
+          }
+        }
+      }
+    },
+    "No se programan entrenamientos después de tu carrera.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No workouts are scheduled after your race."
           }
         }
       }
@@ -2703,6 +4122,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't sign in with Google. Please try again."
+          }
+        }
+      }
+    },
+    "No se reprograma hacia el pasado.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing gets rescheduled into the past."
+          }
+        }
+      }
+    },
+    "No tenemos historial suficiente en Salud — eso no dice nada de vos, solo que no lo sabemos. Contanos y listo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We don't have enough history in Health — that says nothing about you, only that we don't know. Just tell us."
           }
         }
       }
@@ -2839,6 +4280,39 @@
         }
       }
     },
+    "Opcional. Es la sesión que más tiempo te lleva: elegí el día que te queda cómodo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional. It's the session that takes the most time — pick the day that suits you."
+          }
+        }
+      }
+    },
+    "Opcional. Nadie te va a insistir con esto.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optional. Nobody's going to nag you about it."
+          }
+        }
+      }
+    },
+    "Otro": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other"
+          }
+        }
+      }
+    },
     "PNG sin fondo, para tus fotos": {
       "extractionState": "manual",
       "localizations": {
@@ -2846,6 +4320,61 @@
           "stringUnit": {
             "state": "translated",
             "value": "Transparent PNG, for your photos"
+          }
+        }
+      }
+    },
+    "PROPUESTO: acortarla al %lld %": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PROPOSED: shorten it to %lld %"
+          }
+        }
+      }
+    },
+    "PROPUESTO: dejarla igual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PROPOSED: leave it unchanged"
+          }
+        }
+      }
+    },
+    "PROPUESTO: el mismo tiempo en pie, sin la carga de intensidad": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PROPOSED: the same time on feet, without the intensity"
+          }
+        }
+      }
+    },
+    "PROPUESTO: moverla al %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PROPOSED: move it to %@"
+          }
+        }
+      }
+    },
+    "PROPUESTO: saltarla": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PROPOSED: skip it"
           }
         }
       }
@@ -2890,6 +4419,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Partial — the session was saved"
+          }
+        }
+      }
+    },
+    "Pasaste varias semanas sin correr.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You went several weeks without running."
           }
         }
       }
@@ -2978,6 +4518,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Custom"
+          }
+        }
+      }
+    },
+    "Peso: %lld kg": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weight: %lld kg"
+          }
+        }
+      }
+    },
+    "Peso: sin cargar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weight: not set"
           }
         }
       }
@@ -3092,6 +4654,17 @@
         }
       }
     },
+    "Por qué": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Why"
+          }
+        }
+      }
+    },
     "Por seguridad, Firebase pide que vuelvas a iniciar sesión antes de eliminar la cuenta. Iniciá sesión y reintentá.": {
       "extractionState": "manual",
       "localizations": {
@@ -3147,6 +4720,17 @@
         }
       }
     },
+    "Prefiero no decirlo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prefer not to say"
+          }
+        }
+      }
+    },
     "Preguntale al Coach": {
       "extractionState": "manual",
       "localizations": {
@@ -3176,6 +4760,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "First week"
+          }
+        }
+      }
+    },
+    "Primero la distancia, después qué querés hacer con ella. El plan se arma alrededor de esto.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First the distance, then what you want to do with it. The plan is built around this."
           }
         }
       }
@@ -3279,6 +4874,17 @@
         }
       }
     },
+    "Quedaría pegada a otra sesión exigente: hace falta un día de por medio.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It would sit next to another hard session — you need a day in between."
+          }
+        }
+      }
+    },
     "Quitar plan": {
       "extractionState": "manual",
       "localizations": {
@@ -3330,6 +4936,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rejected by the engine."
+          }
+        }
+      }
+    },
+    "Recién empiezo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Just starting"
+          }
+        }
+      }
+    },
+    "Recortarla tanto ya sería otra sesión distinta.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cutting it that much would make it a different session."
           }
         }
       }
@@ -3466,6 +5094,17 @@
         }
       }
     },
+    "Respaldo: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup: %@"
+          }
+        }
+      }
+    },
     "Restaurar": {
       "extractionState": "manual",
       "localizations": {
@@ -3532,6 +5171,94 @@
         }
       }
     },
+    "Rodaje": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run"
+          }
+        }
+      }
+    },
+    "Rodaje fácil": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Easy run"
+          }
+        }
+      }
+    },
+    "Salida más larga: %@ km": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Longest run: %@ km"
+          }
+        }
+      }
+    },
+    "Salidas por semana: %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Runs per week: %lld"
+          }
+        }
+      }
+    },
+    "Salud no está disponible en este dispositivo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health isn't available on this device."
+          }
+        }
+      }
+    },
+    "Salud rechazó la distancia (revisá el permiso «Distancia» en Salud → Apps → Maratonia): %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health rejected the distance (check the “Distance” permission in Health → Apps → Maratonia): %@"
+          }
+        }
+      }
+    },
+    "Salud tiene negado el permiso de guardar entrenamientos: la carrera NO se va a guardar. Activalo en Salud → Compartir → Apps → Maratonia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health has workout-saving permission denied: the run will NOT be saved. Enable it in Health → Sharing → Apps → Maratonia."
+          }
+        }
+      }
+    },
+    "Salud tiene negado el permiso de guardar entrenamientos: la carrera NO se va a guardar. Activalo en el iPhone: Salud → Compartir → Apps → Maratonia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health has workout-saving permission denied: the run will NOT be saved. Enable it on the iPhone: Health → Sharing → Apps → Maratonia."
+          }
+        }
+      }
+    },
     "Se borran tu cuenta y el respaldo de Maratonia en iCloud. Tus entrenamientos guardados en Apple Health NO se tocan: siguen siendo tuyos y se administran desde la app Salud.": {
       "extractionState": "manual",
       "localizations": {
@@ -3550,6 +5277,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "This deletes your identity (including the Firebase one) and Maratonia's backup in iCloud. Your workouts saved in Apple Health are NOT touched: they remain yours and are managed from the Health app."
+          }
+        }
+      }
+    },
+    "Se guardan solo en tu dispositivo, como el resto de tu perfil.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stored only on your device, like the rest of your profile."
           }
         }
       }
@@ -3598,6 +5336,17 @@
         }
       }
     },
+    "Semana de carga.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load week."
+          }
+        }
+      }
+    },
     "Series": {
       "extractionState": "manual",
       "localizations": {
@@ -3642,6 +5391,28 @@
         }
       }
     },
+    "Sexo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sex"
+          }
+        }
+      }
+    },
+    "Si tenés una carrera marcada en el calendario, el plan apunta ahí. Si no, se avanza por progresión.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If you have a race on the calendar, the plan aims at it. If not, it progresses on its own."
+          }
+        }
+      }
+    },
     "Siguiente": {
       "extractionState": "manual",
       "localizations": {
@@ -3675,6 +5446,17 @@
         }
       }
     },
+    "Sin ajustes todavía": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No adjustments yet"
+          }
+        }
+      }
+    },
     "Sin avisos por ahora. Agregalos en «Avisos por voz».": {
       "extractionState": "manual",
       "localizations": {
@@ -3682,6 +5464,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "No cues yet. Add them in “Voice cues”."
+          }
+        }
+      }
+    },
+    "Sin cambios: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No change: %@"
+          }
+        }
+      }
+    },
+    "Sin cargar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not set"
           }
         }
       }
@@ -3741,6 +5545,17 @@
         }
       }
     },
+    "Sin nada que me limite para correr": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing holding me back from running"
+          }
+        }
+      }
+    },
     "Sin pistas en el plan todavía.": {
       "extractionState": "manual",
       "localizations": {
@@ -3796,13 +5611,13 @@
         }
       }
     },
-    "Sin referencia — el plan arranca suave y aprende con vos": {
+    "Sin referencia — las sesiones van a ritmo libre hasta que tengas una marca": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No reference — the plan starts easy and learns with you"
+            "value": "No reference — sessions run at free pace until you have a time on record"
           }
         }
       }
@@ -3818,6 +5633,28 @@
         }
       }
     },
+    "Sin una marca de referencia no se pueden ajustar los ritmos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Without a reference time, paces can't be personalised."
+          }
+        }
+      }
+    },
+    "Sirve para que los ritmos del plan sean TUYOS, no genéricos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "So the paces in your plan are YOURS, not generic ones."
+          }
+        }
+      }
+    },
     "Splits": {
       "extractionState": "manual",
       "localizations": {
@@ -3829,6 +5666,17 @@
         }
       }
     },
+    "Subir la carga de a poco, con calidad introductoria.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build load gradually, with introductory quality work."
+          }
+        }
+      }
+    },
     "Suenan según la distancia recorrida — necesitan «Registrar carrera» activado en el reloj.": {
       "extractionState": "manual",
       "localizations": {
@@ -3836,6 +5684,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "They fire by distance covered — they need “Record workout” enabled on the watch."
+          }
+        }
+      }
+    },
+    "Sí, representa mi actividad": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yes, that's my activity"
           }
         }
       }
@@ -3983,6 +5842,17 @@
         }
       }
     },
+    "Todavía no hay carreras. Corré con «Registrar carrera» activado y van a aparecer acá solas (la sincronización desde el reloj tarda unos minutos — tirá hacia abajo para actualizar). Si corriste y no aparecen, revisá los permisos en Salud → Compartir → Apps → Maratonia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No runs yet. Run with “Record run” enabled and they'll show up here on their own (syncing from the watch takes a few minutes — pull down to refresh). If you ran and they don't appear, check permissions in Health → Sharing → Apps → Maratonia."
+          }
+        }
+      }
+    },
     "Todavía no hay planes acá": {
       "extractionState": "manual",
       "localizations": {
@@ -4001,6 +5871,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "There's no plan for that distance in the catalog yet — it's on the way. Your profile is saved and you can explore available plans anytime."
+          }
+        }
+      }
+    },
+    "Todavía no la corrí, o quiero terminarla entera y bien.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I haven't run it yet, or I want to finish it strong."
+          }
+        }
+      }
+    },
+    "Todavía no tenemos historial tuyo de carreras.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We don't have any run history from you yet."
+          }
+        }
+      }
+    },
+    "Todos los avisos, en orden": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All cues, in order"
+          }
+        }
+      }
+    },
+    "Trabajo específico al ritmo de tu carrera.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Specific work at your race pace."
           }
         }
       }
@@ -4049,6 +5963,17 @@
         }
       }
     },
+    "Tu actividad de hoy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your activity today"
+          }
+        }
+      }
+    },
     "Tu carrera": {
       "extractionState": "manual",
       "localizations": {
@@ -4067,6 +5992,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your race is tomorrow"
+          }
+        }
+      }
+    },
+    "Tu carrera objetivo no se mueve ni se cambia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your goal race doesn't move and doesn't change."
+          }
+        }
+      }
+    },
+    "Tu carrera. Todo lo demás acompaña.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your race. Everything else supports it."
           }
         }
       }
@@ -4115,6 +6062,17 @@
         }
       }
     },
+    "Tu meta con esa distancia": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your goal for that distance"
+          }
+        }
+      }
+    },
     "Tu objetivo": {
       "extractionState": "manual",
       "localizations": {
@@ -4122,6 +6080,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your goal"
+          }
+        }
+      }
+    },
+    "Tu objetivo es %@. Adoptá un plan para empezar a entrenar — o corré libre cuando quieras.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your goal is %@. Adopt a plan to start training — or just run free whenever you want."
+          }
+        }
+      }
+    },
+    "Tu objetivo queda guardado en el perfil. Podés volver a intentarlo cuando quieras.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your goal stays saved in your profile. You can try again whenever you want."
+          }
+        }
+      }
+    },
+    "Tu perfil": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your profile"
           }
         }
       }
@@ -4181,6 +6172,17 @@
         }
       }
     },
+    "Tu salida más larga reciente queda corta para esta distancia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your longest recent run falls short for this distance."
+          }
+        }
+      }
+    },
     "Tu semana": {
       "extractionState": "manual",
       "localizations": {
@@ -4188,6 +6190,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your week"
+          }
+        }
+      }
+    },
+    "Tu volumen semanal está por debajo de lo que este objetivo pide.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your weekly volume is below what this goal asks for."
           }
         }
       }
@@ -4214,6 +6227,28 @@
         }
       }
     },
+    "Tuve alguna molestia": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Something bothered me"
+          }
+        }
+      }
+    },
+    "Ubicación negada: sin distancia, ritmo ni mapa. Activala en Ajustes → Privacidad → Localización → Maratonia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location denied: no distance, pace or map. Enable it in Settings → Privacy → Location → Maratonia."
+          }
+        }
+      }
+    },
     "Umbral": {
       "extractionState": "manual",
       "localizations": {
@@ -4221,6 +6256,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Threshold"
+          }
+        }
+      }
+    },
+    "Un buen punto de partida es **%@**. Cuando lo completes, este objetivo va a estar a tiro.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A good starting point is **%@**. Once you finish it, this goal will be within reach."
           }
         }
       }
@@ -4243,6 +6289,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "A race or a measured effort from recent months"
+          }
+        }
+      }
+    },
+    "Una lesión reciente": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A recent injury"
+          }
+        }
+      }
+    },
+    "Una molestia leve": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A mild niggle"
+          }
+        }
+      }
+    },
+    "Unas %@ salidas por semana y ~%@ km semanales, con una salida más larga de %@ km.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About %1$@ runs per week and ~%2$@ km weekly, with a longest run of %3$@ km."
           }
         }
       }
@@ -4302,6 +6381,17 @@
         }
       }
     },
+    "Versión suave de la sesión original: mismo tiempo en pie, sin la carga de intensidad.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A gentle version of the original session: same time on feet, without the intensity."
+          }
+        }
+      }
+    },
     "Volumen alto — para semanas ordenadas": {
       "extractionState": "manual",
       "localizations": {
@@ -4335,6 +6425,17 @@
         }
       }
     },
+    "Vos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You"
+          }
+        }
+      }
+    },
     "Vuelve a quedar pendiente en su día.": {
       "extractionState": "manual",
       "localizations": {
@@ -4346,6 +6447,28 @@
         }
       }
     },
+    "Vuelvo después de una pausa larga": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I'm coming back after a long break"
+          }
+        }
+      }
+    },
+    "Ya la corro — ahora quiero bajar el tiempo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I already run it — now I want a faster time."
+          }
+        }
+      }
+    },
     "Ya los corrés — ahora, más rápido": {
       "extractionState": "manual",
       "localizations": {
@@ -4353,6 +6476,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "You already run it — now, faster"
+          }
+        }
+      }
+    },
+    "Ya marcaste %lld días. Sacá uno para elegir este.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You already selected %lld days. Remove one to pick this."
           }
         }
       }
@@ -4533,6 +6667,17 @@
         }
       }
     },
+    "omitido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "skipped"
+          }
+        }
+      }
+    },
     "por tiempo": {
       "extractionState": "manual",
       "localizations": {
@@ -4665,6 +6810,17 @@
         }
       }
     },
+    "¿Cómo te sentiste?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How did it feel?"
+          }
+        }
+      }
+    },
     "¿Cómo vengo para mi objetivo?": {
       "extractionState": "manual",
       "localizations": {
@@ -4760,6 +6916,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "What should it say?"
+          }
+        }
+      }
+    },
+    "¿Qué venís haciendo?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What have you been doing?"
           }
         }
       }

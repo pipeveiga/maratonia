@@ -11,28 +11,10 @@ import SwiftUI
 // La IA futura se monta ARRIBA: propone CambioPropuesto, el motor
 // valida, el usuario acepta. GPT jamás escribe el dominio directo.
 
-// MARK: - Roles y semanas (estructura, no metodología)
-
-/// El rol de una sesión dentro de la semana. Los arquetipos razonan
-/// por ROLES con prioridad — la disponibilidad decide qué roles entran
-/// (2 días ≠ "plan de 4 borrando filas").
-enum RolSesion: Int, Codable, Comparable {
-    case carrera = 0            // el día objetivo: nunca se recorta
-    case tiradaLarga = 1
-    case calidadPrincipal = 2
-    case facil = 3
-    case recuperacion = 4
-    case calidadSecundaria = 5
-
-    static func < (a: RolSesion, b: RolSesion) -> Bool { a.rawValue < b.rawValue }
-}
-
-/// Carácter de una semana dentro del plan (infraestructura §37: carga,
-/// descarga, taper — el contenido lo declara cuando su metodología lo
-/// define; nil = sin declarar, jamás se inventa).
-enum TipoSemana: String, Codable {
-    case carga, descarga, taper, semanaDeCarrera
-}
+// NOTA: RolSesion, TipoSemana y Adaptabilidad se mudaron a
+// Shared/DominioV2.swift — se PERSISTEN dentro del plan (prioridad y
+// contrato de adaptación de cada sesión) y ese archivo es el que
+// también compila el Watch. Acá quedó solo lo que es motor.
 
 // MARK: - Arquetipo
 
@@ -70,62 +52,97 @@ struct PlanArquetipo: Identifiable {
 }
 
 extension PlanArquetipo {
-    /// Rol de una sesión del contenido. Tabla ESTRUCTURAL fija (no es
-    /// metodología: es cómo se recorta por disponibilidad).
-    static func rol(de tipo: TipoEntrenamiento) -> RolSesion {
-        switch tipo {
-        case .ritmoCarrera: return .carrera
-        case .largo: return .tiradaLarga
-        case .tempo, .umbral, .series, .testEvaluacion: return .calidadPrincipal
-        case .recuperacion: return .recuperacion
-        case .facil, .personalizado: return .facil
-        }
-    }
+    /// Rol de una sesión del contenido. La tabla vive en el dominio
+    /// (`RolSesion.para(_:)`) porque también se persiste en el plan;
+    /// esto queda como alias para no romper llamadores.
+    static func rol(de tipo: TipoEntrenamiento) -> RolSesion { .para(tipo) }
 }
 
 // MARK: - Biblioteca V1
 
-/// La biblioteca de arquetipos de V1 (§40, CONTENIDO_PLANES.md):
-/// - primeros-5k y 10k-continuo: contenido PROVISIONAL real (ritmos
-///   libres, progresión conservadora) — proponibles.
-/// - mejorar-5k, media-maraton, maraton: DECLARADOS con límites, SIN
-///   contenido validado → el motor lo dice con honestidad.
+/// El catálogo completo: los diez objetivos de §13, cada uno con su
+/// arquetipo versionado, sus límites explícitos y su contenido real.
+/// Nada copiado de planes de terceros — la metodología está citada en
+/// METODOLOGIA.md y la estructura es de Maratonia.
+///
+/// Los `diasMinimos` de cada arquetipo tienen que coincidir con los
+/// `RequisitosObjetivo` del evaluador de elegibilidad; hay un test que
+/// lo verifica, porque divergir ahí produce el peor bug posible: la
+/// app te deja elegir un objetivo y después no te genera nada.
 enum BibliotecaArquetipos {
     static func v1() -> [PlanArquetipo] {
         let bases = Dictionary(uniqueKeysWithValues:
             Catalogo.planesDisponibles().map { ($0.id, $0) })
         return [
+            // ---- 5K
             PlanArquetipo(id: "primeros-5k", version: 2, objetivo: .primeros5K,
                           nombre: "Primeros 5K",
                           semanasMinimas: 6, semanasRecomendadas: 6,
                           diasMinimos: 2, diasMaximos: 3,
                           recomiendaBaseline: false,
                           contenido: bases["primeros-5k"]),
-            PlanArquetipo(id: "10k-continuo", version: 2, objetivo: .diez,
-                          nombre: "Rumbo a 10K",
-                          semanasMinimas: 8, semanasRecomendadas: 8,
-                          diasMinimos: 2, diasMaximos: 3,
-                          recomiendaBaseline: false,
-                          contenido: bases["10k-continuo"]),
             PlanArquetipo(id: "mejorar-5k", version: 1, objetivo: .mejorar5K,
                           nombre: "Mejorar mis 5K",
                           semanasMinimas: 8, semanasRecomendadas: 8,
                           diasMinimos: 3, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mejorar5K()),
+            // ---- 10K
+            PlanArquetipo(id: "10k-continuo", version: 2, objetivo: .diez,
+                          nombre: "Rumbo a 10K",
+                          semanasMinimas: 8, semanasRecomendadas: 8,
+                          diasMinimos: 2, diasMaximos: 3,
+                          recomiendaBaseline: false,
+                          contenido: bases["10k-continuo"]),
+            PlanArquetipo(id: "mejorar-10k", version: 1, objetivo: .mejorar10K,
+                          nombre: "Mejorar mis 10K",
+                          semanasMinimas: 10, semanasRecomendadas: 10,
+                          diasMinimos: 3, diasMaximos: 5,
+                          recomiendaBaseline: true,
+                          contenido: ContenidoPlanes.mejorar10K()),
+            // ---- 21K
             PlanArquetipo(id: "media-maraton", version: 1, objetivo: .mediaMaraton,
                           nombre: "Media maratón",
                           semanasMinimas: 12, semanasRecomendadas: 12,
-                          diasMinimos: 3, diasMaximos: 5,
+                          diasMinimos: 4, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mediaMaraton()),
-            PlanArquetipo(id: "maraton", version: 1, objetivo: .maraton,
+            PlanArquetipo(id: "mejorar-media", version: 1, objetivo: .mejorarMedia,
+                          nombre: "Mejorar mi media",
+                          semanasMinimas: 12, semanasRecomendadas: 12,
+                          diasMinimos: 4, diasMaximos: 5,
+                          recomiendaBaseline: true,
+                          contenido: ContenidoPlanes.mejorarMedia()),
+            PlanArquetipo(id: "media-rendimiento", version: 1, objetivo: .mediaRendimiento,
+                          nombre: "Media · rendimiento",
+                          semanasMinimas: 14, semanasRecomendadas: 14,
+                          diasMinimos: 5, diasMaximos: 6,
+                          recomiendaBaseline: true,
+                          contenido: ContenidoPlanes.mediaRendimiento()),
+            // ---- 42K
+            PlanArquetipo(id: "maraton", version: 2, objetivo: .maraton,
                           nombre: "Maratón",
                           semanasMinimas: 16, semanasRecomendadas: 16,
-                          diasMinimos: 3, diasMaximos: 5,
+                          diasMinimos: 4, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.maraton()),
+            PlanArquetipo(id: "mejorar-maraton", version: 2, objetivo: .mejorarMaraton,
+                          nombre: "Mejorar mi maratón",
+                          semanasMinimas: 18, semanasRecomendadas: 18,
+                          diasMinimos: 4, diasMaximos: 5,
+                          recomiendaBaseline: true,
+                          contenido: ContenidoPlanes.mejorarMaraton()),
+            PlanArquetipo(id: "maraton-rendimiento", version: 2, objetivo: .maratonRendimiento,
+                          nombre: "Maratón · rendimiento",
+                          semanasMinimas: 18, semanasRecomendadas: 18,
+                          diasMinimos: 5, diasMaximos: 6,
+                          recomiendaBaseline: true,
+                          contenido: ContenidoPlanes.maratonRendimiento()),
         ]
+    }
+
+    static func arquetipo(para objetivo: ObjetivoDeportivo) -> PlanArquetipo? {
+        v1().first { $0.objetivo == objetivo }
     }
 }
 
@@ -147,6 +164,20 @@ struct PedidoDePlan {
     /// arquetipo lo recomiende (el Test 5K nunca es obligatorio).
     var aceptaSinBaseline = false
     var hoy: DiaLocal
+
+    // ---- Motor adaptativo: contexto del corredor. Todo opcional —
+    // sin nada de esto el motor se comporta exactamente como antes.
+
+    /// Ventana de 42 días calculada desde Salud.
+    var historial: ResumenVentana? = nil
+    /// Lo que el corredor declaró (o confirmó) sobre su actividad.
+    var actividad: ActividadActual? = nil
+    var molestias: EstadoMolestias = .ninguna
+    var preferencias: PreferenciasSemana? = nil
+    /// Saltear la puerta de elegibilidad porque el corredor insistió
+    /// tras leer la advertencia. NUNCA saltea los bloqueos duros
+    /// (fecha imposible, días insuficientes): esos no son opinables.
+    var aceptaConservador = false
 }
 
 enum ResultadoPlanificacion {
@@ -160,6 +191,10 @@ enum ResultadoPlanificacion {
     case diasInsuficientes(minimo: Int)
     /// El arquetipo existe pero su contenido todavía no está validado.
     case sinContenido(objetivo: ObjetivoDeportivo)
+    /// El objetivo no se sostiene con lo que el corredor trae hoy.
+    /// Trae los motivos y, si existe, por dónde empezar en su lugar.
+    case requiereBase(motivos: [MotivoElegibilidad],
+                      puente: ObjetivoDeportivo?)
 }
 
 /// El plan propuesto ANTES de confirmar: resumen + PlanUsuario listo.
@@ -175,6 +210,94 @@ struct PropuestaPlan {
     var referenciaUsada: ReferenciaRendimiento?
     var kmPrimeraSemana: Double?
     var planUsuario: PlanUsuario
+
+    /// Cómo salió la evaluación de elegibilidad. `.elegible` es lo
+    /// normal; `.elegibleConservador` significa que el arranque se
+    /// bajó y el corredor merece saber por qué.
+    var veredicto: VeredictoElegibilidad = .elegible
+    /// Factor con el que se atenuó el arranque (1 = sin atenuar).
+    var factorArranque: Double = 1
+    /// Si el techo de entrada se pudo cumplir, y con cuánto margen.
+    /// El plan se propone igual cuando NO se cumple: el desvío se
+    /// reporta, no se esconde ni bloquea. Ver `DiagnosticoArranque`.
+    var arranque: DiagnosticoArranque = .sinVolumenPrevio
+}
+
+/// Qué pasó con el techo de entrada al atenuar el arranque.
+///
+/// Existe porque `ajustarArranque` NO siempre puede cumplir el techo.
+/// El factor tiene un piso (`factorArranqueMinimo`) y los segmentos
+/// tienen el suyo (1 km, y los bloques por tiempo no se escalan): si
+/// esos pisos se agotan antes de llegar al techo, la primera semana
+/// queda POR ENCIMA de lo que se le prometió al corredor. Eso pasaba
+/// ya, pero se devolvía con exactamente la misma forma que un ajuste
+/// exitoso — un `Double` — y el llamador no tenía manera de
+/// distinguirlos. El desvío existía y era invisible.
+///
+/// Este tipo NO cambia ninguna regla deportiva ni decide nada: solo
+/// hace decible lo que el cálculo ya sabía.
+enum DiagnosticoArranque: Equatable {
+    /// No había volumen previo con el cual medir (o el plan no declara
+    /// volumen). No hay techo: no hay nada que cumplir ni que
+    /// incumplir, y esto NO es lo mismo que haberlo cumplido.
+    case sinVolumenPrevio
+    /// El template ya entraba bajo el techo por sí solo: no hizo falta
+    /// atenuar nada.
+    case noHizoFalta(permitidoKm: Double, resultanteKm: Double)
+    /// Se atenuó y se encontró un factor que deja la primera semana
+    /// bajo el techo.
+    case dentroDelTecho(permitidoKm: Double, resultanteKm: Double)
+    /// Los pisos se agotaron antes que el techo: la primera semana
+    /// queda por encima de lo permitido. No es un error del cálculo —
+    /// es que este plan no se puede achicar tanto para este corredor.
+    /// El plan se conserva igual; lo que no se hace es mentir sobre él.
+    case excedeElTecho(permitidoKm: Double, resultanteKm: Double)
+
+    /// Cuántos km por encima del techo quedó la primera semana.
+    var excesoKm: Double {
+        guard case .excedeElTecho(let permitido, let resultante) = self else { return 0 }
+        return max(0, resultante - permitido)
+    }
+
+    /// `false` SOLO cuando había un techo y NO se cumplió. Sin techo
+    /// contra el cual medir no se afirma nada: ver `hayTecho`.
+    var cumpleElTecho: Bool {
+        if case .excedeElTecho = self { return false }
+        return true
+    }
+
+    /// Si hubo un techo contra el cual medir. `cumpleElTecho` sobre un
+    /// diagnóstico sin techo es vacío, no una afirmación de éxito.
+    var hayTecho: Bool {
+        if case .sinVolumenPrevio = self { return false }
+        return true
+    }
+
+    /// El techo que se le prometió al corredor, si hubo uno.
+    var permitidoKm: Double? {
+        switch self {
+        case .sinVolumenPrevio: return nil
+        case .noHizoFalta(let p, _), .dentroDelTecho(let p, _), .excedeElTecho(let p, _):
+            return p
+        }
+    }
+
+    /// Lo que la primera semana mide de verdad, si se pudo medir.
+    var resultanteKm: Double? {
+        switch self {
+        case .sinVolumenPrevio: return nil
+        case .noHizoFalta(_, let r), .dentroDelTecho(_, let r), .excedeElTecho(_, let r):
+            return r
+        }
+    }
+}
+
+/// Lo que devuelve `ajustarArranque`: el plan atenuado, el factor y —
+/// la parte nueva — si ese factor alcanzó para cumplir el techo.
+struct ResultadoArranque {
+    var base: PlanBase
+    var factor: Double
+    var diagnostico: DiagnosticoArranque
 }
 
 // MARK: - Motor
@@ -192,8 +315,11 @@ enum MotorPlanificacion {
         }
 
         // Días concretos (si están) mandan sobre la cuenta abstracta.
-        let diasConcretos = pedido.diasConcretos.map {
-            Array(Set($0.filter { (1...7).contains($0) })).sorted()
+        // Los días declarados IMPOSIBLES se descartan siempre: son una
+        // restricción del corredor, no una preferencia negociable.
+        let imposibles = Set(pedido.preferencias?.diasImposibles ?? [])
+        let diasConcretos = pedido.diasConcretos.map { crudos in
+            Array(Set(crudos.filter { (1...7).contains($0) && !imposibles.contains($0) })).sorted()
         }
         let diasEfectivos = diasConcretos?.count ?? pedido.diasPorSemana
 
@@ -204,6 +330,52 @@ enum MotorPlanificacion {
         if arquetipo.recomiendaBaseline, pedido.referencia == nil,
            !pedido.aceptaSinBaseline {
             return .faltaBaseline(arquetipo: arquetipo.id)
+        }
+
+        // ---- Elegibilidad: ¿este objetivo se sostiene con lo que el
+        // corredor trae? Determinístico y explicable (§12). No es un
+        // filtro moral: solo evita vender un plan que no se aguanta.
+        let semanasDisponibles = pedido.fechaObjetivo.map {
+            semanasEntre(pedido.hoy, y: $0, calendario: calendario)
+        }
+        let veredicto = EvaluadorElegibilidad.evaluar(EntradaElegibilidad(
+            objetivo: pedido.objetivo,
+            semanasDisponibles: semanasDisponibles,
+            semanasMinimasDelPlan: arquetipo.semanasMinimas,
+            diasElegidos: diasEfectivos,
+            historial: pedido.historial,
+            actividadDeclarada: pedido.actividad,
+            tieneBaseline: pedido.referencia != nil,
+            molestias: pedido.molestias,
+            mesesCorriendoRegular: pedido.actividad?.mesesCorriendoRegular,
+            volviendoDePausa: pedido.actividad?.volviendoDePausa ?? false))
+
+        // ¿El plan se genera en su variante conservadora? El veredicto
+        // lo dice para `.elegibleConservador`, pero NO para quien cruzó
+        // la puerta de `requiereFaseBase` aceptando arrancar
+        // conservador: ese es justamente el que menos base tiene.
+        var arranqueConservador = veredicto.esConservador
+
+        switch veredicto {
+        case .fechaDemasiadoCerca(let disponibles, let minimas):
+            return .tiempoInsuficiente(semanasDisponibles: disponibles,
+                                       semanasMinimas: minimas)
+        case .frecuenciaInsuficiente(_, let minimo):
+            return .diasInsuficientes(minimo: minimo)
+        case .requiereFaseBase(let motivos):
+            guard pedido.aceptaConservador else {
+                return .requiereBase(
+                    motivos: motivos,
+                    puente: EvaluadorElegibilidad.objetivoPuente(para: pedido.objetivo))
+            }
+            // Aceptó arrancar conservador tras leer la advertencia: el
+            // plan tiene que SERLO. Antes recibía el techo permisivo
+            // (1,2 en vez de 1,0) y la rampa corta (3 semanas en vez de
+            // 5) — el trato MÁS agresivo para el corredor con MENOS
+            // base, exactamente al revés de lo que el flag promete.
+            arranqueConservador = true
+        case .elegible, .elegibleConservador:
+            break
         }
 
         // ---- Calendario ----
@@ -240,8 +412,20 @@ enum MotorPlanificacion {
         // versionada y se preserva; el motor solo lo mapea a los días
         // disponibles. La carrera objetivo se pinnea a su fecha después.
         if let dias = diasConcretos, !dias.isEmpty {
-            recortada = distribuir(recortada, enDias: dias)
+            recortada = distribuir(recortada, enDias: dias,
+                                   diaFondo: pedido.preferencias?.diaPreferidoFondo)
         }
+
+        // ---- Arranque conservador: el plan empieza DONDE ESTÁ el
+        // corredor, no donde el template asume que está.
+        // "Conservador" no es una etiqueta: baja el techo de entrada y
+        // alarga la rampa. La diferencia es real y testeable.
+        let ajuste = ajustarArranque(recortada,
+                                     kmSemanalesActuales: volumenActual(pedido),
+                                     conservador: arranqueConservador,
+                                     baseline: PerformanceBaseline(referencia: pedido.referencia))
+        recortada = ajuste.base
+        let factorArranque = ajuste.factor
 
         // ---- Snapshot (reusa la adopción probada del catálogo).
         var plan = recortada.adoptar(inicio: inicio, fechaAdopcion: Date(),
@@ -291,9 +475,9 @@ enum MotorPlanificacion {
         }
         plan.semanas.removeAll { $0.programados.isEmpty }
 
-        let primeraSemanaKm = plan.semanas.first?.programados
-            .compactMap { $0.definicion.distanciaTotalKm }
-            .reduce(0, +)
+        let baselineVolumen = PerformanceBaseline(referencia: pedido.referencia)
+        let primeraSemanaKm = plan.semanas.first?
+            .kmPrescritos(baseline: baselineVolumen)
 
         return .propuesta(PropuestaPlan(
             arquetipoID: arquetipo.id,
@@ -306,24 +490,286 @@ enum MotorPlanificacion {
             fechaCarrera: pedido.fechaObjetivo,
             referenciaUsada: pedido.referencia,
             kmPrimeraSemana: (primeraSemanaKm ?? 0) > 0 ? primeraSemanaKm : nil,
-            planUsuario: plan))
+            planUsuario: plan,
+            veredicto: veredicto,
+            factorArranque: factorArranque,
+            arranque: ajuste.diagnostico))
     }
+
+    /// El volumen semanal REAL del corredor: gana lo medido en Salud
+    /// sobre lo declarado (§4). nil = no sabemos, y entonces el
+    /// arranque no se toca (no inventamos un punto de partida).
+    static func volumenActual(_ pedido: PedidoDePlan) -> Double? {
+        if let historial = pedido.historial, !historial.estaVacia {
+            return historial.kmPorSemana
+        }
+        return pedido.actividad?.kmSemanales
+    }
+
+    /// Cuánto puede subir la primera semana respecto de lo que el
+    /// corredor viene haciendo. DECISIÓN MARATONIA (METODOLOGIA.md):
+    /// +20 % sobre el volumen actual. No es la "regla del 10 %"
+    /// universal — que no tiene respaldo sólido y no distingue a quien
+    /// corre 10 km/semana de quien corre 90 — sino un techo de ENTRADA
+    /// al plan, aplicado una sola vez.
+    static let factorEntradaMaximo = 1.2
+    /// El MISMO techo cuando la elegibilidad dio "conservador": la
+    /// primera semana no puede superar lo que el corredor ya hace.
+    /// Esto es lo que hace que "conservador" signifique algo — antes
+    /// era una etiqueta que se mostraba y no cambiaba una sola línea
+    /// del plan generado, mientras el onboarding prometía que "el plan
+    /// arranca más prudente".
+    static let factorEntradaConservador = 1.0
+    /// Piso: por debajo de esto el plan ya no es el plan. Si hace falta
+    /// recortar más, el problema es de elegibilidad, no de arranque.
+    static let factorArranqueMinimo = 0.5
+    /// En cuántas semanas se vuelve al volumen del template.
+    static let semanasDeRampa = 3
+    /// Conservador sube más despacio: una semana más de rampa.
+    static let semanasDeRampaConservador = 5
+
+    /// Atenúa las primeras semanas para que el salto de entrada sea
+    /// razonable, y vuelve al template con una rampa lineal. NUNCA
+    /// escala hacia arriba (§40) ni toca la carrera objetivo.
+    ///
+    /// El volumen de la primera semana se mide con `CalculoVolumen`,
+    /// no sumando distancias declaradas: si no, el techo de entrada se
+    /// calculaba contra un número que ignoraba las sesiones de calidad
+    /// y la atenuación salía mal por varios kilómetros.
+    ///
+    /// El techo se mide contra el BASELINE REAL del corredor cuando
+    /// existe. Los bloques por tiempo se convierten a km con un ritmo,
+    /// y usar el genérico hacía que el techo se evaluara para un
+    /// corredor que no es este: un umbral de 18′ son más km para quien
+    /// corre rápido que para quien corre lento, así que el mismo plan
+    /// pesa distinto según quién lo corra. Sin referencia se cae al
+    /// ritmo de referencia, que es lo único disponible.
+    ///
+    /// Y el factor se BUSCA contra el volumen que va a quedar, no se
+    /// deduce como `permitido / kmPrimera`: escalar solo mueve los
+    /// segmentos por DISTANCIA. Los bloques por tiempo (un umbral de
+    /// 18′ dura 18′), el piso de 1 km por segmento y el tope de
+    /// duración no responden al factor, así que la regla de tres
+    /// prometía un techo que la semana resultante no cumplía — el
+    /// arranque de Mejorar 10K contra 20 km/semana daba 25,4 km, un
+    /// +27 % donde el contrato dice +20 %.
+    static func ajustarArranque(_ base: PlanBase, kmSemanalesActuales: Double?,
+                                conservador: Bool = false,
+                                baseline: PerformanceBaseline? = nil) -> ResultadoArranque {
+        let sinMedida = ResultadoArranque(base: base, factor: 1,
+                                          diagnostico: .sinVolumenPrevio)
+        guard let actuales = kmSemanalesActuales, actuales > 0,
+              let primera = base.semanas.first else { return sinMedida }
+        let volumenTemplate = volumenSemanaBase(primera, baseline: baseline)
+        guard volumenTemplate > 0 else { return sinMedida }
+
+        let techo = conservador ? factorEntradaConservador : factorEntradaMaximo
+        let rampa = conservador ? semanasDeRampaConservador : semanasDeRampa
+        let permitido = actuales * techo
+
+        let factor: Double
+        let alcanzaElTecho: Bool
+        switch factorDeArranque(primera, permitido: permitido, baseline: baseline) {
+        case .noHaceFalta:
+            return ResultadoArranque(
+                base: base, factor: 1,
+                diagnostico: .noHizoFalta(permitidoKm: permitido,
+                                          resultanteKm: volumenTemplate))
+        case .encontrado(let f):
+            factor = f; alcanzaElTecho = true
+        case .pisoInsuficiente(let piso):
+            // El plan igual se atenúa todo lo que se puede: dejarlo sin
+            // tocar sería peor. Lo que cambia es que ahora se DICE.
+            factor = piso; alcanzaElTecho = false
+        }
+
+        var resultado = base
+        resultado.semanas = base.semanas.map { semana in
+            let indice = semana.numero - 1
+            guard indice >= 0, indice < rampa else { return semana }
+            // Rampa lineal: semana 1 = factor, y de ahí a 1 en
+            // `rampa` semanas.
+            let avance = Double(indice) / Double(rampa)
+            return escalarDistancias(semana, factor: factor + (1 - factor) * avance)
+        }
+
+        // Se mide la semana que REALMENTE quedó, no una reconstrucción:
+        // si la rampa cambiara, el diagnóstico la sigue sin retocarse.
+        let resultante = resultado.semanas.first
+            .map { volumenSemanaBase($0, baseline: baseline) } ?? 0
+        return ResultadoArranque(
+            base: resultado, factor: factor,
+            diagnostico: alcanzaElTecho
+                ? .dentroDelTecho(permitidoKm: permitido, resultanteKm: resultante)
+                : .excedeElTecho(permitidoKm: permitido, resultanteKm: resultante))
+    }
+
+    /// Resultado de buscar el factor de arranque. Los tres casos son
+    /// distintos y antes dos de ellos volvían como el mismo `Double`.
+    private enum BusquedaDeArranque {
+        /// El techo ya se cumple sin tocar nada.
+        case noHaceFalta
+        /// El mayor factor que deja la semana dentro del techo.
+        case encontrado(Double)
+        /// Ni siquiera `factorArranqueMinimo` alcanza. Trae el piso,
+        /// que es lo que se aplica igual, pero por otro camino para
+        /// que el llamador no pueda confundirlo con un éxito.
+        case pisoInsuficiente(Double)
+    }
+
+    /// El MAYOR factor que deja la semana dentro del techo. El volumen
+    /// es monótono no decreciente en el factor (cada segmento crece o
+    /// se queda en su piso), así que la bisección es exacta y
+    /// determinística.
+    ///
+    /// Si ni siquiera `factorArranqueMinimo` alcanza, el piso se aplica
+    /// igual — por debajo el plan deja de ser el plan — pero vuelve
+    /// como `.pisoInsuficiente`. Chequearlo por adelantado no cambia el
+    /// factor resultante: si el piso ya excede el permitido, la
+    /// monotonía garantiza que TODA la bisección deja `bajo` clavado en
+    /// el piso. Lo que cambia es que deja de ser indistinguible de un
+    /// ajuste que sí cumplió.
+    private static func factorDeArranque(_ semana: SemanaBase, permitido: Double,
+                                         baseline: PerformanceBaseline?) -> BusquedaDeArranque {
+        guard volumenSemanaBase(semana, baseline: baseline) > permitido else {
+            return .noHaceFalta
+        }
+        guard volumenSemanaBase(escalarDistancias(semana, factor: factorArranqueMinimo),
+                                baseline: baseline) <= permitido else {
+            return .pisoInsuficiente(factorArranqueMinimo)
+        }
+        var bajo = factorArranqueMinimo
+        var alto = 1.0
+        for _ in 0..<30 {
+            let medio = (bajo + alto) / 2
+            if volumenSemanaBase(escalarDistancias(semana, factor: medio),
+                                 baseline: baseline) > permitido {
+                alto = medio
+            } else {
+                bajo = medio
+            }
+        }
+        return .encontrado(bajo)
+    }
+
+    /// Escala los segmentos por DISTANCIA de la semana. Los bloques por
+    /// tiempo no se tocan y la carrera objetivo jamás se escala.
+    private static func escalarDistancias(_ semana: SemanaBase,
+                                          factor: Double) -> SemanaBase {
+        var nueva = semana
+        nueva.entrenamientos = semana.entrenamientos.map { entrenamiento in
+            guard entrenamiento.tipo != .ritmoCarrera else { return entrenamiento }
+            var ajustado = entrenamiento
+            ajustado.segmentos = entrenamiento.segmentos.map { segmento in
+                guard let km = segmento.distanciaKm else { return segmento }
+                var nuevoSegmento = segmento
+                nuevoSegmento.distanciaKm = max(1, (km * factor * 10).rounded() / 10)
+                return nuevoSegmento
+            }
+            return ajustado
+        }
+        return nueva
+    }
+
+    /// Volumen de la semana, sesión por sesión: el tope de duración es
+    /// por sesión y aplanar la semana lo haría desaparecer.
+    private static func volumenSemanaBase(_ semana: SemanaBase,
+                                          baseline: PerformanceBaseline? = nil) -> Double {
+        semana.entrenamientos.reduce(0.0) { $0 + volumenBase($1, baseline: baseline) }
+    }
+
+    /// Cuánto puede crecer una sesión fácil al absorber el volumen de
+    /// otra que se eliminó. DECISIÓN MARATONIA: 1,6× su distancia
+    /// original. Sin tope, un corredor de 3 días terminaba con un
+    /// "rodaje suave" de 21 km.
+    static let topeAbsorcion = 1.6
 
     /// Recorte por disponibilidad: en cada semana quedan las `dias`
     /// sesiones de MAYOR prioridad de rol (carrera > larga > calidad >
     /// fácil > recuperación), conservando el orden de días.
+    ///
+    /// Y —esto es lo que cambió— el volumen FÁCIL de las sesiones
+    /// eliminadas se REDISTRIBUYE entre las fáciles que quedan, en vez
+    /// de tirarse. Antes, recortar de 5 a 3 días no achicaba la tirada
+    /// larga pero sí borraba dos rodajes enteros: la larga pasaba de
+    /// ocupar el 51 % de la semana a ocupar el 66 %, y el corredor con
+    /// menos disponibilidad —normalmente el menos entrenado— recibía la
+    /// semana peor proporcionada. La redistribución hace que la
+    /// proporción deje de depender de cuántos días marcaste.
+    ///
+    /// Qué NO absorbe volumen: la tirada larga (crecería sin control),
+    /// las sesiones de calidad (su carga es intensidad, no distancia) y
+    /// la carrera objetivo.
     static func recortar(_ base: PlanBase, aDias dias: Int) -> PlanBase {
         var resultado = base
         resultado.semanas = base.semanas.map { semana in
-            var recortadaSemana = semana
+            var nueva = semana
             let ordenadas = semana.entrenamientos.enumerated().sorted {
                 let rolA = PlanArquetipo.rol(de: $0.element.tipo)
                 let rolB = PlanArquetipo.rol(de: $1.element.tipo)
                 return rolA == rolB ? $0.offset < $1.offset : rolA < rolB
             }
-            let elegidas = ordenadas.prefix(dias).map(\.offset).sorted()
-            recortadaSemana.entrenamientos = elegidas.map { semana.entrenamientos[$0] }
-            return recortadaSemana
+            let elegidas = Set(ordenadas.prefix(dias).map(\.offset))
+            guard elegidas.count < semana.entrenamientos.count else { return nueva }
+
+            // Volumen fácil que se pierde con el recorte.
+            let huerfano = semana.entrenamientos.enumerated()
+                .filter { !elegidas.contains($0.offset) && esAbsorbente($0.element.tipo) }
+                .reduce(0.0) { $0 + volumenBase($1.element) }
+
+            nueva.entrenamientos = elegidas.sorted().map { semana.entrenamientos[$0] }
+            guard huerfano > 0 else { return nueva }
+            nueva.entrenamientos = redistribuir(huerfano, en: nueva.entrenamientos)
+            return nueva
+        }
+        return resultado
+    }
+
+    /// Qué sesiones pueden crecer para absorber volumen ajeno.
+    private static func esAbsorbente(_ tipo: TipoEntrenamiento) -> Bool {
+        let rol = RolSesion.para(tipo)
+        return rol == .facil || rol == .recuperacion
+    }
+
+    /// Con el TOPE aplicado: una sesión que ya llega a su techo de
+    /// duración no tiene capacidad libre para absorber nada, y lo que
+    /// se le asignara se evaporaría igual al calcular el volumen.
+    private static func volumenBase(_ entrenamiento: EntrenamientoBase,
+                                    baseline: PerformanceBaseline? = nil) -> Double {
+        CalculoVolumen.volumen(entrenamiento.segmentos.map {
+            CalculoVolumen.Entrada(distanciaKm: $0.distanciaKm,
+                                   duracionSegundos: $0.duracionSegundos,
+                                   ritmo: $0.ritmo)
+        }, tope: entrenamiento.topeDuracionSegundos, baseline: baseline).totalKm
+    }
+
+    /// Reparte `huerfano` km entre las sesiones absorbentes, en
+    /// proporción a la capacidad de cada una y sin pasar el tope. Lo que
+    /// no entra se pierde: es la señal correcta de que esa frecuencia no
+    /// alcanza para ese plan, y el invariante de catálogo la detecta.
+    private static func redistribuir(_ huerfano: Double,
+                                     en entrenamientos: [EntrenamientoBase]) -> [EntrenamientoBase] {
+        let indices = entrenamientos.indices.filter {
+            esAbsorbente(entrenamientos[$0].tipo)
+                && entrenamientos[$0].segmentos.contains { $0.distanciaKm != nil }
+        }
+        guard !indices.isEmpty else { return entrenamientos }
+        let capacidades = indices.map { volumenBase(entrenamientos[$0]) * (topeAbsorcion - 1) }
+        let capacidadTotal = capacidades.reduce(0, +)
+        guard capacidadTotal > 0 else { return entrenamientos }
+        let reparto = min(huerfano, capacidadTotal)
+
+        var resultado = entrenamientos
+        for (indice, capacidad) in zip(indices, capacidades) {
+            let extra = reparto * (capacidad / capacidadTotal)
+            let kmDeclarados = resultado[indice].segmentos.compactMap(\.distanciaKm).reduce(0, +)
+            guard kmDeclarados > 0, extra > 0 else { continue }
+            let factor = (kmDeclarados + extra) / kmDeclarados
+            for g in resultado[indice].segmentos.indices {
+                if let km = resultado[indice].segmentos[g].distanciaKm {
+                    resultado[indice].segmentos[g].distanciaKm = (km * factor * 10).rounded() / 10
+                }
+            }
         }
         return resultado
     }
@@ -336,7 +782,14 @@ enum MotorPlanificacion {
     /// del arquetipo, no una regla del motor). Determinístico; jamás
     /// duplica fechas (los días elegidos son únicos y las sesiones por
     /// semana nunca superan su cuenta tras el recorte).
-    static func distribuir(_ base: PlanBase, enDias diasElegidos: [Int]) -> PlanBase {
+    /// `diaFondo`: el día que el corredor prefiere para la tirada larga
+    /// (1 = lunes … 7 = domingo). Si es uno de sus días elegidos, la
+    /// larga se INTERCAMBIA con lo que hubiera caído ahí — nunca se
+    /// duplica un día ni se pierde una sesión. Sin preferencia, la
+    /// larga queda donde la puso el template (el último día de la
+    /// semana), que NO es lo mismo que forzar domingo (§9).
+    static func distribuir(_ base: PlanBase, enDias diasElegidos: [Int],
+                           diaFondo: Int? = nil) -> PlanBase {
         let dias = Array(Set(diasElegidos.filter { (1...7).contains($0) })).sorted()
         guard !dias.isEmpty else { return base }
         var resultado = base
@@ -351,11 +804,21 @@ enum MotorPlanificacion {
             let indices: [Int] = k == 1
                 ? [dias.count - 1]
                 : (0..<k).map { Int((Double($0) * Double(dias.count - 1) / Double(k - 1)).rounded()) }
-            nueva.entrenamientos = zip(ordenadas.prefix(k), indices).map { sesion, indice in
+            var asignadas = zip(ordenadas.prefix(k), indices).map { sesion, indice -> EntrenamientoBase in
                 var asignada = sesion
                 asignada.diaDeSemana = dias[indice]
                 return asignada
             }
+            if let preferido = diaFondo, dias.contains(preferido),
+               let larga = asignadas.firstIndex(where: { $0.tipo == .largo }),
+               asignadas[larga].diaDeSemana != preferido {
+                let diaDeLaLarga = asignadas[larga].diaDeSemana
+                if let ocupante = asignadas.firstIndex(where: { $0.diaDeSemana == preferido }) {
+                    asignadas[ocupante].diaDeSemana = diaDeLaLarga
+                }
+                asignadas[larga].diaDeSemana = preferido
+            }
+            nueva.entrenamientos = asignadas.sorted { $0.diaDeSemana < $1.diaDeSemana }
             return nueva
         }
         return resultado
@@ -375,53 +838,10 @@ enum MotorPlanificacion {
     }
 }
 
-// MARK: - Coach futuro (interfaces, SIN implementación de IA — §41)
-
-/// Lo ÚNICO que un coach (GPT u otro) podrá proponer. El coach no
-/// escribe el dominio ni el Watch: propone, el MOTOR valida, el
-/// USUARIO acepta, y recién ahí se aplica versionado.
-enum CambioPropuesto {
-    case reprogramar(programadoID: UUID, a: DiaLocal)
-    case omitir(programadoID: UUID)
-    /// Requiere metodología versionada: hoy el validador lo rechaza.
-    case ajustarVolumenSemana(numero: Int, factor: Double)
-}
-
-struct ValidacionDeCambio {
-    var permitido: Bool
-    var motivo: String?
-}
-
-enum ValidadorDeCoach {
-    /// Reglas del motor sobre cualquier propuesta externa. Determinista
-    /// y conservador: lo que no puede validarse, se rechaza.
-    static func validar(_ cambio: CambioPropuesto, en almacen: AlmacenV2,
-                        hoy: DiaLocal) -> ValidacionDeCambio {
-        switch cambio {
-        case .reprogramar(let id, let dia):
-            guard let programado = almacen.todosLosProgramados.first(where: { $0.id == id }),
-                  programado.resolucion == .pendiente else {
-                return ValidacionDeCambio(permitido: false,
-                                          motivo: "Solo se reprograman pendientes.")
-            }
-            guard !(dia < hoy) else {
-                return ValidacionDeCambio(permitido: false,
-                                          motivo: "No se reprograma hacia el pasado.")
-            }
-            return ValidacionDeCambio(permitido: true, motivo: nil)
-        case .omitir(let id):
-            let existe = almacen.todosLosProgramados.contains {
-                $0.id == id && $0.resolucion == .pendiente
-            }
-            return ValidacionDeCambio(permitido: existe,
-                                      motivo: existe ? nil : "Solo se omiten pendientes.")
-        case .ajustarVolumenSemana:
-            return ValidacionDeCambio(
-                permitido: false,
-                motivo: "Ajustar volumen requiere metodología versionada (pendiente).")
-        }
-    }
-}
+// NOTA: CambioPropuesto, ValidacionDeCambio y ValidadorDeCoach viven
+// ahora en Adaptacion.swift, con el juego completo de operaciones
+// (mantener / mover / reducir / convertir / omitir) y el validador
+// determinístico entero. Acá quedó solo la generación del plan.
 
 // MARK: - UI: propuesta de plan ("Preparar mi plan" de verdad)
 
@@ -452,7 +872,49 @@ struct PropuestaPlanView: View {
                 icono: "hammer", color: .secondary,
                 titulo: String(localized: "Ese plan está en camino"),
                 texto: String(localized: "El contenido de \(TextosObjetivo.nombre(de: objetivo)) todavía no está listo — no vamos a inventarlo. Tu perfil queda guardado; mientras tanto podés usar los planes de 5K y 10K."))
+        case .requiereBase(let motivos, let puente):
+            vistaRequiereBase(motivos: motivos, puente: puente)
         }
+    }
+
+    /// El "todavía no" honesto: explica QUÉ falta (nunca califica al
+    /// corredor) y ofrece por dónde empezar. El objetivo queda
+    /// guardado — nadie le está diciendo que no puede.
+    private func vistaRequiereBase(motivos: [MotivoElegibilidad],
+                                   puente: ObjetivoDeportivo?) -> some View {
+        List {
+            Section {
+                VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+                    Label(String(localized: "Falta base para ese objetivo"),
+                          systemImage: "figure.strengthtraining.functional")
+                        .font(.headline)
+                        .foregroundStyle(.orange)
+                    Text("No es un “no”: es un “todavía no”. Armar ese plan ahora sería venderte semanas que no se sostienen.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Section(String(localized: "Por qué")) {
+                ForEach(motivos, id: \.self) { motivo in
+                    Label(motivo.texto, systemImage: "circle.fill")
+                        .font(.footnote)
+                        .labelStyle(.titleAndIcon)
+                }
+            }
+            if let puente {
+                Section {
+                    Text("Un buen punto de partida es **\(TextosObjetivo.nombre(de: puente))**. Cuando lo completes, este objetivo va a estar a tiro.")
+                        .font(.subheadline)
+                }
+            }
+            Section {
+                Button(String(localized: "Entendido")) { alTerminar() }
+            } footer: {
+                Text("Tu objetivo queda guardado en el perfil. Podés volver a intentarlo cuando quieras.")
+            }
+        }
+        .navigationTitle(Text("Tu plan"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func vistaPropuesta(_ propuesta: PropuestaPlan) -> some View {
@@ -499,8 +961,35 @@ struct PropuestaPlanView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                // El arranque se atenuó, pero no siempre alcanza: hay
+                // planes que no pueden bajar hasta el volumen del
+                // corredor sin dejar de ser ese plan. Prometer "adaptado
+                // a tu volumen actual" en ese caso es falso, y es
+                // justamente el corredor con menos base el que lo lee.
+                if propuesta.factorArranque < 1 {
+                    if propuesta.arranque.cumpleElTecho {
+                        Label(String(localized: "Arranque adaptado a tu volumen actual: las primeras semanas empiezan más abajo y suben hasta el plan completo."),
+                              systemImage: "arrow.down.right.circle")
+                            .font(.footnote)
+                            .foregroundStyle(DV2.Marca.primario)
+                    } else {
+                        Label(String(localized: "Las primeras semanas ya empiezan lo más abajo que permite este plan, y aun así piden más de lo que venís haciendo. Arrancá con calma y adaptá las sesiones que te queden largas."),
+                              systemImage: "exclamationmark.triangle")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                    }
+                }
             } footer: {
                 Text("Al confirmar, tu plan actual (si existe) queda archivado con su historial.")
+            }
+            if !propuesta.veredicto.motivos.isEmpty {
+                Section(String(localized: "A tener en cuenta")) {
+                    ForEach(propuesta.veredicto.motivos, id: \.self) { motivo in
+                        Text(motivo.texto)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
             Section {
                 Button {

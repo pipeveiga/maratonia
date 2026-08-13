@@ -155,7 +155,7 @@ final class Entrenamiento: NSObject, ObservableObject {
 
     func pedirPermisos(conGPS: Bool, alTerminar: @escaping () -> Void) {
         guard HKHealthStore.isHealthDataAvailable() else {
-            mensajeError = "Salud no está disponible en este reloj."
+            mensajeError = String(localized: "Salud no está disponible en este reloj.")
             return
         }
         var paraCompartir: Set<HKSampleType> = [HKQuantityType.workoutType()]
@@ -173,14 +173,16 @@ final class Entrenamiento: NSObject, ObservableObject {
         healthStore.requestAuthorization(toShare: paraCompartir, read: paraLeer) { [weak self] ok, error in
             DispatchQueue.main.async {
                 guard ok else {
-                    self?.mensajeError = "Sin permisos de Salud: \(error?.localizedDescription ?? "los rechazaste")"
+                    let motivo = error?.localizedDescription
+                        ?? String(localized: "los rechazaste")
+                    self?.mensajeError = String(localized: "Sin permisos de Salud: \(motivo)")
                     return
                 }
                 // OJO: ok == true solo significa que el pedido se procesó.
                 // Si el permiso de GUARDAR está negado, la sesión corre
                 // pero el workout no se guardaría — avisar ANTES de correr.
                 if self?.healthStore.authorizationStatus(for: .workoutType()) == .sharingDenied {
-                    self?.mensajeError = "Salud tiene negado el permiso de guardar entrenamientos: la carrera NO se va a guardar. Activalo en el iPhone: Salud → Compartir → Apps → Maratonia."
+                    self?.mensajeError = String(localized: "Salud tiene negado el permiso de guardar entrenamientos: la carrera NO se va a guardar. Activalo en el iPhone: Salud → Compartir → Apps → Maratonia.")
                 }
                 self?.cargarFCReposo()
                 self?.cargarFCMaxima()
@@ -266,7 +268,7 @@ final class Entrenamiento: NSObject, ObservableObject {
                 } else {
                     self.finalizar()
                 }
-                self.mensajeError = "La app se cerró en plena carrera: recuperé el entrenamiento y lo guardé en Salud."
+                self.mensajeError = String(localized: "La app se cerró en plena carrera: recuperé el entrenamiento y lo guardé en Salud.")
             }
         }
     }
@@ -276,7 +278,7 @@ final class Entrenamiento: NSObject, ObservableObject {
             // Puede pasar si la recuperación post-crash todavía está
             // cerrando la sesión anterior: avisar en vez de dejar la
             // carrera sin registro en silencio.
-            mensajeError = "Todavía estoy cerrando la sesión anterior. Esperá unos segundos y volvé a dar Play."
+            mensajeError = String(localized: "Todavía estoy cerrando la sesión anterior. Esperá unos segundos y volvé a dar Play.")
             return
         }
         self.programadoID = programadoID
@@ -297,7 +299,7 @@ final class Entrenamiento: NSObject, ObservableObject {
             let estado = ubicaciones.authorizationStatus
             if estado == .denied || estado == .restricted {
                 usaGPS = false
-                mensajeError = "Ubicación negada: la carrera se guarda SIN recorrido. Activala en el reloj: Ajustes → Privacidad → Localización → Maratonia."
+                mensajeError = String(localized: "Ubicación negada: la carrera se guarda SIN recorrido. Activala en el reloj: Ajustes → Privacidad → Localización → Maratonia.")
             }
         }
         let configuracion = HKWorkoutConfiguration()
@@ -352,7 +354,7 @@ final class Entrenamiento: NSObject, ObservableObject {
                 }
             }
         } catch {
-            mensajeError = "No pude iniciar el entrenamiento: \(error.localizedDescription)"
+            mensajeError = String(localized: "No pude iniciar el entrenamiento: \(error.localizedDescription)")
             sesion = nil
             builder = nil
         }
@@ -655,7 +657,7 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
                     // Si Salud rechazó el guardado, decirlo: antes fallaba
                     // en silencio y la tarjeta mentía "carrera guardada".
                     if let error = errorFinal ?? errorColeccion {
-                        self?.mensajeError = "La carrera NO se pudo guardar en Salud: \(error.localizedDescription)"
+                        self?.mensajeError = String(localized: "La carrera NO se pudo guardar en Salud: \(error.localizedDescription)")
                     }
                     self?.limpiarTrasFinal()
                 }
@@ -686,7 +688,7 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
             // contaminar la recuperación de una carrera futura.
             UserDefaults.standard.removeObject(forKey: Self.claveProgramadoActivo)
             self.programadoID = nil
-            self.mensajeError = "Entrenamiento: \(error.localizedDescription)"
+            self.mensajeError = String(localized: "Entrenamiento: \(error.localizedDescription)")
             self.activo = false
             self.pausado = false
             // Sin esto, morir durante una auto-pausa dejaba el cartel
@@ -747,7 +749,7 @@ extension Entrenamiento: CLLocationManagerDelegate {
             manager.startUpdatingLocation()
         case .denied, .restricted:
             DispatchQueue.main.async {
-                self.mensajeError = "Ubicación negada: esta carrera queda sin recorrido. Activala en Ajustes → Privacidad → Localización → Maratonia."
+                self.mensajeError = String(localized: "Ubicación negada: esta carrera queda sin recorrido. Activala en Ajustes → Privacidad → Localización → Maratonia.")
             }
         default:
             break
@@ -759,7 +761,7 @@ extension Entrenamiento: CLLocationManagerDelegate {
         // con los puntos que haya. Pero permiso negado sí se avisa.
         if let clError = error as? CLError, clError.code == .denied {
             DispatchQueue.main.async {
-                self.mensajeError = "Ubicación negada: esta carrera queda sin recorrido. Activala en Ajustes → Privacidad → Localización → Maratonia."
+                self.mensajeError = String(localized: "Ubicación negada: esta carrera queda sin recorrido. Activala en Ajustes → Privacidad → Localización → Maratonia.")
             }
         }
     }
