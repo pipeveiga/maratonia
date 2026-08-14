@@ -4,21 +4,20 @@ Lo que se decidió NO hacer ahora, con el motivo. No es una lista de
 deseos: cada punto es algo que se encontró trabajando, se evaluó y se
 dejó para después a propósito.
 
-## Contenido deportivo en inglés — decisión de producto **[VOS]**
+## ~~Contenido deportivo en inglés~~ — CERRADO en el build 67
 
-Con el teléfono en inglés, la UI está entera en inglés desde el build 67,
-pero los entrenamientos siguen en español: "Rodaje medio", "Tirada
-larga", "Rodaje continuo cómodo: tenés que poder hablar".
+Estaba acá como decisión de producto pendiente y se resolvió como
+problema de dominio: el plan guarda ahora QUÉ ES cada sesión
+(`ClaveEntrenamiento`, `ClaveSegmento`, `ClavePlan`) y el texto se arma
+al mostrarlo. Los planes ya adoptados se rescatan por `TextosLegado` sin
+migrar nada. Ver `Shared/TextosDeportivos.swift`.
 
-No es un bug de localización: esos textos salen del catálogo de planes
-(`ContenidoPlanes.swift`) y se **congelan en el snapshot** del plan al
-adoptarlo. Traducirlos implica (a) traducir el catálogo deportivo y (b)
-decidir qué pasa con los planes YA adoptados, que tienen el texto
-español guardado adentro. Un usuario que cambia el idioma del teléfono a
-mitad de un plan no debería ver su plan cambiar de idioma sesión por
-sesión, ni quedarse con el viejo para siempre sin poder actualizarlo.
-
-Hay que decidirlo antes de ofrecer la app en inglés, no después.
+Lo que queda de esa familia, y es chico: el contenido PROVISIONAL del
+catálogo V1 (Primeros 5K y Rumbo a 10K) sigue siendo JSON embebido sin
+claves y depende de la tabla de rescate. Funciona y hay un test que
+verifica que cada uno de sus textos esté en la tabla, pero el día que se
+reemplace ese contenido provisional conviene que nazca con claves como
+el resto en vez de agrandar la tabla.
 
 ## Onboarding: "estoy empezando" se infiere, no se guarda
 

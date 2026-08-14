@@ -14,14 +14,13 @@ Los campos marcados **[VOS]** requieren un dato o una decisión tuya.
 - [ ] Los 445 tests en verde (Product → Test)
 - [ ] Recorrer las 5 pestañas en **español**
 - [ ] Cambiar el iPhone a **inglés** y recorrerlas de nuevo.
-      El build 67 rehízo el barrido: el catálogo pasó de 636 a 809
-      claves y no queda texto de UI en español. **Lo que SÍ sigue en
-      español es el contenido deportivo** (nombres y descripciones de
-      los entrenamientos: "Rodaje medio", "Tirada larga"). Sale del
-      catálogo de planes y se congela en el snapshot del plan, así que
-      traducirlo es una decisión de producto —y una migración—, no un
-      arreglo de localización. Decidir antes de vender la app en
-      inglés. **[VOS]**
+      El build 67 rehízo el barrido: el catálogo del iPhone pasó de 636
+      a 908 claves y el del reloj de 110 a 228, sin nada sin traducir.
+      Incluye el CONTENIDO deportivo (nombres y descripciones de los
+      entrenamientos), que ya no se congela en español dentro del plan:
+      el snapshot guarda la clave semántica y el texto se arma al
+      mostrarlo. Un plan adoptado con una build anterior también se ve
+      traducido, sin migración.
       > Ojo con el mecanismo: `xcodebuild` NO sincroniza el
       > .xcstrings —eso lo hace Xcode compilando desde el IDE—, así que
       > si se agregan pantallas y solo se compila por línea de comandos,
