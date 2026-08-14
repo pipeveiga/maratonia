@@ -42,6 +42,32 @@ autorización queda pegada al contenedor), o con un test de UI que toque
 el botón. Mientras tanto, cualquier cambio ahí se verifica en el
 dispositivo.
 
+## Pendientes del megasprint de cuenta + Pro
+
+Lo que quedó fuera de este sprint, ordenado por lo que más importa:
+
+- **App Check** (§15): evaluado, no integrado. El backend ya exige
+  Firebase ID token, rate limit por UID e idempotencia, así que el
+  agujero que cerraría App Check es el de un atacante con una cuenta
+  válida quemando su propia cuota. Conviene observar métricas antes de
+  poner enforcement y arriesgar bloquear TestFlight.
+- **Tests de StoreKit con StoreKit Testing** (§47): la configuración
+  local (`Maratonia.storekit`) está y el `TiendaPro` es testeable, pero
+  falta el plan de pruebas de Xcode que ejercite compra/trial/restore/
+  expiración/revocación contra el simulador.
+- **E2E de dos dispositivos** (§40): la lógica de unión por ID estable
+  y la cola tienen tests unitarios; el recorrido real
+  (A adopta → B instala → mismo plan) necesita dos dispositivos y una
+  cuenta real.
+- **Borrado de cuenta cloud** (§36): el flujo existente borra identidad
+  y respaldo iCloud; falta que borre también `users/{uid}` y sus
+  subcolecciones (conviene una Cloud Function, porque borrar
+  subcolecciones desde el cliente es frágil).
+- **Revisión de PRIVACIDAD.md** (§37): ahora suben perfil, planes,
+  sesiones agregadas, referencias y adaptaciones a Firestore. El
+  documento todavía describe la app como local + respaldo iCloud. Hay
+  que actualizarlo ANTES de publicar, y la ficha de App Privacy también.
+
 ## El catálogo de strings se queda viejo en silencio
 
 `xcodebuild` no sincroniza el `.xcstrings`; eso lo hace Xcode al

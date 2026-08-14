@@ -268,3 +268,54 @@ struct InsigniaPro: View {
             .accessibilityLabel(Text("Requiere Maratonia Pro"))
     }
 }
+
+/// La sección Pro de Perfil. Separada de CORREDOR y de CUENTA: son tres
+/// cosas distintas y mezclarlas es lo que convierte a Perfil en un
+/// Settings.
+struct SeccionPro: View {
+    @ObservedObject private var tienda = TiendaPro.compartida
+    @State private var mostrandoPaywall = false
+    @State private var aviso: String?
+
+    var body: some View {
+        Section("Maratonia Pro") {
+            if tienda.estado.esPro {
+                LabeledContent("Estado") {
+                    Label(tienda.estado.enPrueba
+                          ? String(localized: "En prueba")
+                          : String(localized: "Activo"),
+                          systemImage: "checkmark.seal.fill")
+                        .foregroundStyle(DV2.Semantico.exito)
+                }
+                if case .pro(let vence, _) = tienda.estado, let vence {
+                    LabeledContent("Se renueva", value: FormatoFecha.media(vence))
+                }
+                // El flujo nativo de App Store: no se inventa una URL.
+                Link(destination: URL(string: "https://apps.apple.com/account/subscriptions")!) {
+                    Label("Gestionar suscripción", systemImage: "creditcard")
+                }
+            } else {
+                Button {
+                    mostrandoPaywall = true
+                } label: {
+                    Label("Conocer Maratonia Pro", systemImage: "sparkles")
+                }
+                Button("Restaurar compras") {
+                    Task {
+                        switch await tienda.restaurar() {
+                        case .restaurado: aviso = String(localized: "Listo: Pro restaurado.")
+                        case .sinCompras: aviso = String(localized: "No encontramos compras para restaurar con este Apple ID.")
+                        case .fallo(let motivo): aviso = motivo
+                        }
+                    }
+                }
+                .font(.footnote)
+            }
+        }
+        .sheet(isPresented: $mostrandoPaywall) { PaywallPro() }
+        .alert(aviso ?? "", isPresented: Binding(
+            get: { aviso != nil }, set: { if !$0 { aviso = nil } })) {
+            Button("Entendido", role: .cancel) {}
+        }
+    }
+}

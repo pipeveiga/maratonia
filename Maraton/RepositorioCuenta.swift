@@ -358,12 +358,31 @@ final class RepositorioCuenta: ObservableObject {
 
     // MARK: Logout
 
-    /// Cerrar sesión no puede dejar los datos de A a la vista de B. Se
-    /// limpia la caché de la cuenta; HealthKit no se toca (no es
-    /// nuestro) y la cola pendiente se descarta con su cuenta.
-    func limpiarParaLogout() {
+    /// Cerrar sesión no puede dejar los datos de A a la vista de B.
+    ///
+    /// Se limpia la CACHÉ de la cuenta: perfil, planes, sesiones,
+    /// referencias y adaptaciones. No es pérdida de datos — todo eso
+    /// vive en la nube bajo el UID de A y vuelve entero cuando A entra
+    /// de nuevo. Lo que NO se toca es HealthKit: sus entrenamientos son
+    /// del dispositivo y de Salud, no nuestros.
+    ///
+    /// Antes de limpiar se intenta vaciar la cola: si A terminó una
+    /// carrera sin señal y cierra sesión, esa carrera tiene que llegar.
+    func limpiarParaLogout() async {
+        await vaciarPendientes()
+        if !pendientes.isEmpty {
+            // No se pudo subir. Conservador: se deja el disco como está
+            // y se avisa. Perder una carrera es peor que ver un plan
+            // ajeno un rato — y el próximo login del dueño lo resuelve.
+            estado = .error(String(localized: "Quedaron cambios sin sincronizar. Conectate y volvé a entrar con tu cuenta para no perderlos."))
+            return
+        }
         pendientes = []
         guardarPendientes()
+        var limpio = AlmacenV2()
+        limpio.activado = true
+        almacen.almacen = limpio
+        ultimaFoto = nil
         estado = .inactivo
         ultimaSync = nil
     }

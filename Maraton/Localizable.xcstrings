@@ -144,6 +144,17 @@
         }
       }
     },
+    "%@ es parte de Pro": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ is part of Pro"
+          }
+        }
+      }
+    },
     "%@ kilómetros": {
       "extractionState": "manual",
       "localizations": {
@@ -514,6 +525,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld days"
+          }
+        }
+      }
+    },
+    "%lld días gratis": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld days free"
           }
         }
       }
@@ -1376,6 +1398,17 @@
         }
       }
     },
+    "Activo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active"
+          }
+        }
+      }
+    },
     "Actual": {
       "extractionState": "manual",
       "localizations": {
@@ -1618,6 +1651,17 @@
         }
       }
     },
+    "Anual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yearly"
+          }
+        }
+      }
+    },
     "Aplicar cambios": {
       "extractionState": "manual",
       "localizations": {
@@ -1636,6 +1680,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Apply the adjustment"
+          }
+        }
+      }
+    },
+    "App Store devolvió algo que no sabemos leer.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The App Store returned something we can't read."
           }
         }
       }
@@ -2311,6 +2366,17 @@
         }
       }
     },
+    "Coach IA": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI Coach"
+          }
+        }
+      }
+    },
     "Completarla": {
       "extractionState": "manual",
       "localizations": {
@@ -2472,6 +2538,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Confirm plan"
+          }
+        }
+      }
+    },
+    "Conocer Maratonia Pro": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Learn about Maratonia Pro"
           }
         }
       }
@@ -2982,6 +3059,17 @@
         }
       }
     },
+    "De mejorar tus 5K al maratón": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From beating your 5K to the marathon"
+          }
+        }
+      }
+    },
     "Decidir más tarde": {
       "extractionState": "manual",
       "localizations": {
@@ -3077,6 +3165,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Too many attempts. Wait a few minutes and try again."
+          }
+        }
+      }
+    },
+    "Desbloquear con Pro": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock with Pro"
           }
         }
       }
@@ -3319,6 +3418,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Example:\n{\"tramos\":[\n  {\"nombre\":\"Calentamiento\",\"km\":2},\n  {\"nombre\":\"Bloque\",\"km\":3,\"ritmoMin\":\"3:50\",\"ritmoMax\":\"4:10\"}\n]}\n\nTip: ask ChatGPT “give me the plan in this JSON format” with the example."
+          }
+        }
+      }
+    },
+    "El Coach es parte de Maratonia Pro.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Coach is part of Maratonia Pro."
+          }
+        }
+      }
+    },
+    "El Coach es parte de Pro": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Coach is part of Pro"
           }
         }
       }
@@ -3917,6 +4038,17 @@
         }
       }
     },
+    "En prueba": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On trial"
+          }
+        }
+      }
+    },
     "En un minuto puntual": {
       "extractionState": "manual",
       "localizations": {
@@ -4276,6 +4408,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "This session has no volume — it can't be converted."
+          }
+        }
+      }
+    },
+    "Esta versión de Maratonia es más vieja que tus datos. Actualizá la app.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This version of Maratonia is older than your data. Update the app."
           }
         }
       }
@@ -4808,6 +4951,17 @@
         }
       }
     },
+    "Gestionar suscripción": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manage subscription"
+          }
+        }
+      }
+    },
     "Google estará disponible muy pronto.": {
       "extractionState": "manual",
       "localizations": {
@@ -5281,6 +5435,17 @@
         }
       }
     },
+    "La compra quedó pendiente de aprobación. Te avisamos cuando se confirme.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The purchase is pending approval. We'll let you know when it goes through."
+          }
+        }
+      }
+    },
     "La conexión con el reloj no está activa todavía. Probá de nuevo en unos segundos.": {
       "extractionState": "manual",
       "localizations": {
@@ -5424,6 +5589,17 @@
         }
       }
     },
+    "La suscripción se renueva sola hasta que la cancelés, desde Ajustes de tu Apple ID.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The subscription renews automatically until you cancel it, from your Apple ID settings."
+          }
+        }
+      }
+    },
     "Larga": {
       "extractionState": "manual",
       "localizations": {
@@ -5519,6 +5695,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ready to start"
+          }
+        }
+      }
+    },
+    "Listo: Pro restaurado.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done: Pro restored."
           }
         }
       }
@@ -5644,6 +5831,17 @@
         }
       }
     },
+    "MEJOR VALOR": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BEST VALUE"
+          }
+        }
+      }
+    },
     "Maratonia": {
       "extractionState": "manual",
       "localizations": {
@@ -5662,6 +5860,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Maratonia Coach"
+          }
+        }
+      }
+    },
+    "Maratonia Pro": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maratonia Pro"
           }
         }
       }
@@ -5882,6 +6091,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Improve my 5K"
+          }
+        }
+      }
+    },
+    "Mensual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly"
           }
         }
       }
@@ -6260,6 +6480,17 @@
         }
       }
     },
+    "No encontramos compras para restaurar con este Apple ID.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We didn't find any purchases to restore with this Apple ID."
+          }
+        }
+      }
+    },
     "No encontré esta carrera.": {
       "extractionState": "manual",
       "localizations": {
@@ -6403,6 +6634,39 @@
         }
       }
     },
+    "No pudimos cargar los precios ahora.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We couldn't load the prices right now."
+          }
+        }
+      }
+    },
+    "No pudimos cargar los precios. Probá de nuevo en un rato.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We couldn't load the prices. Try again in a bit."
+          }
+        }
+      }
+    },
+    "No pudimos verificar la compra con App Store.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We couldn't verify the purchase with the App Store."
+          }
+        }
+      }
+    },
     "No se guarda nada. No se puede deshacer.": {
       "extractionState": "manual",
       "localizations": {
@@ -6436,6 +6700,17 @@
         }
       }
     },
+    "No se pudo completar la compra.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The purchase couldn't be completed."
+          }
+        }
+      }
+    },
     "No se pudo completar. Probá de nuevo en un rato.": {
       "extractionState": "manual",
       "localizations": {
@@ -6443,6 +6718,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't complete that. Try again in a bit."
+          }
+        }
+      }
+    },
+    "No se pudo contactar a App Store.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We couldn't reach the App Store."
           }
         }
       }
@@ -6465,6 +6751,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't sign in with Google. Please try again."
+          }
+        }
+      }
+    },
+    "No se pudo sincronizar ahora. Tus datos están guardados en el teléfono.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't sync right now. Your data is saved on your phone."
           }
         }
       }
@@ -6696,6 +6993,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Transparent PNG, for your photos"
+          }
+        }
+      }
+    },
+    "PRO": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PRO"
           }
         }
       }
@@ -7316,6 +7624,17 @@
         }
       }
     },
+    "Privacidad": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy"
+          }
+        }
+      }
+    },
     "Probando, probando. Así se escuchan los avisos.": {
       "extractionState": "manual",
       "localizations": {
@@ -7323,6 +7642,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Testing, testing. This is how the cues sound."
+          }
+        }
+      }
+    },
+    "Probar Pro gratis": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try Pro free"
           }
         }
       }
@@ -7422,6 +7752,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "There are %lld weeks left and this plan needs at least %lld. Compressing it would be risky — better pick another date or goal."
+          }
+        }
+      }
+    },
+    "Quedaron cambios sin sincronizar. Conectate y volvé a entrar con tu cuenta para no perderlos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some changes haven't synced. Get online and sign in again with your account so you don't lose them."
           }
         }
       }
@@ -7602,6 +7943,17 @@
         }
       }
     },
+    "Reintentar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try again"
+          }
+        }
+      }
+    },
     "Reloj": {
       "extractionState": "manual",
       "localizations": {
@@ -7701,6 +8053,17 @@
         }
       }
     },
+    "Requiere Maratonia Pro": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requires Maratonia Pro"
+          }
+        }
+      }
+    },
     "Respaldo: %@": {
       "extractionState": "manual",
       "localizations": {
@@ -7708,6 +8071,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Backup: %@"
+          }
+        }
+      }
+    },
+    "Restaurando tu plan…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring your plan…"
           }
         }
       }
@@ -7730,6 +8104,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Restore runs you hid"
+          }
+        }
+      }
+    },
+    "Restaurar compras": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore purchases"
           }
         }
       }
@@ -8170,6 +8555,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Doable, starting cautiously"
+          }
+        }
+      }
+    },
+    "Se renueva": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renews"
           }
         }
       }
@@ -8735,6 +9131,17 @@
         }
       }
     },
+    "Suscribirme": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscribe"
+          }
+        }
+      }
+    },
     "Sí": {
       "extractionState": "manual",
       "localizations": {
@@ -8808,6 +9215,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Taper"
+          }
+        }
+      }
+    },
+    "Te explica por qué te toca cada sesión": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It explains why each session is what it is"
           }
         }
       }
@@ -9142,6 +9560,17 @@
         }
       }
     },
+    "Todos los objetivos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every goal"
+          }
+        }
+      }
+    },
     "Tomá agua": {
       "extractionState": "manual",
       "localizations": {
@@ -9428,6 +9857,17 @@
         }
       }
     },
+    "Tu entrenamiento, en todos tus dispositivos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your training, on all your devices."
+          }
+        }
+      }
+    },
     "Tu identidad en Maratonia. Tus datos se respaldan en tu iCloud privado y tus entrenamientos viven en Apple Health.": {
       "extractionState": "manual",
       "localizations": {
@@ -9527,6 +9967,17 @@
         }
       }
     },
+    "Tu plan no se limita a decirte qué correr. Se adapta con vos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your plan doesn't just tell you what to run. It adapts with you."
+          }
+        }
+      }
+    },
     "Tu plan se respalda automáticamente en tu iCloud privado — sin registro ni contraseñas. Al reinstalar o cambiar de teléfono: «Restaurar plan».": {
       "extractionState": "manual",
       "localizations": {
@@ -9615,6 +10066,17 @@
         }
       }
     },
+    "Tu semana se reorganiza con vos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your week reshuffles with you"
+          }
+        }
+      }
+    },
     "Tu volumen semanal está por debajo de lo que este objetivo pide.": {
       "extractionState": "manual",
       "localizations": {
@@ -9666,6 +10128,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Something bothered me"
+          }
+        }
+      }
+    },
+    "Términos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terms"
           }
         }
       }
@@ -10095,6 +10568,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zone %lld."
+          }
+        }
+      }
+    },
+    "aprox. %@ por mes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "about %@ per month"
           }
         }
       }
@@ -10601,6 +11085,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "“Drink water”, “take a gel”…"
+          }
+        }
+      }
+    },
+    "·": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "·"
           }
         }
       }

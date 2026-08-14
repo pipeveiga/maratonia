@@ -86,7 +86,7 @@ struct ContentView: View {
         .onChange(of: identidad.haySesion) { _, hay in
             Task {
                 if hay { await sesion.restaurar(con: repositorio) }
-                else { repositorio.limpiarParaLogout(); sesion.reevaluar() }
+                else { await repositorio.limpiarParaLogout(); sesion.reevaluar() }
             }
         }
     }
@@ -1197,6 +1197,8 @@ struct PerfilTab: View {
         NavigationStack {
             List {
                 seccionObjetivo
+
+                SeccionPro()
 
                 SeccionCuentaMaratonia(identidad: identidad, cuentaCloud: cuenta)
 
