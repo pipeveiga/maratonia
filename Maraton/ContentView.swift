@@ -189,6 +189,15 @@ struct PlanTab: View {
     @Binding var pestana: Pestana
     @State private var confirmandoQuitarPlan = false
 
+    #if DEBUG
+    /// Abre el plan completo al arrancar. Igual que `pestanaInicial`:
+    /// solo en DEBUG y solo para poder capturar la pantalla, porque el
+    /// simulador no tiene forma de tocar un NavigationLink.
+    /// Uso: `-abrirPlanCompleto 1`
+    @State private var abrirPlanCompletoQA =
+        UserDefaults.standard.bool(forKey: "abrirPlanCompleto")
+    #endif
+
     private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
 
     // El Plan responde tres preguntas, en este orden: ¿qué me toca HOY?
@@ -236,10 +245,11 @@ struct PlanTab: View {
                 Section("Plan de entrenamiento") {
                     if almacen.almacen.planActivo != nil {
                         NavigationLink {
-                            CalendarioView(almacen: almacen)
+                            CalendarioView(almacen: almacen, store: store, pestana: $pestana)
                         } label: {
                             filaNavegacion(icono: "calendar", color: .green,
-                                           titulo: "Calendario", subtitulo: subtituloCalendario)
+                                           titulo: "Ver plan completo",
+                                           subtitulo: subtituloCalendario)
                         }
                     }
                     NavigationLink {
@@ -280,6 +290,14 @@ struct PlanTab: View {
                 }
             }
             .navigationTitle("Maratonia")
+            #if DEBUG
+            // Destino programático SOLO para poder capturar el plan
+            // completo desde el simulador (no hay forma de tocar un
+            // NavigationLink por línea de comandos). No existe en Release.
+            .navigationDestination(isPresented: $abrirPlanCompletoQA) {
+                CalendarioView(almacen: almacen, store: store, pestana: $pestana)
+            }
+            #endif
             .scrollDismissesKeyboard(.immediately)
         }
     }
@@ -410,11 +428,23 @@ struct PlanTab: View {
             // como si lo fuera. Antes salía con cuenta regresiva —
             // "Faltan 5 semanas para tu carrera"— sin nada detrás.
             if let motivo = perfil.objetivoSinPlan, almacen.almacen.planActivo == nil {
+                let fase = FaseBase.disponible(almacen.almacen)
                 Section {
                     AvisoSinPlan(
                         motivo: motivo, objetivo: objetivo,
-                        puente: EvaluadorElegibilidad.objetivoPuente(para: objetivo)
-                    ) { _ in pestana = .perfil }
+                        puente: EvaluadorElegibilidad.objetivoPuente(para: objetivo),
+                        alElegir: { accion in
+                            // Empezar la fase base ADOPTA un plan real y
+                            // conserva el objetivo deseado pendiente: no
+                            // reemplaza el sueño, lo acerca.
+                            if accion == .empezarFaseBase, let fase {
+                                almacen.almacen.adoptarPlan(fase.planUsuario,
+                                                            esFaseBase: true)
+                            } else {
+                                pestana = .perfil
+                            }
+                        },
+                        faseBase: fase?.nombre)
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                 }
@@ -429,7 +459,16 @@ struct PlanTab: View {
                                 Text(TextosObjetivo.nombre(de: objetivo))
                                 // La cuenta regresiva SOLO con plan: es
                                 // la promesa de que hay algo detrás.
-                                if almacen.almacen.planActivo != nil,
+                                if FaseBase.esFaseBase(almacen.almacen) {
+                                    // Hay plan, pero NO es el de este
+                                    // objetivo: la cuenta regresiva
+                                    // sería una promesa falsa. Se dice
+                                    // qué se está corriendo y qué no.
+                                    Label("Estás en fase base — este plan no apunta a esa fecha",
+                                          systemImage: "arrow.turn.up.right")
+                                        .font(.caption)
+                                        .foregroundStyle(DV2.Marca.primario)
+                                } else if almacen.almacen.planActivo != nil,
                                    let cuenta = TextosObjetivo.cuentaRegresiva(
                                     hasta: perfil.fechaObjetivo, hoy: hoy) {
                                     Text(cuenta)
@@ -459,27 +498,27 @@ struct PlanTab: View {
 
     /// Una sola interpretación de HOY (bug de build 39: Correr decía
     /// "parcial" y Plan decía "no hay entrenamiento").
+    /// La fila del calendario habla del PLAN, no del día: lo de hoy ya
+    /// está arriba, en la tarjeta protagonista. Acá lo útil es cuánto
+    /// dura el bloque y en qué parte va.
     private var subtituloCalendario: String {
-        if let deHoy = almacen.almacen.programadoDelDia(hoy) {
-            switch deHoy.resolucion {
-            case .pendiente: return String(localized: "Hoy: \(deHoy.definicion.nombre)")
-            case .cumplido: return String(localized: "Hoy: \(deHoy.definicion.nombre) — cumplido")
-            case .parcial: return String(localized: "Hoy: \(deHoy.definicion.nombre) — parcial")
-            case .omitido: return String(localized: "Hoy: \(deHoy.definicion.nombre) — omitido")
-            }
+        guard let plan = almacen.almacen.planActivo, !plan.semanas.isEmpty else {
+            return String(localized: "Todas las semanas del plan")
         }
-        let vencidos = almacen.almacen.vencidos(hoy).count
-        if vencidos > 0 {
-            return vencidos == 1
-                ? String(localized: "1 entrenamiento vencido")
-                : String(localized: "\(vencidos) entrenamientos vencidos")
+        let total = plan.semanas.count
+        let actual = plan.semanas.first { semana in
+            guard let primero = semana.programados.compactMap(\.dia).min() else { return false }
+            return !(hoy < primero) && !(primero.sumando(dias: 6) < hoy)
+        }?.numero
+        guard let actual else {
+            return String(localized: "\(Plurales.semanas(total)) en total")
         }
-        return String(localized: "Hoy: descanso")
+        return String(localized: "Semana \(actual) de \(total)")
     }
 
     private var subtituloCatalogo: String {
         almacen.almacen.planActivo == nil
-            ? String(localized: "Elegí un plan de 5K o 10K")
+            ? String(localized: "De 5K a maratón, con tus días")
             : String(localized: "Cambiar de plan (el actual se archiva)")
     }
 
@@ -1255,10 +1294,19 @@ struct PerfilTab: View {
 
                 if let motivo = perfil.objetivoSinPlan, almacen.almacen.planActivo == nil,
                    let objetivo = perfil.objetivo {
+                    let fase = FaseBase.disponible(almacen.almacen)
                     AvisoSinPlan(
                         motivo: motivo, objetivo: objetivo,
-                        puente: EvaluadorElegibilidad.objetivoPuente(para: objetivo)
-                    ) { _ in mostrandoOnboarding = true }
+                        puente: EvaluadorElegibilidad.objetivoPuente(para: objetivo),
+                        alElegir: { accion in
+                            if accion == .empezarFaseBase, let fase {
+                                almacen.almacen.adoptarPlan(fase.planUsuario,
+                                                            esFaseBase: true)
+                            } else {
+                                mostrandoOnboarding = true
+                            }
+                        },
+                        faseBase: fase?.nombre)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: DV2.Espacio.m, trailing: 0))
                     .listRowBackground(Color.clear)
                 }

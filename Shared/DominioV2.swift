@@ -1077,7 +1077,12 @@ enum MotivoSinPlan: String, Codable, Equatable, CaseIterable {
     /// probablemente resuelve el caso.
     var accionesSugeridas: [AccionSinPlan] {
         switch self {
-        case .fechaDemasiadoCerca: return [.cambiarFecha, .cambiarObjetivo]
+        // La fase base va PRIMERA: es lo único que se puede hacer hoy
+        // mismo. Cambiar la fecha sigue siendo la vía para volver
+        // viable el objetivo original, y por eso queda inmediatamente
+        // después.
+        case .fechaDemasiadoCerca:
+            return [.empezarFaseBase, .cambiarFecha, .cambiarObjetivo]
         // Las TRES palancas, en orden de utilidad. La fecha va última
         // pero va: cambiar de objetivo cambia las semanas mínimas, así
         // que quien viene de acá suele tener que revisarla también.
@@ -1096,6 +1101,10 @@ enum AccionSinPlan: String, Codable, Equatable {
     case ajustarDisponibilidad
     case objetivoPuente
     case hacerTest
+    /// Empezar a entrenar YA con el puente que el dominio define,
+    /// sin apuntar a la fecha que no entraba. No reemplaza al objetivo
+    /// deseado: convive con él (ver `FaseBase`).
+    case empezarFaseBase
 }
 
 // MARK: - Perfil del corredor: contexto, actividad, molestias
@@ -1685,7 +1694,11 @@ struct AlmacenV2: Codable, Equatable {
 
     /// Adoptar un plan nuevo archiva el activo (read-only): nada se
     /// pisa ni se borra.
-    mutating func adoptarPlan(_ nuevo: PlanUsuario) {
+    /// `esFaseBase` = el plan NO es el del objetivo declarado, sino un
+    /// puente hacia él. En ese caso el motivo pendiente se conserva: el
+    /// objetivo deseado sigue sin plan y la app tiene que poder decirlo
+    /// sin inventar un estado nuevo (ver `FaseBase.esFaseBase`).
+    mutating func adoptarPlan(_ nuevo: PlanUsuario, esFaseBase: Bool = false) {
         if let actual = planActivo {
             planesAnteriores = historialDePlanes + [actual]
         }
@@ -1693,7 +1706,7 @@ struct AlmacenV2: Codable, Equatable {
         // Hay plan: el objetivo dejó de estar pendiente. Único lugar
         // donde se limpia, para que no pueda quedar un "no llegamos"
         // colgado encima de un plan que sí existe.
-        perfil?.objetivoSinPlan = nil
+        if !esFaseBase { perfil?.objetivoSinPlan = nil }
     }
 
     /// Quitar el plan SIN reemplazo: se archiva igual que en un cambio

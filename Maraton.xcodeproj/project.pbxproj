@@ -33,15 +33,15 @@
 		A1000000000000000000004E /* Cuenta.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000004D /* Cuenta.swift */; };
 		A10000000000000000000050 /* CarreraTelefono.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000004F /* CarreraTelefono.swift */; };
 		A10000000000000000000052 /* DominioV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000051 /* DominioV2.swift */; };
-		A10000000000000000000102 /* TextosDeportivos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* TextosDeportivos.swift */; };
-		A10000000000000000000112 /* Unidades.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* Unidades.swift */; };
-		A10000000000000000000113 /* Unidades.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* Unidades.swift */; };
-		A10000000000000000000103 /* TextosDeportivos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* TextosDeportivos.swift */; };
 		A10000000000000000000053 /* DominioV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000051 /* DominioV2.swift */; };
 		A10000000000000000000055 /* PlanV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000054 /* PlanV2.swift */; };
 		A10000000000000000000057 /* DisenoV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000056 /* DisenoV2.swift */; };
 		A10000000000000000000059 /* Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000058 /* Onboarding.swift */; };
 		A1000000000000000000005B /* Progreso.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005A /* Progreso.swift */; };
+		A1000000000000000000005D /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005C /* Localizable.xcstrings */; };
+		A1000000000000000000005F /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005E /* InfoPlist.xcstrings */; };
+		A10000000000000000000061 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000060 /* Localizable.xcstrings */; };
+		A10000000000000000000063 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000062 /* InfoPlist.xcstrings */; };
 		A10000000000000000000065 /* Identidad.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000064 /* Identidad.swift */; };
 		A10000000000000000000067 /* MotorPlanes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000066 /* MotorPlanes.swift */; };
 		A10000000000000000000074 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000072 /* FirebaseAuth */; };
@@ -50,18 +50,18 @@
 		A10000000000000000000079 /* ServicioAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000078 /* ServicioAuth.swift */; };
 		A1000000000000000000007C /* ContenidoPlanes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007B /* ContenidoPlanes.swift */; };
 		A1000000000000000000007E /* Coach.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000007D /* Coach.swift */; };
-		A100000000000000000000C1 /* ComponentesUX.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000C0 /* ComponentesUX.swift */; };
+		A10000000000000000000083 /* DominioV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000081 /* DominioV2Tests.swift */; };
+		A10000000000000000000084 /* LogicaDeportivaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000082 /* LogicaDeportivaTests.swift */; };
 		A10000000000000000000090 /* PerfilCorredor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000008F /* PerfilCorredor.swift */; };
 		A10000000000000000000092 /* Adaptacion.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000091 /* Adaptacion.swift */; };
 		A10000000000000000000094 /* PerfilYFeedbackUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000093 /* PerfilYFeedbackUI.swift */; };
 		A10000000000000000000096 /* MotorAdaptativoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000095 /* MotorAdaptativoTests.swift */; };
 		A10000000000000000000098 /* CalibracionDeportivaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000097 /* CalibracionDeportivaTests.swift */; };
-		A10000000000000000000083 /* DominioV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000081 /* DominioV2Tests.swift */; };
-		A10000000000000000000084 /* LogicaDeportivaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000082 /* LogicaDeportivaTests.swift */; };
-		A1000000000000000000005D /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005C /* Localizable.xcstrings */; };
-		A1000000000000000000005F /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005E /* InfoPlist.xcstrings */; };
-		A10000000000000000000061 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000060 /* Localizable.xcstrings */; };
-		A10000000000000000000063 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000062 /* InfoPlist.xcstrings */; };
+		A100000000000000000000C1 /* ComponentesUX.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000C0 /* ComponentesUX.swift */; };
+		A10000000000000000000102 /* TextosDeportivos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* TextosDeportivos.swift */; };
+		A10000000000000000000103 /* TextosDeportivos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* TextosDeportivos.swift */; };
+		A10000000000000000000112 /* Unidades.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* Unidades.swift */; };
+		A10000000000000000000113 /* Unidades.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* Unidades.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -124,32 +124,32 @@
 		A1000000000000000000004D /* Cuenta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cuenta.swift; sourceTree = "<group>"; };
 		A1000000000000000000004F /* CarreraTelefono.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarreraTelefono.swift; sourceTree = "<group>"; };
 		A10000000000000000000051 /* DominioV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DominioV2.swift; sourceTree = "<group>"; };
-		A10000000000000000000101 /* TextosDeportivos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextosDeportivos.swift; sourceTree = "<group>"; };
-		A10000000000000000000111 /* Unidades.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Unidades.swift; sourceTree = "<group>"; };
 		A10000000000000000000054 /* PlanV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanV2.swift; sourceTree = "<group>"; };
 		A10000000000000000000056 /* DisenoV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisenoV2.swift; sourceTree = "<group>"; };
 		A10000000000000000000058 /* Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Onboarding.swift; sourceTree = "<group>"; };
 		A1000000000000000000005A /* Progreso.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Progreso.swift; sourceTree = "<group>"; };
+		A1000000000000000000005C /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		A1000000000000000000005E /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		A10000000000000000000060 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		A10000000000000000000062 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		A10000000000000000000064 /* Identidad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Identidad.swift; sourceTree = "<group>"; };
 		A10000000000000000000066 /* MotorPlanes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotorPlanes.swift; sourceTree = "<group>"; };
 		A10000000000000000000076 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		A10000000000000000000078 /* ServicioAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServicioAuth.swift; sourceTree = "<group>"; };
+		A1000000000000000000007A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1000000000000000000007B /* ContenidoPlanes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContenidoPlanes.swift; sourceTree = "<group>"; };
 		A1000000000000000000007D /* Coach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Coach.swift; sourceTree = "<group>"; };
-		A100000000000000000000C0 /* ComponentesUX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentesUX.swift; sourceTree = "<group>"; };
+		A10000000000000000000080 /* MaratonTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaratonTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000081 /* DominioV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DominioV2Tests.swift; sourceTree = "<group>"; };
+		A10000000000000000000082 /* LogicaDeportivaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicaDeportivaTests.swift; sourceTree = "<group>"; };
 		A1000000000000000000008F /* PerfilCorredor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfilCorredor.swift; sourceTree = "<group>"; };
 		A10000000000000000000091 /* Adaptacion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Adaptacion.swift; sourceTree = "<group>"; };
 		A10000000000000000000093 /* PerfilYFeedbackUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfilYFeedbackUI.swift; sourceTree = "<group>"; };
 		A10000000000000000000095 /* MotorAdaptativoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MotorAdaptativoTests.swift; sourceTree = "<group>"; };
 		A10000000000000000000097 /* CalibracionDeportivaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibracionDeportivaTests.swift; sourceTree = "<group>"; };
-		A10000000000000000000080 /* MaratonTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaratonTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A10000000000000000000081 /* DominioV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DominioV2Tests.swift; sourceTree = "<group>"; };
-		A10000000000000000000082 /* LogicaDeportivaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicaDeportivaTests.swift; sourceTree = "<group>"; };
-		A1000000000000000000007A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A1000000000000000000005C /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
-		A1000000000000000000005E /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
-		A10000000000000000000060 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
-		A10000000000000000000062 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		A100000000000000000000C0 /* ComponentesUX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentesUX.swift; sourceTree = "<group>"; };
+		A10000000000000000000101 /* TextosDeportivos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextosDeportivos.swift; sourceTree = "<group>"; };
+		A10000000000000000000111 /* Unidades.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Unidades.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -179,13 +179,18 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		3D014ACE302F881900CDB3ED /* Products */ = {
+			isa = PBXGroup;
+			name = Products;
+			sourceTree = "<group>";
+		};
 		A10000000000000000000006 = {
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000008 /* Maraton */,
 				A10000000000000000000009 /* Maraton Watch App */,
 				A1000000000000000000000A /* Shared */,
-				A10000000000000000000085 /* MaratonTests */,
+				A10000000000000000000085 /* Tests/MaratonTests */,
 				A10000000000000000000007 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -268,7 +273,7 @@
 			path = Shared;
 			sourceTree = "<group>";
 		};
-		A10000000000000000000085 /* MaratonTests */ = {
+		A10000000000000000000085 /* Tests/MaratonTests */ = {
 			isa = PBXGroup;
 			children = (
 				A10000000000000000000081 /* DominioV2Tests.swift */,
@@ -276,7 +281,7 @@
 				A10000000000000000000095 /* MotorAdaptativoTests.swift */,
 				A10000000000000000000097 /* CalibracionDeportivaTests.swift */,
 			);
-			path = "Tests/MaratonTests";
+			path = Tests/MaratonTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -372,12 +377,18 @@
 				Base,
 			);
 			mainGroup = A10000000000000000000006;
-			productRefGroup = A10000000000000000000007 /* Products */;
 			packageReferences = (
 				A10000000000000000000070 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				A10000000000000000000071 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
+			productRefGroup = A10000000000000000000007 /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 3D014ACE302F881900CDB3ED /* Products */;
+					ProjectRef = 3D716CDD302A14D100245555 /* Maraton.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				A10000000000000000000002 /* Maraton */,
@@ -499,38 +510,6 @@
 			targetProxy = A1000000000000000000008A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		A10000000000000000000070 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 11.0.0;
-			};
-		};
-		A10000000000000000000071 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 8.0.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		A10000000000000000000072 /* FirebaseAuth */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10000000000000000000070 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseAuth;
-		};
-		A10000000000000000000073 /* GoogleSignIn */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10000000000000000000071 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
-			productName = GoogleSignIn;
-		};
-/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A10000000000000000000016 /* Debug */ = {
@@ -654,11 +633,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Maraton/Maraton.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 68;
+				CURRENT_PROJECT_VERSION = 69;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Maraton/Info.plist";
+				INFOPLIST_FILE = Maraton/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Maratonia;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Maratonia lee tus entrenamientos y tu frecuencia cardíaca de Apple Health para registrar tus carreras y mostrar tu progreso y tus marcas.";
@@ -691,11 +670,11 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Maraton/Maraton.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 68;
+				CURRENT_PROJECT_VERSION = 69;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Maraton/Info.plist";
+				INFOPLIST_FILE = Maraton/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Maratonia;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Maratonia lee tus entrenamientos y tu frecuencia cardíaca de Apple Health para registrar tus carreras y mostrar tu progreso y tus marcas.";
@@ -729,7 +708,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Maraton Watch App/MaratonWatchApp.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 68;
+				CURRENT_PROJECT_VERSION = 69;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -766,7 +745,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Maraton Watch App/MaratonWatchApp.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 68;
+				CURRENT_PROJECT_VERSION = 69;
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -805,7 +784,7 @@
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.pipeveiga.maraton.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.pipeveiga.maraton.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -823,7 +802,7 @@
 				DEVELOPMENT_TEAM = 2M7NJ8V37F;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.pipeveiga.maraton.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.pipeveiga.maraton.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -873,6 +852,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A10000000000000000000070 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
+		A10000000000000000000071 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A10000000000000000000072 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000070 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		A10000000000000000000073 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000071 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A10000000000000000000001 /* Project object */;
 }

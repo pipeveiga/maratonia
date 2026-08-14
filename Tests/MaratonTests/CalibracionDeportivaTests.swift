@@ -3063,3 +3063,207 @@ final class UnidadesTests: XCTestCase {
         XCTAssertTrue(bloque.nombreCanonico.contains("8 km"))
     }
 }
+
+// MARK: - Fase base: un objetivo imposible no es un callejón
+//
+// El caso reportado en el build 68: maratón el 20 de septiembre con seis
+// semanas por delante y 30 km/sem de base. El motor rechaza el maratón
+// —y hace bien— pero el corredor se quedaba en "Sin plan activo".
+
+final class FaseBaseTests: XCTestCase {
+
+    private let hoy = DiaLocal(anio: 2026, mes: 8, dia: 14)
+
+    private var perfilDelCaso: PerfilDeportivo {
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .maraton
+        perfil.diasPorSemana = 4
+        perfil.diasElegidos = [2, 4, 6, 7]
+        perfil.fechaObjetivo = DiaLocal(anio: 2026, mes: 9, dia: 20)
+        perfil.actividad = ActividadActual(origen: .declarado, fecha: Date(),
+                                           diasPorSemana: 4, kmSemanales: 30,
+                                           tiradaLargaKm: 14, mesesCorriendoRegular: 9,
+                                           volviendoDePausa: false)
+        return perfil
+    }
+
+    private var marca: ReferenciaRendimiento {
+        ReferenciaRendimiento(fecha: Date(), fuente: .marcaManual,
+                              distanciaMetros: 10000, segundos: 50 * 60)
+    }
+
+    private func pedidoDelCaso() throws -> PedidoDePlan {
+        try XCTUnwrap(PedidoDePlan(perfil: perfilDelCaso, objetivo: .maraton,
+                                   referencia: marca, hoy: hoy))
+    }
+
+    /// Lo que YA funcionaba y no se toca: el maratón imposible sigue
+    /// rechazado. La fase base no puede reabrir esa puerta.
+    func testElMaratonImposibleSigueRechazado() throws {
+        let resultado = MotorPlanificacion.proponer(try pedidoDelCaso())
+        guard case .tiempoInsuficiente(let disponibles, let minimas) = resultado else {
+            return XCTFail("el maratón en 6 semanas tiene que seguir rechazado: \(resultado)")
+        }
+        XCTAssertLessThan(disponibles, minimas)
+        XCTAssertEqual(resultado.motivoSinPlan, .fechaDemasiadoCerca)
+    }
+
+    /// Y lo nuevo: hay algo REAL para empezar hoy.
+    func testHayFaseBaseParaElCasoReportado() throws {
+        let fase = try XCTUnwrap(FaseBase.propuesta(para: try pedidoDelCaso()),
+                                 "con 30 km/sem tiene que haber una fase base")
+        // El puente más cercano al sueño, no el más chico que entre.
+        XCTAssertEqual(fase.planUsuario.clave, .mediaMaraton)
+        XCTAssertGreaterThanOrEqual(fase.semanas, 12)
+        XCTAssertFalse(fase.planUsuario.semanas.isEmpty)
+    }
+
+    /// La fase base NO apunta a la fecha que no entraba: si apuntara,
+    /// volveríamos al plan comprimido que el P0 vino a prohibir.
+    func testLaFaseBaseNoApuntaALaFechaQueNoEntraba() throws {
+        let fase = try XCTUnwrap(FaseBase.propuesta(para: try pedidoDelCaso()))
+        XCTAssertNil(fase.fechaCarrera, "una fase base no promete una carrera")
+        // Y dura MÁS que las semanas que había hasta la fecha: es la
+        // prueba de que no se comprimió nada para hacerla entrar.
+        let semanasHastaLaFecha = MotorPlanificacion.semanasEntre(
+            hoy, y: DiaLocal(anio: 2026, mes: 9, dia: 20))
+        XCTAssertGreaterThan(fase.semanas, semanasHastaLaFecha)
+    }
+
+    /// Adoptarla conserva el objetivo DESEADO pendiente: el sueño no se
+    /// reemplaza por el puente.
+    func testAdoptarLaFaseBaseConservaElObjetivoDeseado() throws {
+        var almacen = AlmacenV2()
+        almacen.perfil = perfilDelCaso
+        almacen.perfil?.objetivoSinPlan = .fechaDemasiadoCerca
+        let fase = try XCTUnwrap(FaseBase.propuesta(para: try pedidoDelCaso()))
+
+        almacen.adoptarPlan(fase.planUsuario, esFaseBase: true)
+
+        XCTAssertNotNil(almacen.planActivo, "ahora sí hay algo para entrenar")
+        XCTAssertEqual(almacen.perfilDeportivo.objetivo, .maraton, "el sueño sigue siendo el sueño")
+        XCTAssertEqual(almacen.perfilDeportivo.objetivoSinPlan, .fechaDemasiadoCerca,
+                       "el objetivo deseado SIGUE sin plan y hay que poder decirlo")
+        XCTAssertTrue(FaseBase.esFaseBase(almacen))
+        XCTAssertEqual(almacen.planActivo?.clave, .mediaMaraton)
+    }
+
+    /// Adoptar el plan DEL objetivo pedido sigue limpiando el motivo:
+    /// la fase base es la excepción, no la regla nueva.
+    func testAdoptarElPlanDelObjetivoLimpiaElMotivo() throws {
+        var almacen = AlmacenV2()
+        almacen.perfil = perfilDelCaso
+        almacen.perfil?.objetivoSinPlan = .fechaDemasiadoCerca
+        var sinFecha = perfilDelCaso
+        sinFecha.fechaObjetivo = nil
+        let pedido = try XCTUnwrap(PedidoDePlan(perfil: sinFecha, objetivo: .maraton,
+                                                referencia: marca, hoy: hoy))
+        guard case .propuesta(let propuesta) = MotorPlanificacion.proponer(pedido) else {
+            return XCTFail("sin fecha el maratón sí tiene plan")
+        }
+        almacen.adoptarPlan(propuesta.planUsuario)
+        XCTAssertNil(almacen.perfilDeportivo.objetivoSinPlan)
+        XCTAssertFalse(FaseBase.esFaseBase(almacen))
+    }
+
+    /// La acción se ofrece donde el corredor se quedaba sin nada.
+    func testLaFechaImposibleOfreceEmpezarFaseBase() {
+        XCTAssertEqual(MotivoSinPlan.fechaDemasiadoCerca.accionesSugeridas.first,
+                       .empezarFaseBase)
+        // Y cambiar la fecha sigue estando: es la vía para volver
+        // viable el objetivo ORIGINAL.
+        XCTAssertTrue(MotivoSinPlan.fechaDemasiadoCerca.accionesSugeridas.contains(.cambiarFecha))
+    }
+
+    /// Sin base suficiente para NINGÚN puente no se inventa nada.
+    func testSinPuenteValidoNoHayFaseBase() throws {
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .primeros5K     // el primer eslabón: no tiene puente
+        perfil.diasPorSemana = 3
+        perfil.diasElegidos = [2, 4, 6]
+        let pedido = try XCTUnwrap(PedidoDePlan(perfil: perfil, objetivo: .primeros5K,
+                                                referencia: nil, hoy: hoy))
+        XCTAssertNil(FaseBase.propuesta(para: pedido),
+                     "sin puente declarado no se inventa contenido")
+    }
+
+    /// El plan de la fase base es un snapshot REAL, con sus semanas y
+    /// sus sesiones: no un placeholder para que la pantalla no quede
+    /// vacía.
+    func testLaFaseBaseEsUnPlanDeVerdad() throws {
+        let fase = try XCTUnwrap(FaseBase.propuesta(para: try pedidoDelCaso()))
+        let plan = fase.planUsuario
+        XCTAssertEqual(plan.semanas.count, fase.semanas)
+        let programados = plan.semanas.flatMap(\.programados)
+        XCTAssertGreaterThan(programados.count, 30)
+        XCTAssertTrue(programados.allSatisfy { $0.dia != nil }, "todas con fecha concreta")
+        XCTAssertTrue(programados.allSatisfy { !$0.definicion.segmentos.isEmpty })
+    }
+}
+
+// MARK: - El calendario completo se lee del snapshot
+
+final class CalendarioCompletoTests: XCTestCase {
+
+    private func planAdoptado() throws -> PlanUsuario {
+        let base = try XCTUnwrap(BibliotecaArquetipos.v1()
+            .first { $0.clave == .maraton }?.contenido)
+        return base.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 17),
+                            fechaAdopcion: Date())
+    }
+
+    /// Desde el día 1 están TODAS las semanas, no solo la actual.
+    func testElPlanTieneTodasLasSemanasDesdeElDiaUno() throws {
+        let plan = try planAdoptado()
+        XCTAssertEqual(plan.semanas.count, 16)
+        XCTAssertEqual(plan.semanas.map(\.numero), Array(1...16))
+        for semana in plan.semanas {
+            XCTAssertFalse(semana.programados.isEmpty, "semana \(semana.numero) vacía")
+        }
+    }
+
+    /// Lo que el calendario necesita para leerse de un vistazo ya está
+    /// en el snapshot: fondos, calidad, descargas, taper y la carrera.
+    func testElSnapshotTraeLasFasesQueElCalendarioMuestra() throws {
+        let plan = try planAdoptado()
+        let fases = plan.semanas.compactMap { $0.reglas?.fase }
+        XCTAssertFalse(fases.isEmpty, "sin fases no hay nada visual que mostrar")
+        XCTAssertTrue(fases.contains(.descarga), "el bloque tiene descargas")
+        XCTAssertTrue(fases.contains(.taper), "y taper")
+        XCTAssertTrue(fases.contains(.semanaDeCarrera), "y la carrera objetivo")
+        XCTAssertTrue(plan.semanas.flatMap(\.programados).contains { $0.rol == .calidadPrincipal })
+        XCTAssertTrue(plan.semanas.flatMap(\.programados).contains { $0.definicion.tipo == .largo })
+    }
+
+    /// El calendario muestra el snapshot ACTUAL: una adaptación aplicada
+    /// se ve, y el original queda preservado donde el dominio ya lo
+    /// soporta.
+    func testElCalendarioMuestraLaVersionActualYPreservaElOriginal() throws {
+        var almacen = AlmacenV2()
+        almacen.adoptarPlan(try planAdoptado())
+        let programado = try XCTUnwrap(almacen.todosLosProgramados
+            .first { $0.definicion.tipo == .largo })
+        let originalKm = programado.definicion.volumenKm()
+
+        XCTAssertTrue(almacen.reducir(programadoID: programado.id, factor: 0.7))
+
+        let despues = try XCTUnwrap(almacen.todosLosProgramados
+            .first { $0.id == programado.id })
+        XCTAssertLessThan(despues.definicion.volumenKm(), originalKm,
+                          "el calendario tiene que ver la versión adaptada")
+        XCTAssertNotNil(despues.definicionOriginal,
+                        "y el original se preserva, que es lo que ya soporta el dominio")
+        XCTAssertEqual(despues.definicionOriginal?.volumenKm(), originalKm)
+    }
+
+    /// Leer el calendario NO recalcula el plan: mismas semanas y mismos
+    /// IDs cada vez que se abre.
+    func testAbrirElCalendarioNoRecalculaNada() throws {
+        var almacen = AlmacenV2()
+        almacen.adoptarPlan(try planAdoptado())
+        let primera = almacen.planActivo?.semanas.flatMap(\.programados).map(\.id)
+        let segunda = almacen.planActivo?.semanas.flatMap(\.programados).map(\.id)
+        XCTAssertEqual(primera, segunda)
+        XCTAssertEqual(almacen.planActivo?.semanas.count, 16)
+    }
+}

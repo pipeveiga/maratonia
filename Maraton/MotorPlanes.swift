@@ -346,6 +346,80 @@ enum DisponibilidadCorredor {
     }
 }
 
+// MARK: - Fase base (qué SÍ se puede empezar hoy)
+
+/// Cuando el objetivo deseado no produce plan, tener un objetivo
+/// imposible NO puede equivaler a no tener nada para entrenar.
+///
+/// El caso que lo motivó: maratón el 20 de septiembre con seis semanas
+/// por delante. El motor lo rechaza —y hace bien, comprimir un maratón
+/// en seis semanas es exactamente lo que no vamos a hacer—, pero el
+/// corredor venía haciendo 30 km por semana y se quedaba en "Sin plan
+/// activo", que es un callejón.
+///
+/// La salida es una FASE BASE: el objetivo puente que el dominio ya
+/// define, pedido **sin fecha**. Sin fecha el plan no apunta a esa
+/// carrera, así que no hay nada que comprimir ni nada que prometer: es
+/// entrenamiento real que acerca al objetivo. Con la fecha puesta, la
+/// cadena entera falla hasta "Primeros 5K", que para quien hace 30 km
+/// semanales no es una fase base, es una broma.
+///
+/// No inventa contenido: si ningún puente produce un plan real, no hay
+/// fase base y se dice.
+enum FaseBase {
+
+    /// El plan que se puede empezar HOY, o nil si no hay ninguno.
+    ///
+    /// Recorre la cadena de puentes del dominio (maratón → media → 10K
+    /// → 5K) y devuelve la PRIMERA propuesta real: la más cercana a lo
+    /// que el corredor quería.
+    static func propuesta(para pedido: PedidoDePlan,
+                          biblioteca: [PlanArquetipo] = BibliotecaArquetipos.v1(),
+                          calendario: Calendar = .current) -> PropuestaPlan? {
+        var candidato = EvaluadorElegibilidad.objetivoPuente(para: pedido.objetivo)
+        while let objetivo = candidato {
+            var puente = pedido
+            puente.objetivo = objetivo
+            // SIN fecha: la fase base no apunta a la carrera que no
+            // entraba. Es lo que la vuelve honesta y lo que evita el
+            // plan comprimido.
+            puente.fechaObjetivo = nil
+            if case .propuesta(let propuesta) =
+                MotorPlanificacion.proponer(puente, biblioteca: biblioteca,
+                                            calendario: calendario) {
+                return propuesta
+            }
+            candidato = EvaluadorElegibilidad.objetivoPuente(para: objetivo)
+        }
+        return nil
+    }
+
+    /// La fase base que se puede empezar HOY con lo que el perfil ya
+    /// sabe, o nil si el dominio no puede construir ninguna. Sale del
+    /// MISMO pedido que usa el motor: no hay una segunda regla que se
+    /// pueda desincronizar de la primera.
+    static func disponible(_ almacen: AlmacenV2) -> PropuestaPlan? {
+        let perfil = almacen.perfilDeportivo
+        guard let objetivo = perfil.objetivo,
+              let pedido = PedidoDePlan(perfil: perfil, objetivo: objetivo,
+                                        referencia: almacen.referenciaVigente,
+                                        hoy: DiaLocal(fecha: Date()))
+        else { return nil }
+        return propuesta(para: pedido)
+    }
+
+    /// ¿El plan activo es una fase base hacia otro objetivo?
+    ///
+    /// No hace falta guardar nada nuevo: es fase base cuando hay plan Y
+    /// el objetivo declarado sigue teniendo un motivo pendiente. Ese
+    /// motivo es justamente lo que `adoptarPlan` limpia al adoptar el
+    /// plan del objetivo pedido, así que su presencia distingue los dos
+    /// casos sin agregar estado que se pueda desincronizar.
+    static func esFaseBase(_ almacen: AlmacenV2) -> Bool {
+        almacen.planActivo != nil && almacen.perfilDeportivo.objetivoSinPlan != nil
+    }
+}
+
 // MARK: - Pedido y resultado
 
 /// Los inputs del corredor, con datos OBJETIVOS (nada de reducir a
@@ -1190,7 +1264,7 @@ struct PropuestaPlanView: View {
             vistaMensaje(
                 icono: "hammer", color: .secondary,
                 titulo: String(localized: "Ese plan está en camino"),
-                texto: String(localized: "El contenido de \(TextosObjetivo.nombre(de: objetivo)) todavía no está listo — no vamos a inventarlo. Tu perfil queda guardado; mientras tanto podés usar los planes de 5K y 10K."))
+                texto: String(localized: "El contenido de \(TextosObjetivo.nombre(de: objetivo)) todavía no está listo — no vamos a inventarlo. Tu perfil queda guardado; mientras tanto podés elegir otro objetivo del catálogo."))
         case .requiereBase(let motivos, let puente):
             vistaRequiereBase(motivos: motivos, puente: puente)
         }

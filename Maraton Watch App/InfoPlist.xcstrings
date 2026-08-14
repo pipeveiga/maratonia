@@ -1,57 +1,81 @@
 {
-  "sourceLanguage": "es",
-  "strings": {
-    "NSHealthShareUsageDescription": {
-      "extractionState": "manual",
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Maratonia lee tus entrenamientos y tu frecuencia cardíaca de Apple Health para registrar tus carreras y mostrar tu progreso y tus marcas."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Maratonia reads your workouts and heart rate from Apple Health to log your runs and show your progress and personal bests."
+  "sourceLanguage" : "es",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Maratonia"
           }
         }
       }
     },
-    "NSHealthUpdateUsageDescription": {
-      "extractionState": "manual",
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Maratonia guarda cada carrera como entrenamiento en Apple Health, con distancia, ritmo y frecuencia cardíaca."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Maratonia saves each run as a workout in Apple Health, with distance, pace, and heart rate."
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Maraton Watch App"
           }
         }
       }
     },
-    "NSLocationWhenInUseUsageDescription": {
-      "extractionState": "manual",
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Maratonia usa tu ubicación mientras corrés para medir distancia y ritmo y dibujar el recorrido en el mapa."
+    "NSHealthShareUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maratonia reads your workouts and heart rate from Apple Health to log your runs and show your progress and personal bests."
           }
         },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Maratonia uses your location while you run to measure distance and pace and draw your route on the map."
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maratonia lee tus entrenamientos y tu frecuencia cardíaca de Apple Health para registrar tus carreras y mostrar tu progreso y tus marcas."
+          }
+        }
+      }
+    },
+    "NSHealthUpdateUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maratonia saves each run as a workout in Apple Health, with distance, pace, and heart rate."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maratonia guarda cada carrera como entrenamiento en Apple Health, con distancia, ritmo y frecuencia cardíaca."
+          }
+        }
+      }
+    },
+    "NSLocationWhenInUseUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maratonia uses your location while you run to measure distance and pace and draw your route on the map."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maratonia usa tu ubicación mientras corrés para medir distancia y ritmo y dibujar el recorrido en el mapa."
           }
         }
       }
     }
   },
-  "version": "1.0"
+  "version" : "1.0"
 }

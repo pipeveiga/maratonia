@@ -1520,105 +1520,264 @@ struct DetalleEntrenamientoView: View {
 
 // MARK: - UI: calendario
 
+/// EL PLAN COMPLETO, desde el día 1.
+///
+/// Antes esto era una `List` con una `Section` por semana: dieciséis
+/// secciones de texto que había que scrollear para ver el bloque. El
+/// corredor no podía chusmear su plan — ver dónde están los fondos,
+/// cuándo cae la descarga, cuánto dura el taper— sin leerlo entero.
+///
+/// Ahora es un navegador: una fila de semanas arriba, UNA semana a la
+/// vez abajo. Nada se recalcula al abrirlo — se lee el SNAPSHOT del
+/// plan tal como está hoy, con las adaptaciones ya aplicadas.
 struct CalendarioView: View {
     @ObservedObject var almacen: AlmacenStore
+    @ObservedObject var store: PlanStore
+    @Binding var pestana: Pestana
 
-    var body: some View {
-        List {
-            if let plan = almacen.almacen.planActivo {
-                Section {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(plan.nombre)
-                            .font(.headline)
-                        if case .catalogo(let origen) = plan.origen {
-                            Text("Del catálogo (\(origen))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        textoDeHoy
-                    }
-                }
-                ForEach(plan.semanas) { semana in
-                    Section("Semana \(semana.numero)\(esSemanaActual(semana) ? " — actual" : "")") {
-                        ForEach(semana.programados) { programado in
-                            filaProgramado(programado)
-                        }
-                    }
-                }
-            } else {
-                Text("Sin plan activo. Adoptá uno desde «Explorar planes».")
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .navigationTitle("Calendario")
-    }
+    /// Qué semana se está mirando. Arranca en la actual.
+    @State private var semanaElegida: Int?
 
     private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
 
+    var body: some View {
+        Group {
+            if let plan = almacen.almacen.planActivo, !plan.semanas.isEmpty {
+                contenido(plan)
+            } else {
+                EstadoVacio(
+                    icono: "calendar",
+                    titulo: String(localized: "Todavía no hay plan"),
+                    detalle: String(localized: "Cuando adoptes uno, acá vas a ver todas sus semanas: los fondos, las calidades, las descargas y el taper."))
+                    .padding()
+            }
+        }
+        .navigationTitle("Plan completo")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func contenido(_ plan: PlanUsuario) -> some View {
+        let actual = numeroSemanaActual(plan) ?? plan.semanas.first?.numero ?? 1
+        let elegida = semanaElegida ?? actual
+        let semana = plan.semanas.first { $0.numero == elegida } ?? plan.semanas[0]
+        return ScrollView {
+            VStack(alignment: .leading, spacing: DV2.Espacio.l) {
+                tiraDeSemanas(plan, actual: actual, elegida: elegida)
+                resumen(semana, plan: plan, actual: actual)
+                sesiones(semana)
+            }
+            .padding(.vertical)
+        }
+    }
+
+    // MARK: La tira de semanas (el mapa del bloque en una línea)
+
+    private func tiraDeSemanas(_ plan: PlanUsuario, actual: Int, elegida: Int) -> some View {
+        ScrollViewReader { scroll in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: DV2.Espacio.s) {
+                    ForEach(plan.semanas) { semana in
+                        chipSemana(semana, actual: actual, elegida: elegida)
+                            .id(semana.numero)
+                    }
+                }
+                .padding(.horizontal)
+            }
+            .onAppear { scroll.scrollTo(elegida, anchor: .center) }
+        }
+    }
+
+    private func chipSemana(_ semana: SemanaPlan, actual: Int, elegida: Int) -> some View {
+        let esElegida = semana.numero == elegida
+        let pasada = semana.numero < actual
+        let fase = semana.reglas?.fase
+        return Button {
+            semanaElegida = semana.numero
+        } label: {
+            VStack(spacing: 3) {
+                Text("\(semana.numero)")
+                    .font(DV2.Tipo.numero)
+                // Un punto por fase: la descarga y el taper se ven de
+                // un vistazo, que es justo lo que se viene a chusmear.
+                Circle()
+                    .fill(colorDeFase(fase))
+                    .frame(width: 5, height: 5)
+                    .opacity(fase == nil ? 0 : 1)
+            }
+            .frame(width: 44, height: 52)
+            .background(esElegida ? AnyShapeStyle(DV2.gradienteMarca)
+                                  : AnyShapeStyle(DV2.Superficie.tarjeta),
+                        in: RoundedRectangle(cornerRadius: DV2.radioBoton, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: DV2.radioBoton, style: .continuous)
+                .strokeBorder(semana.numero == actual && !esElegida
+                              ? DV2.Marca.primario : Color.clear, lineWidth: 2))
+            .foregroundStyle(esElegida ? Color.white : Color.primary)
+            // Las semanas ya pasadas quedan secundarias: están, se
+            // pueden mirar, pero no compiten con la que viene.
+            .opacity(pasada && !esElegida ? 0.5 : 1)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("Semana \(semana.numero)"))
+        .accessibilityAddTraits(esElegida ? .isSelected : [])
+    }
+
+    private func colorDeFase(_ fase: TipoSemana?) -> Color {
+        switch fase {
+        case .descarga: return .green
+        case .taper: return .yellow
+        case .semanaDeCarrera: return .red
+        case .pico: return .orange
+        default: return DV2.Marca.primario.opacity(0.6)
+        }
+    }
+
+    // MARK: Resumen de la semana elegida
+
+    private func resumen(_ semana: SemanaPlan, plan: PlanUsuario, actual: Int) -> some View {
+        let volumen = semana.volumenPlanificado(
+            baseline: PerformanceBaseline(referencia: almacen.almacen.referenciaVigente))
+        let calidades = semana.programados.filter {
+            $0.rol == .calidadPrincipal || $0.rol == .calidadSecundaria
+        }.count
+        let larga = semana.programados
+            .max { ($0.definicion.volumenKm()) < ($1.definicion.volumenKm()) }
+        return TarjetaV2 {
+            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                HStack {
+                    Text("Semana \(semana.numero) de \(plan.semanas.count)")
+                        .font(DV2.Tipo.tituloChico)
+                    Spacer()
+                    if semana.numero == actual {
+                        ChipEstado(texto: String(localized: "Actual"), tono: .prudente,
+                                   icono: "location.fill", compacto: true)
+                    } else if semana.numero < actual {
+                        ChipEstado(texto: String(localized: "Pasada"), tono: .neutro,
+                                   icono: "checkmark", compacto: true)
+                    }
+                }
+                if let fase = semana.reglas?.fase {
+                    Text(nombreDeFase(fase))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(colorDeFase(fase))
+                        .tracking(0.8)
+                        .textCase(.uppercase)
+                }
+                HStack(spacing: DV2.Espacio.xl) {
+                    MetricaV2(titulo: "volumen",
+                              valor: Unidades.distancia(km: volumen.totalKm, decimales: 0))
+                    MetricaV2(titulo: "sesiones", valor: "\(semana.programados.count)")
+                    if calidades > 0 {
+                        MetricaV2(titulo: "calidad", valor: "\(calidades)")
+                    }
+                    if let larga, larga.definicion.volumenKm() > 0 {
+                        MetricaV2(titulo: "larga",
+                                  valor: Unidades.distancia(km: larga.definicion.volumenKm(),
+                                                            decimales: 0))
+                    }
+                }
+                if let proposito = semana.reglas?.propositoFase {
+                    Text(proposito)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    private func nombreDeFase(_ fase: TipoSemana) -> String {
+        switch fase {
+        case .base: return String(localized: "Base")
+        case .construccion, .carga: return String(localized: "Construcción")
+        case .especifica: return String(localized: "Específica")
+        case .pico: return String(localized: "Pico")
+        case .descarga: return String(localized: "Descarga")
+        case .taper: return String(localized: "Taper")
+        case .semanaDeCarrera: return String(localized: "Semana de carrera")
+        }
+    }
+
+    // MARK: Las sesiones de esa semana
+
+    private func sesiones(_ semana: SemanaPlan) -> some View {
+        VStack(spacing: DV2.Espacio.s) {
+            ForEach(semana.programados.sorted { ($0.dia ?? hoy) < ($1.dia ?? hoy) }) { programado in
+                NavigationLink {
+                    DetalleEntrenamientoView(almacen: almacen, store: store,
+                                             pestana: $pestana,
+                                             programadoID: programado.id)
+                } label: {
+                    filaSesion(programado)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    private func filaSesion(_ programado: EntrenamientoProgramado) -> some View {
+        let estado = programado.estado(hoy: hoy)
+        let esHoy = programado.dia == hoy
+        return TarjetaV2 {
+            HStack(spacing: DV2.Espacio.m) {
+                // Barra de color por tipo: el calendario se lee por
+                // forma antes que por texto.
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(DV2.color(de: programado.definicion.tipo))
+                    .frame(width: 4)
+                    .frame(maxHeight: .infinity)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: DV2.Espacio.s) {
+                        if let dia = programado.dia, let fecha = dia.fecha() {
+                            Text(FormatoFecha.diaCorto(fecha).uppercased())
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(esHoy ? DV2.Marca.primario : .secondary)
+                        }
+                        if esHoy {
+                            Text("HOY")
+                                .font(.caption2.weight(.heavy))
+                                .foregroundStyle(DV2.Marca.primario)
+                        }
+                    }
+                    Text(programado.definicion.nombre)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(programado.definicion.resumenEstructura)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: DV2.Espacio.s)
+                insignia(estado)
+            }
+            .frame(minHeight: 44)
+        }
+        // Lo ya resuelto queda atrás; lo que viene, al frente.
+        .opacity(estado == .cumplido || estado == .omitido ? 0.6 : 1)
+    }
+
     @ViewBuilder
-    private var textoDeHoy: some View {
-        if let deHoy = almacen.almacen.entrenamientoDeHoy(hoy) {
-            Label("Hoy: \(deHoy.definicion.nombre)", systemImage: "sun.max.fill")
-                .font(.subheadline)
-                .foregroundStyle(.orange)
-        } else {
-            Label("Hoy no tenés entrenamiento programado.", systemImage: "moon.zzz.fill")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+    private func insignia(_ estado: EstadoProgramado) -> some View {
+        switch estado {
+        case .cumplido:
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+        case .parcial:
+            Image(systemName: "circle.bottomhalf.filled").foregroundStyle(.yellow)
+        case .omitido:
+            Image(systemName: "minus.circle.fill").foregroundStyle(.gray)
+        case .vencido:
+            Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange)
+        case .programado:
+            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
         }
     }
 
     /// La semana cuyo rango [primer día programado, +6] contiene hoy.
-    private func esSemanaActual(_ semana: SemanaPlan) -> Bool {
-        guard let primero = semana.programados.compactMap(\.dia).min() else { return false }
-        let fin = primero.sumando(dias: 6)
-        return !(hoy < primero) && !(fin < hoy)
+    private func numeroSemanaActual(_ plan: PlanUsuario) -> Int? {
+        plan.semanas.first { semana in
+            guard let primero = semana.programados.compactMap(\.dia).min() else { return false }
+            let fin = primero.sumando(dias: 6)
+            return !(hoy < primero) && !(fin < hoy)
+        }?.numero
     }
-
-    private func filaProgramado(_ programado: EntrenamientoProgramado) -> some View {
-        let estado = programado.estado(hoy: hoy)
-        return HStack(spacing: 10) {
-            insignia(estado)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(programado.definicion.nombre)
-                HStack(spacing: 6) {
-                    if let dia = programado.dia, let fecha = dia.fecha() {
-                        Text(FormatoFecha.corta(fecha))
-                            .font(.caption)
-                            .foregroundStyle(programado.dia == hoy ? Color.orange : Color.secondary)
-                    }
-                    Text(DV2.nombre(de: programado.definicion.tipo))
-                        .font(.caption)
-                        .foregroundStyle(DV2.color(de: programado.definicion.tipo))
-                }
-                if programado.sesionVinculadaID != nil {
-                    Text("Sesión guardada — vela en Carreras")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-            if programado.dia == hoy && estado == .programado {
-                Text("HOY")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.orange)
-            }
-        }
-    }
-
-    private func insignia(_ estado: EstadoProgramado) -> some View {
-        let (icono, color): (String, Color) = {
-            switch estado {
-            case .programado: return ("circle", .secondary)
-            case .vencido: return ("exclamationmark.circle.fill", .orange)
-            case .parcial: return ("circle.bottomhalf.filled", .yellow)
-            case .cumplido: return ("checkmark.circle.fill", .green)
-            case .omitido: return ("minus.circle.fill", .gray)
-            }
-        }()
-        return Image(systemName: icono)
-            .font(.title3)
-            .foregroundStyle(color)
-    }
-
 }

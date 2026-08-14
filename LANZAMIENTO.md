@@ -10,8 +10,8 @@ Los campos marcados **[VOS]** requieren un dato o una decisión tuya.
 
 ## FASE 0 — Antes de tocar App Store Connect
 
-- [ ] Build 68 compila sin warnings en Xcode (Product → Build)
-- [ ] Los 479 tests en verde (Product → Test)
+- [ ] Build 69 compila sin warnings en Xcode (Product → Build)
+- [ ] Los 491 tests en verde (Product → Test)
 - [ ] Recorrer las 5 pestañas en **español**
 - [ ] Cambiar el iPhone a **inglés** y recorrerlas de nuevo.
       El build 67 rehízo el barrido: el catálogo del iPhone pasó de 636
@@ -33,6 +33,12 @@ Los campos marcados **[VOS]** requieren un dato o una decisión tuya.
 - [ ] Elegir unidades en el onboarding y cambiarlas después en Perfil:
       el plan NO se regenera y los números cambian en toda la app
       (build 68)
+- [ ] Objetivo con fecha imposible (p. ej. maratón a 6 semanas): NO se
+      arma el plan comprimido, y aparece **Empezar fase base** con el
+      puente que el dominio define. Adoptarla deja el objetivo deseado
+      pendiente, no lo reemplaza (build 69)
+- [ ] Plan → **Ver plan completo**: se ven TODAS las semanas del bloque
+      desde el día 1, con descargas, taper y carrera objetivo
 
 Si algo de esto falla, no sigas: se arregla antes.
 

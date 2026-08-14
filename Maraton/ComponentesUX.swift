@@ -342,6 +342,11 @@ struct AvisoSinPlan: View {
     var puente: ObjetivoDeportivo?
     /// Qué hacer con cada acción. La vista no decide nada.
     var alElegir: (AccionSinPlan) -> Void
+    /// El plan REAL que se puede empezar hoy, si el dominio pudo
+    /// construirlo. nil = no hay fase base válida para este caso y el
+    /// botón no se ofrece: prometer una y no tenerla sería peor que el
+    /// callejón que vino a resolver.
+    var faseBase: String? = nil
 
     private var titulo: String {
         switch motivo {
@@ -393,6 +398,16 @@ struct AvisoSinPlan: View {
                     ForEach(Array(motivo.accionesSugeridas.enumerated()), id: \.offset) { indice, accion in
                         botón(accion, principal: indice == 0)
                     }
+                    if let faseBase, motivo.accionesSugeridas.contains(.empezarFaseBase) {
+                        // Lo que la fase base SÍ y lo que NO: acerca al
+                        // objetivo, no promete llegar a esa carrera en
+                        // esa fecha. Decirlo acá evita que "Empezar
+                        // fase base" se lea como "sí llegás".
+                        Text("Empezás con **\(faseBase)**: te acerca al objetivo, pero no apunta a esa fecha. Podés cambiar la fecha cuando quieras.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
         }
@@ -400,8 +415,10 @@ struct AvisoSinPlan: View {
 
     @ViewBuilder
     private func botón(_ accion: AccionSinPlan, principal: Bool) -> some View {
-        // El puente solo se ofrece si el dominio realmente lo define.
-        if accion != .objetivoPuente || puente != nil {
+        // Cada acción se ofrece SOLO si el dominio la puede cumplir: el
+        // puente si existe, la fase base si hay un plan real detrás.
+        if (accion != .objetivoPuente || puente != nil)
+            && (accion != .empezarFaseBase || faseBase != nil) {
             Button {
                 alElegir(accion)
             } label: {
@@ -418,6 +435,7 @@ struct AvisoSinPlan: View {
 
     private func texto(de accion: AccionSinPlan) -> String {
         switch accion {
+        case .empezarFaseBase: return String(localized: "Empezar fase base")
         case .cambiarFecha: return String(localized: "Elegir otra fecha")
         case .cambiarObjetivo: return String(localized: "Elegir otro objetivo")
         case .ajustarDisponibilidad: return String(localized: "Ajustar mis días")
@@ -430,6 +448,7 @@ struct AvisoSinPlan: View {
 
     private func icono(de accion: AccionSinPlan) -> String {
         switch accion {
+        case .empezarFaseBase: return "figure.run"
         case .cambiarFecha: return "calendar"
         case .cambiarObjetivo: return "flag.checkered"
         case .ajustarDisponibilidad: return "calendar.badge.clock"
