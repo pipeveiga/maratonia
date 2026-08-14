@@ -730,9 +730,17 @@ struct CatalogoView: View {
         return VStack(alignment: .leading, spacing: DV2.Espacio.m) {
             HStack(alignment: .top, spacing: DV2.Espacio.m) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(arquetipo.nombre)
-                        .font(.headline)
-                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: DV2.Espacio.s) {
+                        Text(arquetipo.nombre)
+                            .font(.headline)
+                            .fixedSize(horizontal: false, vertical: true)
+                        // Discreta y al lado del nombre: el plan Pro se
+                        // ve, se abre y se entiende igual que los demás.
+                        // El límite aparece recién al adoptarlo.
+                        if PoliticaPro.requierePro(arquetipo.objetivo) {
+                            InsigniaPro()
+                        }
+                    }
                     if let intencion = Self.intencion(de: arquetipo.objetivo) {
                         Text(intencion)
                             .font(.caption)

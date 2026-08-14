@@ -62,6 +62,8 @@
 		A10000000000000000000102 /* TextosDeportivos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* TextosDeportivos.swift */; };
 		A10000000000000000000131 /* SesionCuenta.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000130 /* SesionCuenta.swift */; };
 		A10000000000000000000135 /* PuertaDeEntrada.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000134 /* PuertaDeEntrada.swift */; };
+		A10000000000000000000137 /* Suscripcion.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000136 /* Suscripcion.swift */; };
+		A10000000000000000000139 /* PaywallPro.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000138 /* PaywallPro.swift */; };
 		A10000000000000000000133 /* RepositorioCuenta.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000132 /* RepositorioCuenta.swift */; };
 		A10000000000000000000103 /* TextosDeportivos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* TextosDeportivos.swift */; };
 		A10000000000000000000112 /* Unidades.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* Unidades.swift */; };
@@ -155,6 +157,8 @@
 		A10000000000000000000101 /* TextosDeportivos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextosDeportivos.swift; sourceTree = "<group>"; };
 		A10000000000000000000130 /* SesionCuenta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SesionCuenta.swift; sourceTree = "<group>"; };
 		A10000000000000000000134 /* PuertaDeEntrada.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuertaDeEntrada.swift; sourceTree = "<group>"; };
+		A10000000000000000000136 /* Suscripcion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Suscripcion.swift; sourceTree = "<group>"; };
+		A10000000000000000000138 /* PaywallPro.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallPro.swift; sourceTree = "<group>"; };
 		A10000000000000000000132 /* RepositorioCuenta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositorioCuenta.swift; sourceTree = "<group>"; };
 		A10000000000000000000111 /* Unidades.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Unidades.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -249,6 +253,8 @@
 				A10000000000000000000022 /* Assets.xcassets */,
 				A10000000000000000000130 /* SesionCuenta.swift */,
 				A10000000000000000000134 /* PuertaDeEntrada.swift */,
+				A10000000000000000000136 /* Suscripcion.swift */,
+				A10000000000000000000138 /* PaywallPro.swift */,
 				A10000000000000000000132 /* RepositorioCuenta.swift */,
 			);
 			path = Maraton;
@@ -476,6 +482,8 @@
 				A10000000000000000000102 /* TextosDeportivos.swift in Sources */,
 				A10000000000000000000131 /* SesionCuenta.swift in Sources */,
 				A10000000000000000000135 /* PuertaDeEntrada.swift in Sources */,
+				A10000000000000000000137 /* Suscripcion.swift in Sources */,
+				A10000000000000000000139 /* PaywallPro.swift in Sources */,
 				A10000000000000000000133 /* RepositorioCuenta.swift in Sources */,
 				A10000000000000000000112 /* Unidades.swift in Sources */,
 			);

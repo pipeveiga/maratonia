@@ -1,14 +1,76 @@
 rules_version = '2';
 
-// Firestore es EXCLUSIVO del backend del Coach: rate limit (uso/),
-// cache de idempotencia (respuestas/) y flags (config/coach).
+// CERRADO POR DEFECTO.
 //
-// Ningún cliente lee ni escribe nada. La app iOS ni siquiera enlaza el
-// SDK de Firestore — si algún día lo hiciera, estas reglas la frenan.
-// Las Cloud Functions usan el Admin SDK, que pasa por encima de las
-// reglas: por eso negar todo acá no rompe el backend.
+// Dos mundos conviven en esta base:
+//
+// 1. Lo del BACKEND del Coach — rate limit (uso/), cache de idempotencia
+//    (respuestas/) y flags (config/). Ningún cliente lo toca: las Cloud
+//    Functions usan el Admin SDK, que pasa por encima de las reglas.
+//
+// 2. Lo de la CUENTA del corredor — users/{uid}. El cliente lee y
+//    escribe SOLO lo suyo.
+//
+// La autorización sale SIEMPRE de `request.auth.uid` contra el UID del
+// path. Nunca de un campo del body: un `uid` en el documento es un dato
+// que el cliente controla, y usarlo para autorizar es regalar la base.
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ---- Helpers
+
+    function esDueño(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Campos que SOLO puede escribir el servidor. El cliente no puede
+    // crearlos ni modificarlos: si pudiera, "soy Pro" sería una
+    // escritura de Firestore y no una compra.
+    function sinCamposDeServidor() {
+      return !request.resource.data.keys().hasAny(
+        ['entitlement', 'pro', 'proHasta', 'usage', 'limites', 'flags']);
+    }
+
+    // ---- La cuenta del corredor
+
+    match /users/{uid} {
+      allow read: if esDueño(uid);
+      allow create, update: if esDueño(uid) && sinCamposDeServidor();
+      allow delete: if esDueño(uid);
+
+      // Plan, sesiones, referencias y adaptaciones: mismo dueño, misma
+      // regla. Un documento por entidad con su ID estable.
+      match /planes/{planID} {
+        allow read, write: if esDueño(uid);
+      }
+      match /sesiones/{sesionID} {
+        allow read, write: if esDueño(uid);
+      }
+      match /referencias/{referenciaID} {
+        allow read, write: if esDueño(uid);
+      }
+      match /adaptaciones/{adaptacionID} {
+        allow read, write: if esDueño(uid);
+      }
+      match /feedback/{feedbackID} {
+        allow read, write: if esDueño(uid);
+      }
+
+      // ---- Entitlement: el corredor lo LEE, nunca lo escribe.
+      //
+      // Lo escribe el backend con el Admin SDK después de verificar la
+      // transacción firmada por Apple. Que sea legible desde el cliente
+      // es a propósito —la UI necesita saber si mostrar el paywall—,
+      // pero la UI no es la que decide: el backend revalida antes de
+      // gastar un token de OpenAI.
+      match /entitlement/{documento} {
+        allow read: if esDueño(uid);
+        allow write: if false;
+      }
+    }
+
+    // ---- Todo lo demás (backend del Coach y cualquier cosa futura)
     match /{document=**} {
       allow read, write: if false;
     }

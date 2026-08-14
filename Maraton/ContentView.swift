@@ -76,6 +76,10 @@ struct ContentView: View {
         .task {
             IdentidadStore.conectar(identidad, con: almacen)
             identidad.verificarRevocacionApple()
+            // StoreKit escucha desde el arranque: una compra hecha en
+            // otro dispositivo, una renovación o una revocación pueden
+            // llegar en cualquier momento.
+            TiendaPro.compartida.empezar()
             sesion.reevaluar()
             await sesion.restaurar(con: repositorio)
         }

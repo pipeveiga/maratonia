@@ -1240,6 +1240,14 @@ struct PropuestaPlanView: View {
     let resultado: ResultadoPlanificacion
     /// Cierra TODO el onboarding al adoptar.
     var alTerminar: () -> Void
+    @ObservedObject private var tienda = TiendaPro.compartida
+    @State private var mostrandoPaywall = false
+
+    /// El objetivo de ESTA propuesta, para saber si es un plan Pro. Sale
+    /// del arquetipo que la produjo — no hay una segunda tabla.
+    private func objetivo(de propuesta: PropuestaPlan) -> ObjetivoDeportivo? {
+        BibliotecaArquetipos.v1().first { $0.id == propuesta.arquetipoID }?.objetivo
+    }
 
     var body: some View {
         switch resultado {
@@ -1385,16 +1393,30 @@ struct PropuestaPlanView: View {
                 }
             }
             Section {
+                // EL punto de adopción de toda la app: onboarding y
+                // catálogo terminan los dos acá. Por eso el gate de Pro
+                // va en este botón y no repartido por las pantallas que
+                // llevan hasta él.
+                let requierePro = objetivo(de: propuesta).map(PoliticaPro.requierePro) ?? false
+                let bloqueado = requierePro && !tienda.estado.esPro
                 Button {
-                    almacen.almacen.adoptarPlan(propuesta.planUsuario)
-                    alTerminar()
+                    if bloqueado {
+                        mostrandoPaywall = true
+                    } else {
+                        almacen.almacen.adoptarPlan(propuesta.planUsuario)
+                        alTerminar()
+                    }
                 } label: {
-                    EtiquetaBotonPrimarioV2(titulo: "Confirmar plan",
-                                            icono: "checkmark")
+                    EtiquetaBotonPrimarioV2(
+                        titulo: bloqueado ? "Desbloquear con Pro" : "Confirmar plan",
+                        icono: bloqueado ? "lock.open" : "checkmark")
                 }
                 .buttonStyle(.plain)
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
+            }
+            .sheet(isPresented: $mostrandoPaywall) {
+                PaywallPro(motivo: objetivo(de: propuesta).map { .objetivo($0) } ?? .general)
             }
         }
         .navigationTitle(Text("Tu plan"))

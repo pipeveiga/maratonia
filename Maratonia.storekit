@@ -1,0 +1,85 @@
+{
+  "identifier" : "MARATONIA-PRO",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "MARATONIA-PRO-GROUP",
+      "localizations" : [
+        {
+          "description" : "Maratonia Pro",
+          "displayName" : "Maratonia Pro",
+          "locale" : "es_AR"
+        }
+      ],
+      "name" : "Maratonia Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "6.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "MARATONIA-PRO-MONTHLY",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Todos los objetivos, ajustes del plan y Coach IA.",
+              "displayName" : "Mensual",
+              "locale" : "es_AR"
+            },
+            {
+              "description" : "Every goal, plan adjustments and AI Coach.",
+              "displayName" : "Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "maratonia.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Maratonia Pro Monthly",
+          "subscriptionGroupID" : "MARATONIA-PRO-GROUP",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "49.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "MARATONIA-PRO-YEARLY",
+          "introductoryOffer" : {
+            "internalID" : "MARATONIA-PRO-TRIAL",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Todos los objetivos, ajustes del plan y Coach IA.",
+              "displayName" : "Anual",
+              "locale" : "es_AR"
+            },
+            {
+              "description" : "Every goal, plan adjustments and AI Coach.",
+              "displayName" : "Yearly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "maratonia.pro.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Maratonia Pro Yearly",
+          "subscriptionGroupID" : "MARATONIA-PRO-GROUP",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
