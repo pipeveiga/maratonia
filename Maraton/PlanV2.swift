@@ -1537,6 +1537,7 @@ struct CalendarioView: View {
 
     /// Qué semana se está mirando. Arranca en la actual.
     @State private var semanaElegida: Int?
+    @State private var confirmandoEliminar = false
 
     private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
 
@@ -1554,6 +1555,35 @@ struct CalendarioView: View {
         }
         .navigationTitle("Plan completo")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // Administrar el plan, DONDE se mira el plan. En la lista de
+            // Plan la acción quedaba tan abajo que no se encontraba —
+            // que es exactamente lo que se reportó.
+            if almacen.almacen.planActivo != nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button(role: .destructive) {
+                            confirmandoEliminar = true
+                        } label: {
+                            Label("Eliminar plan", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .accessibilityLabel(Text("Opciones del plan"))
+                }
+            }
+        }
+        .confirmationDialog("¿Eliminar el plan actual?",
+                            isPresented: $confirmandoEliminar,
+                            titleVisibility: .visible) {
+            Button("Eliminar plan", role: .destructive) {
+                almacen.almacen.abandonarPlan()
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Queda archivado con su historial. Tus carreras y tus marcas no se tocan.")
+        }
     }
 
     private func contenido(_ plan: PlanUsuario) -> some View {

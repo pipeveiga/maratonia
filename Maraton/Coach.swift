@@ -297,7 +297,13 @@ final class ServicioCoach: ObservableObject {
     }
 
     nonisolated static var disponible: Bool {
-        urlBase != nil && ServicioAuth.disponible
+        #if DEBUG
+        // Mismo hook de QA que `pestanaInicial`: sin backend no hay
+        // forma de ver la pantalla en el simulador. Solo enciende la
+        // UI —las llamadas siguen fallando— y no existe en Release.
+        if UserDefaults.standard.bool(forKey: "forzarCoach") { return true }
+        #endif
+        return urlBase != nil && ServicioAuth.disponible
     }
 
     private struct Peticion: Codable {
@@ -381,100 +387,182 @@ struct CoachView: View {
     private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
 
     var body: some View {
-        List {
-            Section {
-                Text("El Coach explica y propone; tu plan lo decide el motor de Maratonia y lo confirmás vos. Nada cambia sin tu OK.")
+        ScrollView {
+            VStack(spacing: DV2.Espacio.l) {
+                // Lo que se puede PEDIR, como tarjetas tocables: el
+                // Coach era una lista de filas grises que se leía como
+                // un menú de ajustes, no como algo con lo que hablar.
+                accion(icono: "questionmark.circle.fill",
+                       titulo: String(localized: "Explicame lo de hoy"),
+                       detalle: proximoPendiente.map { $0.definicion.nombre }
+                           ?? String(localized: "No tenés nada pendiente"),
+                       habilitada: !servicio.ocupado && proximoPendiente != nil) {
+                    Task { await explicarProximo() }
+                }
+
+                accion(icono: "chart.line.uptrend.xyaxis",
+                       titulo: String(localized: "¿Cómo vengo?"),
+                       detalle: String(localized: "Tu progreso contra el objetivo"),
+                       habilitada: !servicio.ocupado) {
+                    Task { await pedirEstado() }
+                }
+
+                TarjetaV2 {
+                    VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                        EncabezadoSeccionV2(texto: "Reorganizar mi semana")
+                        TextField("Contale qué pasó (ej.: no puedo correr el jueves)",
+                                  text: $motivoCambio, axis: .vertical)
+                            .font(.subheadline)
+                            .lineLimit(1...4)
+                        Button {
+                            Task { await pedirReorganizacion() }
+                        } label: {
+                            EtiquetaBotonPrimarioV2(titulo: "Proponer cambios",
+                                                    icono: "arrow.triangle.2.circlepath")
+                        }
+                        .buttonStyle(.plain)
+                        .opacity(puedeReorganizar ? 1 : 0.4)
+                        .disabled(!puedeReorganizar)
+                    }
+                }
+
+                if servicio.ocupado {
+                    ProgressView().frame(maxWidth: .infinity).padding(.vertical, DV2.Espacio.m)
+                }
+                if let mensaje = servicio.mensajeError {
+                    TarjetaV2 {
+                        Label(mensaje, systemImage: "exclamationmark.triangle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(DV2.Semantico.advertencia)
+                    }
+                }
+
+                if let explicacion { tarjetaExplicacion(explicacion) }
+                if let estado { tarjetaEstado(estado) }
+                if let ajuste { seccionPropuesta(ajuste) }
+
+                // El límite, al final y en una línea: es una aclaración,
+                // no la portada. Antes era lo primero que se leía.
+                Text("El Coach explica y propone. Tu plan lo decide el motor de Maratonia y lo confirmás vos.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, DV2.Espacio.s)
+            }
+            .padding()
+        }
+        .navigationTitle("Coach")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { lector.cargar(semanas: 8) }
+    }
+
+    private var puedeReorganizar: Bool {
+        !servicio.ocupado && !motivoCambio.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// Una cosa que el Coach puede hacer, como tarjeta tocable.
+    private func accion(icono: String, titulo: String, detalle: String,
+                        habilitada: Bool, hacer: @escaping () -> Void) -> some View {
+        Button(action: hacer) {
+            TarjetaV2 {
+                HStack(spacing: DV2.Espacio.m) {
+                    Image(systemName: icono)
+                        .font(.title2)
+                        .foregroundStyle(DV2.Marca.primario)
+                        .frame(width: 34)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(titulo)
+                            .font(DV2.Tipo.tituloChico)
+                            .foregroundStyle(.primary)
+                        Text(detalle)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .opacity(habilitada ? 1 : 0.45)
+        .disabled(!habilitada)
+    }
+
+    private func tarjetaExplicacion(_ e: CoachWorkoutExplanation) -> some View {
+        TarjetaV2 {
+            VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+                EncabezadoSeccionV2(texto: "Tu próximo entrenamiento")
+                Text(e.titulo)
+                    .font(DV2.Tipo.titulo)
+                    .foregroundStyle(DV2.Marca.profundo)
+                Text(e.queEs).font(.subheadline)
+                Text(e.paraQueSirve).font(.subheadline).foregroundStyle(.secondary)
+                Divider()
+                Label(e.comoEncararlo, systemImage: "lightbulb")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
 
-            Section("Preguntale al Coach") {
-                Button {
-                    Task { await explicarProximo() }
-                } label: {
-                    Label("Explicame mi próximo entrenamiento", systemImage: "questionmark.circle")
-                }
-                .disabled(servicio.ocupado || proximoPendiente == nil)
-
-                Button {
-                    Task { await pedirEstado() }
-                } label: {
-                    Label("¿Cómo vengo para mi objetivo?", systemImage: "chart.line.uptrend.xyaxis")
-                }
-                .disabled(servicio.ocupado)
-            }
-
-            Section("Reorganizar mi semana") {
-                TextField("Contale qué pasó (ej.: no puedo correr el jueves)", text: $motivoCambio, axis: .vertical)
-                Button {
-                    Task { await pedirReorganizacion() }
-                } label: {
-                    Label("Proponer cambios", systemImage: "arrow.triangle.2.circlepath")
-                }
-                .disabled(servicio.ocupado || motivoCambio.trimmingCharacters(in: .whitespaces).isEmpty)
-            }
-
-            if servicio.ocupado {
-                Section { ProgressView().frame(maxWidth: .infinity) }
-            }
-            if let mensaje = servicio.mensajeError {
-                Section { Text(mensaje).font(.footnote).foregroundStyle(.orange) }
-            }
-
-            if let explicacion {
-                Section(explicacion.titulo) {
-                    Text(explicacion.queEs)
-                    Text(explicacion.paraQueSirve).foregroundStyle(.secondary)
-                    Text(explicacion.comoEncararlo).font(.footnote)
-                }
-            }
-
-            if let estado {
-                Section(estado.veredicto) {
-                    Text(estado.detalle)
-                    Text(estado.focoProximasSemanas).font(.footnote).foregroundStyle(.secondary)
-                }
-            }
-
-            if let ajuste {
-                seccionPropuesta(ajuste)
+    private func tarjetaEstado(_ e: CoachEstadoObjetivo) -> some View {
+        TarjetaV2 {
+            VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+                EncabezadoSeccionV2(texto: "Cómo venís")
+                Text(e.veredicto)
+                    .font(DV2.Tipo.titulo)
+                    .foregroundStyle(DV2.Marca.profundo)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(e.detalle).font(.subheadline)
+                Divider()
+                Label(e.focoProximasSemanas, systemImage: "target")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle("Maratonia Coach")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear { lector.cargar(semanas: 8) }
     }
 
     /// ANTES vs PROPUESTO, con la validación del motor a la vista, y
     /// "Aplicar cambios" que ejecuta SOLO lo validado.
     @ViewBuilder
     private func seccionPropuesta(_ ajuste: CoachWeekAdjustment) -> some View {
-        Section("Propuesta del Coach") {
-            Text(ajuste.explicacion).font(.footnote)
-            ForEach(Array(ajuste.propuestas.enumerated()), id: \.offset) { _, cambio in
-                filaCambio(cambio)
-            }
-            if ajuste.propuestasQueMutan.isEmpty {
-                Label("El Coach no propone cambios: tu plan sigue según lo previsto.",
-                      systemImage: "checkmark.seal")
-                    .font(.footnote)
-                    .foregroundStyle(.green)
-            }
-            if aplicado {
-                Label("Cambios aplicados", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
-            } else {
-                Button {
-                    aplicar(ajuste)
-                } label: {
-                    Label("Aplicar cambios", systemImage: "checkmark.circle")
-                        .font(.headline)
+        TarjetaV2 {
+            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                EncabezadoSeccionV2(texto: "Propuesta del Coach")
+                Text(ajuste.explicacion)
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+                    ForEach(Array(ajuste.propuestas.enumerated()), id: \.offset) { _, cambio in
+                        filaCambio(cambio)
+                    }
                 }
-                .disabled(cambiosValidos(ajuste).isEmpty)
-                if cambiosValidos(ajuste).isEmpty {
-                    Text("El motor rechazó todos los cambios propuestos — no se aplica nada.")
+                if ajuste.propuestasQueMutan.isEmpty {
+                    Label("El Coach no propone cambios: tu plan sigue según lo previsto.",
+                          systemImage: "checkmark.seal")
                         .font(.footnote)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(DV2.Semantico.exito)
+                }
+                if aplicado {
+                    Label("Cambios aplicados", systemImage: "checkmark.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(DV2.Semantico.exito)
+                } else if cambiosValidos(ajuste).isEmpty {
+                    Label("El motor rechazó todos los cambios — no se aplica nada.",
+                          systemImage: "xmark.octagon")
+                        .font(.footnote)
+                        .foregroundStyle(DV2.Semantico.advertencia)
+                } else {
+                    Button {
+                        aplicar(ajuste)
+                    } label: {
+                        EtiquetaBotonPrimarioV2(titulo: "Aplicar cambios",
+                                                icono: "checkmark")
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }

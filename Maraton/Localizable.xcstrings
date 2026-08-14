@@ -2872,6 +2872,28 @@
         }
       }
     },
+    "Cómo venís": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How you're doing"
+          }
+        }
+      }
+    },
+    "Cómo venís para tu objetivo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How you're doing toward your goal"
+          }
+        }
+      }
+    },
     "Cómodo.": {
       "extractionState": "manual",
       "localizations": {
@@ -3312,6 +3334,17 @@
         }
       }
     },
+    "El Coach explica y propone. Tu plan lo decide el motor de Maratonia y lo confirmás vos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Coach explains and suggests. Your plan is decided by Maratonia's engine and confirmed by you."
+          }
+        }
+      }
+    },
     "El Coach explica y propone; tu plan lo decide el motor de Maratonia y lo confirmás vos. Nada cambia sin tu OK.": {
       "extractionState": "manual",
       "localizations": {
@@ -3473,6 +3506,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "The engine rejected every proposed change — nothing is applied."
+          }
+        }
+      }
+    },
+    "El motor rechazó todos los cambios — no se aplica nada.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The engine rejected every change — nothing is applied."
           }
         }
       }
@@ -3704,6 +3748,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Delete account"
+          }
+        }
+      }
+    },
+    "Eliminar plan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete plan"
           }
         }
       }
@@ -4441,6 +4496,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Explanations and adjustments for your plan"
+          }
+        }
+      }
+    },
+    "Explicame lo de hoy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Explain today's session"
           }
         }
       }
@@ -6425,6 +6491,17 @@
         }
       }
     },
+    "No tenés nada pendiente": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have nothing pending"
+          }
+        }
+      }
+    },
     "No vamos a inventar contenido deportivo para llenar la pantalla.": {
       "extractionState": "manual",
       "localizations": {
@@ -6586,6 +6663,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Optional. Nobody's going to nag you about it."
+          }
+        }
+      }
+    },
+    "Opciones del plan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plan options"
           }
         }
       }
@@ -7085,6 +7173,17 @@
         }
       }
     },
+    "Por qué te toca esto hoy, o reorganizá tu semana": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Why today's session is what it is, or reshuffle your week"
+          }
+        }
+      }
+    },
     "Por seguridad, Firebase pide que vuelvas a iniciar sesión antes de eliminar la cuenta. Iniciá sesión y reintentá.": {
       "extractionState": "manual",
       "localizations": {
@@ -7294,6 +7393,17 @@
         }
       }
     },
+    "Queda archivado con su historial. Tus carreras y tus marcas no se tocan.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It's archived with its history. Your runs and your times aren't touched."
+          }
+        }
+      }
+    },
     "Queda marcado como omitido en el calendario — no se borra nada y podés deshacerlo.": {
       "extractionState": "manual",
       "localizations": {
@@ -7323,6 +7433,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "It would sit next to another hard session — you need a day in between."
+          }
+        }
+      }
+    },
+    "Quedás sin plan: HOY queda libre y el reloj vuelve a Carrera Libre. Podés adoptar otro cuando quieras.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You'll be left without a plan: TODAY becomes free and the watch goes back to Free Run. You can adopt another one whenever you want."
           }
         }
       }
@@ -9428,6 +9549,28 @@
         }
       }
     },
+    "Tu progreso contra el objetivo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your progress toward your goal"
+          }
+        }
+      }
+    },
+    "Tu próximo entrenamiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your next session"
+          }
+        }
+      }
+    },
     "Tu punto de partida": {
       "extractionState": "manual",
       "localizations": {
@@ -10513,6 +10656,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "How am I doing for my goal?"
+          }
+        }
+      }
+    },
+    "¿Cómo vengo?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How am I doing?"
+          }
+        }
+      }
+    },
+    "¿Eliminar el plan actual?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete the current plan?"
           }
         }
       }

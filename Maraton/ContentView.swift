@@ -67,7 +67,8 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $pestana) {
-            PlanTab(store: store, almacen: almacen, pestana: $pestana)
+            PlanTab(store: store, almacen: almacen, pestana: $pestana,
+                    identidad: identidad)
                 .tabItem { Label("Plan", systemImage: "slider.horizontal.3") }
                 .tag(Pestana.plan)
             CorrerTab(store: store, almacen: almacen)
@@ -187,6 +188,8 @@ struct PlanTab: View {
     @ObservedObject var store: PlanStore
     @ObservedObject var almacen: AlmacenStore
     @Binding var pestana: Pestana
+    /// Solo para saber si el Coach se puede ofrecer (necesita sesión).
+    @ObservedObject var identidad: IdentidadStore
     @State private var confirmandoQuitarPlan = false
 
     #if DEBUG
@@ -196,6 +199,8 @@ struct PlanTab: View {
     /// Uso: `-abrirPlanCompleto 1`
     @State private var abrirPlanCompletoQA =
         UserDefaults.standard.bool(forKey: "abrirPlanCompleto")
+    @State private var abrirRelojQA = UserDefaults.standard.bool(forKey: "abrirReloj")
+    @State private var abrirCoachQA = UserDefaults.standard.bool(forKey: "abrirCoach")
     #endif
 
     private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
@@ -239,6 +244,7 @@ struct PlanTab: View {
 
                 seccionHoy
                 seccionSemana
+                seccionCoach
                 seccionProximos
                 seccionObjetivo
 
@@ -258,22 +264,32 @@ struct PlanTab: View {
                         filaNavegacion(icono: "sparkles", color: .purple,
                                        titulo: "Explorar planes", subtitulo: subtituloCatalogo)
                     }
-                    if almacen.almacen.planActivo != nil {
+                }
+
+                // Eliminar el plan es una acción propia, no una fila
+                // perdida entre las de navegar: quien la busca la busca
+                // por sí misma. El pie dice qué pasa de verdad — se
+                // archiva, con su historial— sin esconderlo en el
+                // diálogo de confirmación.
+                if almacen.almacen.planActivo != nil {
+                    Section {
                         Button(role: .destructive) {
                             confirmandoQuitarPlan = true
                         } label: {
-                            Label("Quitar plan", systemImage: "minus.circle")
+                            Label("Eliminar plan", systemImage: "trash")
                         }
-                        .confirmationDialog("¿Quitar el plan actual?",
+                        .confirmationDialog("¿Eliminar el plan actual?",
                                             isPresented: $confirmandoQuitarPlan,
                                             titleVisibility: .visible) {
-                            Button("Quitar plan (queda archivado)", role: .destructive) {
+                            Button("Eliminar plan", role: .destructive) {
                                 almacen.almacen.abandonarPlan()
                             }
                             Button("Cancelar", role: .cancel) {}
                         } message: {
-                            Text("Se archiva: no se borra nada.")
+                            Text("Queda archivado con su historial. Tus carreras y tus marcas no se tocan.")
                         }
+                    } footer: {
+                        Text("Quedás sin plan: HOY queda libre y el reloj vuelve a Carrera Libre. Podés adoptar otro cuando quieras.")
                     }
                 }
 
@@ -290,6 +306,16 @@ struct PlanTab: View {
                 }
             }
             .navigationTitle("Maratonia")
+            #if DEBUG
+            // Igual que el plan completo: destino programático solo para
+            // capturar la pantalla del reloj desde el simulador.
+            .navigationDestination(isPresented: $abrirRelojQA) {
+                RelojTab(store: store)
+            }
+            .navigationDestination(isPresented: $abrirCoachQA) {
+                CoachView(almacen: almacen)
+            }
+            #endif
             #if DEBUG
             // Destino programático SOLO para poder capturar el plan
             // completo desde el simulador (no hay forma de tocar un
@@ -407,6 +433,49 @@ struct PlanTab: View {
                         }
                         .padding(.vertical, 2)
                     }
+                }
+            }
+        }
+    }
+
+    /// El Coach, en el inicio y no escondido en Perfil. Una tarjeta
+    /// compacta con UNA pregunta concreta —la de hoy—, no un menú: el
+    /// resto de lo que sabe hacer está adentro.
+    ///
+    /// Solo aparece con backend configurado y sesión iniciada: sin eso
+    /// no existe, cero botones muertos.
+    /// La sesión también se puede forzar en DEBUG: sin cuenta iniciada
+    /// el Coach no aparece ni con el backend encendido, y para capturar
+    /// la pantalla hacen falta las dos cosas.
+    private var coachOfrecible: Bool {
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "forzarCoach") { return true }
+        #endif
+        return ServicioCoach.disponible && identidad.haySesion
+    }
+
+    @ViewBuilder
+    private var seccionCoach: some View {
+        if coachOfrecible {
+            Section {
+                NavigationLink {
+                    CoachView(almacen: almacen)
+                } label: {
+                    HStack(spacing: DV2.Espacio.m) {
+                        Image(systemName: "figure.run.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(DV2.Marca.primario)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Preguntale al Coach")
+                                .font(.subheadline.weight(.semibold))
+                            Text(almacen.almacen.entrenamientoDeHoy(hoy) != nil
+                                 ? String(localized: "Por qué te toca esto hoy, o reorganizá tu semana")
+                                 : String(localized: "Cómo venís para tu objetivo"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 2)
                 }
             }
         }
@@ -1027,12 +1096,15 @@ struct RelojTab: View {
                     Button {
                         conectividad.enviar(plan: store.plan, urlDePista: store.urlDePista)
                     } label: {
-                        Label("Enviar al reloj", systemImage: "applewatch.radiowaves.left.and.right")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
+                        // El CTA del sistema de diseño: ya viene centrado
+                        // y con la identidad. Con `.borderedProminent` el
+                        // Label quedaba pegado a la izquierda dentro del
+                        // ancho completo.
+                        EtiquetaBotonPrimarioV2(
+                            titulo: "Enviar al reloj",
+                            icono: "applewatch.radiowaves.left.and.right")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.plain)
                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                     .listRowBackground(Color.clear)
                     .disabled(store.plan.pistas.isEmpty
