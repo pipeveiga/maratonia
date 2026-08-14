@@ -10,7 +10,7 @@ Los campos marcados **[VOS]** requieren un dato o una decisión tuya.
 
 ## FASE 0 — Antes de tocar App Store Connect
 
-- [ ] Build 67 compila sin warnings en Xcode (Product → Build)
+- [ ] Build 68 compila sin warnings en Xcode (Product → Build)
 - [ ] Los 479 tests en verde (Product → Test)
 - [ ] Recorrer las 5 pestañas en **español**
 - [ ] Cambiar el iPhone a **inglés** y recorrerlas de nuevo.
@@ -30,6 +30,9 @@ Los campos marcados **[VOS]** requieren un dato o una decisión tuya.
 - [ ] **Una carrera real con el Apple Watch** validando el ritmo en
       vivo (ver checklist física abajo)
 - [ ] `https://maratonia.site/privacy/` y `/support/` cargando **[VOS]**
+- [ ] Elegir unidades en el onboarding y cambiarlas después en Perfil:
+      el plan NO se regenera y los números cambian en toda la app
+      (build 68)
 
 Si algo de esto falla, no sigas: se arregla antes.
 

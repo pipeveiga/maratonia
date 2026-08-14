@@ -966,7 +966,10 @@ struct CorrerTab: View {
                             Label("Auto-pausa en las paradas", systemImage: "pause.circle.fill")
                                 .font(.subheadline)
                         }
-                        Label("Sin Apple Watch: el GPS del teléfono mide la distancia. Llevá el celu con vos y los auriculares puestos.",
+                        // El "cómo" en una línea: el GPS del teléfono es
+                        // el que mide, así que hay que llevarlo encima.
+                        // Lo demás era prosa.
+                        Label("El GPS del teléfono mide: llevalo con vos",
                               systemImage: "iphone")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
@@ -1000,19 +1003,25 @@ struct CorrerTab: View {
                     Spacer()
                 }
                 Text("Carrera libre")
-                    .font(protagonista ? .title3.weight(.bold) : .headline)
-                Text("Corrés sin objetivo obligatorio de distancia ni tiempo.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(protagonista ? DV2.Tipo.titulo : DV2.Tipo.tituloChico)
+                // UNA línea, no tres. Cuando la carrera libre es la
+                // alternativa —hay un entrenamiento de hoy arriba— el
+                // corredor ya sabe qué es: lo único que necesita ver es
+                // con qué va a correr. La explicación completa queda
+                // para cuando ES la acción principal.
+                if protagonista {
+                    Text("Sin objetivo obligatorio de distancia ni tiempo.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
                 if !store.plan.tramosActivos.isEmpty {
-                    // El camino personalizado, dicho con todas las
-                    // letras: acá corren TUS tramos importados.
-                    Text("Corre con tu estructura personalizada: el reloj anuncia cada tramo y corrige por voz.")
-                        .font(.caption)
+                    Label("Con tu estructura: avisos por tramo y corrección por voz",
+                          systemImage: "list.bullet.rectangle")
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(DV2.Marca.primario)
                 }
                 Text(datosDelPlan)
-                    .font(.subheadline)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                 Button {
                     LanzadorSesion.iniciar(definicion: nil, programadoID: nil,

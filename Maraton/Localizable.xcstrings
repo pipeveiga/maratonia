@@ -2355,6 +2355,17 @@
         }
       }
     },
+    "Con tu estructura: avisos por tramo y corrección por voz": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With your structure: segment cues and voice coaching"
+          }
+        }
+      }
+    },
     "Con una marca reciente los ritmos salen personalizados.": {
       "extractionState": "manual",
       "localizations": {
@@ -2604,6 +2615,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Continuous"
+          }
+        }
+      }
+    },
+    "Corré con Maratonia, con el reloj o con cualquier app que guarde en Salud: tu volumen, tus marcas y tu racha aparecen solos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run with Maratonia, with your watch or with any app that saves to Health: your volume, your times and your streak show up on their own."
           }
         }
       }
@@ -3275,6 +3297,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "The Coach chose not to answer that. Try asking it a different way."
+          }
+        }
+      }
+    },
+    "El GPS del teléfono mide: llevalo con vos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your phone's GPS does the measuring: take it with you"
           }
         }
       }
@@ -8174,6 +8207,17 @@
         }
       }
     },
+    "Sin objetivo obligatorio de distancia ni tiempo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No required distance or time goal."
+          }
+        }
+      }
+    },
     "Sin pistas en el plan todavía.": {
       "extractionState": "manual",
       "localizations": {
@@ -8643,6 +8687,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tap an interval to edit it. Suggested plans bring reference paces: adjust them to yours. The watch announces each interval and corrects by voice (requires “Record workout”)."
+          }
+        }
+      }
+    },
+    "Todavía no hay carreras": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No runs yet"
           }
         }
       }

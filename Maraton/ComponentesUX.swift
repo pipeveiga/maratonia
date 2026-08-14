@@ -199,6 +199,49 @@ struct Tarjeta<Contenido: View>: View {
     }
 }
 
+// MARK: - Estado vacío
+
+/// Lo que se ve cuando TODAVÍA no hay nada. Existe porque una pantalla
+/// vacía con las cajas de siempre a cero no se lee como "recién
+/// empezás": se lee como rota. Un icono, una frase y —si hay algo que
+/// hacer— la acción. Nunca un párrafo explicando la ausencia.
+struct EstadoVacio: View {
+    var icono: String
+    var titulo: String
+    var detalle: String
+    var accion: (texto: String, hacer: () -> Void)?
+
+    var body: some View {
+        Tarjeta {
+            VStack(spacing: DV2.Espacio.m) {
+                Image(systemName: icono)
+                    .font(.system(size: 34, weight: .semibold, design: .rounded))
+                    .foregroundStyle(DV2.Marca.primario.opacity(0.55))
+                VStack(spacing: DV2.Espacio.xs) {
+                    Text(titulo)
+                        .font(DV2.Tipo.tituloChico)
+                        .multilineTextAlignment(.center)
+                    Text(detalle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let accion {
+                    Button(action: accion.hacer) {
+                        EtiquetaBotonPrimarioV2(titulo: LocalizedStringKey(accion.texto),
+                                                icono: "arrow.right")
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, DV2.Espacio.xs)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, DV2.Espacio.m)
+        }
+    }
+}
+
 // MARK: - Disclosure progresivo
 
 /// "Ver requisitos", "Cómo se calcula", "Cómo funciona este plan". Lo

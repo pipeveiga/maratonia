@@ -8,6 +8,24 @@ import UniformTypeIdentifiers
 
 enum Pestana: Hashable {
     case plan, correr, progreso, carreras, perfil
+
+    #if DEBUG
+    /// Pestaña inicial por argumento de lanzamiento. SOLO en DEBUG y
+    /// solo para poder capturar cada pantalla desde el simulador: no hay
+    /// forma de tocar la barra de pestañas por línea de comandos, y sin
+    /// esto el sprint visual se verifica de memoria.
+    /// Uso: `xcrun simctl launch <dev> <bundle> -pestanaInicial progreso`
+    static var deArgumentos: Pestana? {
+        switch UserDefaults.standard.string(forKey: "pestanaInicial") {
+        case "plan": return .plan
+        case "correr": return .correr
+        case "progreso": return .progreso
+        case "carreras": return .carreras
+        case "perfil": return .perfil
+        default: return nil
+        }
+    }
+    #endif
 }
 
 struct ContentView: View {
@@ -20,7 +38,11 @@ struct ContentView: View {
 
     /// Selección programática: EMPEZAR desde Plan te lleva a Correr,
     /// donde ya está el motor andando.
+    #if DEBUG
+    @State private var pestana: Pestana = Pestana.deArgumentos ?? .plan
+    #else
     @State private var pestana: Pestana = .plan
+    #endif
 
     /// El tutorial se abre solo la primera vez que se abre la app.
     @AppStorage("vioTutorial") private var vioTutorial = false
@@ -1248,7 +1270,11 @@ struct PerfilTab: View {
                 // Cambiar de unidades NO regenera el plan ni reescribe
                 // nada del dominio: el plan se guarda en km y se dibuja
                 // en lo que el corredor elija.
-                Picker(selection: Binding(
+                // Una fila, no tres cosas apiladas: la etiqueta y el
+                // valor. El ejemplo de unidades ("km · min/km · kg")
+                // vive en el onboarding, que es donde hay que ELEGIR;
+                // acá el corredor ya sabe lo que eligió.
+                Picker("Unidades", selection: Binding(
                     get: { PreferenciaUnidades.compartida.sistema },
                     set: { nuevo in
                         PreferenciaUnidades.compartida.elegir(nuevo)
@@ -1257,8 +1283,6 @@ struct PerfilTab: View {
                     ForEach(SistemaUnidades.allCases, id: \.self) { opcion in
                         Text(opcion.nombre).tag(opcion)
                     }
-                } label: {
-                    LabeledContent("Unidades", value: PreferenciaUnidades.compartida.sistema.ejemplo)
                 }
                 .pickerStyle(.menu)
                 // La referencia de ritmo, con su equivalencia detrás de

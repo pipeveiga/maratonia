@@ -180,18 +180,32 @@ struct ProgresoTab: View {
                 VStack(spacing: DV2.Espacio.xl) {
                     let semanas = CalculoProgreso.semanas(sesiones: lector.sesiones,
                                                           cuantas: 8, hoy: Date())
+                    // SIN carreras todavía no hay progreso que graficar:
+                    // ocho barras en cero y una racha vacía no se leen
+                    // como "recién empezás", se leen como una pantalla
+                    // rota. El plan de la semana SÍ se muestra —eso ya
+                    // existe— y el resto se reemplaza por el estado
+                    // vacío, que dice qué falta para que aparezca.
                     heroSemana(semanas)
-                    tarjetaVolumen(semanas)
-                    tarjetaPlan
-                    tarjetaConsistencia(semanas)
-                    tarjetaDestacados
-
-                    if lector.sesiones.isEmpty && !lector.cargando {
-                        Text("Cuando corras (con Maratonia, el reloj o cualquier app que guarde en Salud), acá aparece tu progreso.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
+                    if lector.sesiones.isEmpty {
+                        // El plan de la semana SÍ existe sin carreras.
+                        // El resto (volumen, racha, marcas) se calcula
+                        // sobre carreras: mientras Salud responde no se
+                        // dibujan en cero para después saltar al estado
+                        // vacío — ese parpadeo se lee como un error.
+                        tarjetaPlan
+                        if !lector.cargando {
+                            EstadoVacio(
+                                icono: "figure.run",
+                                titulo: String(localized: "Todavía no hay carreras"),
+                                detalle: String(localized: "Corré con Maratonia, con el reloj o con cualquier app que guarde en Salud: tu volumen, tus marcas y tu racha aparecen solos."))
+                                .padding(.horizontal)
+                        }
+                    } else {
+                        tarjetaVolumen(semanas)
+                        tarjetaPlan
+                        tarjetaConsistencia(semanas)
+                        tarjetaDestacados
                     }
                 }
                 .padding(.vertical)
@@ -236,10 +250,15 @@ struct ProgresoTab: View {
                 Text("\(hechos) de \(Plurales.entrenamientos(total)) de la semana")
                     .font(.subheadline.weight(.medium))
             }
-            HStack(spacing: DV2.Espacio.xl) {
-                MetricaV2(titulo: "tiempo", valor: formatearDuracion(actual.segundos))
-                MetricaV2(titulo: actual.carreras == 1 ? "carrera" : "carreras",
-                          valor: "\(actual.carreras)")
+            // Con la semana en cero, "0:00" y "0 carreras" no informan
+            // nada que el número grande de arriba no haya dicho ya, y
+            // encima chocan con el estado vacío de abajo.
+            if actual.carreras > 0 || actual.segundos > 0 {
+                HStack(spacing: DV2.Espacio.xl) {
+                    MetricaV2(titulo: "tiempo", valor: formatearDuracion(actual.segundos))
+                    MetricaV2(titulo: actual.carreras == 1 ? "carrera" : "carreras",
+                              valor: "\(actual.carreras)")
+                }
             }
             // La comparación contra la semana pasada solo cuando dice
             // algo útil: un lunes "-22 km" es matemática correcta y UX
