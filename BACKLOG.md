@@ -77,3 +77,21 @@ entre el build 58 y el 66: 144 claves).
 Se puede cerrar con un chequeo de CI que compare los `.stringsdata` de
 DerivedData contra el catálogo y falle si falta alguna. Mientras tanto,
 está anotado en `LANZAMIENTO.md` como paso manual.
+
+## Modos de fondo: la carrera desde el teléfono se corta con la pantalla bloqueada
+
+`UIBackgroundModes` no existe en el Info.plist, así que
+`allowsBackgroundLocationUpdates` queda en false (bien guardado: sin el
+modo declarado, ponerlo en true aborta el proceso) y `AVAudioSession` no
+tiene modo de fondo. Consecuencia real: en una carrera desde el iPhone,
+con la pantalla bloqueada se dejan de recibir ubicaciones y se cortan los
+avisos por voz.
+
+Detectado revisando el camino de arranque del build 71. NO se toca en
+este sprint: agregar `location` y `audio` cambia las capabilities del
+target y la ficha de App Store (Apple pregunta por el uso de ubicación en
+fondo), y eso no se mete a último momento antes de una subida.
+
+Qué hay que hacer: declarar los dos modos, agregar
+`NSLocationAlwaysAndWhenInUseUsageDescription`, y validar una carrera
+larga con la pantalla apagada antes de publicarlo.
