@@ -45,6 +45,7 @@
 		A10000000000000000000065 /* Identidad.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000064 /* Identidad.swift */; };
 		A10000000000000000000067 /* MotorPlanes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000066 /* MotorPlanes.swift */; };
 		A10000000000000000000074 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000072 /* FirebaseAuth */; };
+		A10000000000000000000121 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000120 /* FirebaseFirestore */; };
 		A10000000000000000000075 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000073 /* GoogleSignIn */; };
 		A10000000000000000000077 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000076 /* GoogleService-Info.plist */; };
 		A10000000000000000000079 /* ServicioAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000078 /* ServicioAuth.swift */; };
@@ -59,6 +60,9 @@
 		A10000000000000000000098 /* CalibracionDeportivaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000097 /* CalibracionDeportivaTests.swift */; };
 		A100000000000000000000C1 /* ComponentesUX.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000000000000000000C0 /* ComponentesUX.swift */; };
 		A10000000000000000000102 /* TextosDeportivos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* TextosDeportivos.swift */; };
+		A10000000000000000000131 /* SesionCuenta.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000130 /* SesionCuenta.swift */; };
+		A10000000000000000000135 /* PuertaDeEntrada.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000134 /* PuertaDeEntrada.swift */; };
+		A10000000000000000000133 /* RepositorioCuenta.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000132 /* RepositorioCuenta.swift */; };
 		A10000000000000000000103 /* TextosDeportivos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* TextosDeportivos.swift */; };
 		A10000000000000000000112 /* Unidades.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* Unidades.swift */; };
 		A10000000000000000000113 /* Unidades.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* Unidades.swift */; };
@@ -149,6 +153,9 @@
 		A10000000000000000000097 /* CalibracionDeportivaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalibracionDeportivaTests.swift; sourceTree = "<group>"; };
 		A100000000000000000000C0 /* ComponentesUX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentesUX.swift; sourceTree = "<group>"; };
 		A10000000000000000000101 /* TextosDeportivos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextosDeportivos.swift; sourceTree = "<group>"; };
+		A10000000000000000000130 /* SesionCuenta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SesionCuenta.swift; sourceTree = "<group>"; };
+		A10000000000000000000134 /* PuertaDeEntrada.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuertaDeEntrada.swift; sourceTree = "<group>"; };
+		A10000000000000000000132 /* RepositorioCuenta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositorioCuenta.swift; sourceTree = "<group>"; };
 		A10000000000000000000111 /* Unidades.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Unidades.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -158,6 +165,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000074 /* FirebaseAuth in Frameworks */,
+				A10000000000000000000121 /* FirebaseFirestore in Frameworks */,
 				A10000000000000000000075 /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -239,6 +247,9 @@
 				A10000000000000000000044 /* Carreras.swift */,
 				A1000000000000000000002E /* Maraton.entitlements */,
 				A10000000000000000000022 /* Assets.xcassets */,
+				A10000000000000000000130 /* SesionCuenta.swift */,
+				A10000000000000000000134 /* PuertaDeEntrada.swift */,
+				A10000000000000000000132 /* RepositorioCuenta.swift */,
 			);
 			path = Maraton;
 			sourceTree = "<group>";
@@ -304,6 +315,7 @@
 			name = Maraton;
 			packageProductDependencies = (
 				A10000000000000000000072 /* FirebaseAuth */,
+				A10000000000000000000120 /* FirebaseFirestore */,
 				A10000000000000000000073 /* GoogleSignIn */,
 			);
 			productName = Maraton;
@@ -462,6 +474,9 @@
 				A10000000000000000000047 /* Diseno.swift in Sources */,
 				A10000000000000000000052 /* DominioV2.swift in Sources */,
 				A10000000000000000000102 /* TextosDeportivos.swift in Sources */,
+				A10000000000000000000131 /* SesionCuenta.swift in Sources */,
+				A10000000000000000000135 /* PuertaDeEntrada.swift in Sources */,
+				A10000000000000000000133 /* RepositorioCuenta.swift in Sources */,
 				A10000000000000000000112 /* Unidades.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -877,6 +892,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A10000000000000000000070 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAuth;
+		};
+		A10000000000000000000120 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000070 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
 		};
 		A10000000000000000000073 /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -21,7 +21,7 @@ final class PlanStore: ObservableObject {
     /// se podía perder el plan entero sin ningún aviso.
     @Published var mensajeProblema: String?
 
-    private static var urlDocumentos: URL {
+    static var urlDocumentos: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 

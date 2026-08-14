@@ -28,12 +28,72 @@ enum Pestana: Hashable {
     #endif
 }
 
+/// EL PORTERO. Lo único que decide qué se ve primero.
+///
+/// Antes esta decisión estaba repartida entre tres `onAppear` y dos
+/// `@AppStorage` ("vioBienvenida", "ofrecioOnboarding"): la app abría,
+/// armaba un plan y recién después ofrecía cuenta. Ahora la cuenta va
+/// primero porque la cuenta es la que sabe qué datos son tuyos.
 struct ContentView: View {
     @StateObject private var store = PlanStore()
-    // Se declara DESPUÉS de PlanStore a propósito: PlanStore corre la
-    // migración de ensayo primero y AlmacenStore hace el cutover sobre
-    // el ensayo fresco (aunque ambos órdenes son seguros).
     @StateObject private var almacen = AlmacenStore()
+    @StateObject private var identidad = IdentidadStore()
+    @StateObject private var sesion: SesionApp
+    @StateObject private var repositorio: RepositorioCuenta
+
+    init() {
+        let store = PlanStore()
+        let almacen = AlmacenStore()
+        let identidad = IdentidadStore()
+        _store = StateObject(wrappedValue: store)
+        _almacen = StateObject(wrappedValue: almacen)
+        _identidad = StateObject(wrappedValue: identidad)
+        _sesion = StateObject(wrappedValue: SesionApp(almacen: almacen, identidad: identidad))
+        _repositorio = StateObject(wrappedValue: RepositorioCuenta(almacen: almacen))
+    }
+
+    var body: some View {
+        Group {
+            switch sesion.estado {
+            case .resolviendo:
+                DV2.Superficie.fondo.ignoresSafeArea()
+            case .necesitaAuth:
+                PuertaDeEntrada(identidad: identidad)
+            case .restaurando:
+                // El aviso solo si de verdad tarda: en el caso normal
+                // la app aparece y listo.
+                if sesion.restauracionLenta { RestaurandoView() }
+                else { DV2.Superficie.fondo.ignoresSafeArea() }
+            case .necesitaOnboarding:
+                OnboardingDeportivo(almacen: almacen)
+                    .interactiveDismissDisabled()
+                    .onDisappear { sesion.onboardingCompletado() }
+            case .lista:
+                AppPrincipal(store: store, almacen: almacen, identidad: identidad,
+                             repositorio: repositorio)
+            }
+        }
+        .task {
+            IdentidadStore.conectar(identidad, con: almacen)
+            identidad.verificarRevocacionApple()
+            sesion.reevaluar()
+            await sesion.restaurar(con: repositorio)
+        }
+        .onChange(of: identidad.haySesion) { _, hay in
+            Task {
+                if hay { await sesion.restaurar(con: repositorio) }
+                else { repositorio.limpiarParaLogout(); sesion.reevaluar() }
+            }
+        }
+    }
+}
+
+struct AppPrincipal: View {
+    @ObservedObject var store: PlanStore
+    @ObservedObject var almacen: AlmacenStore
+    @ObservedObject var identidad: IdentidadStore
+    @ObservedObject var repositorio: RepositorioCuenta
+
     @State private var mostrandoTutorial = false
 
     /// Selección programática: EMPEZAR desde Plan te lleva a Correr,
@@ -44,20 +104,9 @@ struct ContentView: View {
     @State private var pestana: Pestana = .plan
     #endif
 
-    /// El tutorial se abre solo la primera vez que se abre la app.
-    @AppStorage("vioTutorial") private var vioTutorial = false
-
-    /// El onboarding deportivo se OFRECE una sola vez (después queda en
-    /// Perfil, nunca insiste).
-    @AppStorage("ofrecioOnboarding") private var ofrecioOnboarding = false
+    /// El tutorial de audio queda disponible en Perfil → Ayuda. Ya no
+    /// se abre solo: el arranque lo decide el portero.
     @State private var mostrandoOnboarding = false
-
-    /// Identidad Maratonia (RC1): la bienvenida con cuenta OPCIONAL se
-    /// muestra una única vez y SOLO en instalaciones limpias — un
-    /// usuario con datos jamás la ve (su cuenta vive en Perfil).
-    @AppStorage("vioBienvenida") private var vioBienvenida = false
-    @State private var mostrandoBienvenida = false
-    @StateObject private var identidad = IdentidadStore()
 
     /// Observar la preferencia acá arriba es lo que hace que cambiar de
     /// unidades redibuje TODA la app de una vez. Sin esto, el selector
@@ -94,65 +143,11 @@ struct ContentView: View {
         .sheet(isPresented: $mostrandoOnboarding) {
             OnboardingDeportivo(almacen: almacen)
         }
-        .fullScreenCover(isPresented: $mostrandoBienvenida) {
-            BienvenidaView(identidad: identidad) {
-                mostrandoBienvenida = false
-                ofrecerOnboardingSiCorresponde()
-            }
+        .task {
+            // El portero ya resolvió identidad y restauración: acá solo
+            // queda cablear cuenta ↔ dominio y subir lo que cambie.
+            RepositorioCuenta.conectar(repositorio, con: almacen)
         }
-        .onAppear {
-            // Cableado cuenta ↔ dominio: crear cuenta asocia los datos
-            // existentes al userID (migración sin duplicados).
-            IdentidadStore.conectar(identidad, con: almacen)
-            identidad.verificarRevocacionApple()
-            if ofrecerBienvenidaSiCorresponde() { return }
-            if !vioTutorial {
-                vioTutorial = true
-                mostrandoTutorial = true
-            } else {
-                ofrecerOnboardingSiCorresponde()
-            }
-        }
-        .onChange(of: mostrandoTutorial) { _, abierto in
-            if !abierto { ofrecerOnboardingSiCorresponde() }
-        }
-    }
-
-    /// Bienvenida (cuenta opcional): una sola vez, SOLO instalación
-    /// limpia — sin plan, sin sesiones, sin referencias y sin cuenta.
-    private func ofrecerBienvenidaSiCorresponde() -> Bool {
-        guard !vioBienvenida else { return false }
-        vioBienvenida = true
-        let dominio = almacen.almacen
-        guard identidad.cuenta == nil,
-              dominio.planActivo == nil,
-              dominio.sesiones.isEmpty,
-              dominio.referencias.isEmpty,
-              store.plan.pistas.isEmpty else { return false }
-        // El usuario nuevo entra por bienvenida → onboarding deportivo;
-        // el tutorial legacy de audio queda disponible en Perfil →
-        // Ayuda (mostrarlo TAMBIÉN en el segundo arranque era ruido).
-        vioTutorial = true
-        mostrandoBienvenida = true
-        return true
-    }
-
-    /// El onboarding se OFRECE solo (una única vez) a quien no tiene
-    /// nada: sin perfil, sin plan, sin sesiones, sin referencias. Un
-    /// usuario existente jamás lo ve sin pedirlo (no destructivo);
-    /// siempre queda disponible en Perfil.
-    private func ofrecerOnboardingSiCorresponde() {
-        guard !ofrecioOnboarding else { return }
-        let dominio = almacen.almacen
-        guard dominio.perfilDeportivo.fechaOnboarding == nil,
-              dominio.planActivo == nil,
-              dominio.sesiones.isEmpty,
-              dominio.referencias.isEmpty else {
-            ofrecioOnboarding = true
-            return
-        }
-        ofrecioOnboarding = true
-        mostrandoOnboarding = true
     }
 }
 
