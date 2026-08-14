@@ -890,6 +890,19 @@ struct PerfilDeportivo: Codable, Equatable {
     /// nil = no hay nada pendiente: o hay plan activo, o el corredor
     /// todavía no intentó armarlo.
     var objetivoSinPlan: MotivoSinPlan? = nil
+
+    /// Cuántos días por semana DIJO que puede correr. Una sola regla
+    /// para toda la app: mandan los días concretos si los marcó.
+    ///
+    /// **nil significa que no lo dijo**, y eso no se puede reemplazar
+    /// por un número plausible: armar el plan sobre una disponibilidad
+    /// inventada es exactamente la misma mentira que filtrarle las
+    /// opciones (ver `DisponibilidadCorredor`). Quien la necesite y no
+    /// la tenga, la pide.
+    var disponibilidadDeclarada: Int? {
+        if let dias = diasElegidos, !dias.isEmpty { return dias.count }
+        return diasPorSemana
+    }
 }
 
 /// Por qué un objetivo elegido no llegó a convertirse en plan. Es el

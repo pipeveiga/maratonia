@@ -688,6 +688,16 @@ struct OnboardingDeportivo: View {
                           hoy: DiaLocal(fecha: Date()))
     }
 
+    /// Qué le falta al motor para poder armar algo. nil = están los dos
+    /// datos que no se pueden suponer: objetivo y disponibilidad.
+    private var faltaParaElPlan: String? {
+        if objetivo == nil { return String(localized: "Falta elegir el objetivo (paso 1).") }
+        if disponibilidadDeclarada == nil {
+            return String(localized: "Falta decir qué días podés correr (paso 4): el plan entero se arma con ese dato y no lo vamos a suponer.")
+        }
+        return nil
+    }
+
     private var pasoFechaYResumen: some View {
         pantalla(titulo: "¿Corrés con fecha?",
                  subtitulo: "Si tenés una carrera marcada en el calendario, el plan apunta ahí. Si no, se avanza por progresión.") {
@@ -766,15 +776,18 @@ struct OnboardingDeportivo: View {
                                             icono: "figure.run")
                 }
                 .buttonStyle(.plain)
-                .disabled(objetivo == nil)
+                .disabled(faltaParaElPlan != nil)
             }
+            // Guardar y cerrar pide MENOS: un perfil a medio llenar es
+            // un estado válido. Lo que no se puede es armar un plan con
+            // datos que el corredor no dio.
             Button("Guardar y cerrar") { terminar() }
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity)
                 .disabled(objetivo == nil)
 
-            if objetivo == nil {
-                Text("Falta elegir el objetivo (paso 1).")
+            if let falta = faltaParaElPlan {
+                Text(falta)
                     .font(.footnote)
                     .foregroundStyle(.orange)
             }
@@ -878,7 +891,14 @@ struct OnboardingDeportivo: View {
     /// propuesta navegable. La referencia sale de lo recién guardado
     /// (la marca del paso 2 ya quedó registrada como referencia).
     private func prepararMiPlan(aceptaConservador: Bool = false) {
-        guard let objetivo else { return }
+        // Sin objetivo o sin disponibilidad NO se arma nada: antes, si
+        // el corredor se salteaba el paso 3, el pedido salía con 3 días
+        // inventados y el plan quedaba calculado sobre una semana que
+        // nadie declaró. La pantalla dice qué falta y lleva ahí.
+        guard let objetivo else { return withAnimation { paso = 0 } }
+        guard disponibilidadDeclarada != nil else {
+            return withAnimation { paso = 3 }
+        }
         guardarPerfil()
         let resultado = MotorPlanificacion.proponer(
             pedido(objetivo, aceptaConservador: aceptaConservador))
@@ -896,12 +916,15 @@ struct OnboardingDeportivo: View {
     /// Y el contexto real del corredor (historial de Salud, actividad
     /// declarada, molestias, preferencias). Sin ese contexto el motor
     /// no puede evaluar elegibilidad ni ajustar el arranque.
+    ///
+    /// La disponibilidad ya viene garantizada por `prepararMiPlan`: acá
+    /// no hay número de relleno posible.
     private func pedido(_ objetivo: ObjetivoDeportivo,
                         aceptaConservador: Bool) -> PedidoDePlan {
         PedidoDePlan(
             objetivo: objetivo,
             fechaObjetivo: tieneFechaObjetivo ? DiaLocal(fecha: fechaObjetivo) : nil,
-            diasPorSemana: diasElegidos.isEmpty ? (diasPorSemana ?? 3) : diasElegidos.count,
+            diasPorSemana: disponibilidadDeclarada ?? diasElegidos.count,
             diasConcretos: diasElegidos.isEmpty ? nil : diasElegidos.sorted(),
             referencia: almacen.almacen.referenciaVigente,
             hoy: DiaLocal(fecha: Date()),

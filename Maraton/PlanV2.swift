@@ -860,6 +860,8 @@ struct PlanBaseDetalleView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var resultado: ResultadoPlanificacion?
     @State private var mostrandoPropuesta = false
+    /// Sin disponibilidad declarada no se arma nada: se la pide.
+    @State private var mostrandoOnboarding = false
 
     private var estado: EstadoDeObjetivo? {
         EstadoDeObjetivo(arquetipo: arquetipo,
@@ -968,20 +970,39 @@ struct PlanBaseDetalleView: View {
             // —incluido "falta base"— así que desde acá no hace falta
             // (ni conviene) bloquear nada antes de tiempo.
             Section {
-                Button {
-                    prepararConElMotor()
-                } label: {
-                    Label("Preparar mi plan", systemImage: "wand.and.stars")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
+                // Sin días declarados el botón cambia de trabajo: pedir
+                // el dato en vez de suponerlo. La promesa del pie —"lo
+                // armamos con TUS días"— solo se puede cumplir así.
+                if almacen.almacen.perfilDeportivo.disponibilidadDeclarada == nil {
+                    Button {
+                        mostrandoOnboarding = true
+                    } label: {
+                        Label("Decinos qué días podés correr",
+                              systemImage: "calendar.badge.plus")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                } else {
+                    Button {
+                        prepararConElMotor()
+                    } label: {
+                        Label("Preparar mi plan", systemImage: "wand.and.stars")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.borderedProminent)
             } header: {
                 Text("Arranque")
             } footer: {
-                Text(almacen.almacen.planActivo != nil
-                     ? "Tenés un plan activo: si confirmás el nuevo, el actual queda archivado con su historial."
-                     : "Vamos a armarlo con tus días, tu volumen actual y tu referencia de ritmo.")
+                if almacen.almacen.perfilDeportivo.disponibilidadDeclarada == nil {
+                    Text("Todavía no sabemos cuántos días por semana podés correr, y de eso depende todo el plan. Son dos toques.")
+                } else {
+                    Text(almacen.almacen.planActivo != nil
+                         ? "Tenés un plan activo: si confirmás el nuevo, el actual queda archivado con su historial."
+                         : "Vamos a armarlo con tus días, tu volumen actual y tu referencia de ritmo.")
+                }
             }
 
             ForEach(base.semanas, id: \.numero) { semana in
@@ -1007,26 +1028,28 @@ struct PlanBaseDetalleView: View {
                 }
             }
         }
+        .sheet(isPresented: $mostrandoOnboarding) {
+            OnboardingDeportivo(almacen: almacen)
+        }
     }
 
     /// Arma el pedido con lo que el perfil ya sabe y deja que el motor
     /// decida. Nada de adoptar el template crudo: eso salteaba el
     /// recorte por días, la elegibilidad y la atenuación del arranque.
+    ///
+    /// Si el corredor todavía no dijo qué días puede correr, NO se
+    /// supone: antes se usaba el mínimo del arquetipo y el plan salía
+    /// calculado sobre una semana que nadie declaró.
     private func prepararConElMotor() {
         let perfil = almacen.almacen.perfilDeportivo
-        let dias = perfil.diasElegidos?.count
-            ?? perfil.diasPorSemana
-            ?? arquetipo.diasMinimos
-        let salida = MotorPlanificacion.proponer(PedidoDePlan(
-            objetivo: arquetipo.objetivo,
-            fechaObjetivo: perfil.fechaObjetivo,
-            diasPorSemana: dias,
-            diasConcretos: perfil.diasElegidos,
-            referencia: almacen.almacen.referenciaVigente,
-            hoy: DiaLocal(fecha: Date()),
-            actividad: perfil.actividad,
-            molestias: perfil.molestias ?? .ninguna,
-            preferencias: perfil.preferencias))
+        guard let pedido = PedidoDePlan(perfil: perfil,
+                                        objetivo: arquetipo.objetivo,
+                                        referencia: almacen.almacen.referenciaVigente,
+                                        hoy: DiaLocal(fecha: Date())) else {
+            mostrandoOnboarding = true
+            return
+        }
+        let salida = MotorPlanificacion.proponer(pedido)
         // Solo se registra lo pendiente si el corredor estaba mirando
         // SU objetivo: explorar otros planes no puede ensuciar el
         // estado del que eligió.

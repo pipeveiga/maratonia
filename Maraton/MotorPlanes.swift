@@ -376,6 +376,33 @@ struct PedidoDePlan {
     var aceptaConservador = false
 }
 
+extension PedidoDePlan {
+    /// El pedido armado con lo que el perfil ya sabe.
+    ///
+    /// **nil = el corredor todavía no dijo qué días puede correr**, y sin
+    /// eso no hay pedido: `diasPorSemana` no es opcional en el pedido, así
+    /// que los llamadores rellenaban el hueco con un número inventado (el
+    /// onboarding con 3, el catálogo con el mínimo del arquetipo). El plan
+    /// salía igual —volumen, elegibilidad y arranque calculados sobre una
+    /// semana que nadie declaró— y en pantalla no se distinguía del que sí
+    /// se pidió. Preguntar es barato; suponer, no.
+    init?(perfil: PerfilDeportivo, objetivo: ObjetivoDeportivo,
+          referencia: ReferenciaRendimiento?, hoy: DiaLocal,
+          aceptaConservador: Bool = false) {
+        guard let dias = perfil.disponibilidadDeclarada else { return nil }
+        self.init(objetivo: objetivo,
+                  fechaObjetivo: perfil.fechaObjetivo,
+                  diasPorSemana: dias,
+                  diasConcretos: perfil.diasElegidos,
+                  referencia: referencia,
+                  hoy: hoy,
+                  actividad: perfil.actividad,
+                  molestias: perfil.molestias ?? .ninguna,
+                  preferencias: perfil.preferencias,
+                  aceptaConservador: aceptaConservador)
+    }
+}
+
 extension ResultadoPlanificacion {
     /// Traduce el resultado del motor a lo que el perfil tiene que
     /// recordar. `nil` = hay propuesta, así que no hay nada pendiente.

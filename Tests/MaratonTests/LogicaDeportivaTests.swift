@@ -1240,6 +1240,39 @@ final class DisponibilidadDelCorredorTests: XCTestCase {
         XCTAssertTrue(acciones.contains(.cambiarFecha))
     }
 
+    /// La disponibilidad declarada tiene UNA regla en toda la app:
+    /// mandan los días concretos, y no haber contestado es un estado
+    /// distinto de haber contestado cualquier cosa.
+    func testDisponibilidadDeclaradaTieneUnaSolaRegla() {
+        var perfil = PerfilDeportivo()
+        XCTAssertNil(perfil.disponibilidadDeclarada, "sin decir nada, no hay dato")
+        perfil.diasPorSemana = 4
+        XCTAssertEqual(perfil.disponibilidadDeclarada, 4)
+        perfil.diasElegidos = [1, 3, 5]
+        XCTAssertEqual(perfil.disponibilidadDeclarada, 3, "los días concretos mandan")
+        perfil.diasElegidos = []
+        XCTAssertEqual(perfil.disponibilidadDeclarada, 4, "una lista vacía no es una respuesta")
+    }
+
+    /// Sin disponibilidad declarada no hay pedido. Antes el hueco se
+    /// rellenaba con un número plausible (3 en el onboarding, el mínimo
+    /// del arquetipo en el catálogo) y el plan salía calculado sobre una
+    /// semana que el corredor nunca declaró.
+    func testSinDisponibilidadNoHayPedidoQueValga() throws {
+        let hoy = DiaLocal(fecha: Date())
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .maraton
+        XCTAssertNil(PedidoDePlan(perfil: perfil, objetivo: .maraton,
+                                  referencia: nil, hoy: hoy),
+                     "sin días declarados no se puede pedir un plan")
+
+        perfil.diasElegidos = [1, 2, 4, 6]
+        let pedido = try XCTUnwrap(PedidoDePlan(perfil: perfil, objetivo: .maraton,
+                                                referencia: nil, hoy: hoy))
+        XCTAssertEqual(pedido.diasPorSemana, 4)
+        XCTAssertEqual(pedido.diasConcretos, [1, 2, 4, 6])
+    }
+
     /// Un objetivo sin contenido validado no opina sobre los días: el
     /// problema es otro y no se le miente al corredor sobre su semana.
     func testObjetivoSinContenidoNoJuzgaLaDisponibilidad() {
