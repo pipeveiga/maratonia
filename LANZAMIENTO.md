@@ -11,7 +11,7 @@ Los campos marcados **[VOS]** requieren un dato o una decisión tuya.
 ## FASE 0 — Antes de tocar App Store Connect
 
 - [ ] Build 67 compila sin warnings en Xcode (Product → Build)
-- [ ] Los 445 tests en verde (Product → Test)
+- [ ] Los 461 tests en verde (Product → Test)
 - [ ] Recorrer las 5 pestañas en **español**
 - [ ] Cambiar el iPhone a **inglés** y recorrerlas de nuevo.
       El build 67 rehízo el barrido: el catálogo del iPhone pasó de 636
