@@ -34,15 +34,23 @@ function responder(res, codigo, cuerpo, tipo) {
   res.end(cuerpo);
 }
 
+// El HTML se revalida siempre; CSS/JS una semana; imágenes y fuentes,
+// que cambian de nombre si cambian, un mes e inmutables.
+const CACHE_LARGO = new Set([".jpg", ".jpeg", ".png", ".webp", ".svg", ".ico", ".woff", ".woff2"]);
+
+function cachePara(ext) {
+  if (ext === ".html") return "no-cache";
+  if (CACHE_LARGO.has(ext)) return "public, max-age=2592000, immutable";
+  return "public, max-age=604800";
+}
+
 function servirArchivo(res, ruta) {
   const ext = path.extname(ruta).toLowerCase();
-  const esHtml = ext === ".html";
   fs.readFile(ruta, (err, datos) => {
     if (err) return responder(res, 404, "No encontrado");
     res.writeHead(200, {
       "Content-Type": MIME[ext] || "application/octet-stream",
-      // El HTML se revalida siempre; el resto puede cachearse un rato.
-      "Cache-Control": esHtml ? "no-cache" : "public, max-age=3600",
+      "Cache-Control": cachePara(ext),
     });
     res.end(datos);
   });
