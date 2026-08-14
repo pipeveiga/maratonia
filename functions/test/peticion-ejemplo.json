@@ -1,0 +1,72 @@
+{
+  "accion": "reorganizar",
+  "requestID": "3f2504e0-4f89-41d3-9a0c-0305e82c3300",
+  "detalle": "Esta semana no puedo correr el jueves",
+  "contexto": {
+    "idioma": "es",
+    "objetivo": "maraton",
+    "fechaCarrera": "2026-11-15",
+    "diasElegidos": [2, 4, 6, 7],
+    "diasImposibles": [3],
+    "baseline": { "distanciaMetros": 5000, "segundos": 1470 },
+    "semanaActual": 5,
+    "semanasTotales": 16,
+    "faseSemanaActual": "construccion",
+    "cumplimientoPorciento": 82,
+    "kmUltimas4Semanas": 148.6,
+    "ventanas": [
+      { "dias": 7, "km": 38.2, "salidas": 4, "tiradaMasLargaKm": 16, "mayorPausaDias": 2 },
+      { "dias": 28, "km": 148.6, "salidas": 16, "tiradaMasLargaKm": 22, "mayorPausaDias": 3 },
+      { "dias": 42, "km": 210.4, "salidas": 23, "tiradaMasLargaKm": 22, "mayorPausaDias": 5 }
+    ],
+    "eventos": [
+      {
+        "tipo": "cambio-disponibilidad",
+        "severidad": "media",
+        "programadoID": null,
+        "detalle": null
+      }
+    ],
+    "proximosEntrenamientos": [
+      {
+        "programadoID": "3f2504e0-4f89-41d3-9a0c-0305e82c3302",
+        "dia": "2026-08-20",
+        "nombre": "Umbral 28′",
+        "tipo": "umbral",
+        "km": 9.4
+      },
+      {
+        "programadoID": "3f2504e0-4f89-41d3-9a0c-0305e82c3303",
+        "dia": "2026-08-22",
+        "nombre": "Rodaje suave",
+        "tipo": "facil",
+        "km": 10
+      },
+      {
+        "programadoID": "3f2504e0-4f89-41d3-9a0c-0305e82c3304",
+        "dia": "2026-08-23",
+        "nombre": "Tirada larga",
+        "tipo": "largo",
+        "km": 22
+      }
+    ],
+    "ultimasSesiones": [
+      {
+        "fecha": "2026-08-16",
+        "tipo": "facil",
+        "km": 10,
+        "ritmoSegKm": 330,
+        "cumplida": true,
+        "sensacion": "bien"
+      },
+      {
+        "fecha": "2026-08-13",
+        "tipo": "series",
+        "km": 8.2,
+        "ritmoSegKm": null,
+        "cumplida": false,
+        "sensacion": null
+      }
+    ]
+  }
+}

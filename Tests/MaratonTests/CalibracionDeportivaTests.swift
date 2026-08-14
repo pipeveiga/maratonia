@@ -989,6 +989,116 @@ final class DescubribilidadDelCatalogoTests: XCTestCase {
     }
 }
 
+// MARK: - Contrato del Coach con el backend
+
+/// La otra mitad del contrato que vive en functions/test/contrato.test.js.
+/// Allá se comprueba que zod ACEPTA lo que Swift manda; acá, que Swift
+/// manda exactamente esas claves y ninguna más.
+///
+/// Importa porque el schema del backend es `.strict()`: una clave nueva
+/// en el DTO —agregada con la mejor intención— hace que el backend
+/// devuelva 400 para todos los usuarios, y del lado de la app se ve
+/// como "el Coach no pudo responder".
+final class ContratoCoachTests: XCTestCase {
+
+    private func json(_ valor: some Encodable) throws -> [String: Any] {
+        let datos = try JSONEncoder().encode(valor)
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: datos) as? [String: Any])
+    }
+
+    func testElContextoMandaExactamenteLasClavesDelSchema() throws {
+        let contexto = ContextoCoach(
+            idioma: "es", objetivo: "maraton", fechaCarrera: "2026-11-15",
+            diasElegidos: [2, 4, 6, 7], diasImposibles: [3],
+            baseline: .init(distanciaMetros: 5000, segundos: 1470),
+            semanaActual: 5, semanasTotales: 16, faseSemanaActual: "construccion",
+            cumplimientoPorciento: 82, kmUltimas4Semanas: 148.6,
+            ventanas: [], eventos: [], proximosEntrenamientos: [], ultimasSesiones: [])
+        let claves = Set(try json(contexto).keys)
+        // Espejo literal de ContextoCoach en functions/schemas.js.
+        XCTAssertEqual(claves, [
+            "idioma", "objetivo", "fechaCarrera", "diasElegidos", "diasImposibles",
+            "baseline", "semanaActual", "semanasTotales", "faseSemanaActual",
+            "cumplimientoPorciento", "kmUltimas4Semanas", "ventanas", "eventos",
+            "proximosEntrenamientos", "ultimasSesiones",
+        ], "el DTO y el schema de zod se separaron: el backend va a devolver 400")
+    }
+
+    /// El caso que rompía: Swift OMITE la clave de un Optional nil, y el
+    /// schema la exigía presente. Este test fija el comportamiento del
+    /// encoder para que el schema del backend pueda confiar en él.
+    func testLosOpcionalesNilNoViajanComoClave() throws {
+        let contexto = ContextoCoach(
+            idioma: "es", objetivo: "primeros5K", fechaCarrera: nil,
+            diasElegidos: [2, 4, 6], diasImposibles: [],
+            baseline: nil, semanaActual: nil, semanasTotales: nil,
+            faseSemanaActual: nil, cumplimientoPorciento: nil,
+            kmUltimas4Semanas: nil,
+            ventanas: [], eventos: [], proximosEntrenamientos: [], ultimasSesiones: [])
+        let claves = Set(try json(contexto).keys)
+        for ausente in ["fechaCarrera", "baseline", "semanaActual", "semanasTotales",
+                        "faseSemanaActual", "cumplimientoPorciento", "kmUltimas4Semanas"] {
+            XCTAssertFalse(claves.contains(ausente),
+                "\(ausente) viaja aunque sea nil — el schema tiene que seguir siendo nullish")
+        }
+        XCTAssertEqual(claves, ["idioma", "objetivo", "diasElegidos", "diasImposibles",
+                                "ventanas", "eventos", "proximosEntrenamientos",
+                                "ultimasSesiones"])
+    }
+
+    func testLasSubestructurasTambienRespetanElSchema() throws {
+        XCTAssertEqual(Set(try json(ContextoCoach.VentanaDTO(
+            dias: 7, km: 38.2, salidas: 4, tiradaMasLargaKm: 16,
+            mayorPausaDias: 2)).keys),
+            ["dias", "km", "salidas", "tiradaMasLargaKm", "mayorPausaDias"])
+        XCTAssertEqual(Set(try json(ContextoCoach.BaselineDTO(
+            distanciaMetros: 5000, segundos: 1470)).keys),
+            ["distanciaMetros", "segundos"])
+        XCTAssertEqual(Set(try json(ContextoCoach.ProgramadoDTO(
+            programadoID: UUID().uuidString.lowercased(), dia: "2026-08-18",
+            nombre: "Umbral 28′", tipo: "umbral", km: 9.4)).keys),
+            ["programadoID", "dia", "nombre", "tipo", "km"])
+        XCTAssertEqual(Set(try json(ContextoCoach.SesionDTO(
+            fecha: "2026-08-13", tipo: "facil", km: 10, ritmoSegKm: 330,
+            cumplida: true, sensacion: "bien")).keys),
+            ["fecha", "tipo", "km", "ritmoSegKm", "cumplida", "sensacion"])
+        XCTAssertEqual(Set(try json(ContextoCoach.EventoDTO(
+            tipo: "molestia", severidad: "alta", programadoID: nil,
+            detalle: nil)).keys),
+            ["tipo", "severidad"])
+    }
+
+    /// Los rawValue que el DTO manda tienen que estar en el enum de zod.
+    func testLasSensacionesCoincidenConElEnumDelBackend() {
+        XCTAssertEqual(Set(SensacionEsfuerzo.allCases.map(\.rawValue)),
+                       ["muyBien", "bien", "exigido", "muyExigido"])
+    }
+
+    /// La traducción de la respuesta a operaciones del dominio: solo las
+    /// cinco válidas, y cualquier cosa rara se descarta en silencio en
+    /// vez de "interpretarse".
+    func testSoloLasCincoOperacionesSobrevivenLaTraduccion() {
+        let id = UUID().uuidString.lowercased()
+        let ajuste = CoachWeekAdjustment(explicacion: "x", cambios: [
+            .init(tipo: "mantener", programadoID: id, nuevoDia: nil, factor: nil),
+            .init(tipo: "omitir", programadoID: id, nuevoDia: nil, factor: nil),
+            .init(tipo: "convertir", programadoID: id, nuevoDia: nil, factor: nil),
+            .init(tipo: "reducir", programadoID: id, nuevoDia: nil, factor: 0.8),
+            .init(tipo: "reprogramar", programadoID: id, nuevoDia: "2026-08-20", factor: nil),
+            // Todo lo que sigue se DESCARTA.
+            .init(tipo: "aumentar", programadoID: id, nuevoDia: nil, factor: 1.5),
+            .init(tipo: "reducir", programadoID: id, nuevoDia: nil, factor: 1.4),
+            .init(tipo: "reducir", programadoID: id, nuevoDia: nil, factor: nil),
+            .init(tipo: "reprogramar", programadoID: id, nuevoDia: "no-es-fecha", factor: nil),
+            .init(tipo: "omitir", programadoID: "no-es-uuid", nuevoDia: nil, factor: nil),
+        ])
+        XCTAssertEqual(ajuste.propuestas.count, 5,
+                       "sobrevivió algo que no es una de las cinco operaciones válidas")
+        XCTAssertEqual(ajuste.propuestasQueMutan.count, 4,
+                       "«mantener» no muta nada y no debería contarse como propuesta")
+    }
+}
+
 // MARK: - Inercia del adaptador (§17)
 
 final class InerciaAdaptadorTests: XCTestCase {

@@ -48,6 +48,26 @@ async function permitido(uid, limite) {
   });
 }
 
+/// Devuelve el crédito cuando la consulta NO se llegó a responder. El
+/// contador se incrementa ANTES de llamar a OpenAI (si no, dos pedidos
+/// simultáneos pasan los dos), así que un fallo del proveedor le
+/// gastaba al corredor una de sus consultas del día sin darle nada.
+async function devolverCredito(uid) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const ref = db.doc(`uso/${uid}-${hoy}`);
+  try {
+    await db.runTransaction(async (tx) => {
+      const doc = await tx.get(ref);
+      const usados = doc.exists ? doc.data().requests : 0;
+      tx.set(ref, { requests: Math.max(0, usados - 1), actualizado: new Date() },
+             { merge: true });
+    });
+  } catch (error) {
+    // Que falle la devolución no puede tumbar la respuesta al cliente.
+    console.warn("credito-no-devuelto", { uid });
+  }
+}
+
 const SISTEMA = `Sos el coach de Maratonia, una app de entrenamiento de running.
 
 Cómo funciona esto: el motor determinístico de la app ya armó el plan y
@@ -138,7 +158,19 @@ exports.coach = onRequest(
             }) },
         ],
       });
-      const texto = completion.choices[0]?.message?.content;
+      const mensaje = completion.choices[0]?.message;
+      // Con structured outputs el modelo todavía puede NEGARSE. En ese
+      // caso `content` viene null y `refusal` trae el motivo: hay que
+      // distinguirlo de un fallo de red, porque reintentar no ayuda.
+      if (mensaje?.refusal) {
+        console.warn("coach-rechazo", { uid, accion: peticion.accion });
+        await devolverCredito(uid);
+        return res.status(422).json({ error: "refusal" });
+      }
+      const texto = mensaje?.content;
+      if (typeof texto !== "string" || texto.length === 0) {
+        throw new Error("respuesta-vacia");
+      }
       respuesta = JSON.parse(texto);   // el schema estricto ya lo garantiza
       console.log("coach-ok", {
         uid, accion: peticion.accion,
@@ -148,6 +180,8 @@ exports.coach = onRequest(
     } catch (error) {
       console.error("coach-fallo", { uid, accion: peticion.accion,
                                      tipo: error?.constructor?.name });
+      // El corredor no gastó una consulta: no recibió ninguna.
+      await devolverCredito(uid);
       return res.status(502).json({ error: "upstream" });
     }
 

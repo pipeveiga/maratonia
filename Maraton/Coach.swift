@@ -346,6 +346,10 @@ final class ServicioCoach: ObservableObject {
             switch http.statusCode {
             case 200:
                 return try JSONDecoder().decode(Salida.self, from: datos)
+            case 422:
+                // El modelo se negó a responder. Reintentar no ayuda, y
+                // no se le cobró la consulta al corredor.
+                mensajeError = String(localized: "El Coach prefirió no responder eso. Probá preguntándolo de otra forma.")
             case 429:
                 mensajeError = String(localized: "Llegaste al límite de consultas de hoy. El plan sigue igual — mañana el Coach vuelve.")
             case 503:

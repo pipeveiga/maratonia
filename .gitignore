@@ -7,3 +7,18 @@ build/
 
 # macOS
 .DS_Store
+
+# Backend (functions/)
+node_modules/
+.firebase/
+firebase-debug.log
+*-debug.log
+
+# NADA que pueda contener secretos entra a git. .runtimeconfig.json es
+# donde firebase-tools deja la config local de funciones y es el lugar
+# clásico donde se filtra una API key sin querer.
+.env
+.env.*
+.runtimeconfig.json
+serviceAccountKey*.json
+*-service-account*.json
