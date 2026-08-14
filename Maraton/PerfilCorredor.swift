@@ -340,11 +340,19 @@ struct RequisitosObjetivo: Equatable {
     /// Los valores de abajo son DECISIÓN MARATONIA (METODOLOGIA.md) y
     /// están ANCLADOS AL PROPIO PLAN: cada requisito de volumen queda
     /// por debajo del volumen de la primera semana del arquetipo que
-    /// habilita, y cada requisito de tirada larga queda en el orden de
-    /// su primer fondo. La idea es "esto ya lo podés sostener el día
-    /// uno", no "ya sos capaz de terminar". Hay un test de catálogo que
-    /// verifica esa coherencia contra el contenido real, así que la
-    /// tabla no puede volver a divergir del plan en silencio.
+    /// habilita, y cada requisito de tirada larga es EXACTAMENTE la
+    /// tirada larga que ese plan pide en su semana 1. La idea es "esto
+    /// ya lo podés sostener el día uno", no "ya sos capaz de terminar".
+    ///
+    /// Ese anclaje del fondo se cumplía en los seis planes de 21K/42K y
+    /// NO en tres de 5K/10K, que pedían menos de lo que su propia
+    /// semana 1 hace correr: Mejorar 5K abría la puerta con 6 km y el
+    /// lunes siguiente prescribía 9; Rumbo a 10K abría con 4 y pedía 5;
+    /// Mejorar 10K abría con 8 y pedía 10. El test de catálogo no lo
+    /// veía porque comparaba contra el fondo MÁXIMO del plan —una cota
+    /// que un requisito bajo nunca roza— en vez de contra la semana 1.
+    /// Ahora los diez planes cumplen la misma regla y el invariante la
+    /// mide de los dos lados, en todas las frecuencias soportadas.
     static func para(_ objetivo: ObjetivoDeportivo) -> RequisitosObjetivo {
         switch objetivo {
         // ---- 5K: la puerta de entrada. Completar no exige nada.
@@ -353,16 +361,16 @@ struct RequisitosObjetivo: Equatable {
                                       diasPorSemana: 2, mesesRegular: 0,
                                       exigeBaseline: false)
         case .mejorar5K:
-            return RequisitosObjetivo(kmSemanales: 18, tiradaLargaKm: 6,
+            return RequisitosObjetivo(kmSemanales: 18, tiradaLargaKm: 9,
                                       diasPorSemana: 3, mesesRegular: 3,
                                       exigeBaseline: false)
         // ---- 10K
         case .diez:
-            return RequisitosObjetivo(kmSemanales: 10, tiradaLargaKm: 4,
+            return RequisitosObjetivo(kmSemanales: 10, tiradaLargaKm: 5,
                                       diasPorSemana: 2, mesesRegular: 1,
                                       exigeBaseline: false)
         case .mejorar10K:
-            return RequisitosObjetivo(kmSemanales: 22, tiradaLargaKm: 8,
+            return RequisitosObjetivo(kmSemanales: 22, tiradaLargaKm: 10,
                                       diasPorSemana: 3, mesesRegular: 3,
                                       exigeBaseline: false)
         // ---- 21K: de media maratón para arriba, mínimo 4 días. Con 3

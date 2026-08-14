@@ -196,16 +196,25 @@ más de la que ese plan te va a hacer correr en 18 semanas.
 
 **Tabla explícita, anclada al propio plan.** Cada requisito de volumen
 queda por debajo del volumen de la primera semana del arquetipo que
-habilita, y cada requisito de tirada larga en el orden de su primer
-fondo. La idea es *"esto ya lo podés sostener el día uno"*, no *"ya sos
-capaz de terminar"*.
+habilita, y cada requisito de tirada larga **es la tirada larga que ese
+plan pide en su semana 1**. La idea es *"esto ya lo podés sostener el
+día uno"*, no *"ya sos capaz de terminar"*.
+
+Ese anclaje del fondo valía en los seis planes de 21K/42K y no en tres
+de 5K/10K, que abrían la puerta con menos de lo que su propia semana 1
+prescribe: Mejorar 5K entraba con 6 km y el lunes siguiente pedía 9,
+Rumbo a 10K entraba con 4 y pedía 5, Mejorar 10K entraba con 8 y pedía
+10. El invariante no lo veía porque medía el requisito contra el fondo
+**máximo** del plan —una cota que un requisito bajo nunca roza— en vez
+de contra la semana 1. Corregido: los diez planes cumplen la misma
+regla y el test la mide de los dos lados, en todas las frecuencias.
 
 | Objetivo | km/sem | Tirada larga | Días | Meses corriendo |
 |---|---|---|---|---|
 | Primeros 5K | — | — | 2 | — |
-| Mejorar 5K | 18 | 6 | 3 | 3 |
-| Primeros 10K | 10 | 4 | 2 | 1 |
-| Mejorar 10K | 22 | 8 | 3 | 3 |
+| Mejorar 5K | 18 | 9 | 3 | 3 |
+| Primeros 10K | 10 | 5 | 2 | 1 |
+| Mejorar 10K | 22 | 10 | 3 | 3 |
 | Primera media | 28 | 10 | 4 | 4 |
 | Mejorar media | 30 | 12 | 4 | 6 |
 | Media rendimiento | 50 | 14 | 5 | 12 + marca |
