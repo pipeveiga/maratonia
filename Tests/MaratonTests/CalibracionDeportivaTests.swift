@@ -898,6 +898,74 @@ final class DescubribilidadDelCatalogoTests: XCTestCase {
         XCTAssertEqual(estado?.nivel, .listo)
     }
 
+    /// El caso que faltaba: un corredor que marcó MENOS días de los que
+    /// el objetivo pide. Tiene que seguir viendo los diez objetivos, y
+    /// el estado tiene que DECIRLE cuántos días pide — no desaparecer.
+    func testConMenosDiasQueElMinimoLosObjetivosSiguenVisibles() {
+        let dosDias = PerfilDeportivo(
+            objetivo: .primeros5K, diasPorSemana: 2,
+            actividad: ActividadActual(diasPorSemana: 2, kmSemanales: 20,
+                                       tiradaLargaKm: 8, mesesCorriendoRegular: 12))
+        // La lista no mira el perfil: sigue completa.
+        XCTAssertEqual(CatalogoView.visibles(distanciaMetros: nil, dias: nil).count, 10,
+                       "elegir pocos días no puede borrar objetivos del catálogo")
+
+        for arquetipo in BibliotecaArquetipos.v1() where arquetipo.contenido != nil {
+            let estado = EstadoDeObjetivo(arquetipo: arquetipo, perfil: dosDias,
+                                          tieneBaseline: false)
+            XCTAssertNotNil(estado,
+                            "\(arquetipo.id): el estado desapareció en vez de explicar")
+            let minimo = RequisitosObjetivo.para(arquetipo.objetivo).diasPorSemana
+            if minimo > 2 {
+                XCTAssertEqual(estado?.diasQueFaltan, minimo,
+                               "\(arquetipo.id): pide \(minimo) días y no se lo dice")
+                XCTAssertNotNil(estado?.textoDeDias)
+            } else {
+                XCTAssertNil(estado?.diasQueFaltan,
+                             "\(arquetipo.id): acepta 2 días, no hay nada que reclamar")
+            }
+        }
+    }
+
+    /// Y el 21K/42K en concreto, que es lo que se vio en TestFlight.
+    func testLos21KY42KSiguenVisiblesConDosDiasMarcados() {
+        let dosDias = PerfilDeportivo(objetivo: .primeros5K, diasPorSemana: 2)
+        let visibles = CatalogoView.visibles(distanciaMetros: nil, dias: nil).map(\.id)
+        for distancia in [21097.5, 42195.0] {
+            let deEsaDistancia = CatalogoView.visibles(distanciaMetros: distancia, dias: nil)
+            XCTAssertFalse(deEsaDistancia.isEmpty)
+            for arquetipo in deEsaDistancia {
+                XCTAssertTrue(visibles.contains(arquetipo.id))
+                // Con 2 días marcados, el objetivo se ve y se explica.
+                let estado = EstadoDeObjetivo(arquetipo: arquetipo, perfil: dosDias,
+                                              tieneBaseline: false)
+                XCTAssertNotNil(estado?.diasQueFaltan,
+                                "\(arquetipo.id): con 2 días hay que decir cuántos pide")
+            }
+        }
+    }
+
+    /// La elegibilidad no toca la LISTA, solo el mensaje. Dos perfiles
+    /// opuestos tienen que ver exactamente el mismo catálogo.
+    func testLaListaEsLaMismaParaCualquierPerfil() {
+        let sedentario = PerfilDeportivo(
+            objetivo: .primeros5K, diasPorSemana: 2,
+            actividad: ActividadActual(diasPorSemana: 1, kmSemanales: 2,
+                                       tiradaLargaKm: 1, mesesCorriendoRegular: 0))
+        let veterano = PerfilDeportivo(
+            objetivo: .maratonRendimiento, diasPorSemana: 6,
+            actividad: ActividadActual(diasPorSemana: 6, kmSemanales: 90,
+                                       tiradaLargaKm: 32, mesesCorriendoRegular: 60))
+        let lista = CatalogoView.visibles(distanciaMetros: nil, dias: nil).map(\.id)
+        XCTAssertEqual(lista.count, 10)
+        // El estado sí cambia; la lista no.
+        for arquetipo in BibliotecaArquetipos.v1() where arquetipo.contenido != nil {
+            _ = EstadoDeObjetivo(arquetipo: arquetipo, perfil: sedentario, tieneBaseline: false)
+            _ = EstadoDeObjetivo(arquetipo: arquetipo, perfil: veterano, tieneBaseline: true)
+            XCTAssertTrue(lista.contains(arquetipo.id))
+        }
+    }
+
     /// El filtro de días acepta el RANGO del arquetipo, no su valor
     /// declarado en el contenido: un plan de 4-5 días tiene que salir
     /// tanto en "4 días" como en "5 días".

@@ -647,6 +647,11 @@ struct CatalogoView: View {
                     Label(estado.resumen, systemImage: estado.icono)
                         .font(.caption2)
                         .foregroundStyle(estado.color)
+                    if let texto = estado.textoDeDias {
+                        Label(texto, systemImage: "calendar")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
@@ -674,27 +679,43 @@ struct EstadoDeObjetivo {
     enum Nivel { case listo, conservador, faltaBase }
     var nivel: Nivel
     var motivos: [MotivoElegibilidad]
+    /// Días por semana que este objetivo pide y el corredor todavía no
+    /// marcó. Va SEPARADO del nivel a propósito: que te falten días es
+    /// un dato de agenda, no un veredicto deportivo, y no tiene por qué
+    /// tapar lo otro. Antes este caso devolvía `nil` — o sea, el estado
+    /// desaparecía y el corredor no se enteraba de por qué.
+    var diasQueFaltan: Int?
 
     /// nil = el corredor no declaró nada todavía y no hay nada honesto
-    /// que decir. En ese caso la fila no muestra estado.
+    /// que decir. En ese caso la fila no muestra estado — pero el
+    /// objetivo sigue en la lista igual.
     init?(arquetipo: PlanArquetipo, perfil: PerfilDeportivo, tieneBaseline: Bool) {
         guard let contenido = arquetipo.contenido else { return nil }
         let actividad = perfil.actividad
-        guard actividad != nil || perfil.diasPorSemana != nil else { return nil }
-        // Se juzga contra la variante que el corredor recibiría con SUS
-        // días (o la mínima del arquetipo si todavía no los eligió).
-        let dias = max(perfil.diasElegidos?.count ?? perfil.diasPorSemana ?? arquetipo.diasMinimos,
-                       arquetipo.diasMinimos)
+        let diasDelCorredor = perfil.diasElegidos?.count ?? perfil.diasPorSemana
+        guard actividad != nil || diasDelCorredor != nil else { return nil }
+
+        let requisitos = RequisitosObjetivo.para(arquetipo.objetivo)
+        if let diasDelCorredor, diasDelCorredor < requisitos.diasPorSemana {
+            diasQueFaltan = requisitos.diasPorSemana
+        }
+
+        // Lo DEPORTIVO se juzga contra la variante más liviana que el
+        // corredor podría recibir. Si marcó menos días de los que el
+        // plan pide, igual queremos poder decirle cómo le queda el
+        // volumen — no solo "te faltan días" y silencio sobre el resto.
+        let dias = min(max(diasDelCorredor ?? arquetipo.diasMinimos, arquetipo.diasMinimos),
+                       arquetipo.diasMaximos)
         let variante = MotorPlanificacion.recortar(
-            arquetipo.contenido(para: dias) ?? contenido,
-            aDias: min(dias, arquetipo.diasMaximos))
+            arquetipo.contenido(para: dias) ?? contenido, aDias: dias)
         let veredicto = EvaluadorElegibilidad.evaluar(EntradaElegibilidad(
             objetivo: arquetipo.objetivo,
             semanasDisponibles: nil,
             semanasMinimasDelPlan: arquetipo.semanasMinimas,
-            // Los días se juzgan aparte, en la ficha: acá no queremos
-            // que "elegiste pocos días" tape lo deportivo.
-            diasElegidos: max(dias, arquetipo.diasMinimos),
+            // Se pasa la frecuencia de la variante medida, no la del
+            // corredor: el faltante de días ya quedó en `diasQueFaltan`
+            // y acá solo se pregunta por lo deportivo.
+            diasElegidos: dias,
             historial: nil,
             actividadDeclarada: actividad,
             tieneBaseline: tieneBaseline,
@@ -712,8 +733,17 @@ struct EstadoDeObjetivo {
         case .requiereFaseBase(let m):
             nivel = .faltaBase; motivos = m
         case .fechaDemasiadoCerca, .frecuenciaInsuficiente:
-            return nil
+            // No deberían salir con estas entradas (sin fecha, y con la
+            // frecuencia de la variante). Si salieran, no se esconde el
+            // objetivo: se informa lo que se sabe.
+            nivel = .conservador; motivos = []
         }
+    }
+
+    /// Lo que hay que decir sobre los días, si falta algo.
+    var textoDeDias: String? {
+        guard let diasQueFaltan else { return nil }
+        return String(localized: "Pide \(diasQueFaltan) días por semana")
     }
 
     var resumen: String {
@@ -807,6 +837,11 @@ struct PlanBaseDetalleView: View {
                         .foregroundStyle(estado.color)
                     ForEach(estado.motivos, id: \.self) { motivo in
                         Text(motivo.texto)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let texto = estado.textoDeDias {
+                        Text("\(texto). Podés cambiar tus días desde el perfil.")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
