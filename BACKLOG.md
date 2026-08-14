@@ -29,6 +29,19 @@ Si algún día hay otra forma de terminar sin referencia, deja de valer.
 Lo correcto sería guardar la respuesta en el perfil. No corre apuro:
 equivocarse acá solo cambia qué tarjeta aparece preseleccionada.
 
+## Carreras no se puede verificar en el simulador
+
+La pestaña pide autorización de HealthKit al abrirse y `simctl privacy`
+no sabe conceder `health` (soporta calendar, location, motion,
+photos… no Health). El diálogo del sistema tapa la vista y no hay forma
+de aceptarlo por línea de comandos, así que Carreras es la única
+pantalla del sprint visual que quedó sin captura.
+
+Se cierra de dos maneras: a mano en el simulador una vez (la
+autorización queda pegada al contenedor), o con un test de UI que toque
+el botón. Mientras tanto, cualquier cambio ahí se verifica en el
+dispositivo.
+
 ## El catálogo de strings se queda viejo en silencio
 
 `xcodebuild` no sincroniza el `.xcstrings`; eso lo hace Xcode al
