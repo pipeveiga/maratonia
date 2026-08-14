@@ -321,10 +321,10 @@ struct ProgresoTab: View {
     private func comparacion(actual: ResumenSemana, anterior: ResumenSemana) -> String {
         let delta = actual.km - anterior.km
         if abs(delta) < 0.1 {
-            return "Igual que la semana pasada (\(String(format: "%.1f", anterior.km)) km)."
+            return String(localized: "Igual que la semana pasada (\(String(format: "%.1f", anterior.km)) km).")
         }
         let signo = delta > 0 ? "+" : "−"
-        return "\(signo)\(String(format: "%.1f", abs(delta))) km vs. semana pasada (\(String(format: "%.1f", anterior.km)) km)."
+        return String(localized: "\(signo)\(String(format: "%.1f", abs(delta))) km vs. semana pasada (\(String(format: "%.1f", anterior.km)) km).")
     }
 
     // MARK: Volumen (8 semanas)

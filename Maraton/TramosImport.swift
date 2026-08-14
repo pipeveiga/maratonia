@@ -19,9 +19,9 @@ enum ErrorImportacionTramos: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .jsonInvalido:
-            return "El texto no es un JSON válido con la forma {\"tramos\":[...]}. Revisá que hayas copiado todo."
+            return String(localized: "El texto no es un JSON válido con la forma {\"tramos\":[...]}. Revisá que hayas copiado todo.")
         case .ritmoInvalido(let texto):
-            return "Ritmo inválido: «\(texto)». Usá minutos:segundos, ej. \"3:50\"."
+            return String(localized: "Ritmo inválido: «\(texto)». Usá minutos:segundos, ej. \"3:50\".")
         }
     }
 }

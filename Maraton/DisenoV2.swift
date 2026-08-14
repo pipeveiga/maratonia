@@ -551,7 +551,11 @@ struct ChipTipoV2: View {
 /// prevista, estado y EMPEZAR.
 struct TarjetaEntrenamientoV2: View {
     let programado: EntrenamientoProgramado
-    var etiqueta: String = "HOY"
+    // String YA localizado (no LocalizedStringKey): `Text(unString)`
+    // usa la sobrecarga que NO traduce, así que el default tiene que
+    // venir traducido de origen. Con `"HOY"` pelado, el sello salía en
+    // español con toda la app en inglés.
+    var etiqueta: String = String(localized: "HOY")
     /// true = además de los números, la lista de segmentos (la pestaña
     /// Correr la muestra; el calendario no, para no saturar).
     var mostrarEstructura = false
@@ -621,9 +625,11 @@ struct TarjetaEntrenamientoV2: View {
                               sobreOscuro: esProtagonista)
                 }
                 MetricaV2(titulo: "estructura",
-                          valor: programado.definicion.segmentos.count == 1
-                            ? "1 segmento"
-                            : Plurales.segmentos(programado.definicion.segmentos.count),
+                          // `Plurales` YA resuelve el singular y además localiza: el
+                          // ternario con `"1 segmento"` pelado se saltaba el
+                          // catálogo y dejaba esa palabra en español con la app
+                          // en inglés.
+                          valor: Plurales.segmentos(programado.definicion.segmentos.count),
                           sobreOscuro: esProtagonista)
                 if estado != .programado {
                     MetricaV2(titulo: "estado", valor: nombreDeEstado,

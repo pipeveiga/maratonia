@@ -312,7 +312,7 @@ struct PlanTab: View {
         let hechos = programados.filter {
             $0.resolucion == .cumplido || $0.resolucion == .parcial
         }.count
-        return "\(hechos) de \(programados.count)"
+        return String(localized: "\(hechos) de \(programados.count)")
     }
 
     @ViewBuilder
@@ -444,9 +444,11 @@ struct PlanTab: View {
         }
         let vencidos = almacen.almacen.vencidos(hoy).count
         if vencidos > 0 {
-            return vencidos == 1 ? "1 entrenamiento vencido" : "\(vencidos) entrenamientos vencidos"
+            return vencidos == 1
+                ? String(localized: "1 entrenamiento vencido")
+                : String(localized: "\(vencidos) entrenamientos vencidos")
         }
-        return "Hoy: descanso"
+        return String(localized: "Hoy: descanso")
     }
 
     private var subtituloCatalogo: String {
@@ -788,13 +790,13 @@ struct AvisosScreen: View {
     }
 
     private func descripcion(de aviso: AvisoRepetido) -> String {
-        var texto = "Cada \(aviso.cadaMinutos) min, desde el min \(aviso.desdeMinuto)"
+        // Las tres partes se localizan ENTERAS y no por pedazos: en otro
+        // idioma el orden de la frase cambia, y concatenar fragmentos
+        // traducidos produce oraciones que no existen.
         if let hasta = aviso.hastaMinuto {
-            texto += " hasta el min \(hasta)"
-        } else {
-            texto += ", sin límite"
+            return String(localized: "Cada \(aviso.cadaMinutos) min, desde el min \(aviso.desdeMinuto) hasta el min \(hasta)")
         }
-        return texto
+        return String(localized: "Cada \(aviso.cadaMinutos) min, desde el min \(aviso.desdeMinuto), sin límite")
     }
 }
 
@@ -1373,18 +1375,18 @@ struct PerfilTab: View {
     private func origenReferencia(_ referencia: ReferenciaRendimiento) -> String {
         let fecha = FormatoFecha.media(referencia.fecha)
         switch referencia.fuente {
-        case .test5K: return "Test 5K · \(fecha)"
-        case .carreraReal: return "Carrera real · \(fecha)"
-        case .marcaManual: return "Marca ingresada · \(fecha)"
-        case .estimacionInicial: return "Estimación inicial · \(fecha)"
+        case .test5K: return String(localized: "Test 5K · \(fecha)")
+        case .carreraReal: return String(localized: "Carrera real · \(fecha)")
+        case .marcaManual: return String(localized: "Marca ingresada · \(fecha)")
+        case .estimacionInicial: return String(localized: "Estimación inicial · \(fecha)")
         }
     }
 
     private var textoCuenta: String {
         switch cuenta.estado {
-        case .verificando: return "Verificando tu iCloud…"
-        case .conectada: return "Conectado con tu iCloud"
-        case .sinSesion: return "Sin sesión de iCloud (activala en Ajustes → tu nombre)"
+        case .verificando: return String(localized: "Verificando tu iCloud…")
+        case .conectada: return String(localized: "Conectado con tu iCloud")
+        case .sinSesion: return String(localized: "Sin sesión de iCloud (activala en Ajustes → tu nombre)")
         case .problema(let detalle): return detalle
         }
     }

@@ -58,11 +58,11 @@ struct Tramo: Codable, Equatable, Identifiable, Hashable {
         let meta = metaTexto
         switch (ritmoMinSegKm, ritmoMaxSegKm) {
         case let (rapido?, lento?):
-            return "\(meta) a \(formatearRitmo(rapido))–\(formatearRitmo(lento)) /km"
+            return String(localized: "\(meta) a \(formatearRitmo(rapido))–\(formatearRitmo(lento)) /km")
         case let (nil, lento?):
-            return "\(meta) a \(formatearRitmo(lento)) /km o mejor"
+            return String(localized: "\(meta) a \(formatearRitmo(lento)) /km o mejor")
         case let (rapido?, nil):
-            return "\(meta) sin pasar de \(formatearRitmo(rapido)) /km"
+            return String(localized: "\(meta) sin pasar de \(formatearRitmo(rapido)) /km")
         default:
             return String(localized: "\(meta) libre")
         }
@@ -86,9 +86,9 @@ struct AvisoKm: Codable, Equatable, Identifiable, Hashable {
 
     var descripcion: String {
         if let cada = cadaKm, cada > 0 {
-            return "Cada \(kmTexto(cada)) km, desde el km \(kmTexto(kilometro))"
+            return String(localized: "Cada \(kmTexto(cada)) km, desde el km \(kmTexto(kilometro))")
         }
-        return "En el km \(kmTexto(kilometro))"
+        return String(localized: "En el km \(kmTexto(kilometro))")
     }
 }
 

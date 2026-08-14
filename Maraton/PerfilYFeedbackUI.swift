@@ -166,7 +166,7 @@ struct FeedbackSesionView: View {
     private var resumen: String {
         let km = String(format: "%.2f km", analisis.km)
         guard let ritmo = analisis.ritmoSegKm else { return km }
-        return "\(km) · \(formatearRitmo(ritmo)) /km"
+        return String(localized: "\(km) · \(formatearRitmo(ritmo)) /km")
     }
 
     private func textoDia(_ dia: DiaLocal) -> String {

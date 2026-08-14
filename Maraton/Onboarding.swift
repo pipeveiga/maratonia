@@ -979,17 +979,17 @@ struct OnboardingDeportivo: View {
     private var textoReferencia: String {
         switch experiencia {
         case .marcaReciente:
-            return "\(nombreDistancia(marcaDistanciaMetros)) en \(formatearDuracion(TimeInterval(segundosDeMarca)))"
+            return String(localized: "\(nombreDistancia(marcaDistanciaMetros)) en \(formatearDuracion(TimeInterval(segundosDeMarca)))")
         case .hacerTest:
-            return "Test 5K pendiente"
+            return String(localized: "Test 5K pendiente")
         case .empezando:
-            return "Arrancando de cero"
+            return String(localized: "Arrancando de cero")
         case nil:
             // Sin respuesta en este paso puede haber igual una referencia
             // guardada de antes (un test, una carrera). Existe y manda
             // sobre los ritmos: decir "A definir" sería negarla.
-            guard let referencia = referenciaGuardada else { return "A definir" }
-            return "\(nombreDistancia(referencia.distanciaMetros)) en \(formatearDuracion(TimeInterval(referencia.segundos)))"
+            guard let referencia = referenciaGuardada else { return String(localized: "A definir") }
+            return String(localized: "\(nombreDistancia(referencia.distanciaMetros)) en \(formatearDuracion(TimeInterval(referencia.segundos)))")
         }
     }
 

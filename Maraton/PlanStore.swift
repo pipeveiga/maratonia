@@ -57,7 +57,7 @@ final class PlanStore: ObservableObject {
             let copia = Self.urlDocumentos.appendingPathComponent("plan-corrupto.json")
             try? FileManager.default.removeItem(at: copia)
             try? FileManager.default.moveItem(at: Self.urlPlan, to: copia)
-            mensajeProblema = "No pude leer el plan guardado en este teléfono (quedó una copia como plan-corrupto.json). Podés recuperarlo con «Restaurar plan desde iCloud» en Perfil."
+            mensajeProblema = String(localized: "No pude leer el plan guardado en este teléfono (quedó una copia como plan-corrupto.json). Podés recuperarlo con «Restaurar plan desde iCloud» en Perfil.")
         }
         try? FileManager.default.createDirectory(
             at: Self.urlCarpetaPistas, withIntermediateDirectories: true)
@@ -97,7 +97,7 @@ final class PlanStore: ObservableObject {
         } catch {
             // Disco lleno o similar: si esto falla mudo, el usuario
             // edita durante días y lo pierde todo al cerrar la app.
-            mensajeProblema = "No pude guardar el plan en el teléfono: \(error.localizedDescription)"
+            mensajeProblema = String(localized: "No pude guardar el plan en el teléfono: \(error.localizedDescription)")
         }
         // Respaldo en el iCloud del usuario (con demora anti-tipeo).
         CuentaStore.compartida.respaldarConDemora(plan)

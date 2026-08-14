@@ -331,7 +331,7 @@ struct CarrerasView: View {
         var partes = [FormatoFecha.fechaYHora(carrera.fecha),
                       formatearDuracion(carrera.duracion)]
         if let ritmo = carrera.ritmoPromedioSegKm {
-            partes.append("\(formatearRitmo(ritmo)) /km")
+            partes.append(String(localized: "\(formatearRitmo(ritmo)) /km"))
         }
         return partes.joined(separator: " · ")
     }
