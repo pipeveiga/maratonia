@@ -3576,3 +3576,256 @@ final class ContextoTemporalCoachTests: XCTestCase {
         XCTAssertEqual(contexto.proximosEntrenamientos.first?.diaSemana, "friday")
     }
 }
+
+// MARK: - Los cuatro estados de una propuesta del Coach
+//
+// El bug del build 70: en la misma tarjeta convivían "El Coach no
+// propone cambios" (verde) y "El motor rechazó todos los cambios"
+// (naranja). Eran dos `if` independientes, y el segundo hablaba de una
+// validación que nunca había ocurrido: no había operaciones que
+// validar. Ahora es UN estado y la vista hace un solo `switch`.
+
+final class EstadoPropuestaCoachTests: XCTestCase {
+
+    /// A — el Coach no propuso ninguna operación. El motor no
+    /// participó, así que no puede haber "rechazo".
+    func testSinOperacionesNoHayRechazo() {
+        XCTAssertEqual(EstadoPropuesta.decidir(operaciones: 0, validas: 0, aplicado: false),
+                       .sinCambiosNecesarios)
+    }
+
+    /// B — el motor aceptó todo.
+    func testTodasValidasEsAplicable() {
+        XCTAssertEqual(EstadoPropuesta.decidir(operaciones: 3, validas: 3, aplicado: false),
+                       .aplicable(validas: 3, rechazadas: 0))
+    }
+
+    /// B parcial — se aplican las válidas y se avisa de las otras.
+    func testAlgunasValidasSigueSiendoAplicable() {
+        XCTAssertEqual(EstadoPropuesta.decidir(operaciones: 3, validas: 1, aplicado: false),
+                       .aplicable(validas: 1, rechazadas: 2))
+    }
+
+    /// C — hubo propuestas y el motor las frenó a todas. ESTE es el
+    /// único caso en que corresponde hablar de rechazo.
+    func testTodasRechazadas() {
+        XCTAssertEqual(EstadoPropuesta.decidir(operaciones: 2, validas: 0, aplicado: false),
+                       .rechazadaPorElMotor(propuestas: 2))
+    }
+
+    func testAplicadoGanaSobreTodo() {
+        XCTAssertEqual(EstadoPropuesta.decidir(operaciones: 3, validas: 2, aplicado: true),
+                       .aplicada(cantidad: 2))
+    }
+
+    /// La invariante que faltaba: NUNCA se puede estar a la vez en "no
+    /// hacen falta cambios" y en "el motor rechazó". Se recorre todo el
+    /// espacio de entradas razonables.
+    func testLosEstadosSonExcluyentesEnTodoElEspacio() {
+        for operaciones in 0...5 {
+            for validas in 0...operaciones {
+                for aplicado in [false, true] {
+                    let estado = EstadoPropuesta.decidir(
+                        operaciones: operaciones, validas: validas, aplicado: aplicado)
+                    if estado == .sinCambiosNecesarios {
+                        XCTAssertEqual(operaciones, 0,
+                            "se dice 'no hacen falta cambios' habiendo \(operaciones) operaciones")
+                    }
+                    if case .rechazadaPorElMotor = estado {
+                        XCTAssertGreaterThan(operaciones, 0,
+                            "se habla de rechazo del motor sin operaciones que validar")
+                        XCTAssertEqual(validas, 0)
+                    }
+                    if case .aplicable(let v, let r) = estado {
+                        XCTAssertGreaterThan(v, 0, "botón de aplicar sin nada válido que aplicar")
+                        XCTAssertEqual(v + r, operaciones)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - El caso real, de punta a punta
+//
+// Viernes 14/8/2026. Plan: sáb 15 Rodaje suave 6 km, dom 16 Tirada
+// larga 10 km, mar 18 Rodaje medio 7 km. El corredor dice que no quiere
+// correr el sábado. Lo que sigue prueba TODO el camino salvo el modelo:
+// JSON del Coach → propuestas → validador → aplicador, contra el motor
+// real. La parte que decide qué proponer es del prompt; la parte que
+// decide qué se permite es esta, y es la que tiene que ser inviolable.
+
+@MainActor
+final class CasoNoQuieroCorrerElSabadoTests: XCTestCase {
+
+    private let hoy = DiaLocal(anio: 2026, mes: 8, dia: 14)          // viernes
+
+    /// El escenario exacto. Devuelve el almacén y los IDs por día.
+    private func escenario() -> (AlmacenV2, [Int: UUID]) {
+        var almacen = AlmacenV2()
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .diez
+        // Sábado, domingo, lunes y martes: el lunes queda LIBRE y
+        // elegido, así que existe un destino permitido.
+        perfil.diasElegidos = [1, 2, 6, 7]
+        almacen.perfil = perfil
+
+        let sesiones: [(Int, String, TipoEntrenamiento, Double)] = [
+            (15, "Rodaje suave", .facil, 6),
+            (16, "Tirada larga", .largo, 10),
+            (18, "Rodaje medio", .facil, 7),
+        ]
+        let programados = sesiones.map { dia, nombre, tipo, km in
+            EntrenamientoProgramado(
+                definicion: DefinicionEntrenamiento(
+                    tipo: tipo, nombre: nombre,
+                    segmentos: [Segmento(nombre: nombre, distanciaKm: km)]),
+                dia: DiaLocal(anio: 2026, mes: 8, dia: dia))
+        }
+        almacen.adoptarPlan(PlanUsuario(
+            nombre: "Plan de prueba", fechaAdopcion: Date(),
+            semanas: [SemanaPlan(numero: 1, programados: programados)]))
+
+        var porDia: [Int: UUID] = [:]
+        for programado in almacen.todosLosProgramados {
+            if let dia = programado.dia { porDia[dia.dia] = programado.id }
+        }
+        return (almacen, porDia)
+    }
+
+    /// Decodifica la respuesta como llega del backend: JSON crudo.
+    private func respuesta(_ json: String) throws -> CoachWeekAdjustment {
+        try JSONDecoder().decode(CoachWeekAdjustment.self, from: Data(json.utf8))
+    }
+
+    private func kmTotales(_ almacen: AlmacenV2) -> Double {
+        almacen.todosLosProgramados.reduce(0) { $0 + $1.definicion.volumenKm() }
+    }
+
+    /// LO QUE TIENE QUE PASAR: mover el sábado al lunes libre se valida
+    /// y se aplica, sin crear nada ni sumar kilómetros.
+    func testReprogramarElSabadoAUnDiaLibreSeAplica() throws {
+        var (almacen, porDia) = escenario()
+        let sabado = try XCTUnwrap(porDia[15])
+        let kmAntes = kmTotales(almacen)
+        let cuantasAntes = almacen.todosLosProgramados.count
+
+        let ajuste = try respuesta("""
+        {"explicacion": "Movemos el rodaje del sábado al lunes.",
+         "cambios": [{"tipo": "reprogramar", "programadoID": "\(sabado.uuidString)",
+                      "nuevoDia": "2026-08-17"}]}
+        """)
+
+        let validas = ValidadorDeCoach.validas(ajuste.propuestasQueMutan,
+                                               en: almacen, hoy: hoy)
+        XCTAssertEqual(validas.count, 1, "el motor tiene que aceptar mover a un día elegido y libre")
+        XCTAssertEqual(EstadoPropuesta.decidir(operaciones: ajuste.propuestasQueMutan.count,
+                                               validas: validas.count, aplicado: false),
+                       .aplicable(validas: 1, rechazadas: 0))
+
+        let aplicados = AplicadorAdaptacion.aplicar(validas, a: &almacen, hoy: hoy,
+                                                    origen: .coach, motivo: ajuste.explicacion)
+        XCTAssertEqual(aplicados, 1)
+
+        let movido = try XCTUnwrap(almacen.todosLosProgramados.first { $0.id == sabado })
+        XCTAssertEqual(movido.dia, DiaLocal(anio: 2026, mes: 8, dia: 17))
+        XCTAssertEqual(almacen.todosLosProgramados.count, cuantasAntes,
+                       "no se puede crear ni borrar ninguna sesión")
+        XCTAssertEqual(kmTotales(almacen), kmAntes, accuracy: 0.001,
+                       "reprogramar no cambia el volumen")
+    }
+
+    /// Si el sábado no tiene destino libre, omitir sigue siendo una
+    /// salida permitida — y el volumen BAJA, nunca sube.
+    func testOmitirElSabadoEsUnaSalidaPermitida() throws {
+        var (almacen, porDia) = escenario()
+        let sabado = try XCTUnwrap(porDia[15])
+        let kmAntes = kmTotales(almacen)
+
+        let ajuste = try respuesta("""
+        {"explicacion": "Se saltea y no se compensa después.",
+         "cambios": [{"tipo": "omitir", "programadoID": "\(sabado.uuidString)"}]}
+        """)
+        let validas = ValidadorDeCoach.validas(ajuste.propuestasQueMutan, en: almacen, hoy: hoy)
+        XCTAssertEqual(validas.count, 1)
+        XCTAssertEqual(AplicadorAdaptacion.aplicar(validas, a: &almacen, hoy: hoy,
+                                                   origen: .coach, motivo: ajuste.explicacion), 1)
+        XCTAssertLessThanOrEqual(kmTotales(almacen), kmAntes,
+                                 "omitir jamás puede terminar en más kilómetros")
+    }
+
+    /// LO QUE NO PUEDE PASAR (1): resolver el pedido metiéndole la
+    /// sesión encima a otro día que ya tiene entrenamiento.
+    func testNoSePuedeApilarSobreUnDiaOcupado() throws {
+        let (almacen, porDia) = escenario()
+        let sabado = try XCTUnwrap(porDia[15])
+        let ajuste = try respuesta("""
+        {"explicacion": "Lo paso al domingo.",
+         "cambios": [{"tipo": "reprogramar", "programadoID": "\(sabado.uuidString)",
+                      "nuevoDia": "2026-08-16"}]}
+        """)
+        XCTAssertTrue(ValidadorDeCoach.validas(ajuste.propuestasQueMutan,
+                                               en: almacen, hoy: hoy).isEmpty,
+                      "el domingo ya tiene la tirada larga")
+    }
+
+    /// LO QUE NO PUEDE PASAR (2): mover a un día que el corredor NO
+    /// eligió (miércoles 19).
+    func testNoSePuedeMoverAUnDiaQueNoEligio() throws {
+        let (almacen, porDia) = escenario()
+        let sabado = try XCTUnwrap(porDia[15])
+        let ajuste = try respuesta("""
+        {"explicacion": "Lo paso al miércoles.",
+         "cambios": [{"tipo": "reprogramar", "programadoID": "\(sabado.uuidString)",
+                      "nuevoDia": "2026-08-19"}]}
+        """)
+        XCTAssertTrue(ValidadorDeCoach.validas(ajuste.propuestasQueMutan,
+                                               en: almacen, hoy: hoy).isEmpty)
+    }
+
+    /// LO QUE NO PUEDE PASAR (3): compensar subiendo la carga de otro
+    /// día. `reducir` con factor > 1 ni siquiera llega a ser propuesta:
+    /// el parser la descarta.
+    func testAumentarLaCargaNiSiquieraEsUnaPropuesta() throws {
+        let (almacen, porDia) = escenario()
+        let domingo = try XCTUnwrap(porDia[16])
+        let ajuste = try respuesta("""
+        {"explicacion": "Le sumo al domingo lo del sábado.",
+         "cambios": [{"tipo": "reducir", "programadoID": "\(domingo.uuidString)",
+                      "factor": 1.6}]}
+        """)
+        XCTAssertTrue(ajuste.propuestas.isEmpty, "un factor > 1 se descarta al parsear")
+        XCTAssertEqual(EstadoPropuesta.decidir(operaciones: 0, validas: 0, aplicado: false),
+                       .sinCambiosNecesarios)
+    }
+
+    /// LO QUE NO PUEDE PASAR (4): inventar una sesión nueva. No existe
+    /// operación para eso, y un tipo desconocido se descarta entero.
+    func testCrearSesionesNoExisteComoOperacion() throws {
+        let (almacen, _) = escenario()
+        let antes = almacen.todosLosProgramados.count
+        let ajuste = try respuesta("""
+        {"explicacion": "Te agrego una sesión el miércoles.",
+         "cambios": [{"tipo": "crear", "programadoID": "\(UUID().uuidString)",
+                      "nuevoDia": "2026-08-19"}]}
+        """)
+        XCTAssertTrue(ajuste.propuestas.isEmpty)
+        XCTAssertEqual(almacen.todosLosProgramados.count, antes)
+    }
+
+    /// Y si NINGUNA operación pasa, el estado es C: hubo propuestas, el
+    /// motor las frenó. No "no hacen falta cambios".
+    func testSinDestinoValidoElEstadoEsRechazoNoConformidad() throws {
+        let (almacen, porDia) = escenario()
+        let sabado = try XCTUnwrap(porDia[15])
+        let ajuste = try respuesta("""
+        {"explicacion": "Lo paso al miércoles.",
+         "cambios": [{"tipo": "reprogramar", "programadoID": "\(sabado.uuidString)",
+                      "nuevoDia": "2026-08-19"}]}
+        """)
+        let validas = ValidadorDeCoach.validas(ajuste.propuestasQueMutan, en: almacen, hoy: hoy)
+        XCTAssertEqual(EstadoPropuesta.decidir(operaciones: ajuste.propuestasQueMutan.count,
+                                               validas: validas.count, aplicado: false),
+                       .rechazadaPorElMotor(propuestas: 1))
+    }
+}

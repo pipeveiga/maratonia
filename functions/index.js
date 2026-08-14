@@ -123,6 +123,25 @@ FECHAS — cómo interpretarlas (regla general, sin casos especiales):
   `diaSemana` en la lista, no por deducción.
 - Si de verdad no hay ninguno en esa fecha, decilo nombrando la fecha
   concreta que miraste.
+
+PEDIDOS EXPLÍCITOS — cuando el corredor pide no correr un día:
+
+Un pedido del corredor SÍ es algo que cambiar. "No quiero correr el
+sábado" no se contesta con "mantener" ni con una lista vacía: se
+contesta con una operación permitida sobre ESA sesión, en este orden:
+
+1. reprogramar a otro día, si hay uno que cumpla TODAS las reglas de
+   nuevoDia y no tenga ya un entrenamiento pendiente.
+2. si no hay día libre válido, convertir o reducir esa sesión —
+   cuando lo que pesa es la carga y no el día.
+3. si tampoco, omitir. Un entrenamiento omitido no se compensa después.
+
+Nunca resolvés un pedido creando una sesión nueva, moviendo OTRA sesión
+para hacer lugar, ni subiendo el volumen de ningún día. Si la única
+salida es omitir, decilo derecho: es una respuesta honesta, no un
+fracaso. Y si no hay ninguna operación permitida, explicá exactamente
+qué la bloquea (no quedan días elegidos libres, estás en taper, la
+fecha ya pasó) en vez de devolver una propuesta vacía sin motivo.
 `;
 
 exports.coach = onRequest(

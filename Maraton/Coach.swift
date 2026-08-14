@@ -283,6 +283,42 @@ struct CoachWeekAdjustment: Codable {
     }
 }
 
+/// EN QUÉ ESTADO QUEDÓ UNA PROPUESTA, como un solo valor.
+///
+/// Antes esto vivía como dos `if` independientes en la vista, y la
+/// combinación "el Coach no propone cambios" (verde) + "el motor
+/// rechazó todos los cambios" (naranja) aparecía junta: dos mensajes
+/// que se contradicen, uno de ellos hablando de una validación que
+/// nunca ocurrió porque no había nada que validar.
+///
+/// Los estados son excluyentes por construcción: la vista hace un
+/// `switch` y muestra exactamente uno.
+enum EstadoPropuesta: Equatable {
+    /// A — el Coach no propuso ninguna operación que mute el plan.
+    /// El motor no participó: no hay nada que rechazar.
+    case sinCambiosNecesarios
+    /// B — hay operaciones y el motor aceptó al menos una.
+    /// `rechazadas` puede ser > 0: se aplican solo las válidas.
+    case aplicable(validas: Int, rechazadas: Int)
+    /// C — hubo operaciones, pero ninguna superó la validación.
+    case rechazadaPorElMotor(propuestas: Int)
+    /// Ya se aplicó.
+    case aplicada(cantidad: Int)
+
+    // D (error de backend/modelo) no es un estado de la propuesta: si el
+    // Coach no respondió no hay propuesta. Se muestra aparte, y la
+    // propuesta anterior se limpia antes de cada pedido para que un
+    // error no conviva con un resultado viejo.
+
+    /// La decisión, pura y sin UI: se puede testear sin motor ni vista.
+    static func decidir(operaciones: Int, validas: Int, aplicado: Bool) -> EstadoPropuesta {
+        if aplicado { return .aplicada(cantidad: validas) }
+        guard operaciones > 0 else { return .sinCambiosNecesarios }
+        guard validas > 0 else { return .rechazadaPorElMotor(propuestas: operaciones) }
+        return .aplicable(validas: validas, rechazadas: operaciones - validas)
+    }
+}
+
 struct CoachWorkoutAnalysis: Codable {
     var resumen: String
     var loBueno: String
@@ -569,33 +605,44 @@ struct CoachView: View {
     /// "Aplicar cambios" que ejecuta SOLO lo validado.
     @ViewBuilder
     private func seccionPropuesta(_ ajuste: CoachWeekAdjustment) -> some View {
+        let estado = EstadoPropuesta.decidir(
+            operaciones: ajuste.propuestasQueMutan.count,
+            validas: cambiosValidos(ajuste).count,
+            aplicado: aplicado)
+
         TarjetaV2 {
             VStack(alignment: .leading, spacing: DV2.Espacio.m) {
-                EncabezadoSeccionV2(texto: "Propuesta del Coach")
+                EncabezadoSeccionV2(texto: estado == .sinCambiosNecesarios
+                                    ? "Respuesta del Coach" : "Propuesta del Coach")
                 Text(ajuste.explicacion)
                     .font(.subheadline)
                     .fixedSize(horizontal: false, vertical: true)
-                VStack(alignment: .leading, spacing: DV2.Espacio.s) {
-                    ForEach(Array(ajuste.propuestas.enumerated()), id: \.offset) { _, cambio in
-                        filaCambio(cambio)
+
+                // Las filas ANTES/PROPUESTO solo tienen sentido si hubo
+                // operaciones. Sin ellas, la lista sería de "mantener".
+                if estado != .sinCambiosNecesarios {
+                    VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+                        ForEach(Array(ajuste.propuestas.enumerated()), id: \.offset) { _, cambio in
+                            filaCambio(cambio)
+                        }
                     }
                 }
-                if ajuste.propuestasQueMutan.isEmpty {
-                    Label("El Coach no propone cambios: tu plan sigue según lo previsto.",
+
+                // UN solo mensaje de cierre: los estados son excluyentes.
+                switch estado {
+                case .sinCambiosNecesarios:
+                    Label("No hacen falta cambios: tu semana sigue como estaba.",
                           systemImage: "checkmark.seal")
                         .font(.footnote)
                         .foregroundStyle(DV2.Semantico.exito)
-                }
-                if aplicado {
-                    Label("Cambios aplicados", systemImage: "checkmark.circle.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(DV2.Semantico.exito)
-                } else if cambiosValidos(ajuste).isEmpty {
-                    Label("El motor rechazó todos los cambios — no se aplica nada.",
-                          systemImage: "xmark.octagon")
-                        .font(.footnote)
-                        .foregroundStyle(DV2.Semantico.advertencia)
-                } else {
+
+                case .aplicable(_, let rechazadas):
+                    if rechazadas > 0 {
+                        Label("^[\(rechazadas) cambio](inflect: true) no pasó la validación del motor y no se va a aplicar.",
+                              systemImage: "exclamationmark.triangle")
+                            .font(.footnote)
+                            .foregroundStyle(DV2.Semantico.advertencia)
+                    }
                     Button {
                         aplicar(ajuste)
                     } label: {
@@ -603,6 +650,18 @@ struct CoachView: View {
                                                 icono: "checkmark")
                     }
                     .buttonStyle(.plain)
+
+                case .rechazadaPorElMotor:
+                    Label("El Coach propuso cambios, pero ninguno superó la validación del motor: tu plan queda como estaba.",
+                          systemImage: "xmark.octagon")
+                        .font(.footnote)
+                        .foregroundStyle(DV2.Semantico.advertencia)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                case .aplicada:
+                    Label("Cambios aplicados", systemImage: "checkmark.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(DV2.Semantico.exito)
                 }
             }
         }
