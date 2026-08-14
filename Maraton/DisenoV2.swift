@@ -60,6 +60,63 @@ enum DV2 {
         static let fondo = Color(.systemGroupedBackground)
         static let tarjeta = Color(.secondarySystemGroupedBackground)
         static let elevada = Color(.tertiarySystemGroupedBackground)
+        /// El filo de la tarjeta. En claro casi no se ve; en oscuro es
+        /// lo único que separa una superficie de otra (ahí el fondo y
+        /// la tarjeta están a dos puntos de luminancia).
+        static let borde = Color(.separator).opacity(0.45)
+    }
+
+    /// TIPOGRAFÍA — la voz de Maratonia.
+    ///
+    /// `.rounded` para números y titulares: es lo que separa una app
+    /// deportiva de un formulario. Siempre construida sobre un TEXT
+    /// STYLE (`.title2`, `.headline`…) y nunca sobre un tamaño fijo, así
+    /// que Dynamic Type sigue escalando todo — un `.system(size: 34)`
+    /// se ve igual de grande para quien necesita el cuerpo al doble.
+    enum Tipo {
+        /// Titular de tarjeta: el nombre del entrenamiento, el objetivo.
+        static let titulo = Font.system(.title2, design: .rounded).weight(.bold)
+        static let tituloChico = Font.system(.headline, design: .rounded).weight(.bold)
+        /// EL número: distancia, semanas, km/sem. Monoespaciado en los
+        /// dígitos para que no bailen cuando cambian solos.
+        static let numero = Font.system(.title3, design: .rounded)
+            .weight(.semibold).monospacedDigit()
+        /// El número protagonista (héroe, marcas grandes).
+        static let numeroGrande = Font.system(.title, design: .rounded)
+            .weight(.bold).monospacedDigit()
+        /// La etiqueta que acompaña a un número. Va en mayúsculas por
+        /// modificador (`.textCase`), nunca por `.uppercased()`: sobre
+        /// un String eso rompe la traducción.
+        static let etiqueta = Font.caption2.weight(.semibold)
+        /// Sellos y badges: HOY, MAÑANA, CUANDO QUIERAS.
+        static let sello = Font.caption.weight(.heavy)
+    }
+
+    /// ELEVACIÓN — una sola sombra para toda la app. Suave y baja: la
+    /// tarjeta tiene que despegarse del fondo, no flotar.
+    enum Sombra {
+        static let color = Color.black.opacity(0.07)
+        static let radio: CGFloat = 12
+        static let y: CGFloat = 4
+        /// La del CTA de marca: más marcada y teñida, porque es la
+        /// única pieza de la pantalla que pide ser tocada.
+        static let colorAccion = DV2.Marca.profundo.opacity(0.28)
+    }
+
+    /// El gradiente de marca (azur → azul profundo del logo). Vive acá y
+    /// no repetido por pantalla: es la identidad, y la identidad no se
+    /// escribe dos veces.
+    static var gradienteMarca: LinearGradient {
+        LinearGradient(colors: [Marca.primario, Marca.profundo],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    /// El mismo gradiente para superficies grandes, arrancando del azul
+    /// profundo: sobre un área extensa el azur puro satura y se come el
+    /// texto blanco.
+    static var gradienteSuperficie: LinearGradient {
+        LinearGradient(colors: [Marca.profundo, Marca.primario],
+                       startPoint: .top, endPoint: .bottomTrailing)
     }
 
     /// SUCCESS/WARNING/DESTRUCTIVE: system colors (superiores en
@@ -79,8 +136,15 @@ enum DV2 {
         static let xl: CGFloat = 24
     }
 
-    static let radioTarjeta: CGFloat = 16
+    static let radioTarjeta: CGFloat = 20
     static let radioBoton: CGFloat = 14
+
+    /// La forma de la tarjeta — `.continuous`, que es la curva de iOS.
+    /// Un `RoundedRectangle` normal a radio 20 se nota anguloso al lado
+    /// de los controles del sistema.
+    static var formaTarjeta: RoundedRectangle {
+        RoundedRectangle(cornerRadius: radioTarjeta, style: .continuous)
+    }
 
     /// Identidad de color por tipo de entrenamiento (jerarquía visual
     /// del calendario y las tarjetas).
@@ -336,17 +400,43 @@ enum TextosObjetivo {
     }
 }
 
-/// Contenedor de tarjeta estándar: fondo secundario del sistema
-/// (perfecto en claro y oscuro), radio y padding únicos.
+/// LA superficie de tarjeta de Maratonia: fondo secundario del sistema,
+/// filo de un pelo y una sombra baja.
+///
+/// Antes la tarjeta era un rectángulo plano del color del sistema. Sobre
+/// el fondo agrupado eso da casi cero contraste —en oscuro directamente
+/// ninguno— y la pantalla se leía como una lista de bloques del mismo
+/// gris. El borde resuelve el modo oscuro y la sombra el claro; juntos
+/// hacen que la tarjeta sea un objeto y no una zona.
+///
+/// Es un modificador y no dos structs para que `TarjetaV2` y `Tarjeta`
+/// (que existen por historia) no puedan volver a divergir.
+struct SuperficieTarjeta: ViewModifier {
+    var relleno: CGFloat = DV2.Espacio.l
+
+    func body(content: Content) -> some View {
+        content
+            .padding(relleno)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DV2.Superficie.tarjeta, in: DV2.formaTarjeta)
+            .overlay(DV2.formaTarjeta.strokeBorder(DV2.Superficie.borde, lineWidth: 0.5))
+            .shadow(color: DV2.Sombra.color, radius: DV2.Sombra.radio, y: DV2.Sombra.y)
+    }
+}
+
+extension View {
+    /// Convierte cualquier contenido en una tarjeta Maratonia.
+    func superficieDeTarjeta(relleno: CGFloat = DV2.Espacio.l) -> some View {
+        modifier(SuperficieTarjeta(relleno: relleno))
+    }
+}
+
+/// Contenedor de tarjeta estándar.
 struct TarjetaV2<Contenido: View>: View {
     @ViewBuilder var contenido: Contenido
 
     var body: some View {
-        contenido
-            .padding(DV2.Espacio.l)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.secondarySystemGroupedBackground),
-                        in: RoundedRectangle(cornerRadius: DV2.radioTarjeta))
+        contenido.superficieDeTarjeta()
     }
 }
 
@@ -361,15 +451,35 @@ struct EtiquetaBotonPrimarioV2: View {
 
     var body: some View {
         Label(titulo, systemImage: icono)
-            .font(.headline.weight(.bold))
+            .font(DV2.Tipo.tituloChico)
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, DV2.Espacio.m)
-            .background(
-                LinearGradient(colors: [DV2.Marca.primario, DV2.Marca.profundo],
-                               startPoint: .topLeading, endPoint: .bottomTrailing),
-                in: RoundedRectangle(cornerRadius: DV2.radioBoton))
-            .shadow(color: DV2.Marca.profundo.opacity(0.25), radius: 6, y: 3)
+            .padding(.vertical, DV2.Espacio.m + 2)
+            .background(DV2.gradienteMarca,
+                        in: RoundedRectangle(cornerRadius: DV2.radioBoton,
+                                             style: .continuous))
+            .shadow(color: DV2.Sombra.colorAccion, radius: 10, y: 4)
+    }
+}
+
+/// El CTA cuando el fondo YA es el gradiente de marca (tarjeta
+/// protagonista). Ahí el botón azul desaparece dentro de la tarjeta: se
+/// invierte a sólido blanco con el texto en azul profundo, que sobre el
+/// gradiente es la pieza de mayor contraste de toda la pantalla.
+struct EtiquetaBotonInvertidoV2: View {
+    var titulo: LocalizedStringKey
+    var icono: String = "play.fill"
+
+    var body: some View {
+        Label(titulo, systemImage: icono)
+            .font(DV2.Tipo.tituloChico)
+            .foregroundStyle(DV2.Marca.profundo)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, DV2.Espacio.m + 2)
+            .background(.white,
+                        in: RoundedRectangle(cornerRadius: DV2.radioBoton,
+                                             style: .continuous))
+            .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
     }
 }
 
@@ -396,15 +506,22 @@ struct EncabezadoSeccionV2: View {
 struct MetricaV2: View {
     var titulo: LocalizedStringKey
     var valor: String
+    /// La métrica va sobre el gradiente de marca (tarjeta protagonista):
+    /// el color secundario del sistema es ilegible ahí.
+    var sobreOscuro = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(valor)
-                .font(.title3.weight(.semibold))
-                .monospacedDigit()
+                .font(DV2.Tipo.numero)
+                .foregroundStyle(sobreOscuro ? AnyShapeStyle(Color.white)
+                                             : AnyShapeStyle(HierarchicalShapeStyle.primary))
             Text(titulo)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                .font(DV2.Tipo.etiqueta)
+                .textCase(.uppercase)
+                .tracking(0.6)
+                .foregroundStyle(sobreOscuro ? AnyShapeStyle(Color.white.opacity(0.72))
+                                             : AnyShapeStyle(HierarchicalShapeStyle.secondary))
         }
     }
 }
@@ -412,14 +529,20 @@ struct MetricaV2: View {
 /// Pastilla de tipo de entrenamiento (color con función de identidad).
 struct ChipTipoV2: View {
     var tipo: TipoEntrenamiento
+    /// Sobre el gradiente de marca el color del tipo pierde legibilidad
+    /// (un índigo o un morado sobre azul profundo no se leen), así que
+    /// ahí la identidad la lleva el texto blanco sobre vidrio.
+    var sobreOscuro = false
 
     var body: some View {
         Text(DV2.nombre(de: tipo))
             .font(.caption.weight(.semibold))
-            .foregroundStyle(DV2.color(de: tipo))
+            .foregroundStyle(sobreOscuro ? Color.white : DV2.color(de: tipo))
             .padding(.horizontal, DV2.Espacio.s)
             .padding(.vertical, 3)
-            .background(DV2.color(de: tipo).opacity(0.14), in: Capsule())
+            .background(sobreOscuro ? Color.white.opacity(0.18)
+                                    : DV2.color(de: tipo).opacity(0.14),
+                        in: Capsule())
     }
 }
 
@@ -438,100 +561,143 @@ struct TarjetaEntrenamientoV2: View {
         programado.estado(hoy: DiaLocal(fecha: Date()))
     }
 
+    /// La tarjeta que se puede EMPEZAR ahora mismo es el protagonista de
+    /// la pantalla y se dibuja sobre el gradiente de marca. El resto —lo
+    /// ya cumplido, lo que viene mañana— es contexto y va en superficie
+    /// normal.
+    ///
+    /// La regla se deriva del dominio en vez de pedirse por parámetro:
+    /// coincide EXACTAMENTE con cuándo aparece el botón "Empezar", así
+    /// que no puede haber una tarjeta destacada sin acción ni una acción
+    /// sin destacar.
+    private var esProtagonista: Bool {
+        alEmpezar != nil && (estado == .programado || estado == .vencido)
+    }
+
     var body: some View {
-        TarjetaV2 {
-            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
-                HStack {
-                    // El sello de HOY en la identidad azul: relleno
-                    // suave del primario con texto del primario — se ve
-                    // premium en claro y oscuro y no compite con el
-                    // verde de dificultad (el oliva quedó descartado).
-                    Text(etiqueta)
-                        .font(.caption.weight(.heavy))
-                        .tracking(1.5)
-                        .foregroundStyle(DV2.Marca.primario)
-                        .padding(.horizontal, DV2.Espacio.s)
-                        .padding(.vertical, 3)
-                        .background(DV2.Marca.primario.opacity(0.15), in: Capsule())
-                    Spacer()
-                    ChipTipoV2(tipo: programado.definicion.tipo)
-                }
+        VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+            HStack {
+                // El sello: sobre el gradiente va en blanco sobre vidrio;
+                // en la tarjeta normal, relleno suave del primario.
+                Text(etiqueta)
+                    .font(DV2.Tipo.sello)
+                    .tracking(1.5)
+                    .foregroundStyle(esProtagonista ? Color.white : DV2.Marca.primario)
+                    .padding(.horizontal, DV2.Espacio.s)
+                    .padding(.vertical, 3)
+                    .background(esProtagonista ? Color.white.opacity(0.2)
+                                               : DV2.Marca.primario.opacity(0.15),
+                                in: Capsule())
+                Spacer()
+                ChipTipoV2(tipo: programado.definicion.tipo,
+                           sobreOscuro: esProtagonista)
+            }
 
-                VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
-                    Text(programado.definicion.nombre)
-                        .font(.title2.weight(.bold))
-                        .foregroundStyle(DV2.Marca.profundo)
-                    if !programado.definicion.descripcion.isEmpty {
-                        Text(programado.definicion.descripcion)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                HStack(spacing: DV2.Espacio.xl) {
-                    if let km = programado.definicion.distanciaPrescritaKm {
-                        MetricaV2(titulo: "distancia",
-                                  valor: km == km.rounded()
-                                    ? "\(Int(km)) km"
-                                    : String(format: "%.1f km", km))
-                    }
-                    if let segundos = programado.definicion.duracionPorTiempoSegundos {
-                        MetricaV2(titulo: "por tiempo", valor: duracionTexto(segundos))
-                    }
-                    MetricaV2(titulo: "estructura",
-                              valor: programado.definicion.segmentos.count == 1
-                                ? "1 segmento"
-                                : Plurales.segmentos(programado.definicion.segmentos.count))
-                    if estado != .programado {
-                        MetricaV2(titulo: "estado", valor: nombreDeEstado)
-                    }
-                }
-
-                if mostrarEstructura, programado.definicion.segmentos.count > 1 {
-                    VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
-                        ForEach(Array(programado.definicion.segmentos.enumerated()),
-                                id: \.element.id) { indice, segmento in
-                            HStack(spacing: DV2.Espacio.s) {
-                                Text("\(indice + 1)")
-                                    .font(.caption2.weight(.bold))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 16)
-                                Text(segmento.nombre)
-                                    .font(.caption)
-                                    .lineLimit(1)
-                                Spacer()
-                                Text(metaDeSegmento(segmento))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .padding(DV2.Espacio.m)
-                    .background(Color(.tertiarySystemGroupedBackground),
-                                in: RoundedRectangle(cornerRadius: DV2.radioBoton))
-                }
-
-                if let alEmpezar, estado == .programado || estado == .vencido {
-                    Button {
-                        // Haptic: arrancar un entrenamiento es EL
-                        // momento de la app.
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        alEmpezar()
-                    } label: {
-                        EtiquetaBotonPrimarioV2(titulo: "Empezar")
-                    }
-                    .buttonStyle(.plain)
-                } else if estado == .cumplido {
-                    Label("Cumplido", systemImage: "checkmark.seal.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.green)
-                } else if estado == .parcial {
-                    Label("Parcial — la sesión quedó guardada", systemImage: "circle.bottomhalf.filled")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.yellow)
+            VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
+                Text(programado.definicion.nombre)
+                    .font(esProtagonista ? DV2.Tipo.numeroGrande : DV2.Tipo.titulo)
+                    .foregroundStyle(esProtagonista ? Color.white : DV2.Marca.profundo)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !programado.definicion.descripcion.isEmpty {
+                    Text(programado.definicion.descripcion)
+                        .font(.subheadline)
+                        .foregroundStyle(esProtagonista
+                                         ? AnyShapeStyle(Color.white.opacity(0.8))
+                                         : AnyShapeStyle(HierarchicalShapeStyle.secondary))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
+
+            HStack(spacing: DV2.Espacio.xl) {
+                if let km = programado.definicion.distanciaPrescritaKm {
+                    MetricaV2(titulo: "distancia",
+                              valor: km == km.rounded()
+                                ? "\(Int(km)) km"
+                                : String(format: "%.1f km", km),
+                              sobreOscuro: esProtagonista)
+                }
+                if let segundos = programado.definicion.duracionPorTiempoSegundos {
+                    MetricaV2(titulo: "por tiempo", valor: duracionTexto(segundos),
+                              sobreOscuro: esProtagonista)
+                }
+                MetricaV2(titulo: "estructura",
+                          valor: programado.definicion.segmentos.count == 1
+                            ? "1 segmento"
+                            : Plurales.segmentos(programado.definicion.segmentos.count),
+                          sobreOscuro: esProtagonista)
+                if estado != .programado {
+                    MetricaV2(titulo: "estado", valor: nombreDeEstado,
+                              sobreOscuro: esProtagonista)
+                }
+            }
+
+            if mostrarEstructura, programado.definicion.segmentos.count > 1 {
+                VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
+                    ForEach(Array(programado.definicion.segmentos.enumerated()),
+                            id: \.element.id) { indice, segmento in
+                        HStack(spacing: DV2.Espacio.s) {
+                            Text("\(indice + 1)")
+                                .font(.caption2.weight(.bold))
+                                .frame(width: 16)
+                                .foregroundStyle(esProtagonista
+                                                 ? AnyShapeStyle(Color.white.opacity(0.6))
+                                                 : AnyShapeStyle(HierarchicalShapeStyle.secondary))
+                            Text(segmento.nombre)
+                                .font(.caption)
+                                .lineLimit(1)
+                                .foregroundStyle(esProtagonista ? Color.white : Color.primary)
+                            Spacer()
+                            Text(metaDeSegmento(segmento))
+                                .font(.caption)
+                                .foregroundStyle(esProtagonista
+                                                 ? AnyShapeStyle(Color.white.opacity(0.72))
+                                                 : AnyShapeStyle(HierarchicalShapeStyle.secondary))
+                        }
+                    }
+                }
+                .padding(DV2.Espacio.m)
+                .background(esProtagonista
+                            ? AnyShapeStyle(Color.white.opacity(0.12))
+                            : AnyShapeStyle(Color(.tertiarySystemGroupedBackground)),
+                            in: RoundedRectangle(cornerRadius: DV2.radioBoton,
+                                                 style: .continuous))
+            }
+
+            if let alEmpezar, estado == .programado || estado == .vencido {
+                Button {
+                    // Haptic: arrancar un entrenamiento es EL
+                    // momento de la app.
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    alEmpezar()
+                } label: {
+                    EtiquetaBotonInvertidoV2(titulo: "Empezar")
+                }
+                .buttonStyle(.plain)
+            } else if estado == .cumplido {
+                Label("Cumplido", systemImage: "checkmark.seal.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.green)
+            } else if estado == .parcial {
+                Label("Parcial — la sesión quedó guardada", systemImage: "circle.bottomhalf.filled")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.yellow)
+            }
         }
+        .padding(DV2.Espacio.l)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            if esProtagonista {
+                DV2.gradienteSuperficie.clipShape(DV2.formaTarjeta)
+            } else {
+                DV2.Superficie.tarjeta.clipShape(DV2.formaTarjeta)
+            }
+        }
+        .overlay(DV2.formaTarjeta.strokeBorder(
+            esProtagonista ? Color.white.opacity(0.14) : DV2.Superficie.borde,
+            lineWidth: 0.5))
+        .shadow(color: esProtagonista ? DV2.Sombra.colorAccion : DV2.Sombra.color,
+                radius: esProtagonista ? 18 : DV2.Sombra.radio,
+                y: esProtagonista ? 8 : DV2.Sombra.y)
     }
 
     private func metaDeSegmento(_ segmento: Segmento) -> String {

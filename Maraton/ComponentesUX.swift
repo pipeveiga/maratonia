@@ -150,11 +150,12 @@ struct Metrica: View {
                         .foregroundStyle(color)
                 }
                 Text(valor)
-                    .font(.title3.weight(.semibold).monospacedDigit())
+                    .font(DV2.Tipo.numero)
                     .foregroundStyle(color)
             }
             Text(etiqueta)
-                .font(.caption2)
+                .font(DV2.Tipo.etiqueta)
+                .tracking(0.6)
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
         }
@@ -172,12 +173,11 @@ struct Tarjeta<Contenido: View>: View {
     @ViewBuilder var contenido: Contenido
 
     var body: some View {
-        contenido
-            .padding(relleno)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(DV2.Superficie.tarjeta,
-                        in: RoundedRectangle(cornerRadius: DV2.radioTarjeta,
-                                             style: .continuous))
+        // La MISMA superficie que TarjetaV2 (`SuperficieTarjeta`): dos
+        // contenedores de tarjeta ya existían por historia, y cada uno
+        // con su fondo era la vía directa a que la app tuviera dos
+        // tarjetas distintas según qué pantalla la dibujó.
+        contenido.superficieDeTarjeta(relleno: relleno)
     }
 }
 
@@ -402,7 +402,7 @@ struct ResumenCorredor: View {
                 VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
                     Text(objetivo.map { TextosObjetivo.nombre(de: $0).uppercased() }
                          ?? String(localized: "SIN OBJETIVO"))
-                        .font(.title2.weight(.bold))
+                        .font(DV2.Tipo.titulo)
                         .foregroundStyle(DV2.Marca.profundo)
                         .fixedSize(horizontal: false, vertical: true)
                     if let fechaCorta {
