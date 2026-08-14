@@ -10,8 +10,8 @@ Los campos marcados **[VOS]** requieren un dato o una decisión tuya.
 
 ## FASE 0 — Antes de tocar App Store Connect
 
-- [ ] Build 69 compila sin warnings en Xcode (Product → Build)
-- [ ] Los 491 tests en verde (Product → Test)
+- [ ] Build 70 compila sin warnings en Xcode (Product → Build)
+- [ ] Los 508 tests iOS + 32 del backend en verde
 - [ ] Recorrer las 5 pestañas en **español**
 - [ ] Cambiar el iPhone a **inglés** y recorrerlas de nuevo.
       El build 67 rehízo el barrido: el catálogo del iPhone pasó de 636
@@ -39,6 +39,18 @@ Los campos marcados **[VOS]** requieren un dato o una decisión tuya.
       pendiente, no lo reemplaza (build 69)
 - [ ] Plan → **Ver plan completo**: se ven TODAS las semanas del bloque
       desde el día 1, con descargas, taper y carrera objetivo
+- [ ] **Instalación limpia pide cuenta primero** (build 70). Con cuenta
+      nueva: onboarding. Con cuenta existente en otro dispositivo:
+      aparece TU plan sin pasar por onboarding
+- [ ] **Cerrar sesión y entrar con otra cuenta**: no queda a la vista
+      ningún dato de la anterior
+- [ ] **Modo avión**: abrir el plan, correr, guardar. Al volver la
+      conexión, sincroniza sin pedir nada
+- [ ] **Sandbox de compras** (Ajustes → App Store → cuenta sandbox):
+      comprar anual con los 7 días de prueba, restaurar, y verificar
+      que un plan 21K/42K se puede adoptar recién con Pro
+- [ ] **Coach con cuenta Free**: el backend responde 402 y NO llama a
+      OpenAI (verificable en los logs de Functions)
 
 Si algo de esto falla, no sigas: se arregla antes.
 

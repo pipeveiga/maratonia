@@ -211,3 +211,58 @@ exports.coach = onRequest(
     });
     return res.json(respuesta);
   });
+
+// ---------------------------------------------------------------------
+// BORRAR CUENTA
+//
+// Borrar `users/{uid}` desde el cliente no alcanza: en Firestore borrar
+// un documento NO borra sus subcolecciones, y planes/sesiones/
+// referencias/adaptaciones son justamente subcolecciones. Quedarían
+// huérfanas para siempre — datos del corredor que dijo que se fueran.
+//
+// Por eso el borrado vive acá, con el Admin SDK y `recursiveDelete`, y
+// el UID sale del token verificado: nadie puede pedir que se borre otra
+// cuenta.
+exports.borrarCuenta = onRequest(
+  { region: "us-central1", cors: false, memory: "256MiB",
+    timeoutSeconds: 120, maxInstances: 3 },
+  async (req, res) => {
+    if (req.method !== "POST") return res.status(405).json({ error: "method" });
+
+    const token = (req.headers.authorization || "").replace(/^Bearer /, "");
+    let uid;
+    try {
+      uid = (await admin.auth().verifyIdToken(token)).uid;
+    } catch {
+      return res.status(401).json({ error: "no-auth" });
+    }
+
+    try {
+      // Todo lo del corredor, incluidas las subcolecciones y el
+      // entitlement (que es del servidor pero es SUYO).
+      await db.recursiveDelete(db.collection("users").doc(uid));
+      // El rate limit y la cache de respuestas del Coach también son
+      // datos de esta persona.
+      // Los IDs son `${uid}-${sufijo}`: el rango por prefijo va desde
+      // "uid-" hasta "uid-\uf8ff" (el último code point usable). Con
+      // ">= x" y "< x" el rango es VACÍO y no borraba nada.
+      const porPrefijo = (coleccion) => db.collection(coleccion)
+        .where(admin.firestore.FieldPath.documentId(), ">=", `${uid}-`)
+        .where(admin.firestore.FieldPath.documentId(), "<", `${uid}-\uf8ff`)
+        .get();
+      const [usos, respuestas] = await Promise.all([
+        porPrefijo("uso"), porPrefijo("respuestas"),
+      ]);
+      const lote = db.batch();
+      [...usos.docs, ...respuestas.docs].forEach((d) => lote.delete(d.ref));
+      await lote.commit();
+
+      console.log("cuenta-borrada", { uid });
+      return res.json({ ok: true });
+    } catch (error) {
+      console.error("cuenta-borrado-fallo", { uid, tipo: error?.constructor?.name });
+      // Que falle NO puede reportarse como éxito: el corredor tiene que
+      // poder reintentar en vez de creer que sus datos ya no están.
+      return res.status(500).json({ error: "borrado-fallo" });
+    }
+  });

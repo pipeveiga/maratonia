@@ -41,16 +41,19 @@ function rootCAs() {
 }
 
 // El Apple ID NUMÉRICO de la app en App Store Connect. La librería de
-// Apple lo exige para verificar transacciones de PRODUCCIÓN (no para
-// sandbox). No es un secreto —es público en la ficha de la App Store—,
-// pero todavía no existe: la app no está creada en ASC.
+// Apple lo exige para verificar transacciones de PRODUCCIÓN (para
+// sandbox no hace falta).
 //
-// Mientras no esté, el verificador de producción no se construye y una
-// transacción de producción NO verifica. Eso es fallar CERRADO: nadie
-// entra de más. Sandbox (que es lo que usa TestFlight) funciona igual,
-// así que se puede probar todo el circuito hoy.
+// NO es un secreto: es público en la ficha de la App Store, así que va
+// versionado. La variable de entorno queda como override para poder
+// apuntar a otra app (un fork, una prueba) sin tocar el código.
+//
+// Si algún día quedara sin valor, el verificador de producción no se
+// construye y una transacción de producción NO verifica: falla CERRADO,
+// nadie entra de más.
+const APP_APPLE_ID_POR_DEFECTO = 6796521566;
 const APP_APPLE_ID = process.env.APP_APPLE_ID
-  ? Number(process.env.APP_APPLE_ID) : null;
+  ? Number(process.env.APP_APPLE_ID) : APP_APPLE_ID_POR_DEFECTO;
 
 let verificadores = null;
 function obtenerVerificadores() {
@@ -143,7 +146,9 @@ async function esPro(db, uid, jws, ahora = Date.now()) {
 
 module.exports = {
   BUNDLE_ID,
+  APP_APPLE_ID,
   PRODUCTOS_PRO,
+  obtenerVerificadores,
   verificarTransaccion,
   otorgaPro,
   entitlementGuardado,

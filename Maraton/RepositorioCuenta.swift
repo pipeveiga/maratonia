@@ -387,6 +387,33 @@ final class RepositorioCuenta: ObservableObject {
         ultimaSync = nil
     }
 
+    // MARK: Borrado de cuenta
+
+    enum ResultadoBorrado: Equatable { case borrado, sinBackend, fallo }
+
+    /// Borra TODO lo del corredor en la nube. Lo hace el backend con el
+    /// Admin SDK y no el cliente porque en Firestore borrar un
+    /// documento NO borra sus subcolecciones: planes, sesiones,
+    /// referencias y adaptaciones quedarían huérfanas para siempre.
+    ///
+    /// Si falla NO se reporta éxito: el corredor tiene que poder
+    /// reintentar en vez de creer que sus datos ya no están.
+    func borrarEnLaNube() async -> ResultadoBorrado {
+        guard let base = ServicioCoach.urlBase,
+              let token = await ServicioCoach.tokenActual() else { return .sinBackend }
+        let url = base.appendingPathComponent("borrarCuenta")
+        var solicitud = URLRequest(url: url)
+        solicitud.httpMethod = "POST"
+        solicitud.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        do {
+            let (_, respuesta) = try await URLSession.shared.data(for: solicitud)
+            let codigo = (respuesta as? HTTPURLResponse)?.statusCode ?? 0
+            return codigo == 200 ? .borrado : .fallo
+        } catch {
+            return .fallo
+        }
+    }
+
     // MARK: Cola en disco
 
     private func guardarPendientes() {

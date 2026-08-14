@@ -59,14 +59,12 @@ Lo que quedó fuera de este sprint, ordenado por lo que más importa:
   y la cola tienen tests unitarios; el recorrido real
   (A adopta → B instala → mismo plan) necesita dos dispositivos y una
   cuenta real.
-- **Borrado de cuenta cloud** (§36): el flujo existente borra identidad
-  y respaldo iCloud; falta que borre también `users/{uid}` y sus
-  subcolecciones (conviene una Cloud Function, porque borrar
-  subcolecciones desde el cliente es frágil).
-- **Revisión de PRIVACIDAD.md** (§37): ahora suben perfil, planes,
-  sesiones agregadas, referencias y adaptaciones a Firestore. El
-  documento todavía describe la app como local + respaldo iCloud. Hay
-  que actualizarlo ANTES de publicar, y la ficha de App Privacy también.
+- ~~Borrado de cuenta cloud~~ — CERRADO en el build 70 (Cloud Function
+  `borrarCuenta` con `recursiveDelete`).
+- ~~Revisión de PRIVACIDAD.md~~ — CERRADO en el build 70. Lo que queda
+  es cargar la ficha de App Privacy en App Store Connect con la tabla
+  actualizada: ahora hay que declarar **Health & Fitness** y
+  **Purchases** además de email y User ID.
 
 ## El catálogo de strings se queda viejo en silencio
 

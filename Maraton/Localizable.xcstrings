@@ -6634,6 +6634,17 @@
         }
       }
     },
+    "No pudimos borrar tus datos de la nube. Probá de nuevo con conexión: tu cuenta sigue intacta.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We couldn't delete your data from the cloud. Try again with a connection: your account is still intact."
+          }
+        }
+      }
+    },
     "No pudimos cargar los precios ahora.": {
       "extractionState": "manual",
       "localizations": {

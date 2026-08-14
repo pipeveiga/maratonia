@@ -137,6 +137,7 @@ struct AppPrincipal: View {
                 .tabItem { Label("Carreras", systemImage: "map.fill") }
                 .tag(Pestana.carreras)
             PerfilTab(store: store, almacen: almacen, identidad: identidad,
+                      repositorio: repositorio,
                       mostrandoTutorial: $mostrandoTutorial)
                 .tabItem { Label("Perfil", systemImage: "person.crop.circle") }
                 .tag(Pestana.perfil)
@@ -1186,6 +1187,7 @@ struct PerfilTab: View {
     @ObservedObject var identidad: IdentidadStore
     @ObservedObject private var cuenta = CuentaStore.compartida
     @ObservedObject private var conectividad = Conectividad.compartida
+    var repositorio: RepositorioCuenta?
     @Binding var mostrandoTutorial: Bool
     @State private var confirmandoRestaurar = false
     @State private var mostrandoOnboarding = false
@@ -1200,7 +1202,8 @@ struct PerfilTab: View {
 
                 SeccionPro()
 
-                SeccionCuentaMaratonia(identidad: identidad, cuentaCloud: cuenta)
+                SeccionCuentaMaratonia(identidad: identidad, cuentaCloud: cuenta,
+                                       repositorio: repositorio)
 
                 // Maratonia Coach: solo con backend configurado
                 // (MaratoniaBackendURL en Info.plist) y sesión iniciada

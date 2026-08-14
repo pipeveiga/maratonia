@@ -296,6 +296,18 @@ final class ServicioCoach: ObservableObject {
         return url
     }
 
+    /// El ID token de Firebase del usuario actual, o nil. Lo usan el
+    /// Coach y el borrado de cuenta: un solo lugar donde se pide.
+    nonisolated static func tokenActual() async -> String? {
+        guard let usuario = Auth.auth().currentUser else { return nil }
+        return try? await withCheckedThrowingContinuation { continuacion in
+            usuario.getIDToken { token, error in
+                if let token { continuacion.resume(returning: token) }
+                else { continuacion.resume(throwing: error ?? URLError(.userAuthenticationRequired)) }
+            }
+        }
+    }
+
     nonisolated static var disponible: Bool {
         #if DEBUG
         // Mismo hook de QA que `pestanaInicial`: sin backend no hay

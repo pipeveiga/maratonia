@@ -146,3 +146,39 @@ test("el UID del path es el único que decide: el body no participa", async () =
   assert.equal(await esPro(base, "uid-1", undefined, AHORA), false);
   assert.equal(await esPro(base, "uid-2", undefined, AHORA), true);
 });
+
+// ---- Configuración de producción (§27)
+
+test("el Apple ID de la app está configurado y es el real", () => {
+  const { APP_APPLE_ID } = require("../entitlement");
+  assert.equal(APP_APPLE_ID, 6796521566);
+});
+
+test("se construyen los DOS verificadores: producción y sandbox", () => {
+  // Con el Apple ID puesto, producción entra. Sin él quedaba solo
+  // sandbox y toda transacción de producción fallaba — cerrado, pero
+  // inservible para la App Store.
+  const { obtenerVerificadores } = require("../entitlement");
+  const verificadores = obtenerVerificadores();
+  assert.equal(verificadores.length, 2,
+    "producción + sandbox: TestFlight usa sandbox y la App Store producción");
+});
+
+test("una transacción de producción falsa NO pasa por tener el Apple ID", async () => {
+  // Tener configurado producción no relaja nada: la firma sigue siendo
+  // lo único que decide.
+  const falso = Buffer.from(JSON.stringify({ alg: "ES256" })).toString("base64url")
+    + "." + Buffer.from(JSON.stringify({
+        bundleId: BUNDLE_ID, productId: "maratonia.pro.yearly",
+        expiresDate: FUTURO, appAppleId: 6796521566,
+      })).toString("base64url")
+    + ".firma-inventada";
+  assert.equal(await verificarTransaccion(falso), null);
+});
+
+test("los productos declarados son EXACTAMENTE los de App Store Connect", () => {
+  // Si estos IDs se separan de los de ASC, las compras dejan de
+  // reconocerse y el corredor paga sin recibir nada.
+  assert.deepEqual([...PRODUCTOS_PRO].sort(),
+                   ["maratonia.pro.monthly", "maratonia.pro.yearly"]);
+});

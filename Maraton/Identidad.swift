@@ -450,6 +450,8 @@ struct EmailAuthView: View {
 struct SeccionCuentaMaratonia: View {
     @ObservedObject var identidad: IdentidadStore
     @ObservedObject var cuentaCloud: CuentaStore
+    /// Para borrar los datos de la nube antes que la identidad.
+    var repositorio: RepositorioCuenta?
     @ObservedObject private var servicio = ServicioAuth.compartido
     @State private var mostrandoLogin = false
     @State private var confirmandoEliminar = false
@@ -538,6 +540,21 @@ struct SeccionCuentaMaratonia: View {
     /// local NO se toca — se guía al usuario a reautenticarse.
     private func eliminar() {
         mensajeEliminacion = nil
+        // El orden importa: PRIMERO los datos en la nube, DESPUÉS la
+        // identidad. Al revés, borrar el usuario de Auth deja sin token
+        // para pedir el borrado y los datos quedan huérfanos bajo un
+        // UID que ya no existe — imposibles de borrar después.
+        Task {
+            let enLaNube = await repositorio?.borrarEnLaNube() ?? .sinBackend
+            if enLaNube == .fallo {
+                mensajeEliminacion = String(localized: "No pudimos borrar tus datos de la nube. Probá de nuevo con conexión: tu cuenta sigue intacta.")
+                return
+            }
+            eliminarIdentidad()
+        }
+    }
+
+    private func eliminarIdentidad() {
         servicio.eliminarIdentidadRemota { resultado in
             switch resultado {
             case .eliminada:
