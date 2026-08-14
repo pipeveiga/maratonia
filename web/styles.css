@@ -89,18 +89,14 @@ a { color: inherit; }
 }
 
 .brand-mark {
-  display: inline-grid;
-  place-items: center;
+  display: inline-block;
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  background: var(--primario);
-  color: var(--blanco);
-  font-weight: 900;
-  font-size: 17px;
-  line-height: 1;
+  background: url("/assets/maratonia-icon.jpg") center / cover no-repeat var(--primario);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
 }
-.brand-mark::before { content: "M"; }
 
 .site-nav .nav-links {
   display: flex;
@@ -128,6 +124,25 @@ a { color: inherit; }
 }
 
 .nav-cta { flex-shrink: 0; }
+
+.lang-toggle {
+  flex-shrink: 0;
+  padding: 8px 13px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: var(--papel);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.lang-toggle:hover, .lang-toggle:focus-visible {
+  border-color: var(--volt);
+  color: var(--volt);
+}
 
 @media (max-width: 560px) {
   .site-nav { gap: 14px; }
