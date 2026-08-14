@@ -20,7 +20,9 @@ service cloud.firestore {
 
     // ---- Helpers
 
-    function esDueño(uid) {
+    // Sin eñe a propósito: el lenguaje de reglas no acepta caracteres
+    // no ASCII en los identificadores.
+    function esDueno(uid) {
       return request.auth != null && request.auth.uid == uid;
     }
 
@@ -35,26 +37,26 @@ service cloud.firestore {
     // ---- La cuenta del corredor
 
     match /users/{uid} {
-      allow read: if esDueño(uid);
-      allow create, update: if esDueño(uid) && sinCamposDeServidor();
-      allow delete: if esDueño(uid);
+      allow read: if esDueno(uid);
+      allow create, update: if esDueno(uid) && sinCamposDeServidor();
+      allow delete: if esDueno(uid);
 
       // Plan, sesiones, referencias y adaptaciones: mismo dueño, misma
       // regla. Un documento por entidad con su ID estable.
       match /planes/{planID} {
-        allow read, write: if esDueño(uid);
+        allow read, write: if esDueno(uid);
       }
       match /sesiones/{sesionID} {
-        allow read, write: if esDueño(uid);
+        allow read, write: if esDueno(uid);
       }
       match /referencias/{referenciaID} {
-        allow read, write: if esDueño(uid);
+        allow read, write: if esDueno(uid);
       }
       match /adaptaciones/{adaptacionID} {
-        allow read, write: if esDueño(uid);
+        allow read, write: if esDueno(uid);
       }
       match /feedback/{feedbackID} {
-        allow read, write: if esDueño(uid);
+        allow read, write: if esDueno(uid);
       }
 
       // ---- Entitlement: el corredor lo LEE, nunca lo escribe.
@@ -65,7 +67,7 @@ service cloud.firestore {
       // pero la UI no es la que decide: el backend revalida antes de
       // gastar un token de OpenAI.
       match /entitlement/{documento} {
-        allow read: if esDueño(uid);
+        allow read: if esDueno(uid);
         allow write: if false;
       }
     }

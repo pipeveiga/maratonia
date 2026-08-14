@@ -125,3 +125,22 @@ maxTokensSalida: 700
 - `max_tokens` acotado.
 - La app NUNCA llama al backend al abrir pantallas: solo por acción
   explícita del corredor.
+
+## Desplegado el 14/8/2026 (build 70)
+
+Proyecto `maratonia`, región us-central1.
+
+- `coach` — actualizada. Ahora exige entitlement Pro ANTES del payload y
+  mucho antes de OpenAI. Sin Pro devuelve 402 y no gasta un token.
+- `borrarCuenta` — nueva. Borra `users/{uid}` con `recursiveDelete`
+  (borrar el documento NO borra las subcolecciones), más los contadores
+  de uso y la cache del Coach de esa persona.
+- Reglas de Firestore desplegadas: cerrado por defecto, autorización por
+  `request.auth.uid` contra el UID del path.
+
+Verificado contra los endpoints desplegados: sin token → 401; token
+inválido → 401; GET a `borrarCuenta` → 405.
+
+`APP_APPLE_ID` (6796521566) va versionado en `entitlement.js`: es
+público, no es un secreto. `OPENAI_API_KEY` sigue siendo secret de
+Cloud Functions.
