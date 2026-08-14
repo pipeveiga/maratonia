@@ -423,7 +423,9 @@ final class AlmacenStore: ObservableObject {
 
     /// Idempotente entre arranques: activado → cargar y listo.
     static func cargarConCutover(urlV2: URL, urlLegacy: URL, fecha: Date) -> AlmacenV2 {
-        if let datos = try? Data(contentsOf: urlV2),
+        let datosV2 = try? Data(contentsOf: urlV2)
+
+        if let datos = datosV2,
            var existente = try? JSONDecoder().decode(AlmacenV2.self, from: datos) {
             guard !existente.activado else { return existente }
             // Cutover del ensayo (usuario existente): el snapshot de la
@@ -432,6 +434,24 @@ final class AlmacenStore: ObservableObject {
             escribir(existente, en: urlV2)
             return existente
         }
+
+        // EL ARCHIVO ESTÁ Y NO SE PUDO LEER. Antes esto caía derecho al
+        // camino de "usuario nuevo" y terminaba en `escribir(vacío)`:
+        // una escritura cortada, un campo que agregó una build más nueva
+        // o un byte corrupto le borraban el plan y el historial al
+        // corredor, para siempre y sin decir una palabra.
+        //
+        // Ahora los bytes se APARTAN con otro nombre antes de que la app
+        // escriba encima. La app abre igual (vacía, y la cuenta la
+        // repuebla al sincronizar) pero el archivo original sigue
+        // existiendo y se puede recuperar.
+        if let datos = datosV2, !datos.isEmpty {
+            apartarIlegible(urlV2, fecha: fecha)
+            var vacio = AlmacenV2()
+            vacio.activado = true
+            return vacio
+        }
+
         // Sin ensayo: migrar directo del legacy si existe; usuario
         // nuevo → almacén limpio (sin plan fantasma).
         let legacy = (try? Data(contentsOf: urlLegacy))
@@ -442,6 +462,24 @@ final class AlmacenStore: ObservableObject {
         almacen.activado = true
         escribir(almacen, en: urlV2)
         return almacen
+    }
+
+    /// Mueve el archivo ilegible a un nombre propio. Se MUEVE, nunca se
+    /// borra: lo único peor que no poder leer los datos del corredor es
+    /// tirarlos.
+    static func apartarIlegible(_ url: URL, fecha: Date) {
+        let sello = Int(fecha.timeIntervalSince1970)
+        let destino = url.deletingPathExtension()
+            .appendingPathExtension("ilegible-\(sello)")
+            .appendingPathExtension("json")
+        do {
+            try FileManager.default.moveItem(at: url, to: destino)
+            NSLog("dominio-v2 ilegible: apartado en %@", destino.lastPathComponent)
+        } catch {
+            // Ni siquiera se pudo mover: entonces MENOS todavía hay que
+            // escribir encima. Se deja como está y la app arranca vacía.
+            NSLog("dominio-v2 ilegible y no se pudo apartar: %@", String(describing: error))
+        }
     }
 
     func adoptar(_ base: PlanBase, inicio: DiaLocal, fecha: Date = Date()) {

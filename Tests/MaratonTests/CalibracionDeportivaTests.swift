@@ -3872,3 +3872,142 @@ final class CasoNoQuieroCorrerElSabadoTests: XCTestCase {
                        .rechazadaPorElMotor(propuestas: 1))
     }
 }
+
+// MARK: - El primer arranque no puede caerse
+//
+// Los cuatro estados incómodos del arranque con cuenta: sesión que no
+// se restauró, documento de nube que no llegó, StoreKit todavía
+// cargando y migración a medias. Ninguno puede terminar en un crash: en
+// el peor caso la app muestra menos, nunca se cierra.
+//
+// (El barrido del camino de arranque no encontró un solo `fatalError`,
+// `try!` ni índice sin guardar; esto fija que siga siendo así.)
+
+@MainActor
+final class ArranqueSinCrashTests: XCTestCase {
+
+    private let hoy = DiaLocal(anio: 2026, mes: 8, dia: 14)
+
+    /// SESIÓN NO RESTAURADA: el almacén está vacío del todo.
+    func testTodoFuncionaConElAlmacenVacio() {
+        let almacen = AlmacenV2()
+        XCTAssertFalse(SesionApp.tienePerfil(almacen))
+        XCTAssertTrue(almacen.todosLosProgramados.isEmpty)
+        XCTAssertNil(almacen.planActivo)
+        // El contexto del Coach se arma igual: sin plan, sin perfil.
+        let contexto = ContextoCoach.desde(almacen, hoy: hoy)
+        XCTAssertEqual(contexto.hoy, "2026-08-14")
+        XCTAssertTrue(contexto.proximosEntrenamientos.isEmpty)
+        XCTAssertNil(contexto.semanasTotales)
+    }
+
+    /// MIGRACIÓN INCOMPLETA: un plan que llegó SIN sus semanas. Es
+    /// decodificable (el campo tiene default) y por lo tanto posible.
+    func testUnPlanSinSemanasNoRompeNada() {
+        var almacen = AlmacenV2()
+        almacen.adoptarPlan(PlanUsuario(nombre: "Plan a medias",
+                                        fechaAdopcion: Date(), semanas: []))
+        XCTAssertNotNil(almacen.planActivo)
+        XCTAssertTrue(almacen.todosLosProgramados.isEmpty)
+        XCTAssertTrue(SesionApp.tienePerfil(almacen), "con plan hay algo que mostrar")
+        // Lo que la pantalla de plan y el Coach calculan sobre él.
+        XCTAssertNil(almacen.semanaDe(programadoID: UUID()))
+        let contexto = ContextoCoach.desde(almacen, hoy: hoy)
+        XCTAssertEqual(contexto.semanasTotales, 0)
+        XCTAssertNil(contexto.semanaActual)
+    }
+
+    /// UN dominio-v2 QUE NO SE PUEDE LEER: escritura cortada, byte
+    /// corrupto o un campo que agregó una build más nueva.
+    ///
+    /// EL BUG: el arranque caía derecho al camino de "usuario nuevo" y
+    /// terminaba escribiendo un almacén VACÍO encima. El plan y el
+    /// historial del corredor se borraban para siempre, sin una palabra.
+    /// Ahora los bytes se apartan y nadie escribe encima.
+    func testUnDominioIlegibleNoSePisaNiSePierde() throws {
+        let carpeta = FileManager.default.temporaryDirectory
+            .appendingPathComponent("maratonia-ilegible-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: carpeta, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: carpeta) }
+
+        let urlV2 = carpeta.appendingPathComponent("dominio-v2.json")
+        let urlLegacy = carpeta.appendingPathComponent("plan.json")
+        // Un JSON válido como texto pero que NO es un AlmacenV2: es
+        // exactamente lo que deja una escritura a medias.
+        let original = Data(#"{"sesiones": [], "perfil": {}}"#.utf8)
+        try original.write(to: urlV2)
+
+        let almacen = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
+                                                    fecha: Date())
+
+        // La app abre igual: vacía, no rota.
+        XCTAssertNil(almacen.planActivo)
+        XCTAssertTrue(almacen.activado)
+
+        // Y los bytes siguen existiendo, bajo otro nombre.
+        let quedaron = try FileManager.default
+            .contentsOfDirectory(atPath: carpeta.path)
+            .filter { $0.contains("ilegible") }
+        XCTAssertEqual(quedaron.count, 1, "el archivo original tiene que sobrevivir")
+        XCTAssertEqual(try Data(contentsOf: carpeta.appendingPathComponent(quedaron[0])),
+                       original, "y sobrevivir INTACTO")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: urlV2.path),
+                       "el nombre original queda libre, sin un vacío escrito encima")
+    }
+
+    /// Y el caso normal sigue igual: sin archivo, usuario nuevo.
+    func testSinArchivoArrancaLimpio() throws {
+        let carpeta = FileManager.default.temporaryDirectory
+            .appendingPathComponent("maratonia-limpio-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: carpeta, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: carpeta) }
+        let almacen = AlmacenStore.cargarConCutover(
+            urlV2: carpeta.appendingPathComponent("dominio-v2.json"),
+            urlLegacy: carpeta.appendingPathComponent("plan.json"), fecha: Date())
+        XCTAssertNil(almacen.planActivo)
+        XCTAssertTrue(almacen.activado)
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: carpeta.path)
+            .contains("dominio-v2.json"), "al usuario nuevo sí se le crea el archivo")
+    }
+
+    /// Un plan con una semana SIN sesiones tampoco rompe: es el otro
+    /// modo de llegar a medias.
+    func testUnaSemanaSinSesionesNoRompeNada() {
+        var almacen = AlmacenV2()
+        almacen.adoptarPlan(PlanUsuario(
+            nombre: "Semana vacía", fechaAdopcion: Date(),
+            semanas: [SemanaPlan(numero: 1, programados: [])]))
+        XCTAssertEqual(almacen.planActivo?.semanas.count, 1)
+        XCTAssertTrue(almacen.todosLosProgramados.isEmpty)
+        let (hechos, total) = CalculoProgreso.cumplimiento(almacen: almacen, hoy: hoy)
+        XCTAssertEqual(hechos, 0)
+        XCTAssertEqual(total, 0, "no puede dividir por cero ni contar de más")
+    }
+
+    /// STOREKIT TODAVÍA CARGANDO: sin productos no hay nombre de plan ni
+    /// precios, y la tarjeta tiene que decir algo igual en los seis
+    /// estados. Nada de forzar un valor que no llegó.
+    func testLaTarjetaProTieneTextoSinDatosDeStoreKit() {
+        let pelado = DetallePro(productoID: "", nombre: nil, vence: nil)
+        let estados: [EstadoPro] = [
+            .libre, .activa(pelado), .gracia(pelado),
+            .problemaDeCobro(pelado), .expirada(pelado), .revocada(pelado),
+        ]
+        for estado in estados {
+            let p = FilaEstadoPro.presentacion(de: estado)
+            XCTAssertFalse(p.titulo.isEmpty, "\(estado)")
+            XCTAssertFalse(p.detalle.isEmpty, "\(estado)")
+            XCTAssertFalse(p.icono.isEmpty, "\(estado)")
+        }
+        // Y sin producto cargado, el plan NO se llama "anual".
+        XCTAssertFalse(FilaEstadoPro.nombreDelPlan(pelado)
+            .localizedCaseInsensitiveContains("anual"))
+    }
+
+    /// El estado inicial sin caché de StoreKit es `libre`: no se asume
+    /// Pro, y tampoco se asume un problema que no se puede probar.
+    func testSinDatosDeStoreKitElEstadoEsLibre() {
+        XCTAssertEqual(EstadoPro.libre.esPro, false)
+        XCTAssertNil(EstadoPro.libre.detalle)
+    }
+}
