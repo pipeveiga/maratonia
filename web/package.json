@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "Web pública de Maratonia: sitio estático, el build lo copia a dist/",
   "private": true,
+  "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "build": "rm -rf dist && mkdir dist && cp -R assets privacy support terms index.html language.js styles.css dist/"
   }
 }
