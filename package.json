@@ -1,0 +1,9 @@
+{
+  "name": "maratonia-web",
+  "version": "1.0.0",
+  "description": "Web pública de Maratonia: sitio estático en web/, el build lo copia a dist/",
+  "private": true,
+  "scripts": {
+    "build": "rm -rf dist && cp -R web dist"
+  }
+}
