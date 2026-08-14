@@ -255,6 +255,56 @@ enum ContenidoPlanes {
             provisional: false, semanas: semanas)
     }
 
+    // MARK: Mejorar 5K con 3 días — variante propia
+
+    /// La versión de 3 días NO es "Mejorar 5K recortado": tiene su
+    /// propia progresión de fondo.
+    ///
+    /// Por qué hace falta. Con 3 sesiones queda una sola fácil
+    /// acompañando al fondo, y ahí las dos reglas ya declaradas se
+    /// cruzan: "la larga no pasa del 45 % de la semana" y "ninguna
+    /// fácil pasa del 60 % de la larga". Con una sola fácil eso
+    /// implica larga ≤ 1,61 × el volumen de la sesión de calidad, y el
+    /// fondo de 12 km del plan de 4-5 días deja las semanas 5, 6 y 7 con
+    /// la larga en 47-48 %. Bajarlo con un techo automático por semana
+    /// da una progresión que no es progresión (11 → 10,7 → 12 → 11,1),
+    /// porque el techo sigue al volumen de la calidad, que alterna
+    /// umbral e intervalos.
+    ///
+    /// Qué cambia y qué NO. El pico del fondo baja de 12 a 11 km
+    /// (2,2 × la distancia objetivo en vez de 2,4 ×) y la progresión
+    /// queda monótona. Las sesiones de calidad son EXACTAMENTE las
+    /// mismas —misma alternancia umbral/intervalos, mismos minutos,
+    /// misma descarga—, que es lo que hace que el plan siga siendo
+    /// Mejorar 5K. La semana de carrera es idéntica.
+    static func mejorar5KTresDias() -> PlanBase {
+        var semanas: [SemanaBase] = []
+        let largas: [Double] = [9, 10, 10, 7, 11, 11, 11]
+        let faciles: [Double] = [6, 6, 6, 5, 6.5, 6.5, 6.5]
+        for numero in 1...7 {
+            let esDescarga = numero == 4
+            let calidad = numero % 2 == 1
+                ? umbral(2, minutos: esDescarga ? 12 : min(15 + (numero / 2) * 3, 24))
+                : intervalos(2, repeticiones: esDescarga ? 4 : 5 + numero / 4, minutosCada: 3)
+            semanas.append(SemanaBase(numero: numero, entrenamientos: [
+                calidad,
+                facil(4, km: faciles[numero - 1]),
+                larga(7, km: largas[numero - 1]),
+            ], fase: fase(numero, construccion: 7,
+                          esDescarga: esDescarga, esPico: numero == 7)))
+        }
+        semanas.append(SemanaBase(numero: 8, entrenamientos: [
+            facil(2, km: 5),
+            activacion(4),
+            carrera(7, km: 5, nombre: "5K a fondo"),
+        ], fase: .semanaDeCarrera))
+        return PlanBase(
+            id: "mejorar-5k", version: 2, nombre: "Mejorar mis 5K",
+            descripcion: "8 semanas con una sesión de calidad semanal (umbral e intervalos alternados), un rodaje fácil y tirada larga progresiva hasta 11 km. Cierra con un 5K a fondo.",
+            distanciaObjetivoKm: 5, semanasTotales: 8, diasPorSemana: 3,
+            provisional: false, semanas: semanas)
+    }
+
     // MARK: Media maratón — 12 semanas
 
     static func mediaMaraton() -> PlanBase {

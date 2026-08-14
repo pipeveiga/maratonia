@@ -209,18 +209,46 @@ Rumbo a 10K entraba con 4 y pedía 5, Mejorar 10K entraba con 8 y pedía
 de contra la semana 1. Corregido: los diez planes cumplen la misma
 regla y el test la mide de los dos lados, en todas las frecuencias.
 
-| Objetivo | km/sem | Tirada larga | Días | Meses corriendo |
+**El requisito de volumen NO se escribe: se deriva.** El motor ya
+promete que la semana 1 no supera `volumen actual × 1,20`. Dado vuelta,
+eso dice `volumen actual ≥ semana 1 / 1,20` — y eso *es* el requisito de
+volumen. No hace falta elegirlo: elegibilidad y arranque son la misma
+regla vista de los dos lados, y quien entra justo por la puerta es
+exactamente aquel a quien el arranque no necesita atenuar.
+
+Que los escalares anteriores ya fueran esto se puede comprobar: en la
+frecuencia mínima de cada plan daban 0,99 veces el derivado de promedio
+(Primera Maratón pedía 40 y el derivado era 39,9; Media rendimiento
+pedía 50 y el derivado era 50,3). Eran una copia manual que se
+desactualizaba sola cada vez que cambiaba el contenido.
+
+Como se deriva de la semana 1 de **la variante que el corredor va a
+recibir**, depende de la frecuencia elegida: la misma Mejorar 10K
+arranca en 30 km con 4 días y en 36 con 5, y pide 25 o 30 km/sem según
+cuál elijas. Elegir más días sube la vara, y la app lo dice.
+
+Redondeo: hacia abajo al kilómetro entero. Determinístico, y hacia abajo
+a propósito — un decimal no debe endurecer una puerta de entrada.
+
+Los demás requisitos **no** dependen de la frecuencia y siguen en tabla:
+la tirada larga nunca se recorta ni absorbe volumen (hay un test que lo
+comprueba en los diez planes), y días, meses y baseline son
+estructurales. La columna km/sem de abajo es el **fallback** para
+llamadores que no armaron un plan, y equivale al derivado en la
+frecuencia mínima; un invariante la mantiene pegada a ese número.
+
+| Objetivo | km/sem (fallback) | Tirada larga | Días | Meses corriendo |
 |---|---|---|---|---|
 | Primeros 5K | — | — | 2 | — |
-| Mejorar 5K | 18 | 9 | 3 | 3 |
-| Primeros 10K | 10 | 5 | 2 | 1 |
-| Mejorar 10K | 22 | 10 | 3 | 3 |
-| Primera media | 28 | 10 | 4 | 4 |
-| Mejorar media | 30 | 12 | 4 | 6 |
-| Media rendimiento | 50 | 14 | 5 | 12 + marca |
-| Primera maratón | 40 | 12 | 4 | 6 |
-| Mejorar maratón | 48 | 16 | 4 | 9 |
-| Maratón rendimiento | 65 | 18 | 5 | 12 + marca |
+| Mejorar 5K | 16 | 9 | 3 | 3 |
+| Primeros 10K | 7 | 5 | 2 | 1 |
+| Mejorar 10K | 25 | 10 | 4 | 3 |
+| Primera media | 25 | 10 | 4 | 4 |
+| Mejorar media | 29 | 12 | 4 | 6 |
+| Media rendimiento | 43 | 14 | 5 | 12 + marca |
+| Primera maratón | 32 | 12 | 4 | 6 |
+| Mejorar maratón | 37 | 16 | 4 | 9 |
+| Maratón rendimiento | 50 | 18 | 5 | 12 + marca |
 
 Un test de catálogo verifica esa coherencia contra el contenido real en
 cada build, así que la tabla no puede volver a divergir del plan en
@@ -291,13 +319,61 @@ tirada larga pero borraba dos rodajes enteros: la larga pasaba de
 ocupar el 51 % de la semana a ocupar el 66 %, y el corredor con menos
 disponibilidad —normalmente el menos entrenado— recibía la semana peor
 proporcionada. Ahora el volumen fácil de las sesiones eliminadas se
-reparte entre las fáciles que quedan, con tope de 1,6× por sesión para
-que un "rodaje suave" no se convierta en una segunda larga. Lo que no
-entra se pierde: es la señal correcta de que esa frecuencia no alcanza,
-y el invariante de catálogo la detecta.
+reparte entre las fáciles que quedan, con tope de 1,6× por sesión. Lo
+que no entra se pierde: es la señal correcta de que esa frecuencia no
+alcanza, y el invariante de catálogo la detecta.
 
-Nunca absorben volumen: la tirada larga, las sesiones de calidad ni la
-carrera objetivo.
+**Guardrail de la segunda tirada larga: 60 % (DECISIÓN DE DISEÑO
+MARATONIA).** Este número **no es una constante fisiológica** y no hay
+literatura que lo fije. Es un guardrail de producto, y dice una sola
+cosa: *una sesión fácil que recibe volumen redistribuido no puede
+convertirse en silencio en una segunda tirada larga.*
+
+Hizo falta porque el tope de 1,6× es proporcional al tamaño de cada
+sesión, así que el reparto se concentraba justamente en la fácil que ya
+era la más grande. Los dos síntomas medidos:
+
+- En la semana **pico**, Primera Maratón con 4 días producía un "Rodaje
+  medio" de 20,4 km — 2 h 42, y 2 h 56 para el corredor lento — al lado
+  de un fondo de 23,1 km. El 88 % de la larga, en el plan de *primera*
+  maratón y a su frecuencia *mínima*, y rozando por casualidad el tope
+  de duración de 3 h que existe precisamente porque la carga es tiempo.
+- En la **semana 1**, en seis combinaciones la sesión fácil terminaba
+  siendo **más larga que la propia tirada larga** (hasta el 128 %): la
+  semana se quedaba sin sesión más larga, y el "Rodaje suave" lo era.
+
+El tope limita el **crecimiento**, nunca el tamaño. Una sesión que el
+contenido diseñó larga a propósito —el rodaje medio de los planes de
+maratón— conserva su distancia y simplemente no absorbe. Hay dos tests
+que lo fijan: uno comprueba que ninguna sesión que creció pasa el 60 %,
+y otro que el recorte nunca achica nada.
+
+Nunca absorben volumen, y por lo tanto nunca entran acá: la tirada
+larga, las sesiones de calidad y la carrera objetivo.
+
+**Frecuencias que un plan no puede sostener.** Con 3 sesiones queda una
+sola fácil acompañando al fondo, y ahí las dos reglas de arriba se
+cruzan: si la larga no pasa del 45 % de la semana y ninguna fácil pasa
+del 60 % de la larga, entonces la larga no puede pasar de **1,61 × el
+volumen de la sesión de calidad**. Con 4 sesiones la restricción deja de
+morder. No es una opinión sobre 3 días: es aritmética, y aparece solo
+cuando queda una única fácil.
+
+Las dos consecuencias, decididas plan por plan y no con una regla
+general:
+
+- **Mejorar 5K con 3 días tiene contenido propio.** No es el plan de
+  4-5 días recortado: su progresión de fondo llega a 11 km en vez de 12
+  (2,2 × la distancia objetivo en vez de 2,4 ×) y es monótona. Las
+  sesiones de calidad son idénticas —misma alternancia umbral/
+  intervalos, mismos minutos, misma descarga—, que es lo que lo mantiene
+  siendo Mejorar 5K.
+- **Mejorar 10K pasa a 4 días mínimo.** Acá el techo cae en ~13 km y
+  rompe 5 de las 8 semanas de construcción; forzarlo con un techo
+  automático da una progresión que ni siquiera es monótona
+  (13,0 → 12,9 → 14,6). La base aeróbica hasta 16 km es lo que este plan
+  *es*. Antes que servir una versión que no la construye, el motor dice
+  que 3 días no alcanzan y ofrece Rumbo a 10K, que sí acepta 2-3 días.
 
 ## Adaptación (§36-§41)
 

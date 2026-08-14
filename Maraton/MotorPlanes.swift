@@ -43,6 +43,21 @@ struct PlanArquetipo: Identifiable {
     /// validado todavía: el motor responde "sinContenido", no inventa).
     var contenido: PlanBase?
 
+    /// Contenido PROPIO para una frecuencia concreta, cuando recortar
+    /// el contenido general no produce un plan sano a esa frecuencia.
+    /// Hoy solo lo usa Mejorar 5K en 3 días: con una sola sesión fácil
+    /// acompañando, el fondo de 12 km deja la semana con la larga en el
+    /// 47-48 %, y bajarlo con un techo automático da una progresión
+    /// jaggeada. La variante propia baja el pico a 11 km, monótona, con
+    /// las sesiones de calidad idénticas.
+    var contenidoPorDias: [Int: PlanBase] = [:]
+
+    /// El contenido que le corresponde a esta frecuencia. Sin variante
+    /// declarada, el general (que después se recorta).
+    func contenido(para dias: Int) -> PlanBase? {
+        contenidoPorDias[dias] ?? contenido
+    }
+
     /// Carácter declarado por semana (infra §37; hoy nil en el
     /// contenido provisional — llega con la metodología).
     var tiposDeSemana: [Int: TipoSemana] = [:]
@@ -81,12 +96,13 @@ enum BibliotecaArquetipos {
                           diasMinimos: 2, diasMaximos: 3,
                           recomiendaBaseline: false,
                           contenido: bases["primeros-5k"]),
-            PlanArquetipo(id: "mejorar-5k", version: 1, objetivo: .mejorar5K,
+            PlanArquetipo(id: "mejorar-5k", version: 2, objetivo: .mejorar5K,
                           nombre: "Mejorar mis 5K",
                           semanasMinimas: 8, semanasRecomendadas: 8,
                           diasMinimos: 3, diasMaximos: 5,
                           recomiendaBaseline: true,
-                          contenido: ContenidoPlanes.mejorar5K()),
+                          contenido: ContenidoPlanes.mejorar5K(),
+                          contenidoPorDias: [3: ContenidoPlanes.mejorar5KTresDias()]),
             // ---- 10K
             PlanArquetipo(id: "10k-continuo", version: 2, objetivo: .diez,
                           nombre: "Rumbo a 10K",
@@ -94,10 +110,24 @@ enum BibliotecaArquetipos {
                           diasMinimos: 2, diasMaximos: 3,
                           recomiendaBaseline: false,
                           contenido: bases["10k-continuo"]),
+            // 4 días MÍNIMO (antes 3). Con 3 sesiones queda una sola
+            // fácil acompañando al fondo, y las dos reglas ya
+            // declaradas se cruzan: "larga ≤ 45 % de la semana" y
+            // "ninguna fácil > 60 % de la larga" implican, con una sola
+            // fácil, que la larga no puede pasar de 1,61× el volumen de
+            // la sesión de calidad. Para este plan eso topa el fondo en
+            // ~13 km y rompe 5 de las 8 semanas de construcción;
+            // forzarlo con un techo automático produce una progresión
+            // que ni siquiera es monótona (13,0 → 12,9 → 14,6). La base
+            // aeróbica hasta 16 km es lo que este plan ES —"para bajar
+            // en 10K hace falta base aeróbica, no solo series"—, así que
+            // antes que servir una versión que no la construye, el
+            // motor dice que 3 días no alcanzan y ofrece Rumbo a 10K,
+            // que sí acepta 2-3 días. Ver METODOLOGIA.md.
             PlanArquetipo(id: "mejorar-10k", version: 1, objetivo: .mejorar10K,
                           nombre: "Mejorar mis 10K",
                           semanasMinimas: 10, semanasRecomendadas: 10,
-                          diasMinimos: 3, diasMaximos: 5,
+                          diasMinimos: 4, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mejorar10K()),
             // ---- 21K
@@ -310,7 +340,7 @@ enum MotorPlanificacion {
                          biblioteca: [PlanArquetipo] = BibliotecaArquetipos.v1(),
                          calendario: Calendar = .current) -> ResultadoPlanificacion {
         guard let arquetipo = biblioteca.first(where: { $0.objetivo == pedido.objetivo }),
-              arquetipo.listoParaProponer, let base = arquetipo.contenido else {
+              arquetipo.listoParaProponer else {
             return .sinContenido(objetivo: pedido.objetivo)
         }
 
@@ -332,6 +362,20 @@ enum MotorPlanificacion {
             return .faltaBaseline(arquetipo: arquetipo.id)
         }
 
+        // ---- La VARIANTE REAL, antes de evaluar nada. El corredor no
+        // se mide contra un template abstracto sino contra el plan que
+        // va a recibir: con 4 días la semana 1 de Mejorar 10K son 30 km
+        // y con 5 son 36, y eso cambia qué base hace falta para
+        // sostenerla. Recortar es una función pura de (contenido, días)
+        // y no lee el veredicto, así que no hay ciclo: primero se arma
+        // la variante, después se juzga, y recién al final se atenúa el
+        // arranque (que sí depende del veredicto).
+        guard let base = arquetipo.contenido(para: diasEfectivos) else {
+            return .sinContenido(objetivo: pedido.objetivo)
+        }
+        var recortada = recortar(base, aDias: min(diasEfectivos,
+                                                  arquetipo.diasMaximos))
+
         // ---- Elegibilidad: ¿este objetivo se sostiene con lo que el
         // corredor trae? Determinístico y explicable (§12). No es un
         // filtro moral: solo evita vender un plan que no se aguanta.
@@ -348,7 +392,8 @@ enum MotorPlanificacion {
             tieneBaseline: pedido.referencia != nil,
             molestias: pedido.molestias,
             mesesCorriendoRegular: pedido.actividad?.mesesCorriendoRegular,
-            volviendoDePausa: pedido.actividad?.volviendoDePausa ?? false))
+            volviendoDePausa: pedido.actividad?.volviendoDePausa ?? false,
+            kmSemana1DelPlan: recortada.semanas.first.map { volumenSemanaBase($0) }))
 
         // ¿El plan se genera en su variante conservadora? El veredicto
         // lo dice para `.elegibleConservador`, pero NO para quien cruzó
@@ -401,10 +446,6 @@ enum MotorPlanificacion {
             // lo anterior a hoy se descarta después de instanciar).
             inicio = pedido.hoy.lunesDeLaSemana(calendario: calendario)
         }
-
-        // ---- Disponibilidad: recorte por ROL, decidido acá y no en UI.
-        var recortada = recortar(base, aDias: min(diasEfectivos,
-                                                  arquetipo.diasMaximos))
 
         // ---- Días concretos: cada sesión cae SOLO en un día que el
         // corredor dijo que puede correr. El ORDEN relativo del template
@@ -673,8 +714,8 @@ enum MotorPlanificacion {
 
     /// Volumen de la semana, sesión por sesión: el tope de duración es
     /// por sesión y aplanar la semana lo haría desaparecer.
-    private static func volumenSemanaBase(_ semana: SemanaBase,
-                                          baseline: PerformanceBaseline? = nil) -> Double {
+    static func volumenSemanaBase(_ semana: SemanaBase,
+                                  baseline: PerformanceBaseline? = nil) -> Double {
         semana.entrenamientos.reduce(0.0) { $0 + volumenBase($1, baseline: baseline) }
     }
 
@@ -683,6 +724,28 @@ enum MotorPlanificacion {
     /// original. Sin tope, un corredor de 3 días terminaba con un
     /// "rodaje suave" de 21 km.
     static let topeAbsorcion = 1.6
+
+    /// GUARDRAIL DE DISEÑO MARATONIA (no es una constante fisiológica y
+    /// no hay literatura que fije este número): una sesión fácil que
+    /// recibe volumen redistribuido no puede pasar del 60 % de la
+    /// tirada larga de SU semana.
+    ///
+    /// Existe porque `topeAbsorcion` es proporcional al tamaño de cada
+    /// sesión, así que el reparto se concentraba justamente en la
+    /// fácil que ya era la más grande. El resultado era una segunda
+    /// tirada larga sin declarar: Primera Maratón con 4 días producía
+    /// un "Rodaje medio" de 20,4 km (2 h 42, y 2 h 56 para el corredor
+    /// lento) al lado de un fondo de 23,1 km, y en la SEMANA 1 de seis
+    /// combinaciones la sesión fácil terminaba siendo más larga que la
+    /// propia tirada larga —hasta el 128 %—, con lo cual la semana se
+    /// quedaba sin sesión más larga.
+    ///
+    /// El tope limita el CRECIMIENTO, nunca el tamaño: una sesión que
+    /// el contenido diseñó larga a propósito (el rodaje medio de los
+    /// planes de maratón) conserva su distancia y simplemente no
+    /// absorbe. La tirada larga, la calidad y la carrera objetivo no
+    /// entran acá: no absorben volumen en ningún caso.
+    static let topeSegundaLarga = 0.60
 
     /// Recorte por disponibilidad: en cada semana quedan las `dias`
     /// sesiones de MAYOR prioridad de rol (carrera > larga > calidad >
@@ -719,7 +782,12 @@ enum MotorPlanificacion {
 
             nueva.entrenamientos = elegidas.sorted().map { semana.entrenamientos[$0] }
             guard huerfano > 0 else { return nueva }
-            nueva.entrenamientos = redistribuir(huerfano, en: nueva.entrenamientos)
+            // El guardrail se mide contra la tirada larga de ESTA
+            // semana, no contra la del plan: en las semanas iniciales
+            // la larga todavía es corta y es justo ahí donde el reparto
+            // la superaba.
+            nueva.entrenamientos = redistribuir(huerfano, en: nueva.entrenamientos,
+                                                largaDeLaSemana: largaDe(nueva))
             return nueva
         }
         return resultado
@@ -743,18 +811,40 @@ enum MotorPlanificacion {
         }, tope: entrenamiento.topeDuracionSegundos, baseline: baseline).totalKm
     }
 
+    /// La tirada larga de una semana, con la que se mide el guardrail.
+    /// 0 = la semana no tiene una (semana de carrera, o planes que
+    /// todavía no la declaran): entonces solo rige `topeAbsorcion`.
+    private static func largaDe(_ semana: SemanaBase) -> Double {
+        semana.entrenamientos.filter { $0.tipo == .largo }
+            .map { volumenBase($0) }.max() ?? 0
+    }
+
     /// Reparte `huerfano` km entre las sesiones absorbentes, en
     /// proporción a la capacidad de cada una y sin pasar el tope. Lo que
     /// no entra se pierde: es la señal correcta de que esa frecuencia no
     /// alcanza para ese plan, y el invariante de catálogo la detecta.
+    ///
+    /// La capacidad de cada sesión es la distancia entre lo que YA mide
+    /// y su techo, y el techo es el menor entre `topeAbsorcion` (1,6×
+    /// lo suyo) y `topeSegundaLarga` (60 % del fondo de la semana). Si
+    /// una sesión ya viene por encima de ese 60 % porque el contenido
+    /// la diseñó así, su capacidad es CERO — no se la achica, no crece.
     private static func redistribuir(_ huerfano: Double,
-                                     en entrenamientos: [EntrenamientoBase]) -> [EntrenamientoBase] {
+                                     en entrenamientos: [EntrenamientoBase],
+                                     largaDeLaSemana: Double) -> [EntrenamientoBase] {
         let indices = entrenamientos.indices.filter {
             esAbsorbente(entrenamientos[$0].tipo)
                 && entrenamientos[$0].segmentos.contains { $0.distanciaKm != nil }
         }
         guard !indices.isEmpty else { return entrenamientos }
-        let capacidades = indices.map { volumenBase(entrenamientos[$0]) * (topeAbsorcion - 1) }
+        let capacidades = indices.map { indice -> Double in
+            let propio = volumenBase(entrenamientos[indice])
+            var techo = propio * topeAbsorcion
+            if largaDeLaSemana > 0 {
+                techo = min(techo, topeSegundaLarga * largaDeLaSemana)
+            }
+            return max(0, techo - propio)
+        }
         let capacidadTotal = capacidades.reduce(0, +)
         guard capacidadTotal > 0 else { return entrenamientos }
         let reparto = min(huerfano, capacidadTotal)

@@ -288,6 +288,15 @@ struct EntradaElegibilidad {
     var mesesCorriendoRegular: Int?
     var volviendoDePausa: Bool
 
+    /// Volumen de la semana 1 del plan que el corredor VA A RECIBIR,
+    /// ya recortado a su frecuencia. Cuando está, el requisito de
+    /// volumen se DERIVA de acá (ver `RequisitosObjetivo.volumenParaEntrar`)
+    /// en vez de leerse de la tabla: la misma Mejorar 10K arranca en
+    /// 30 km con 4 días y en 36 con 5, y un escalar único no puede
+    /// describir las dos. nil = el llamador no armó el plan (tests del
+    /// evaluador puro), y entonces se usa el valor de tabla.
+    var kmSemana1DelPlan: Double? = nil
+
     /// Volumen semanal a usar: gana lo MEDIDO sobre lo declarado
     /// (Salud es la fuente de verdad cuando existe, §4), y si no hay
     /// medición se usa lo que el corredor dijo.
@@ -314,6 +323,15 @@ struct EntradaElegibilidad {
 /// sueltos) y su justificación está en METODOLOGIA.md como DECISIÓN
 /// MARATONIA — consenso de entrenamiento, no un paper.
 struct RequisitosObjetivo: Equatable {
+    /// FALLBACK, no la fuente de verdad. En producción el requisito de
+    /// volumen se DERIVA de la semana 1 del plan que el corredor va a
+    /// recibir (`volumenParaEntrar`), porque depende de la frecuencia
+    /// elegida. Este valor solo se usa cuando el llamador no armó el
+    /// plan, y equivale al derivado en la frecuencia MÍNIMA del
+    /// arquetipo — la variante más liviana del objetivo. Hay un
+    /// invariante de catálogo que lo mantiene pegado a ese número, así
+    /// que no puede desactualizarse en silencio cuando cambie el
+    /// contenido: si cambia, el test falla y dice el valor nuevo.
     var kmSemanales: Double
     var tiradaLargaKm: Double
     var diasPorSemana: Int
@@ -324,6 +342,33 @@ struct RequisitosObjetivo: Equatable {
     /// Por debajo de este porcentaje del requisito, ya no alcanza con
     /// "arrancar conservador": falta base de verdad.
     static let fraccionPiso = 0.4
+
+    /// El volumen semanal que hace falta para entrar a un plan cuya
+    /// primera semana mide `semana1Km`. DECISIÓN DE DISEÑO MARATONIA
+    /// (METODOLOGIA.md), no una ley fisiológica.
+    ///
+    /// No es un número nuevo: es el techo de entrada despejado. El
+    /// motor ya promete `semana1 ≤ volumenActual × factorEntradaMaximo`;
+    /// dado vuelta, eso dice `volumenActual ≥ semana1 / factorEntradaMaximo`.
+    /// O sea: el requisito de volumen ES el volumen con el que el
+    /// arranque no necesita atenuarse. Elegibilidad y arranque dejan de
+    /// ser dos reglas que se pueden contradecir.
+    ///
+    /// Que la tabla anterior ya fuera esto se puede comprobar: en la
+    /// frecuencia mínima de cada plan, sus escalares escritos a mano
+    /// daban 0,99 veces este cálculo de promedio (Primera Maratón pedía
+    /// 40 y el derivado era 39,9; Media rendimiento pedía 50 y el
+    /// derivado era 50,3). Eran una copia manual que se desactualizaba
+    /// sola cada vez que cambiaba el contenido.
+    ///
+    /// REDONDEO: hacia abajo al kilómetro entero. Determinístico, y
+    /// hacia abajo a propósito — el redondeo nunca debe endurecer una
+    /// puerta de entrada por un decimal.
+    static func volumenParaEntrar(semana1Km: Double) -> Double {
+        guard semana1Km > 0 else { return 0 }
+        return (semana1Km / MotorPlanificacion.factorEntradaMaximo)
+            .rounded(.down)
+    }
 
     /// TABLA EXPLÍCITA por distancia + intención.
     ///
@@ -361,44 +406,47 @@ struct RequisitosObjetivo: Equatable {
                                       diasPorSemana: 2, mesesRegular: 0,
                                       exigeBaseline: false)
         case .mejorar5K:
-            return RequisitosObjetivo(kmSemanales: 18, tiradaLargaKm: 9,
+            return RequisitosObjetivo(kmSemanales: 16, tiradaLargaKm: 9,
                                       diasPorSemana: 3, mesesRegular: 3,
                                       exigeBaseline: false)
         // ---- 10K
         case .diez:
-            return RequisitosObjetivo(kmSemanales: 10, tiradaLargaKm: 5,
+            return RequisitosObjetivo(kmSemanales: 7, tiradaLargaKm: 5,
                                       diasPorSemana: 2, mesesRegular: 1,
                                       exigeBaseline: false)
+        // 4 días: con 3 sesiones este plan no puede construir la base
+        // aeróbica que lo define (ver BibliotecaArquetipos y
+        // METODOLOGIA.md). Quien solo tiene 3 días va a Rumbo a 10K.
         case .mejorar10K:
-            return RequisitosObjetivo(kmSemanales: 22, tiradaLargaKm: 10,
-                                      diasPorSemana: 3, mesesRegular: 3,
+            return RequisitosObjetivo(kmSemanales: 25, tiradaLargaKm: 10,
+                                      diasPorSemana: 4, mesesRegular: 3,
                                       exigeBaseline: false)
         // ---- 21K: de media maratón para arriba, mínimo 4 días. Con 3
         // la tirada larga pasa del 50 % del volumen semanal y el plan
         // deja de ser un plan de media (ver METODOLOGIA.md).
         case .mediaMaraton:
-            return RequisitosObjetivo(kmSemanales: 28, tiradaLargaKm: 10,
+            return RequisitosObjetivo(kmSemanales: 25, tiradaLargaKm: 10,
                                       diasPorSemana: 4, mesesRegular: 4,
                                       exigeBaseline: false)
         case .mejorarMedia:
-            return RequisitosObjetivo(kmSemanales: 30, tiradaLargaKm: 12,
+            return RequisitosObjetivo(kmSemanales: 29, tiradaLargaKm: 12,
                                       diasPorSemana: 4, mesesRegular: 6,
                                       exigeBaseline: false)
         case .mediaRendimiento:
-            return RequisitosObjetivo(kmSemanales: 50, tiradaLargaKm: 14,
+            return RequisitosObjetivo(kmSemanales: 43, tiradaLargaKm: 14,
                                       diasPorSemana: 5, mesesRegular: 12,
                                       exigeBaseline: true)
         // ---- 42K
         case .maraton:
-            return RequisitosObjetivo(kmSemanales: 40, tiradaLargaKm: 12,
+            return RequisitosObjetivo(kmSemanales: 32, tiradaLargaKm: 12,
                                       diasPorSemana: 4, mesesRegular: 6,
                                       exigeBaseline: false)
         case .mejorarMaraton:
-            return RequisitosObjetivo(kmSemanales: 48, tiradaLargaKm: 16,
+            return RequisitosObjetivo(kmSemanales: 37, tiradaLargaKm: 16,
                                       diasPorSemana: 4, mesesRegular: 9,
                                       exigeBaseline: false)
         case .maratonRendimiento:
-            return RequisitosObjetivo(kmSemanales: 65, tiradaLargaKm: 18,
+            return RequisitosObjetivo(kmSemanales: 50, tiradaLargaKm: 18,
                                       diasPorSemana: 5, mesesRegular: 12,
                                       exigeBaseline: true)
         }
@@ -434,17 +482,29 @@ enum EvaluadorElegibilidad {
         var motivos: [MotivoElegibilidad] = []
         var faltaBase = false
 
+        // El requisito de VOLUMEN sale del plan que el corredor va a
+        // recibir, no de un escalar de tabla: la misma Mejorar 10K
+        // arranca en 30 km con 4 días y en 36 con 5. Cuando el llamador
+        // no armó el plan (tests del evaluador puro), se cae al valor de
+        // tabla, que un invariante mantiene pegado al derivado en la
+        // frecuencia mínima. Los demás requisitos —fondo, días, meses,
+        // baseline— NO dependen de la frecuencia: la tirada larga nunca
+        // se recorta ni absorbe, y hay un test que lo comprueba en los
+        // diez planes.
+        let requeridoKm = entrada.kmSemana1DelPlan
+            .map(RequisitosObjetivo.volumenParaEntrar) ?? requisitos.kmSemanales
+
         let sinDatos = entrada.kmSemanales == nil && entrada.tiradaLargaKm == nil
-        if sinDatos && requisitos.kmSemanales > 0 {
+        if sinDatos && requeridoKm > 0 {
             // Ausencia de datos NO es sedentarismo: es incertidumbre.
             // Se arranca conservador, jamás se bloquea por esto.
             motivos.append(.sinHistorial)
         }
 
-        if requisitos.kmSemanales > 0, let km = entrada.kmSemanales {
-            if km < requisitos.kmSemanales * RequisitosObjetivo.fraccionPiso {
+        if requeridoKm > 0, let km = entrada.kmSemanales {
+            if km < requeridoKm * RequisitosObjetivo.fraccionPiso {
                 motivos.append(.volumenBajo); faltaBase = true
-            } else if km < requisitos.kmSemanales {
+            } else if km < requeridoKm {
                 motivos.append(.volumenBajo)
             }
         }

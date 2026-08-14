@@ -369,7 +369,7 @@ final class RecorteYRedistribucionTests: XCTestCase {
     func testUnaSesionFacilNoCreceSinControl() {
         for (arquetipo, base) in CatalogoDePrueba.todos {
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
-                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                let plan = CatalogoDePrueba.variante(arquetipo, base: base, dias: dias)
                 for semana in plan.semanas {
                     for entrenamiento in semana.entrenamientos
                     where entrenamiento.tipo == .facil {
@@ -400,7 +400,7 @@ final class RecorteYRedistribucionTests: XCTestCase {
         for (arquetipo, base) in CatalogoDePrueba.todos {
             let id = arquetipo.id
             for dias in 2...6 {
-                let recortado = MotorPlanificacion.recortar(base, aDias: dias)
+                let recortado = CatalogoDePrueba.variante(arquetipo, base: base, dias: dias)
                 for (original, resultado) in zip(base.semanas, recortado.semanas) {
                     let dias0 = original.entrenamientos.map(\.diaDeSemana)
                     let diasRecorte = resultado.entrenamientos.map(\.diaDeSemana)
@@ -427,6 +427,33 @@ enum CatalogoDePrueba {
         BibliotecaArquetipos.v1().compactMap { arquetipo in
             arquetipo.contenido.map { (arquetipo, $0) }
         }
+    }
+
+    /// El plan REAL que el motor sirve a esa frecuencia. No alcanza con
+    /// recortar el contenido general: un arquetipo puede declarar una
+    /// variante propia para una frecuencia (Mejorar 5K con 3 días), y
+    /// auditar el recorte del general dejaría sin probar justamente lo
+    /// que el corredor recibe.
+    static func variante(_ arquetipo: PlanArquetipo, base: PlanBase,
+                         dias: Int) -> PlanBase {
+        MotorPlanificacion.recortar(arquetipo.contenido(para: dias) ?? base,
+                                    aDias: min(dias, arquetipo.diasMaximos))
+    }
+
+    /// Las sesiones del template que SOBREVIVEN al recorte, en el mismo
+    /// orden en que el motor las deja. Replica la selección por rol
+    /// (carrera > larga > calidad > fácil > recuperación, y a igual rol
+    /// el orden del template) para poder comparar cada sesión con su
+    /// original exacto. Emparejar por nombre no sirve: una semana tiene
+    /// dos "Rodaje suave" de distinta distancia.
+    static func sesionesElegidas(_ semana: SemanaBase, dias: Int) -> [EntrenamientoBase] {
+        let ordenadas = semana.entrenamientos.enumerated().sorted {
+            let a = RolSesion.para($0.element.tipo)
+            let b = RolSesion.para($1.element.tipo)
+            return a == b ? $0.offset < $1.offset : a < b
+        }
+        let elegidas = Set(ordenadas.prefix(dias).map(\.offset))
+        return elegidas.sorted().map { semana.entrenamientos[$0] }
     }
 
     /// Volumen de UNA sesión, con su tope de duración aplicado.
@@ -507,7 +534,7 @@ final class InvariantesCatalogoTests: XCTestCase {
         var fallos: [String] = []
         for (arquetipo, base) in CatalogoDePrueba.todos {
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
-                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                let plan = CatalogoDePrueba.variante(arquetipo, base: base, dias: dias)
                 for semana in plan.semanas {
                     // Taper y semana de carrera quedan fuera: ahí una
                     // larga proporcionalmente alta es exactamente lo
@@ -528,10 +555,83 @@ final class InvariantesCatalogoTests: XCTestCase {
         XCTAssertTrue(fallos.isEmpty, "la tirada larga domina la semana en:\n" + fallos.joined(separator: "\n"))
     }
 
+    /// GUARDRAIL β: la redistribución no puede convertir un rodaje en
+    /// una segunda tirada larga. Se compara contra el MISMO plan sin
+    /// redistribuir (recorte a la frecuencia máxima, que no tira nada),
+    /// porque lo que el guardrail limita es el CRECIMIENTO: una sesión
+    /// que el contenido ya diseñó larga —el rodaje medio de los planes
+    /// de maratón— conserva su distancia y eso está bien.
+    func testLaRedistribucionNoFabricaUnaSegundaTiradaLarga() {
+        // El umbral va LITERAL y no leído de `topeSegundaLarga`. Si el
+        // test usara la constante que está probando, subirla a 99
+        // desactivaría el guardrail Y haría pasar el test: comprobado,
+        // así estaba escrito y pasaba con el guardrail apagado.
+        let maximoDeUnaFacil = 0.60
+        var fallos: [String] = []
+        for (arquetipo, base) in CatalogoDePrueba.todos {
+            for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
+                let plan = CatalogoDePrueba.variante(arquetipo, base: base, dias: dias)
+                let sinRecortar = arquetipo.contenido(para: dias) ?? base
+                for (indice, semana) in plan.semanas.enumerated() {
+                    let larga = CatalogoDePrueba.larga(semana)
+                    guard larga > 0 else { continue }
+                    let originales = CatalogoDePrueba.sesionesElegidas(
+                        sinRecortar.semanas[indice],
+                        dias: min(dias, arquetipo.diasMaximos))
+                    guard originales.count == semana.entrenamientos.count else { continue }
+                    for (sesion, plantilla) in zip(semana.entrenamientos, originales) {
+                        let rol = RolSesion.para(sesion.tipo)
+                        guard rol == .facil || rol == .recuperacion else { continue }
+                        let volumen = CatalogoDePrueba.volumen(sesion)
+                        let original = CatalogoDePrueba.volumen(plantilla)
+                        // Creció y quedó por encima del guardrail.
+                        guard volumen > original + 0.05,
+                              volumen > maximoDeUnaFacil * larga + 0.05
+                        else { continue }
+                        fallos.append(String(
+                            format: "%@ %dd sem %d · %@: %.1f → %.1f km (%.0f%% de una larga de %.1f)",
+                            arquetipo.id, dias, semana.numero, sesion.nombre,
+                            original, volumen, volumen / larga * 100, larga))
+                    }
+                }
+            }
+        }
+        XCTAssertTrue(fallos.isEmpty,
+                      "la redistribución fabricó una segunda tirada larga en:\n"
+                      + fallos.joined(separator: "\n"))
+    }
+
+    /// El guardrail limita el crecimiento, NUNCA achica. Una sesión
+    /// diseñada larga a propósito tiene que llegar intacta.
+    func testElGuardrailNuncaAchicaUnaSesion() {
+        for (arquetipo, base) in CatalogoDePrueba.todos {
+            for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
+                let plan = CatalogoDePrueba.variante(arquetipo, base: base, dias: dias)
+                let sinRecortar = arquetipo.contenido(para: dias) ?? base
+                for (indice, semana) in plan.semanas.enumerated() {
+                    let originales = CatalogoDePrueba.sesionesElegidas(
+                        sinRecortar.semanas[indice],
+                        dias: min(dias, arquetipo.diasMaximos))
+                    guard originales.count == semana.entrenamientos.count else {
+                        return XCTFail("\(arquetipo.id) \(dias)d sem \(semana.numero): " +
+                                       "el recorte no dejó las sesiones que la selección por rol predice")
+                    }
+                    for (sesion, original) in zip(semana.entrenamientos, originales) {
+                        XCTAssertGreaterThanOrEqual(
+                            CatalogoDePrueba.volumen(sesion),
+                            CatalogoDePrueba.volumen(original) - 0.05,
+                            "\(arquetipo.id) \(dias)d sem \(semana.numero) · \(sesion.nombre): " +
+                            "el recorte achicó una sesión en vez de solo no dejarla crecer")
+                    }
+                }
+            }
+        }
+    }
+
     func testNingunaSemanaTieneMasDeUnaTiradaLarga() {
         for (arquetipo, base) in CatalogoDePrueba.todos {
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
-                for semana in MotorPlanificacion.recortar(base, aDias: dias).semanas {
+                for semana in CatalogoDePrueba.variante(arquetipo, base: base, dias: dias).semanas {
                     XCTAssertLessThanOrEqual(
                         semana.entrenamientos.filter { $0.tipo == .largo }.count, 1,
                         "\(arquetipo.id) \(dias)d sem \(semana.numero)")
@@ -567,7 +667,7 @@ final class InvariantesCatalogoTests: XCTestCase {
     func testNingunVolumenNegativoNiNoFinito() {
         for (arquetipo, base) in CatalogoDePrueba.todos {
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
-                for semana in MotorPlanificacion.recortar(base, aDias: dias).semanas {
+                for semana in CatalogoDePrueba.variante(arquetipo, base: base, dias: dias).semanas {
                     let v = CatalogoDePrueba.volumen(semana)
                     XCTAssertTrue(v.isFinite, "\(arquetipo.id) sem \(semana.numero): no finito")
                     XCTAssertGreaterThanOrEqual(v, 0)
@@ -622,7 +722,7 @@ final class InvariantesCatalogoTests: XCTestCase {
         for (arquetipo, base) in CatalogoDePrueba.todos {
             let requisitos = RequisitosObjetivo.para(arquetipo.objetivo)
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
-                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                let plan = CatalogoDePrueba.variante(arquetipo, base: base, dias: dias)
                 let construccion = plan.semanas.filter { $0.fase?.esDeConstruccion ?? true }
 
                 // Contra CADA corredor, no contra uno solo. Los requisitos
@@ -640,11 +740,16 @@ final class InvariantesCatalogoTests: XCTestCase {
                     let largaPrimera = CatalogoDePrueba.larga(plan.semanas[0], baseline: baseline)
                     let quien = "\(arquetipo.id) · \(dias)d · \(corredor)"
 
-                    XCTAssertLessThanOrEqual(requisitos.kmSemanales, pico,
-                        "\(quien): pide \(requisitos.kmSemanales) km/sem y el plan pica en \(pico)")
-                    XCTAssertLessThanOrEqual(requisitos.kmSemanales, primera * 1.05,
+                    // El requisito que DE VERDAD se aplica: el derivado
+                    // de la semana 1 de esta variante. La tabla es solo
+                    // el fallback y tiene su propio invariante abajo.
+                    let requeridoKm = RequisitosObjetivo.volumenParaEntrar(
+                        semana1Km: MotorPlanificacion.volumenSemanaBase(plan.semanas[0]))
+                    XCTAssertLessThanOrEqual(requeridoKm, pico,
+                        "\(quien): pide \(requeridoKm) km/sem y el plan pica en \(pico)")
+                    XCTAssertLessThanOrEqual(requeridoKm, primera * 1.05,
                         "\(quien): el requisito debería poder sostenerse el día uno " +
-                        "(pide \(requisitos.kmSemanales), la primera semana son \(primera))")
+                        "(pide \(requeridoKm), la primera semana son \(primera))")
 
                     // El fondo, de los dos lados y contra la semana 1.
                     // Los planes que no declaran requisito de fondo
@@ -666,12 +771,52 @@ final class InvariantesCatalogoTests: XCTestCase {
         }
     }
 
+    /// El requisito de volumen ES el techo de arranque despejado, así
+    /// que no puede escribirse a mano: se deriva de la semana 1 de la
+    /// variante que el corredor recibe. Este test fija el FALLBACK de
+    /// tabla al derivado en la frecuencia mínima —la variante más
+    /// liviana del objetivo—, para que no pueda quedar desactualizado
+    /// en silencio cuando cambie el contenido. Si falla, el mensaje trae
+    /// el número nuevo: no se toca el test, se copia el valor.
+    func testLaTablaDeVolumenSigueAlDerivado() {
+        for (arquetipo, base) in CatalogoDePrueba.todos {
+            let requisitos = RequisitosObjetivo.para(arquetipo.objetivo)
+            guard requisitos.kmSemanales > 0 else { continue }
+            let plan = CatalogoDePrueba.variante(arquetipo, base: base,
+                                                 dias: arquetipo.diasMinimos)
+            let derivado = RequisitosObjetivo.volumenParaEntrar(
+                semana1Km: MotorPlanificacion.volumenSemanaBase(plan.semanas[0]))
+            XCTAssertEqual(requisitos.kmSemanales, derivado,
+                "\(arquetipo.id): la tabla dice \(requisitos.kmSemanales) km/sem y " +
+                "el derivado de su semana 1 con \(arquetipo.diasMinimos) días es " +
+                "\(derivado). Poné \(derivado) en RequisitosObjetivo.")
+        }
+    }
+
+    /// El requisito de FONDO sí puede vivir en la tabla, y este test es
+    /// la razón: la tirada larga no absorbe ni se recorta, así que es la
+    /// misma en todas las frecuencias. Si algún día dejara de serlo,
+    /// también habría que derivarla.
+    func testElFondoDeLaSemana1NoDependeDeLaFrecuencia() {
+        for (arquetipo, base) in CatalogoDePrueba.todos {
+            let largas = (arquetipo.diasMinimos...arquetipo.diasMaximos).map { dias -> Double in
+                CatalogoDePrueba.larga(
+                    CatalogoDePrueba.variante(arquetipo, base: base, dias: dias).semanas[0])
+            }
+            for larga in largas {
+                XCTAssertEqual(larga, largas[0], accuracy: 0.05,
+                    "\(arquetipo.id): el fondo de la semana 1 cambia con la frecuencia " +
+                    "(\(largas)), así que el requisito de fondo ya no puede ser de tabla")
+            }
+        }
+    }
+
     func testTodaSesionCaeEnUnDiaValido() {
         for (arquetipo, base) in CatalogoDePrueba.todos {
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
                 let elegidos = OnboardingDeportivo.diasSugeridos(para: dias)
                 let plan = MotorPlanificacion.distribuir(
-                    MotorPlanificacion.recortar(base, aDias: dias), enDias: elegidos)
+                    CatalogoDePrueba.variante(arquetipo, base: base, dias: dias), enDias: elegidos)
                 for semana in plan.semanas {
                     for entrenamiento in semana.entrenamientos {
                         XCTAssertTrue(elegidos.contains(entrenamiento.diaDeSemana),
@@ -959,7 +1104,7 @@ final class DiagnosticoArranqueTests: XCTestCase {
             // los dos lados de la frontera en el mismo recorrido.
             let piso = max(1, requisitos.kmSemanales * RequisitosObjetivo.fraccionPiso)
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
-                let base = MotorPlanificacion.recortar(contenido, aDias: dias)
+                let base = CatalogoDePrueba.variante(arquetipo, base: contenido, dias: dias)
                 for multiplo in [1.0, 1.5, 2.0, 3.0, 5.0] {
                     let actuales = piso * multiplo
                     for conservador in [true, false] {
@@ -1119,7 +1264,7 @@ final class ArranqueIrreducibleTests: XCTestCase {
             let requisitos = RequisitosObjetivo.para(arquetipo.objetivo)
             let piso = max(1, requisitos.kmSemanales * RequisitosObjetivo.fraccionPiso)
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
-                let base = MotorPlanificacion.recortar(contenido, aDias: dias)
+                let base = CatalogoDePrueba.variante(arquetipo, base: contenido, dias: dias)
                 for multiplo in [0.25, 0.5, 1.0, 2.0, 5.0] {
                     for conservador in [true, false] {
                         let ajuste = MotorPlanificacion.ajustarArranque(
@@ -1169,11 +1314,19 @@ final class AceptaConservadorTests: XCTestCase {
         var c = Calendar(identifier: .gregorian); c.firstWeekday = 2; return c
     }
 
-    /// Corredor con volumen suficiente (40 = el requisito de maratón)
-    /// pero fondo demasiado corto: `requiereFaseBase` por fondoCorto.
-    /// Sirve como discriminador porque con techo 1,2 la semana 1 del
-    /// template (47,9) entra sola y NO se atenúa nada, mientras que con
-    /// el techo conservador (1,0) sí hay que bajarla a 40.
+    /// Corredor con volumen suficiente pero fondo demasiado corto:
+    /// `requiereFaseBase` por fondoCorto.
+    ///
+    /// El volumen (35 km/sem) está elegido para DISCRIMINAR entre los
+    /// dos techos sobre la variante de 4 días, cuya semana 1 son 38,9 km:
+    /// con el permisivo (1,2 × 35 = 42) la semana entra sola y no se
+    /// atenúa nada; con el conservador (1,0 × 35 = 35) hay que bajarla.
+    /// Si no discriminara, los dos tests de abajo pasarían por casualidad.
+    ///
+    /// Antes eran 40 km/sem, calibrados contra una semana 1 de 47,9. El
+    /// guardrail de la segunda tirada larga bajó esa semana a 38,9, así
+    /// que 40 dejó de atenuar por ningún camino y el discriminador se
+    /// apagó. Cambia la fixture, no lo que se afirma.
     private func pedidoQueInsiste(aceptaConservador: Bool) -> PedidoDePlan {
         PedidoDePlan(
             objetivo: .maraton, fechaObjetivo: nil, diasPorSemana: 4,
@@ -1181,9 +1334,20 @@ final class AceptaConservadorTests: XCTestCase {
             referencia: ReferenciaRendimiento(fecha: Date(), fuente: .test5K,
                                               distanciaMetros: 5000, segundos: 1470),
             hoy: DiaLocal(anio: 2026, mes: 8, dia: 10),
-            actividad: ActividadActual(diasPorSemana: 4, kmSemanales: 40,
+            actividad: ActividadActual(diasPorSemana: 4, kmSemanales: 35,
                                        tiradaLargaKm: 4, mesesCorriendoRegular: 6),
             aceptaConservador: aceptaConservador)
+    }
+
+    /// El discriminador, explícito: con el techo permisivo esta misma
+    /// semana 1 NO se atenúa. Si esto dejara de valer, los dos tests que
+    /// siguen dejarían de probar lo que dicen probar.
+    func testLaFixtureDiscriminaEntreLosDosTechos() {
+        let base = MotorPlanificacion.recortar(ContenidoPlanes.maraton(), aDias: 4)
+        let permisivo = MotorPlanificacion.ajustarArranque(
+            base, kmSemanalesActuales: 35, conservador: false)
+        XCTAssertEqual(permisivo.factor, 1, accuracy: 0.001,
+                       "con el techo permisivo esta fixture no tiene que atenuar nada")
     }
 
     /// Sin aceptar, la puerta sigue cerrada: el arreglo no abre nada.
@@ -1206,7 +1370,7 @@ final class AceptaConservadorTests: XCTestCase {
         XCTAssertLessThan(p.factorArranque, 1,
                           "aceptar conservador tiene que atenuar el arranque")
         XCTAssertEqual(p.arranque.permitidoKm ?? 0,
-                       40 * MotorPlanificacion.factorEntradaConservador, accuracy: 0.001,
+                       35 * MotorPlanificacion.factorEntradaConservador, accuracy: 0.001,
                        "el techo aplicado tiene que ser el conservador, no el permisivo")
         XCTAssertTrue(p.arranque.cumpleElTecho)
     }
@@ -1221,7 +1385,7 @@ final class AceptaConservadorTests: XCTestCase {
         }
         let base = MotorPlanificacion.recortar(ContenidoPlanes.maraton(), aDias: 4)
         let ajuste = MotorPlanificacion.ajustarArranque(
-            base, kmSemanalesActuales: 40, conservador: true)
+            base, kmSemanalesActuales: 35, conservador: true)
         XCTAssertGreaterThan(MotorPlanificacion.semanasDeRampaConservador,
                              MotorPlanificacion.semanasDeRampa)
         let cuarta = MotorPlanificacion.semanasDeRampa // índice 3 = semana 4
@@ -1291,7 +1455,7 @@ final class Contenido42KTests: XCTestCase {
         for (arquetipo, base) in CatalogoDePrueba.maratones {
             guard let tope = tope(base) else { continue }
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
-                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                let plan = CatalogoDePrueba.variante(arquetipo, base: base, dias: dias)
                 for (nombre, baseline) in CatalogoDePrueba.corredores {
                     for semana in plan.semanas {
                         for entrenamiento in semana.entrenamientos
@@ -1319,7 +1483,7 @@ final class Contenido42KTests: XCTestCase {
         var fallos: [String] = []
         for (arquetipo, base) in CatalogoDePrueba.maratones {
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
-                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                let plan = CatalogoDePrueba.variante(arquetipo, base: base, dias: dias)
                 for (nombre, baseline) in CatalogoDePrueba.corredores {
                     for semana in plan.semanas {
                         guard semana.fase?.esDeConstruccion ?? false else { continue }
@@ -1349,7 +1513,7 @@ final class Contenido42KTests: XCTestCase {
         var fallos: [String] = []
         for (arquetipo, base) in CatalogoDePrueba.maratones {
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
-                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                let plan = CatalogoDePrueba.variante(arquetipo, base: base, dias: dias)
                 for (nombre, baseline) in CatalogoDePrueba.corredores {
                     let largas = plan.semanas.map {
                         CatalogoDePrueba.larga($0, baseline: baseline)
@@ -1377,7 +1541,7 @@ final class Contenido42KTests: XCTestCase {
         var fallos: [String] = []
         for (arquetipo, base) in CatalogoDePrueba.maratones {
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
-                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                let plan = CatalogoDePrueba.variante(arquetipo, base: base, dias: dias)
                 for (nombre, baseline) in CatalogoDePrueba.corredores {
                     let descenso = plan.semanas
                         .filter { $0.fase == .pico || $0.fase == .taper }
@@ -1402,7 +1566,7 @@ final class Contenido42KTests: XCTestCase {
         var fallos: [String] = []
         for (arquetipo, base) in CatalogoDePrueba.maratones {
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
-                let plan = MotorPlanificacion.recortar(base, aDias: dias)
+                let plan = CatalogoDePrueba.variante(arquetipo, base: base, dias: dias)
                 for (nombre, baseline) in CatalogoDePrueba.corredores {
                     for (indice, semana) in plan.semanas.enumerated() {
                         guard semana.fase == .descarga, indice > 0,
@@ -1692,7 +1856,7 @@ final class ArranqueContraBaselineRealTests: XCTestCase {
             guard req.kmSemanales > 0 else { continue }
             let actuales = req.kmSemanales * RequisitosObjetivo.fraccionPiso
             for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
-                let base = MotorPlanificacion.recortar(contenido, aDias: dias)
+                let base = CatalogoDePrueba.variante(arquetipo, base: contenido, dias: dias)
                 for (nombre, bl) in CatalogoDePrueba.corredores {
                     let ajuste = MotorPlanificacion.ajustarArranque(
                         base, kmSemanalesActuales: actuales, conservador: true, baseline: bl)
