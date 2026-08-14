@@ -831,6 +831,186 @@ final class InvariantesCatalogoTests: XCTestCase {
     }
 }
 
+// MARK: - P0: un objetivo imposible no puede quedar como plan activo
+
+/// Reproduce el bug del Build 65: objetivo Maratón con fecha a 5
+/// semanas. El motor rechazaba correctamente, pero el onboarding ya
+/// había guardado el perfil ANTES de consultarlo, así que quedaba el
+/// objetivo puesto y la app mostraba "Faltan 5 semanas para tu carrera"
+/// sin ningún plan detrás.
+final class ObjetivoImposibleTests: XCTestCase {
+
+    private var lunes: Calendar {
+        var c = Calendar(identifier: .gregorian); c.firstWeekday = 2; return c
+    }
+
+    /// El caso EXACTO reportado.
+    private func pedidoDelBug(dias: Int = 4) -> PedidoDePlan {
+        PedidoDePlan(
+            objetivo: .maraton,
+            fechaObjetivo: DiaLocal(anio: 2026, mes: 9, dia: 20),
+            diasPorSemana: dias,
+            referencia: ReferenciaRendimiento(fecha: Date(), fuente: .test5K,
+                                              distanciaMetros: 5000, segundos: 1500),
+            hoy: DiaLocal(anio: 2026, mes: 8, dia: 14),
+            actividad: ActividadActual(diasPorSemana: 3, kmSemanales: 30,
+                                       tiradaLargaKm: 14, mesesCorriendoRegular: 12))
+    }
+
+    func testElMotorRechazaMaratonEnCincoSemanas() {
+        guard case .tiempoInsuficiente(let disponibles, let minimas) =
+                MotorPlanificacion.proponer(pedidoDelBug(), calendario: lunes) else {
+            return XCTFail("un maratón a 5 semanas tiene que rechazarse")
+        }
+        XCTAssertLessThan(disponibles, minimas)
+        XCTAssertEqual(minimas, 16)
+    }
+
+    /// El corazón del P0: el resultado del motor tiene que poder
+    /// grabarse en el perfil. Antes no había dónde.
+    func testElRechazoSeTraduceAMotivoSinPlan() {
+        let resultado = MotorPlanificacion.proponer(pedidoDelBug(), calendario: lunes)
+        XCTAssertEqual(resultado.motivoSinPlan, .fechaDemasiadoCerca)
+        XCTAssertFalse(resultado.generaPlan)
+    }
+
+    func testCadaRechazoDelMotorTieneSuMotivo() {
+        // Días insuficientes.
+        let pocosDias = MotorPlanificacion.proponer(pedidoDelBug(dias: 2), calendario: lunes)
+        XCTAssertEqual(pocosDias.motivoSinPlan, .diasInsuficientes)
+        // Falta base: volumen y fondo muy por debajo.
+        let sinBase = MotorPlanificacion.proponer(PedidoDePlan(
+            objetivo: .maraton, fechaObjetivo: nil, diasPorSemana: 4,
+            referencia: ReferenciaRendimiento(fecha: Date(), fuente: .test5K,
+                                              distanciaMetros: 5000, segundos: 1500),
+            hoy: DiaLocal(anio: 2026, mes: 8, dia: 14),
+            actividad: ActividadActual(diasPorSemana: 2, kmSemanales: 5,
+                                       tiradaLargaKm: 2, mesesCorriendoRegular: 1)),
+            calendario: lunes)
+        XCTAssertEqual(sinBase.motivoSinPlan, .faltaBase)
+        // Una propuesta válida no deja nada pendiente.
+        let bien = MotorPlanificacion.proponer(PedidoDePlan(
+            objetivo: .maraton, fechaObjetivo: nil, diasPorSemana: 4,
+            referencia: ReferenciaRendimiento(fecha: Date(), fuente: .test5K,
+                                              distanciaMetros: 5000, segundos: 1500),
+            hoy: DiaLocal(anio: 2026, mes: 8, dia: 14),
+            actividad: ActividadActual(diasPorSemana: 4, kmSemanales: 45,
+                                       tiradaLargaKm: 18, mesesCorriendoRegular: 24)),
+            calendario: lunes)
+        XCTAssertNil(bien.motivoSinPlan)
+        XCTAssertTrue(bien.generaPlan)
+    }
+
+    /// El flujo completo tal como lo vive la app: se guarda el perfil,
+    /// se consulta al motor, se registra el resultado. Al final NO
+    /// puede haber plan activo ni cuenta regresiva.
+    func testTrasUnRechazoNoHayPlanActivoNiCuentaRegresiva() {
+        var almacen = AlmacenV2()
+        almacen.activado = true
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .maraton
+        perfil.fechaObjetivo = DiaLocal(anio: 2026, mes: 9, dia: 20)
+        perfil.diasPorSemana = 4
+        perfil.actividad = ActividadActual(diasPorSemana: 3, kmSemanales: 30,
+                                           tiradaLargaKm: 14, mesesCorriendoRegular: 12)
+        almacen.perfil = perfil
+
+        let resultado = MotorPlanificacion.proponer(pedidoDelBug(), calendario: lunes)
+        almacen.perfil?.objetivoSinPlan = resultado.motivoSinPlan
+
+        XCTAssertNil(almacen.planActivo, "no se puede adoptar un plan imposible")
+        XCTAssertEqual(almacen.perfilDeportivo.objetivoSinPlan, .fechaDemasiadoCerca,
+                       "el perfil tiene que recordar POR QUÉ no hay plan")
+        // La intención se conserva: no se le borra lo que quiere.
+        XCTAssertEqual(almacen.perfilDeportivo.objetivo, .maraton)
+        XCTAssertNotNil(almacen.perfilDeportivo.fechaObjetivo)
+    }
+
+    /// Y adoptar un plan de verdad limpia lo pendiente.
+    func testAdoptarUnPlanLimpiaElPendiente() {
+        var almacen = AlmacenV2()
+        almacen.activado = true
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .maraton
+        perfil.objetivoSinPlan = .fechaDemasiadoCerca
+        almacen.perfil = perfil
+
+        guard case .propuesta(let propuesta) = MotorPlanificacion.proponer(PedidoDePlan(
+            objetivo: .maraton, fechaObjetivo: nil, diasPorSemana: 4,
+            referencia: ReferenciaRendimiento(fecha: Date(), fuente: .test5K,
+                                              distanciaMetros: 5000, segundos: 1500),
+            hoy: DiaLocal(anio: 2026, mes: 8, dia: 14),
+            actividad: ActividadActual(diasPorSemana: 4, kmSemanales: 45,
+                                       tiradaLargaKm: 18, mesesCorriendoRegular: 24)),
+            calendario: lunes) else {
+            return XCTFail("este corredor sí puede")
+        }
+        almacen.adoptarPlan(propuesta.planUsuario)
+        XCTAssertNil(almacen.perfilDeportivo.objetivoSinPlan,
+                     "con plan activo no puede quedar un «no llegamos» colgado")
+        XCTAssertNotNil(almacen.planActivo)
+    }
+
+    /// Los perfiles guardados por builds anteriores no tienen el campo:
+    /// tienen que decodificar igual.
+    func testUnPerfilViejoDecodificaSinElCampoNuevo() throws {
+        let viejo = """
+        {"objetivo":"maraton","diasPorSemana":4,"testPendiente":false}
+        """
+        let perfil = try JSONDecoder().decode(
+            PerfilDeportivo.self, from: XCTUnwrap(viejo.data(using: .utf8)))
+        XCTAssertEqual(perfil.objetivo, .maraton)
+        XCTAssertNil(perfil.objetivoSinPlan)
+    }
+
+    /// La viabilidad que muestra la pantalla de fecha tiene que usar
+    /// las MISMAS semanas mínimas que el motor: si dijera una cosa y el
+    /// motor otra, volveríamos al bug por otro camino.
+    func testLaViabilidadCoincideConElMotor() {
+        let hoy = DiaLocal(anio: 2026, mes: 8, dia: 14)
+        let fecha = DiaLocal(anio: 2026, mes: 9, dia: 20)
+        let v = Viabilidad(objetivo: .maraton, fecha: fecha, hoy: hoy, calendario: lunes)
+        let viabilidad = try? XCTUnwrap(v)
+        XCTAssertNotNil(viabilidad)
+        XCTAssertFalse(viabilidad?.alcanza ?? true)
+        XCTAssertEqual(viabilidad?.semanasNecesarias, 16)
+        XCTAssertGreaterThan(viabilidad?.faltan ?? 0, 0)
+
+        // Y el motor tiene que estar de acuerdo, para el mismo caso.
+        let resultado = MotorPlanificacion.proponer(pedidoDelBug(), calendario: lunes)
+        XCTAssertFalse(resultado.generaPlan,
+                       "la pantalla dice que no alcanza y el motor tiene que coincidir")
+
+        // Con tiempo de sobra, los dos dicen que sí.
+        let lejos = DiaLocal(anio: 2027, mes: 6, dia: 1)
+        XCTAssertTrue(Viabilidad(objetivo: .maraton, fecha: lejos, hoy: hoy,
+                                 calendario: lunes)?.alcanza ?? false)
+    }
+
+    /// Para cada plan del catálogo, las semanas que la pantalla dice que
+    /// hacen falta son las que el arquetipo declara.
+    func testLaViabilidadUsaLasSemanasDeCadaArquetipo() {
+        let hoy = DiaLocal(anio: 2026, mes: 1, dia: 5)
+        for arquetipo in BibliotecaArquetipos.v1() where arquetipo.contenido != nil {
+            let v = Viabilidad(objetivo: arquetipo.objetivo,
+                               fecha: DiaLocal(anio: 2026, mes: 6, dia: 1),
+                               hoy: hoy, calendario: lunes)
+            XCTAssertEqual(v?.semanasNecesarias, arquetipo.semanasMinimas, arquetipo.id)
+        }
+    }
+
+    func testCadaMotivoOfreceAlMenosUnaSalida() {
+        for motivo in MotivoSinPlan.allCases {
+            XCTAssertFalse(motivo.accionesSugeridas.isEmpty,
+                           "\(motivo) deja al corredor sin nada que hacer")
+        }
+        XCTAssertTrue(MotivoSinPlan.fechaDemasiadoCerca.accionesSugeridas
+            .contains(.cambiarFecha))
+        XCTAssertTrue(MotivoSinPlan.diasInsuficientes.accionesSugeridas
+            .contains(.ajustarDisponibilidad))
+    }
+}
+
 // MARK: - Explorar planes: descubribilidad
 
 /// El bug que se veía en TestFlight: "Explorar planes" mostraba solo 5K

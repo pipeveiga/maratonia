@@ -210,6 +210,28 @@ struct PedidoDePlan {
     var aceptaConservador = false
 }
 
+extension ResultadoPlanificacion {
+    /// Traduce el resultado del motor a lo que el perfil tiene que
+    /// recordar. `nil` = hay propuesta, así que no hay nada pendiente.
+    ///
+    /// Es la pieza que faltaba: antes el motor decía "no se puede" y
+    /// esa respuesta moría en la pantalla. El perfil ya se había
+    /// guardado con el objetivo puesto, y la app lo mostraba con
+    /// cuenta regresiva como si hubiera un plan.
+    var motivoSinPlan: MotivoSinPlan? {
+        switch self {
+        case .propuesta: return nil
+        case .tiempoInsuficiente: return .fechaDemasiadoCerca
+        case .diasInsuficientes: return .diasInsuficientes
+        case .requiereBase: return .faltaBase
+        case .faltaBaseline: return .faltaReferencia
+        case .sinContenido: return .sinContenido
+        }
+    }
+
+    var generaPlan: Bool { motivoSinPlan == nil }
+}
+
 enum ResultadoPlanificacion {
     case propuesta(PropuestaPlan)
     /// El arquetipo recomienda baseline y no hay: ofrecer Test 5K

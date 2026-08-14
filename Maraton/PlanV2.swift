@@ -580,6 +580,9 @@ struct CatalogoView: View {
     var body: some View {
         List {
             Section {
+                // Solo distancia a la vista: es el filtro que el
+                // corredor usa. Los días quedan detrás del menú — nueve
+                // chips en fila eran más ruido que ayuda.
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: DV2.Espacio.s) {
                         chip("Todas", activo: filtroDistancia == nil) { filtroDistancia = nil }
@@ -589,13 +592,28 @@ struct CatalogoView: View {
                                 filtroDistancia = distancia.metros
                             }
                         }
-                        Divider().frame(height: 20)
-                        ForEach([2, 3, 4, 5], id: \.self) { dias in
-                            chip("\(dias) días",
-                                 activo: filtroDias == dias) {
-                                filtroDias = (filtroDias == dias) ? nil : dias
+                        Menu {
+                            Button {
+                                filtroDias = nil
+                            } label: {
+                                Label("Cualquiera", systemImage: filtroDias == nil
+                                      ? "checkmark" : "")
                             }
+                            ForEach([2, 3, 4, 5, 6], id: \.self) { dias in
+                                Button {
+                                    filtroDias = (filtroDias == dias) ? nil : dias
+                                } label: {
+                                    Label("\(dias) días por semana",
+                                          systemImage: filtroDias == dias ? "checkmark" : "")
+                                }
+                            }
+                        } label: {
+                            chipEtiqueta(filtroDias.map { "\($0) días" }
+                                         ?? String(localized: "Días"),
+                                         activo: filtroDias != nil,
+                                         icono: "line.3.horizontal.decrease")
                         }
+                        .accessibilityLabel(String(localized: "Filtrar por días por semana"))
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
@@ -607,7 +625,7 @@ struct CatalogoView: View {
                     ContentUnavailableView {
                         Label("Nada con ese filtro", systemImage: "line.3.horizontal.decrease.circle")
                     } description: {
-                        Text("Ningún plan del catálogo combina esa distancia con esa cantidad de días. Probá con otra combinación.")
+                        Text("Nada con esa combinación.")
                     }
                     .listRowBackground(Color.clear)
                 }
@@ -623,52 +641,113 @@ struct CatalogoView: View {
                 }
             } footer: {
                 if !filtrados.isEmpty {
-                    Text("Todos los objetivos están acá, elijas el que elijas hoy. Si a alguno todavía le falta base, te decimos qué falta — no lo escondemos.")
+                    Text("Están todos. Si a alguno le falta base, te decimos qué falta.")
                 }
             }
         }
         .navigationTitle("Explorar planes")
     }
 
+    /// Una tarjeta por plan: objetivo, duración, frecuencia, intención y
+    /// cómo le queda a ESTE corredor. Todo de un vistazo, sin frases
+    /// repetidas en cada fila.
     private func filaArquetipo(_ arquetipo: PlanArquetipo) -> some View {
+        let semanas = arquetipo.contenido?.semanasTotales ?? arquetipo.semanasMinimas
         let dias = arquetipo.diasMinimos == arquetipo.diasMaximos
-            ? "\(arquetipo.diasMinimos) días"
-            : "\(arquetipo.diasMinimos)-\(arquetipo.diasMaximos) días"
-        return HStack(spacing: 12) {
-            IconoAjuste(sistema: "figure.run", color: .green)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(arquetipo.nombre)
-                Text("\(arquetipo.contenido?.semanasTotales ?? arquetipo.semanasMinimas) semanas · \(dias) por semana")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let estado = EstadoDeObjetivo(arquetipo: arquetipo,
-                                                 perfil: almacen.almacen.perfilDeportivo,
-                                                 tieneBaseline: almacen.almacen.referenciaVigente != nil) {
-                    Label(estado.resumen, systemImage: estado.icono)
-                        .font(.caption2)
-                        .foregroundStyle(estado.color)
-                    if let texto = estado.textoDeDias {
-                        Label(texto, systemImage: "calendar")
-                            .font(.caption2)
+            ? "\(arquetipo.diasMinimos)"
+            : "\(arquetipo.diasMinimos)-\(arquetipo.diasMaximos)"
+        let estado = EstadoDeObjetivo(arquetipo: arquetipo,
+                                      perfil: almacen.almacen.perfilDeportivo,
+                                      tieneBaseline: almacen.almacen.referenciaVigente != nil)
+        return VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+            HStack(alignment: .top, spacing: DV2.Espacio.m) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(arquetipo.nombre)
+                        .font(.headline)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let intencion = Self.intencion(de: arquetipo.objetivo) {
+                        Text(intencion)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
+                Spacer(minLength: 0)
+                Text(Self.distanciaCorta(arquetipo.contenido?.distanciaObjetivoKm ?? 0))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(DV2.Marca.profundo)
+                    .padding(.horizontal, DV2.Espacio.s)
+                    .padding(.vertical, 3)
+                    .background(DV2.Marca.primario.opacity(0.14), in: Capsule())
             }
+
+            HStack(spacing: DV2.Espacio.l) {
+                Label("\(semanas) sem", systemImage: "calendar")
+                Label("\(dias) días", systemImage: "repeat")
+            }
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.secondary)
+
+            if let estado {
+                HStack(spacing: DV2.Espacio.s) {
+                    estado.chip
+                    if let dias = estado.diasQueFaltan {
+                        // Badge compacto, no una oración por fila.
+                        Text("\(dias)d")
+                            .font(.caption2.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, DV2.Espacio.s)
+                            .padding(.vertical, 3)
+                            .background(Color(.tertiarySystemFill), in: Capsule())
+                            .accessibilityLabel(
+                                String(localized: "Pide \(dias) días por semana"))
+                    }
+                }
+            }
+        }
+        .padding(.vertical, DV2.Espacio.xs)
+    }
+
+    static func distanciaCorta(_ km: Double) -> String {
+        switch km {
+        case ..<7: return "5K"
+        case ..<15: return "10K"
+        case ..<30: return "21K"
+        default: return "42K"
+        }
+    }
+
+    /// La intención del objetivo, que es lo que distingue dos planes de
+    /// la misma distancia. Antes había que deducirla del nombre.
+    static func intencion(de objetivo: ObjetivoDeportivo) -> String? {
+        switch objetivo.intencion {
+        case .completar: return String(localized: "Llegar por primera vez")
+        case .mejorar: return String(localized: "Bajar tu marca")
+        case .rendimiento: return String(localized: "Rendimiento")
         }
     }
 
     private func chip(_ texto: String, activo: Bool, accion: @escaping () -> Void) -> some View {
         Button(action: accion) {
-            Text(texto)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(activo ? Color.white : Color.primary)
-                .padding(.horizontal, DV2.Espacio.m)
-                .padding(.vertical, 6)
-                .background(activo ? Color.accentColor : Color(.secondarySystemGroupedBackground),
-                            in: Capsule())
+            chipEtiqueta(texto, activo: activo)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(activo ? .isSelected : [])
+    }
+
+    private func chipEtiqueta(_ texto: String, activo: Bool,
+                              icono: String? = nil) -> some View {
+        HStack(spacing: DV2.Espacio.xs) {
+            if let icono {
+                Image(systemName: icono).font(.caption2.weight(.bold))
+            }
+            Text(texto)
+        }
+        .font(.footnote.weight(.semibold))
+        .foregroundStyle(activo ? Color.white : Color.primary)
+        .padding(.horizontal, DV2.Espacio.m)
+        .padding(.vertical, 6)
+        .background(activo ? Color.accentColor : Color(.secondarySystemGroupedBackground),
+                    in: Capsule())
     }
 }
 
@@ -789,72 +868,95 @@ struct PlanBaseDetalleView: View {
 
     var body: some View {
         List {
+            // Encabezado: qué es este plan, en tres números.
             Section {
-                Text(base.descripcion)
-                    .font(.callout)
-                HStack(spacing: 8) {
-                    Chip(texto: String(format: "%.0f km objetivo", base.distanciaObjetivoKm))
-                    Chip(texto: "\(base.semanasTotales) semanas")
-                    Chip(texto: arquetipo.diasMinimos == arquetipo.diasMaximos
-                         ? "\(arquetipo.diasMinimos) días/sem"
-                         : "\(arquetipo.diasMinimos)-\(arquetipo.diasMaximos) días/sem")
+                VStack(alignment: .leading, spacing: DV2.Espacio.l) {
+                    HStack(spacing: DV2.Espacio.xl) {
+                        Metrica(valor: CatalogoView.distanciaCorta(base.distanciaObjetivoKm),
+                                etiqueta: String(localized: "Objetivo"),
+                                color: DV2.Marca.profundo, alineacion: .center)
+                        Metrica(valor: "\(base.semanasTotales)",
+                                etiqueta: String(localized: "Semanas"), alineacion: .center)
+                        Metrica(valor: arquetipo.diasMinimos == arquetipo.diasMaximos
+                                ? "\(arquetipo.diasMinimos)"
+                                : "\(arquetipo.diasMinimos)-\(arquetipo.diasMaximos)",
+                                etiqueta: String(localized: "Días"), alineacion: .center)
+                    }
+                    if let estado {
+                        estado.chip
+                    }
                 }
+                .listRowInsets(EdgeInsets(top: DV2.Espacio.l, leading: DV2.Espacio.l,
+                                          bottom: DV2.Espacio.l, trailing: DV2.Espacio.l))
             }
 
-            // Qué pide este objetivo. Se muestra SIEMPRE, sea o no
-            // elegible el corredor: es la información que le permite
-            // decidir, y esconderla sería decidir por él.
+            // Vos contra el plan. Tres barras reemplazan las cinco filas
+            // de requisitos más los dos párrafos que las explicaban.
             Section {
                 let requisitos = RequisitosObjetivo.para(arquetipo.objetivo)
+                let actividad = almacen.almacen.perfilDeportivo.actividad
                 if requisitos.kmSemanales > 0 {
-                    LabeledContent(String(localized: "Volumen semanal"),
-                                   value: String(format: "≈ %.0f km", requisitos.kmSemanales))
+                    BarraComparativa(titulo: String(localized: "Volumen semanal"),
+                                     tuyo: actividad?.kmSemanales ?? 0,
+                                     pedido: requisitos.kmSemanales, unidad: "km")
                 }
                 if requisitos.tiradaLargaKm > 0 {
-                    LabeledContent(String(localized: "Tirada larga reciente"),
-                                   value: String(format: "%.0f km", requisitos.tiradaLargaKm))
+                    BarraComparativa(titulo: String(localized: "Tirada larga"),
+                                     tuyo: actividad?.tiradaLargaKm ?? 0,
+                                     pedido: requisitos.tiradaLargaKm, unidad: "km")
                 }
-                LabeledContent(String(localized: "Días por semana"),
-                               value: "\(requisitos.diasPorSemana) o más")
-                if requisitos.mesesRegular > 0 {
-                    LabeledContent(String(localized: "Corriendo regular"),
-                                   value: String(localized: "\(requisitos.mesesRegular) meses"))
-                }
-                if requisitos.exigeBaseline {
-                    LabeledContent(String(localized: "Referencia de ritmo"),
-                                   value: String(localized: "obligatoria"))
-                }
+                BarraComparativa(
+                    titulo: String(localized: "Días por semana"),
+                    tuyo: Double(almacen.almacen.perfilDeportivo.diasElegidos?.count
+                                 ?? almacen.almacen.perfilDeportivo.diasPorSemana ?? 0),
+                    pedido: Double(requisitos.diasPorSemana), unidad: "")
             } header: {
-                Text("Para entrar cómodo")
-            } footer: {
-                Text("El volumen es orientativo: el requisito real sale de la primera semana del plan con los días que elijas, así que elegir más días sube un poco la vara.")
+                Text("Tu punto de partida")
             }
 
-            if let estado {
-                Section {
-                    Label(estado.resumen, systemImage: estado.icono)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(estado.color)
-                    ForEach(estado.motivos, id: \.self) { motivo in
-                        Text(motivo.texto)
+            // Lo metodológico, detrás de un toque.
+            Section {
+                Detalle(titulo: String(localized: "Cómo funciona este plan")) {
+                    VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                        Text(base.descripcion)
                             .font(.footnote)
+                            .fixedSize(horizontal: false, vertical: true)
+                        let requisitos = RequisitosObjetivo.para(arquetipo.objetivo)
+                        if requisitos.mesesRegular > 0 {
+                            Text("Conviene venir de al menos \(requisitos.mesesRegular) meses corriendo regular.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        if requisitos.exigeBaseline {
+                            Text("Necesita una referencia de ritmo real.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text("Más días, un poco más de vara: el volumen sale de la semana 1 con tus días.")
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    if let texto = estado.textoDeDias {
-                        Text("\(texto). Podés cambiar tus días desde el perfil.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    if estado.nivel == .faltaBase,
-                       let puente = EvaluadorElegibilidad.objetivoPuente(para: arquetipo.objetivo) {
-                        Text("Un buen punto de partida es **\(TextosObjetivo.nombre(de: puente))**.")
-                            .font(.footnote)
-                    }
-                } header: {
-                    Text("Cómo te queda hoy")
-                } footer: {
-                    if estado.nivel == .faltaBase {
-                        Text("Podés prepararlo igual: el motor te va a explicar qué falta antes de armar nada.")
+                }
+                if let estado, !estado.motivos.isEmpty || estado.diasQueFaltan != nil {
+                    Detalle(titulo: String(localized: "Qué te falta")) {
+                        VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
+                            ForEach(estado.motivos, id: \.self) { motivo in
+                                Text(motivo.texto)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let texto = estado.textoDeDias {
+                                Text(texto)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if estado.nivel == .faltaBase,
+                               let puente = EvaluadorElegibilidad.objetivoPuente(
+                                para: arquetipo.objetivo) {
+                                Text("Un buen punto de partida es **\(TextosObjetivo.nombre(de: puente))**.")
+                                    .font(.footnote)
+                            }
+                        }
                     }
                 }
             }
@@ -914,7 +1016,7 @@ struct PlanBaseDetalleView: View {
         let dias = perfil.diasElegidos?.count
             ?? perfil.diasPorSemana
             ?? arquetipo.diasMinimos
-        resultado = MotorPlanificacion.proponer(PedidoDePlan(
+        let salida = MotorPlanificacion.proponer(PedidoDePlan(
             objetivo: arquetipo.objetivo,
             fechaObjetivo: perfil.fechaObjetivo,
             diasPorSemana: dias,
@@ -924,6 +1026,13 @@ struct PlanBaseDetalleView: View {
             actividad: perfil.actividad,
             molestias: perfil.molestias ?? .ninguna,
             preferencias: perfil.preferencias))
+        // Solo se registra lo pendiente si el corredor estaba mirando
+        // SU objetivo: explorar otros planes no puede ensuciar el
+        // estado del que eligió.
+        if perfil.objetivo == arquetipo.objetivo {
+            almacen.almacen.perfil?.objetivoSinPlan = salida.motivoSinPlan
+        }
+        resultado = salida
         mostrandoPropuesta = true
     }
 }

@@ -875,6 +875,57 @@ struct PerfilDeportivo: Codable, Equatable {
     var molestias: EstadoMolestias? = nil
     /// Preferencias de la semana (día de fondo, día imposible).
     var preferencias: PreferenciasSemana? = nil
+
+    /// Por qué el objetivo elegido TODAVÍA NO tiene plan.
+    ///
+    /// Existe porque `objetivo` guardaba dos cosas distintas bajo el
+    /// mismo campo: lo que el corredor QUIERE y lo que efectivamente
+    /// está entrenando. El onboarding guardaba el perfil antes de
+    /// consultar al motor, así que elegir "Maratón" para dentro de 5
+    /// semanas —que el motor rechaza— dejaba igual el objetivo puesto
+    /// y la app mostraba "Faltan 5 semanas para tu carrera" sin ningún
+    /// plan detrás. La intención se conserva (es información real y
+    /// útil); lo que no se puede es presentarla como si fuera un plan.
+    ///
+    /// nil = no hay nada pendiente: o hay plan activo, o el corredor
+    /// todavía no intentó armarlo.
+    var objetivoSinPlan: MotivoSinPlan? = nil
+}
+
+/// Por qué un objetivo elegido no llegó a convertirse en plan. Es el
+/// resultado del motor, guardado para que la app pueda explicarlo
+/// después —no solo en el momento— y ofrecer la salida concreta.
+enum MotivoSinPlan: String, Codable, Equatable, CaseIterable {
+    /// La fecha no da para las semanas mínimas del plan.
+    case fechaDemasiadoCerca
+    /// Eligió menos días de los que el objetivo necesita.
+    case diasInsuficientes
+    /// Falta base deportiva para sostener el objetivo.
+    case faltaBase
+    /// El arquetipo recomienda una referencia de ritmo y no hay.
+    case faltaReferencia
+    /// El objetivo existe pero su contenido todavía no está validado.
+    case sinContenido
+
+    /// Qué se puede hacer al respecto. Ordenado: primero lo que más
+    /// probablemente resuelve el caso.
+    var accionesSugeridas: [AccionSinPlan] {
+        switch self {
+        case .fechaDemasiadoCerca: return [.cambiarFecha, .cambiarObjetivo]
+        case .diasInsuficientes: return [.ajustarDisponibilidad, .cambiarObjetivo]
+        case .faltaBase: return [.objetivoPuente, .cambiarObjetivo]
+        case .faltaReferencia: return [.hacerTest, .cambiarObjetivo]
+        case .sinContenido: return [.cambiarObjetivo]
+        }
+    }
+}
+
+enum AccionSinPlan: String, Codable, Equatable {
+    case cambiarFecha
+    case cambiarObjetivo
+    case ajustarDisponibilidad
+    case objetivoPuente
+    case hacerTest
 }
 
 // MARK: - Perfil del corredor: contexto, actividad, molestias
@@ -1469,6 +1520,10 @@ struct AlmacenV2: Codable, Equatable {
             planesAnteriores = historialDePlanes + [actual]
         }
         planActivo = nuevo
+        // Hay plan: el objetivo dejó de estar pendiente. Único lugar
+        // donde se limpia, para que no pueda quedar un "no llegamos"
+        // colgado encima de un plan que sí existe.
+        perfil?.objetivoSinPlan = nil
     }
 
     /// Quitar el plan SIN reemplazo: se archiva igual que en un cambio

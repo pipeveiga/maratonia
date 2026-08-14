@@ -186,9 +186,9 @@ struct PlanTab: View {
                             // ("elegí un objetivo") mandaba a hacer algo
                             // que ya estaba hecho.
                             if let objetivo = almacen.almacen.perfilDeportivo.objetivo {
-                                Text("Tu objetivo es \(TextosObjetivo.nombre(de: objetivo)). Adoptá un plan para empezar a entrenar — o corré libre cuando quieras.")
+                                Text("\(TextosObjetivo.nombre(de: objetivo)) — te falta el plan.")
                             } else {
-                                Text("Elegí un objetivo y armá tu plan — o explorá el catálogo.")
+                                Text("Elegí tu objetivo y armamos el plan.")
                             }
                         } actions: {
                             NavigationLink("Explorar planes") {
@@ -234,7 +234,7 @@ struct PlanTab: View {
                             }
                             Button("Cancelar", role: .cancel) {}
                         } message: {
-                            Text("El plan se archiva — no se borra nada: tus carreras, historial y tramos personalizados quedan intactos. La app pasa a modo libre y podés adoptar otro plan cuando quieras.")
+                            Text("Se archiva: no se borra nada.")
                         }
                     }
                 }
@@ -380,41 +380,52 @@ struct PlanTab: View {
     private var seccionObjetivo: some View {
         let perfil = almacen.almacen.perfilDeportivo
         if let objetivo = perfil.objetivo {
-            Section {
-                Button {
-                    pestana = .perfil
-                } label: {
-                    HStack(spacing: 12) {
-                        IconoAjuste(sistema: "flag.checkered", color: .red)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(TextosObjetivo.nombre(de: objetivo))
-                            if let cuenta = TextosObjetivo.cuentaRegresiva(
-                                hasta: perfil.fechaObjetivo, hoy: hoy) {
-                                Text(cuenta)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            } else if let dias = perfil.diasPorSemana {
-                                Text("\(dias) días por semana")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .padding(.vertical, 2)
-                    .contentShape(Rectangle())
+            // El objetivo que NO pudo convertirse en plan no se muestra
+            // como si lo fuera. Antes salía con cuenta regresiva —
+            // "Faltan 5 semanas para tu carrera"— sin nada detrás.
+            if let motivo = perfil.objetivoSinPlan, almacen.almacen.planActivo == nil {
+                Section {
+                    AvisoSinPlan(
+                        motivo: motivo, objetivo: objetivo,
+                        puente: EvaluadorElegibilidad.objetivoPuente(para: objetivo)
+                    ) { _ in pestana = .perfil }
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
                 }
-                .buttonStyle(.plain)
-            } header: {
-                Text("Tu objetivo")
-            } footer: {
-                if almacen.almacen.planActivo == nil {
-                    Text("Es tu meta, no un plan de entrenamiento. Adoptá un plan para entrenar hacia ella. Cambiala en Perfil.")
-                } else {
-                    Text("Cambiala en Perfil.")
+            } else {
+                Section {
+                    Button {
+                        pestana = .perfil
+                    } label: {
+                        HStack(spacing: 12) {
+                            IconoAjuste(sistema: "flag.checkered", color: .red)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(TextosObjetivo.nombre(de: objetivo))
+                                // La cuenta regresiva SOLO con plan: es
+                                // la promesa de que hay algo detrás.
+                                if almacen.almacen.planActivo != nil,
+                                   let cuenta = TextosObjetivo.cuentaRegresiva(
+                                    hasta: perfil.fechaObjetivo, hoy: hoy) {
+                                    Text(cuenta)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                } else if almacen.almacen.planActivo == nil {
+                                    Text("Sin plan todavía")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.vertical, 2)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                } header: {
+                    Text("Tu objetivo")
                 }
             }
         }
@@ -1199,73 +1210,58 @@ struct PerfilTab: View {
     @ViewBuilder
     private var seccionObjetivo: some View {
         let perfil = almacen.almacen.perfilDeportivo
-        Section("Tu objetivo") {
-            if let objetivo = perfil.objetivo {
-                HStack(spacing: 10) {
-                    IconoAjuste(sistema: "target", color: .red)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(nombreObjetivo(objetivo))
-                        if let cuenta = TextosObjetivo.cuentaRegresiva(
-                            hasta: perfil.fechaObjetivo, hoy: DiaLocal(fecha: Date())) {
-                            Text(cuenta)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+        Section {
+            if perfil.objetivo != nil {
+                // El corredor en números, no en seis filas de etiquetas.
+                ResumenCorredor(
+                    objetivo: perfil.objetivo,
+                    fecha: perfil.fechaObjetivo,
+                    kmSemanales: perfil.actividad?.kmSemanales,
+                    dias: perfil.diasElegidos?.count ?? perfil.diasPorSemana,
+                    tiradaLarga: perfil.actividad?.tiradaLargaKm,
+                    tienePlan: almacen.almacen.planActivo != nil,
+                    motivoSinPlan: almacen.almacen.planActivo == nil
+                        ? perfil.objetivoSinPlan : nil)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: DV2.Espacio.m, trailing: 0))
+                    .listRowBackground(Color.clear)
+
+                if let motivo = perfil.objetivoSinPlan, almacen.almacen.planActivo == nil,
+                   let objetivo = perfil.objetivo {
+                    AvisoSinPlan(
+                        motivo: motivo, objetivo: objetivo,
+                        puente: EvaluadorElegibilidad.objetivoPuente(para: objetivo)
+                    ) { _ in mostrandoOnboarding = true }
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: DV2.Espacio.m, trailing: 0))
+                    .listRowBackground(Color.clear)
                 }
+
                 if let plan = almacen.almacen.planActivo {
-                    HStack(spacing: 10) {
-                        IconoAjuste(sistema: "calendar", color: .green)
-                        LabeledContent("Plan activo", value: plan.nombre)
-                    }
+                    LabeledContent("Plan activo", value: plan.nombre)
                 }
+                // La referencia de ritmo, con su equivalencia detrás de
+                // un toque: la fórmula de Riegel y su cita no tienen por
+                // qué dominar la pantalla de todos los días.
                 if let referencia = almacen.almacen.referenciaVigente {
-                    HStack(spacing: 10) {
-                        IconoAjuste(sistema: "stopwatch.fill", color: .teal)
-                        VStack(alignment: .leading, spacing: 2) {
-                            LabeledContent("Referencia", value: textoReferencia(referencia))
-                            Text(origenReferencia(referencia))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    LabeledContent("Tu ritmo", value: textoReferencia(referencia))
                     if let equivalencias = textoEquivalencias(referencia) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(equivalencias)
-                                .font(.footnote)
-                            Text("Tiempos equivalentes estimados (fórmula de Riegel, \(Riegel.fuente)).")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                        Detalle(titulo: String(localized: "Cómo se calcula")) {
+                            VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
+                                Text(equivalencias)
+                                    .font(.footnote)
+                                Text(origenReferencia(referencia))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text("Tiempos equivalentes estimados (fórmula de Riegel, \(Riegel.fuente)).")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 } else if perfil.testPendiente {
-                    Label("Test 5K pendiente — está en la pestaña Correr",
+                    Label("Test 5K pendiente — está en Correr",
                           systemImage: "flag.checkered")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                }
-                if let dias = perfil.diasPorSemana {
-                    HStack(spacing: 10) {
-                        IconoAjuste(sistema: "repeat", color: .indigo)
-                        LabeledContent("Disponibilidad", value: "\(dias) días por semana")
-                    }
-                }
-                if let fecha = perfil.fechaObjetivo?.fecha() {
-                    HStack(spacing: 10) {
-                        IconoAjuste(sistema: "flag.checkered", color: .orange)
-                        LabeledContent("Tu carrera", value: FormatoFecha.media(fecha))
-                    }
-                }
-                if let actividad = perfil.actividad, !actividad.estaVacia {
-                    HStack(spacing: 10) {
-                        IconoAjuste(sistema: "figure.run.circle", color: .mint)
-                        VStack(alignment: .leading, spacing: 2) {
-                            LabeledContent("Actividad actual", value: textoActividad(actividad))
-                            Text(origenActividad(actividad.origen))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
                 }
                 Button("Cambiar objetivo") { mostrandoOnboarding = true }
             } else {

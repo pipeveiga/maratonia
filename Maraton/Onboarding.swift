@@ -244,7 +244,7 @@ struct OnboardingDeportivo: View {
             VStack(alignment: .leading, spacing: DV2.Espacio.m) {
                 EncabezadoSeccionV2(texto: "Tu actividad de hoy")
                 if actividadDetectada == nil {
-                    Text("No tenemos historial suficiente en Salud — eso no dice nada de vos, solo que no lo sabemos. Contanos y listo.")
+                    Text("Sin historial en Salud. Contanos vos.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -541,6 +541,14 @@ struct OnboardingDeportivo: View {
 
     // MARK: Paso 4 — fecha objetivo + cierre
 
+    /// Sin fecha declarada no hay nada que juzgar: el plan avanza por
+    /// progresión y cualquier duración es válida.
+    private var viabilidad: Viabilidad? {
+        guard tieneFechaObjetivo else { return nil }
+        return Viabilidad(objetivo: objetivo, fecha: DiaLocal(fecha: fechaObjetivo),
+                          hoy: DiaLocal(fecha: Date()))
+    }
+
     private var pasoFechaYResumen: some View {
         pantalla(titulo: "¿Corrés con fecha?",
                  subtitulo: "Si tenés una carrera marcada en el calendario, el plan apunta ahí. Si no, se avanza por progresión.") {
@@ -573,17 +581,43 @@ struct OnboardingDeportivo: View {
                 }
             }
 
+            // La viabilidad de la fecha, EN VIVO y con las mismas
+            // semanas mínimas que usa el motor. Antes el corredor se
+            // enteraba recién al final, después de "Preparar mi plan".
+            if let viabilidad {
+                EstadoDeFecha(viabilidad: viabilidad)
+            }
+
             // "PREPARAR MI PLAN" corre el MOTOR real (§39): guarda el
             // perfil, arma el pedido y muestra la propuesta (o el
             // motivo honesto por el que no hay plan).
-            Button {
-                prepararMiPlan()
-            } label: {
-                EtiquetaBotonPrimarioV2(titulo: "Preparar mi plan",
-                                        icono: "figure.run")
+            //
+            // Cuando la fecha NO da, el botón principal deja de ser
+            // "Preparar mi plan": ofrecer como acción primaria algo que
+            // el motor va a rechazar es empujar al corredor a un
+            // callejón que ya sabemos que no tiene salida.
+            if let viabilidad, !viabilidad.alcanza {
+                Button {
+                    // Volver al selector de fecha es la salida real.
+                    withAnimation { tieneFechaObjetivo = true }
+                } label: {
+                    EtiquetaBotonPrimarioV2(titulo: "Elegir otra fecha",
+                                            icono: "calendar")
+                }
+                .buttonStyle(.plain)
+                Button("Ver igual qué me propone") { prepararMiPlan() }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+            } else {
+                Button {
+                    prepararMiPlan()
+                } label: {
+                    EtiquetaBotonPrimarioV2(titulo: "Preparar mi plan",
+                                            icono: "figure.run")
+                }
+                .buttonStyle(.plain)
+                .disabled(objetivo == nil)
             }
-            .buttonStyle(.plain)
-            .disabled(objetivo == nil)
             Button("Guardar y cerrar") { terminar() }
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity)
@@ -696,8 +730,15 @@ struct OnboardingDeportivo: View {
     private func prepararMiPlan(aceptaConservador: Bool = false) {
         guard let objetivo else { return }
         guardarPerfil()
-        resultadoMotor = MotorPlanificacion.proponer(
+        let resultado = MotorPlanificacion.proponer(
             pedido(objetivo, aceptaConservador: aceptaConservador))
+        // El motor ya dijo si se puede o no; el perfil tiene que
+        // ENTERARSE. Antes esta respuesta moría en la pantalla: el
+        // perfil quedaba con el objetivo y la fecha puestos, y la app
+        // mostraba la cuenta regresiva de una carrera para la que no
+        // existía ningún plan.
+        almacen.almacen.perfil?.objetivoSinPlan = resultado.motivoSinPlan
+        resultadoMotor = resultado
         mostrandoPropuesta = true
     }
 
@@ -856,7 +897,7 @@ struct TarjetaTest5K: View {
                 }
                 Text("Test 5K")
                     .font(.title3.weight(.bold))
-                Text("5 km fuerte pero controlado. Tu tiempo se vuelve la referencia para personalizar los ritmos del plan.")
+                Text("5 km fuerte pero controlado. De ahí salen tus ritmos.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Button(action: alEmpezar) {
