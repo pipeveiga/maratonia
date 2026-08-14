@@ -1074,6 +1074,99 @@ final class ContratoCoachTests: XCTestCase {
                        ["muyBien", "bien", "exigido", "muyExigido"])
     }
 
+    /// El último eslabón de la cadena, con la respuesta REAL que
+    /// devolvió el backend desplegado (`coach(us-central1)`, acción
+    /// `reorganizar`, 14/8/2026). Copiada tal cual, solo con los
+    /// programadoID reemplazados por los del plan de prueba.
+    ///
+    /// Verifica lo que ningún test de schema puede: que lo que sale de
+    /// OpenAI, después de pasar por el structured output y por el
+    /// Codable del cliente, llega al dominio como operaciones que el
+    /// validador acepta y el aplicador ejecuta.
+    func testLaRespuestaRealDelBackendLlegaAlDominio() throws {
+        var almacen = almacenConPlan()
+        let umbral = try XCTUnwrap(almacen.todosLosProgramados
+            .first { $0.definicion.nombre == "Umbral" })
+        let rodaje = try XCTUnwrap(almacen.todosLosProgramados
+            .first { $0.definicion.nombre == "Rodaje" })
+        let larga = try XCTUnwrap(almacen.todosLosProgramados
+            .first { $0.definicion.nombre == "Larga" })
+
+        let respuestaDelBackend = """
+        {
+          "explicacion": "Como esta semana no podés correr el jueves y el día es elegido, te propongo mantener los entrenamientos restantes y omitir el del jueves.",
+          "cambios": [
+            {"tipo": "omitir", "programadoID": "\(umbral.id.uuidString.lowercased())", "nuevoDia": null, "factor": null},
+            {"tipo": "mantener", "programadoID": "\(rodaje.id.uuidString.lowercased())", "nuevoDia": null, "factor": null},
+            {"tipo": "mantener", "programadoID": "\(larga.id.uuidString.lowercased())", "nuevoDia": null, "factor": null}
+          ]
+        }
+        """
+
+        let ajuste = try JSONDecoder().decode(
+            CoachWeekAdjustment.self, from: XCTUnwrap(respuestaDelBackend.data(using: .utf8)))
+        XCTAssertEqual(ajuste.propuestas.count, 3)
+        XCTAssertEqual(ajuste.propuestasQueMutan.count, 1,
+                       "dos «mantener» no mutan nada; solo el omitir")
+
+        let hoy = DiaLocal(anio: 2026, mes: 8, dia: 11)
+        let validas = ValidadorDeCoach.validas(ajuste.propuestasQueMutan,
+                                               en: almacen, hoy: hoy)
+        XCTAssertEqual(validas.count, 1, "el validador rechazó el omitir del backend")
+
+        let aplicados = AplicadorAdaptacion.aplicar(validas, a: &almacen, hoy: hoy,
+                                                    origen: .coach, motivo: "test e2e")
+        XCTAssertEqual(aplicados, 1)
+        XCTAssertEqual(almacen.todosLosProgramados.first { $0.id == umbral.id }?.resolucion,
+                       .omitido, "la sesión no quedó omitida en el plan")
+    }
+
+    /// La carrera objetivo es intocable, venga de donde venga la
+    /// propuesta. Si el modelo alguna vez la propone, muere acá.
+    func testElValidadorFrenaLoQueElModeloNoDeberiaProponer() throws {
+        let almacen = almacenConPlan()
+        let larga = try XCTUnwrap(almacen.todosLosProgramados
+            .first { $0.definicion.nombre == "Larga" })
+        let hoy = DiaLocal(anio: 2026, mes: 8, dia: 11)
+
+        // Un ID que no existe en el plan: se descarta.
+        let inventado = CambioPropuesto.omitir(programadoID: UUID())
+        XCTAssertFalse(ValidadorDeCoach.validar(inventado, en: almacen, hoy: hoy).permitido)
+
+        // Reprogramar a una fecha pasada: se descarta.
+        let alPasado = CambioPropuesto.reprogramar(
+            programadoID: larga.id, a: DiaLocal(anio: 2026, mes: 8, dia: 1))
+        XCTAssertFalse(ValidadorDeCoach.validar(alPasado, en: almacen, hoy: hoy).permitido)
+    }
+
+    private func almacenConPlan() -> AlmacenV2 {
+        var almacen = AlmacenV2()
+        almacen.activado = true
+        var perfil = PerfilDeportivo()
+        perfil.diasElegidos = [1, 3, 5, 7]
+        almacen.perfil = perfil
+        func hacer(_ nombre: String, _ tipo: TipoEntrenamiento,
+                   _ km: Double, _ dia: Int) -> EntrenamientoProgramado {
+            let rol = RolSesion.para(tipo)
+            return EntrenamientoProgramado(
+                definicion: DefinicionEntrenamiento(
+                    tipo: tipo, nombre: nombre,
+                    segmentos: [Segmento(nombre: nombre, distanciaKm: km,
+                                         ritmo: .simbolico(.facil))]),
+                dia: DiaLocal(anio: 2026, mes: 8, dia: dia),
+                rolGuardado: rol, adaptabilidadGuardada: .para(rol))
+        }
+        almacen.planActivo = PlanUsuario(
+            nombre: "T", fechaAdopcion: Date(timeIntervalSince1970: 0), semanas: [
+                SemanaPlan(numero: 1, programados: [
+                    hacer("Umbral", .umbral, 8, 12),
+                    hacer("Rodaje", .facil, 7, 14),
+                    hacer("Larga", .largo, 16, 16),
+                ], reglas: ReglasSemana(fase: .construccion)),
+            ])
+        return almacen
+    }
+
     /// La traducción de la respuesta a operaciones del dominio: solo las
     /// cinco válidas, y cualquier cosa rara se descarta en silencio en
     /// vez de "interpretarse".

@@ -18,5 +18,13 @@
 			</array>
 		</dict>
 	</array>
+	<!-- Backend del Coach (entorno de PRUEBA). Sin esta clave el Coach
+	     no aparece en la app: es el gate de runtime, cero botones
+	     muertos. La URL es pública y no es un secreto — la API key de
+	     OpenAI vive como secret de Cloud Functions y jamás toca el
+	     binario. Cada request va autenticado con el ID token de
+	     Firebase del corredor. -->
+	<key>MaratoniaBackendURL</key>
+	<string>https://us-central1-maratonia.cloudfunctions.net</string>
 </dict>
 </plist>
