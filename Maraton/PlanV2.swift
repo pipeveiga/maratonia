@@ -563,12 +563,13 @@ struct CatalogoView: View {
             guard let base = arquetipo.contenido else { return false }
             if let distanciaMetros,
                abs(base.distanciaObjetivoKm * 1000 - distanciaMetros) > 500 { return false }
-            // El filtro de días acepta el RANGO del arquetipo: un plan
-            // de 4-5 días aparece tanto en "4 días" como en "5 días".
-            if let dias,
-               !(arquetipo.diasMinimos...arquetipo.diasMaximos).contains(dias) {
-                return false
-            }
+            // El filtro de días acepta las frecuencias que el arquetipo
+            // ADMITE: un plan de 4-5 días aparece tanto en "4 días" como
+            // en "5 días". Acá filtrar es correcto —el corredor pidió
+            // explícitamente "mostrame planes de N días"—, al revés de
+            // la pantalla de disponibilidad, donde la pregunta es por su
+            // semana y filtrar equivalía a no dejarlo responder.
+            if let dias, !arquetipo.admite(dias: dias) { return false }
             return true
         }
     }
@@ -599,7 +600,7 @@ struct CatalogoView: View {
                                 Label("Cualquiera", systemImage: filtroDias == nil
                                       ? "checkmark" : "")
                             }
-                            ForEach([2, 3, 4, 5, 6], id: \.self) { dias in
+                            ForEach(DisponibilidadCorredor.opciones(), id: \.self) { dias in
                                 Button {
                                     filtroDias = (filtroDias == dias) ? nil : dias
                                 } label: {

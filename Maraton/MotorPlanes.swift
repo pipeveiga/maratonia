@@ -176,6 +176,172 @@ enum BibliotecaArquetipos {
     }
 }
 
+// MARK: - Disponibilidad del corredor vs frecuencias del plan
+
+// DOS COSAS DISTINTAS que la app venía mezclando en una sola lista:
+//
+// 1. La DISPONIBILIDAD del corredor: cuántos días de SU semana puede
+//    correr. Es un dato suyo, no del plan. "¿Qué días podés correr?"
+//    pregunta exactamente eso.
+// 2. Las FRECUENCIAS ADMITIDAS por un objetivo: con cuántas sesiones
+//    semanales ese arquetipo sigue siendo ese plan. Es una propiedad del
+//    contenido deportivo (`diasMinimos...diasMaximos` + las variantes
+//    propias de `contenidoPorDias`).
+//
+// Cuando (2) filtraba las opciones de (1), la pantalla mentía: para
+// Maratón ofrecía SOLO "4 días" y "5 días", así que quien tiene 3 días
+// reales no tenía forma de decirlo — la app le hacía declarar una
+// disponibilidad que no era la suya y después armaba todo (elegibilidad,
+// volumen, arranque) sobre ese dato falso. Es la misma regla que ya rige
+// el catálogo: **describe, nunca esconde**. El corredor declara lo suyo
+// completo y la incompatibilidad se explica DESPUÉS, con salidas.
+//
+// Nada de esto cambia metodología: los rangos siguen siendo exactamente
+// los que declara cada arquetipo. Lo único que cambia es quién los usa y
+// para qué — dejan de ser un filtro de UI y pasan a ser un veredicto
+// explicable.
+
+extension PlanArquetipo {
+    /// Las frecuencias con las que este plan se puede entrenar de
+    /// verdad: su rango declarado MÁS las frecuencias con contenido
+    /// propio, que son planes reales aunque el rango general no las
+    /// cubra (hoy `contenidoPorDias` siempre cae dentro del rango; el
+    /// día que no, esto lo hace alcanzable en vez de dejarlo muerto).
+    var frecuenciasAdmitidas: [Int] {
+        Set(diasMinimos...max(diasMinimos, diasMaximos))
+            .union(contenidoPorDias.keys)
+            .sorted()
+    }
+
+    /// La frecuencia más baja con la que este plan existe.
+    var frecuenciaMinima: Int { frecuenciasAdmitidas.first ?? diasMinimos }
+
+    /// ¿Este plan corre EXACTAMENTE a esa frecuencia? Es la pregunta del
+    /// catálogo ("mostrame planes de 4 días"), no la del corredor.
+    func admite(dias: Int) -> Bool { frecuenciasAdmitidas.contains(dias) }
+
+    /// ¿Se puede entrenar este plan con esa disponibilidad? Alcanza con
+    /// llegar a la frecuencia mínima: los días de más NO estorban, se
+    /// quedan de descanso. Por eso no es pertenencia al rango — quien
+    /// tiene 6 días no puede quedar afuera de un plan de 4-5.
+    func sePuedeEntrenar(conDisponibilidad dias: Int) -> Bool {
+        dias >= frecuenciaMinima
+    }
+
+    /// Cuántas de las jornadas disponibles usa el plan. Nunca más que su
+    /// tope: quien tiene 6 días y elige un plan de 4-5 entrena 5 y
+    /// descansa el resto — no se le inventan sesiones, y su
+    /// disponibilidad declarada queda intacta.
+    func sesiones(conDisponibilidad dias: Int) -> Int {
+        min(dias, max(diasMaximos, diasMinimos))
+    }
+}
+
+/// Cómo le queda al objetivo elegido la disponibilidad que el corredor
+/// declaró. Es un VEREDICTO, no un filtro: ningún valor de este tipo
+/// esconde una opción ni cambia la disponibilidad.
+enum CompatibilidadDisponibilidad: Equatable {
+    /// Los días alcanzan. `sesiones` = cuántos de esos días van a tener
+    /// entrenamiento (el resto quedan de descanso, y se dice).
+    /// `variantePropia` = el arquetipo tiene contenido propio para esa
+    /// frecuencia, así que no es un recorte sino otro plan escrito.
+    case alcanza(sesiones: Int, variantePropia: Bool)
+    /// Con esa disponibilidad el objetivo NO es viable con el plan
+    /// actual. Trae el mínimo real y los objetivos que sí entran con
+    /// esos mismos días.
+    case noAlcanza(minimo: Int, alternativas: [ObjetivoDeportivo])
+    /// No hay plan con qué juzgar (objetivo sin contenido validado): los
+    /// días no son el problema y no se afirma nada sobre ellos.
+    case sinPlan
+
+    var alcanzaLaDisponibilidad: Bool {
+        if case .noAlcanza = self { return false }
+        return true
+    }
+
+    /// Días declarados que el plan no va a usar. 0 cuando los usa todos.
+    func diasDeDescanso(sobre disponibilidad: Int) -> Int {
+        guard case .alcanza(let sesiones, _) = self else { return 0 }
+        return max(0, disponibilidad - sesiones)
+    }
+}
+
+/// La disponibilidad del CORREDOR: qué puede declarar y cómo se lee
+/// contra un objetivo. Vive separado de `PlanArquetipo` a propósito —
+/// son dos preguntas distintas y mezclarlas fue el bug.
+enum DisponibilidadCorredor {
+
+    /// El rango que la APP soporta, derivado del catálogo: de la
+    /// frecuencia más baja que algún plan admite a la más alta (hoy
+    /// 2...6). NO depende del objetivo elegido, y esa independencia es
+    /// justamente la garantía: cambiar de objetivo jamás puede hacer
+    /// desaparecer una disponibilidad que el corredor podía declarar.
+    static func rango(biblioteca: [PlanArquetipo] = BibliotecaArquetipos.v1())
+    -> ClosedRange<Int> {
+        let admitidas = biblioteca.filter(\.listoParaProponer)
+            .flatMap(\.frecuenciasAdmitidas)
+        guard let minimo = admitidas.min(), let maximo = admitidas.max(),
+              minimo <= maximo else { return 2...6 }
+        return minimo...maximo
+    }
+
+    static func opciones(biblioteca: [PlanArquetipo] = BibliotecaArquetipos.v1())
+    -> [Int] {
+        Array(rango(biblioteca: biblioteca))
+    }
+
+    /// Los objetivos que se pueden entrenar con esa disponibilidad
+    /// (incluidos los que usan menos días de los que el corredor tiene).
+    static func objetivosEntrenables(con dias: Int,
+                                     biblioteca: [PlanArquetipo] = BibliotecaArquetipos.v1())
+    -> [ObjetivoDeportivo] {
+        biblioteca.filter {
+            $0.listoParaProponer && $0.sePuedeEntrenar(conDisponibilidad: dias)
+        }.map(\.objetivo)
+    }
+
+    /// El veredicto. Puro y determinístico: mismos inputs, misma
+    /// respuesta, sin tocar ni el perfil ni la disponibilidad.
+    static func evaluar(dias: Int, objetivo: ObjetivoDeportivo,
+                        biblioteca: [PlanArquetipo] = BibliotecaArquetipos.v1())
+    -> CompatibilidadDisponibilidad {
+        guard let arquetipo = biblioteca.first(where: { $0.objetivo == objetivo }),
+              arquetipo.listoParaProponer else { return .sinPlan }
+        guard arquetipo.sePuedeEntrenar(conDisponibilidad: dias) else {
+            return .noAlcanza(
+                minimo: arquetipo.frecuenciaMinima,
+                alternativas: alternativas(para: objetivo, con: dias,
+                                           biblioteca: biblioteca))
+        }
+        return .alcanza(sesiones: arquetipo.sesiones(conDisponibilidad: dias),
+                        variantePropia: arquetipo.contenidoPorDias[dias] != nil)
+    }
+
+    /// Qué SÍ entra con esos días, ordenado por cercanía a lo que el
+    /// corredor quería: primero la misma distancia (cambia la intención,
+    /// no el sueño), después el puente que el dominio ya define.
+    /// Máximo dos: una lista larga acá es ruido, no ayuda.
+    static func alternativas(para objetivo: ObjetivoDeportivo, con dias: Int,
+                             biblioteca: [PlanArquetipo] = BibliotecaArquetipos.v1())
+    -> [ObjetivoDeportivo] {
+        let compatibles = objetivosEntrenables(con: dias, biblioteca: biblioteca)
+        var resultado = compatibles.filter {
+            $0 != objetivo && $0.distancia == objetivo.distancia
+        }
+        // El puente del dominio, siguiendo la cadena hasta uno que
+        // realmente entre con esos días (maratón → media → 10K).
+        var puente = EvaluadorElegibilidad.objetivoPuente(para: objetivo)
+        while let candidato = puente {
+            if compatibles.contains(candidato), !resultado.contains(candidato) {
+                resultado.append(candidato)
+                break
+            }
+            puente = EvaluadorElegibilidad.objetivoPuente(para: candidato)
+        }
+        return Array(resultado.prefix(2))
+    }
+}
+
 // MARK: - Pedido y resultado
 
 /// Los inputs del corredor, con datos OBJETIVOS (nada de reducir a
@@ -375,8 +541,11 @@ enum MotorPlanificacion {
         }
         let diasEfectivos = diasConcretos?.count ?? pedido.diasPorSemana
 
-        guard diasEfectivos >= arquetipo.diasMinimos else {
-            return .diasInsuficientes(minimo: arquetipo.diasMinimos)
+        // La disponibilidad del corredor se JUZGA acá; no se recorta ni
+        // se reescribe. Si no alcanza, el motor lo dice con el mínimo
+        // real y la app explica las salidas (ver `DisponibilidadCorredor`).
+        guard arquetipo.sePuedeEntrenar(conDisponibilidad: diasEfectivos) else {
+            return .diasInsuficientes(minimo: arquetipo.frecuenciaMinima)
         }
 
         if arquetipo.recomiendaBaseline, pedido.referencia == nil,
@@ -395,8 +564,8 @@ enum MotorPlanificacion {
         guard let base = arquetipo.contenido(para: diasEfectivos) else {
             return .sinContenido(objetivo: pedido.objetivo)
         }
-        var recortada = recortar(base, aDias: min(diasEfectivos,
-                                                  arquetipo.diasMaximos))
+        var recortada = recortar(base,
+                                 aDias: arquetipo.sesiones(conDisponibilidad: diasEfectivos))
 
         // ---- Elegibilidad: ¿este objetivo se sostiene con lo que el
         // corredor trae? Determinístico y explicable (§12). No es un
@@ -975,10 +1144,13 @@ struct PropuestaPlanView: View {
                 titulo: String(localized: "El tiempo no alcanza"),
                 texto: String(localized: "Quedan \(disponibles) semanas y este plan necesita al menos \(minimas). Comprimirlo sería riesgoso — mejor elegir otra fecha u otro objetivo."))
         case .diasInsuficientes(let minimo):
+            // Tu disponibilidad no está mal: es la que es. Lo que no
+            // entra es ESTE objetivo con esos días, y eso se dice sin
+            // tocarte el dato ni esconder la opción que elegiste.
             vistaMensaje(
                 icono: "calendar.badge.exclamationmark", color: .orange,
-                titulo: String(localized: "Faltan días de entrenamiento"),
-                texto: String(localized: "Este plan necesita al menos \(minimo) días por semana."))
+                titulo: String(localized: "Ese objetivo pide más días por semana"),
+                texto: String(localized: "Este plan necesita al menos \(minimo) días por semana y no vamos a comprimirlo en menos: la tirada larga pasaría a dominar la semana y dejaría de ser ese plan. Tu disponibilidad queda como la declaraste — podés sumar días, mover la fecha o elegir otro objetivo."))
         case .sinContenido(let objetivo):
             vistaMensaje(
                 icono: "hammer", color: .secondary,

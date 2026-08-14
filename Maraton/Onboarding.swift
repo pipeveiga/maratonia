@@ -159,18 +159,26 @@ struct OnboardingDeportivo: View {
         }
     }
 
-    /// Compone el objetivo y limpia lo que dejó de ser válido. Volver
-    /// atrás y cambiar de objetivo no puede dejar pegada una cadencia
-    /// que el arquetipo nuevo no soporta.
+    /// Compone el objetivo y avanza. Lo que el corredor dijo sobre SU
+    /// semana NO se toca: antes, cambiar de objetivo borraba en silencio
+    /// una disponibilidad perfectamente válida solo porque el arquetipo
+    /// nuevo no la soporta. La disponibilidad es un dato del corredor;
+    /// que el objetivo no la banque es un veredicto que se explica
+    /// (`CompatibilidadDisponibilidad`), no algo que se corrige por él.
     private func elegirObjetivo(distancia: DistanciaObjetivo, intencion: IntencionObjetivo) {
         guard let nuevo = ObjetivoDeportivo.combinando(distancia, intencion) else { return }
-        let cambio = objetivo != nuevo
         objetivo = nuevo
-        if cambio, let actual = diasPorSemana, !cadenciasPosibles.contains(actual) {
-            diasPorSemana = nil
-            diasElegidos = []
-        }
         avanzar()
+    }
+
+    /// Cambiar de objetivo desde un aviso (la salida que ofrece el paso
+    /// de disponibilidad cuando el elegido no entra con esos días).
+    private func cambiarObjetivo(a nuevo: ObjetivoDeportivo) {
+        withAnimation {
+            objetivo = nuevo
+            distancia = nuevo.distancia
+            intencion = nuevo.intencion
+        }
     }
 
     // MARK: Paso 2 — actividad actual (Salud manda cuando existe)
@@ -368,21 +376,37 @@ struct OnboardingDeportivo: View {
 
     // MARK: Paso 3 — disponibilidad
 
-    /// Cadencias ofrecidas: SOLO las que el arquetipo del objetivo
-    /// elegido soporta de verdad. Antes se ofrecía 2-5 fijo y "Primeros
-    /// 5K" (máximo 3 sesiones por semana) dejaba elegir 5 — dos días
-    /// quedaban vacíos sin decirlo.
-    private var cadenciasPosibles: [Int] {
-        guard let objetivo,
-              let arq = BibliotecaArquetipos.v1().first(where: { $0.objetivo == objetivo })
-        else { return [2, 3, 4, 5] }
-        return Array(arq.diasMinimos...max(arq.diasMinimos, arq.diasMaximos))
+    /// Lo que el corredor puede DECLARAR: el rango que la app soporta
+    /// (hoy 2-6), igual para todos los objetivos.
+    ///
+    /// Antes esta lista se filtraba con `diasMinimos...diasMaximos` del
+    /// arquetipo elegido, y por eso "Maratón" ofrecía solo 4 y 5: la
+    /// pantalla preguntaba por la semana del corredor y aceptaba
+    /// únicamente las respuestas que le convenían al plan. Quien corre 3
+    /// días no podía decirlo — tenía que mentir para seguir. La
+    /// compatibilidad se evalúa DESPUÉS, en `compatibilidad`.
+    private var opcionesDeDisponibilidad: [Int] {
+        DisponibilidadCorredor.opciones()
+    }
+
+    /// La disponibilidad que el corredor declaró, con la misma regla que
+    /// usan `guardarPerfil` y el pedido al motor: mandan los días
+    /// concretos si los marcó.
+    private var disponibilidadDeclarada: Int? {
+        diasElegidos.isEmpty ? diasPorSemana : diasElegidos.count
+    }
+
+    /// Cómo le queda al objetivo elegido la disponibilidad declarada.
+    /// nil = todavía falta un dato de los dos; no hay nada que juzgar.
+    private var compatibilidad: CompatibilidadDisponibilidad? {
+        guard let objetivo, let dias = disponibilidadDeclarada else { return nil }
+        return DisponibilidadCorredor.evaluar(dias: dias, objetivo: objetivo)
     }
 
     private var pasoDisponibilidad: some View {
         pantalla(titulo: "¿Qué días podés correr?",
-                 subtitulo: "Un plan honesto con tu semana real vale más que uno ambicioso que no cumplís. Los entrenamientos caen SOLO en los días que marques.") {
-            ForEach(cadenciasPosibles, id: \.self) { dias in
+                 subtitulo: "Decinos tu semana REAL, no la que te gustaría tener. Los entrenamientos caen SOLO en los días que marques.") {
+            ForEach(opcionesDeDisponibilidad, id: \.self) { dias in
                 tarjetaOpcion(titulo: String(localized: "\(dias) días"),
                               subtitulo: subtituloDias(dias),
                               icono: "calendar",
@@ -392,6 +416,11 @@ struct OnboardingDeportivo: View {
                     // corredor la ajusta tocando los días.
                     diasElegidos = Set(Self.diasSugeridos(para: dias))
                 }
+            }
+
+            if let cantidad = disponibilidadDeclarada, let compatibilidad {
+                avisoCompatibilidad(compatibilidad, disponibilidad: cantidad,
+                                    ofreceFecha: false)
             }
 
             if let cantidad = diasPorSemana {
@@ -448,6 +477,116 @@ struct OnboardingDeportivo: View {
                     Text("Marcá \(cantidad) días, o elegí otra cantidad arriba.")
                         .font(.footnote)
                         .foregroundStyle(.orange)
+                }
+            }
+        }
+    }
+
+    /// Lo que hay que decir sobre la disponibilidad YA declarada. Nunca
+    /// la cambia ni la esconde: describe y ofrece salidas.
+    ///
+    /// `ofreceFecha` = estamos en el paso donde la fecha se puede tocar
+    /// (el resumen). En el paso de disponibilidad la fecha todavía no se
+    /// eligió, así que ofrecerla ahí sería mandar al corredor a un
+    /// control que no existe.
+    @ViewBuilder
+    private func avisoCompatibilidad(_ compatibilidad: CompatibilidadDisponibilidad,
+                                     disponibilidad: Int,
+                                     ofreceFecha: Bool) -> some View {
+        switch compatibilidad {
+        case .sinPlan:
+            EmptyView()
+
+        case .alcanza(let sesiones, let variantePropia):
+            if sesiones < disponibilidad || variantePropia {
+                TarjetaV2 {
+                    VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+                        EncabezadoSeccionV2(texto: "Cómo entra en tu semana")
+                        if sesiones < disponibilidad {
+                            // Tener MÁS días de los que el plan usa no es
+                            // un problema — pero callarlo sí lo sería.
+                            Text("Marcaste \(disponibilidad) días y este plan entrena \(sesiones): los otros \(disponibilidad - sesiones) quedan de descanso. Tu disponibilidad se guarda como la declaraste.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        if variantePropia {
+                            Text("Hay una versión de este plan escrita para \(sesiones) días: es la que vas a recibir, no un recorte de la de más días.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
+        case .noAlcanza(let minimo, let alternativas):
+            TarjetaV2 {
+                VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                    Label(String(localized: "Con \(disponibilidad) días, ese objetivo no entra"),
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.headline)
+                        .foregroundStyle(.orange)
+                    Text("\(objetivo.map(TextosObjetivo.nombre(de:)) ?? String(localized: "Ese objetivo")) necesita al menos \(minimo) días por semana. Con menos, la tirada larga pasa a dominar la semana y el plan deja de ser ese plan: preferimos decírtelo antes que armarte algo que no se sostiene.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Tus \(disponibilidad) días quedan como los marcaste. Podés:")
+                        .font(.footnote.weight(.semibold))
+
+                    Button {
+                        // Subir la disponibilidad es una decisión DEL
+                        // corredor: el botón la propone, no la aplica sola.
+                        diasPorSemana = minimo
+                        diasElegidos = Set(Self.diasSugeridos(para: minimo))
+                    } label: {
+                        Label(String(localized: "Marcar \(minimo) días"),
+                              systemImage: "calendar.badge.plus")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, DV2.Espacio.s)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DV2.Marca.primario)
+
+                    ForEach(alternativas, id: \.self) { alternativa in
+                        Button {
+                            cambiarObjetivo(a: alternativa)
+                        } label: {
+                            Label(String(localized: "Cambiar a \(TextosObjetivo.nombre(de: alternativa))"),
+                                  systemImage: "flag.checkered")
+                                .font(.subheadline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, DV2.Espacio.s)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    Button {
+                        withAnimation { paso = 0 }
+                    } label: {
+                        Label(String(localized: "Elegir otro objetivo"),
+                              systemImage: "arrow.turn.up.left")
+                            .font(.subheadline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, DV2.Espacio.s)
+                    }
+                    .buttonStyle(.bordered)
+
+                    if ofreceFecha {
+                        Button {
+                            withAnimation { tieneFechaObjetivo = true }
+                        } label: {
+                            Label(String(localized: "Revisar la fecha"),
+                                  systemImage: "calendar")
+                                .font(.subheadline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, DV2.Espacio.s)
+                        }
+                        .buttonStyle(.bordered)
+                    } else {
+                        Text("La fecha se elige en el paso siguiente: si movés el objetivo, el plan que entre puede necesitar otras semanas.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
@@ -579,6 +718,17 @@ struct OnboardingDeportivo: View {
                                     : "Sin fecha — se avanza por progresión")
                     }
                 }
+            }
+
+            // El veredicto sobre la disponibilidad viaja hasta el cierre:
+            // acá conviven las TRES palancas (días, fecha y objetivo), así
+            // que es donde el corredor puede elegir cuál mover. Solo lo
+            // que NO entra: repetir en el resumen los días de descanso ya
+            // explicados en el paso 3 sería ruido.
+            if let compatibilidad, !compatibilidad.alcanzaLaDisponibilidad,
+               let cantidad = disponibilidadDeclarada {
+                avisoCompatibilidad(compatibilidad, disponibilidad: cantidad,
+                                    ofreceFecha: true)
             }
 
             // La viabilidad de la fecha, EN VIVO y con las mismas

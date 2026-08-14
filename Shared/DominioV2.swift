@@ -912,7 +912,11 @@ enum MotivoSinPlan: String, Codable, Equatable, CaseIterable {
     var accionesSugeridas: [AccionSinPlan] {
         switch self {
         case .fechaDemasiadoCerca: return [.cambiarFecha, .cambiarObjetivo]
-        case .diasInsuficientes: return [.ajustarDisponibilidad, .cambiarObjetivo]
+        // Las TRES palancas, en orden de utilidad. La fecha va última
+        // pero va: cambiar de objetivo cambia las semanas mínimas, así
+        // que quien viene de acá suele tener que revisarla también.
+        case .diasInsuficientes:
+            return [.ajustarDisponibilidad, .cambiarObjetivo, .cambiarFecha]
         case .faltaBase: return [.objetivoPuente, .cambiarObjetivo]
         case .faltaReferencia: return [.hacerTest, .cambiarObjetivo]
         case .sinContenido: return [.cambiarObjetivo]

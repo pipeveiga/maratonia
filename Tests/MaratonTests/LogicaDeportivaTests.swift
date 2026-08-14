@@ -1075,3 +1075,181 @@ final class RangoDeDiasArquetiposTests: XCTestCase {
         }
     }
 }
+
+// MARK: - Disponibilidad del corredor vs frecuencias del plan
+//
+// El bug que estos tests clavan: la pantalla "¿Qué días podés correr?"
+// pregunta por la semana REAL del corredor y ofrecía solo las
+// frecuencias que el objetivo elegido soporta. Con "Maratón" aparecían
+// únicamente 4 y 5 días, así que quien corre 3 no tenía forma de
+// declararlo: la única salida era mentir. La regla es la del catálogo —
+// describe, nunca esconde— y acá se protege de los dos lados: la
+// disponibilidad no desaparece, y la incompatibilidad se dice.
+
+final class DisponibilidadDelCorredorTests: XCTestCase {
+
+    private let biblioteca = BibliotecaArquetipos.v1()
+
+    /// EL test del bug. Ninguna disponibilidad válida del corredor puede
+    /// desaparecer de la lista por culpa del objetivo elegido: las
+    /// opciones son las mismas para los diez objetivos.
+    func testLaDisponibilidadNoDependeDelObjetivo() {
+        let opciones = DisponibilidadCorredor.opciones()
+        XCTAssertTrue(opciones.contains(2), "2 días es disponibilidad válida")
+        XCTAssertTrue(opciones.contains(3), "3 días es disponibilidad válida")
+        XCTAssertTrue(opciones.contains(6), "6 días es disponibilidad válida")
+        XCTAssertEqual(opciones, Array(2...6))
+        // La firma no toma objetivo: por construcción no puede filtrar
+        // por él. Y todas las frecuencias admitidas del catálogo entran
+        // en el rango ofrecido — nadie queda sin poder pedir su plan.
+        for arquetipo in biblioteca where arquetipo.listoParaProponer {
+            for dias in arquetipo.frecuenciasAdmitidas {
+                XCTAssertTrue(opciones.contains(dias),
+                              "\(arquetipo.id) admite \(dias) días y la pantalla no los ofrece")
+            }
+        }
+    }
+
+    /// Concretamente el caso reportado: maratón con 3 días. La opción
+    /// existe, el veredicto dice que no alcanza, y NO se cambia nada.
+    func testMaratonConTresDiasSeExplicaEnVezDeEsconderse() {
+        XCTAssertTrue(DisponibilidadCorredor.opciones().contains(3))
+        guard case .noAlcanza(let minimo, let alternativas) =
+            DisponibilidadCorredor.evaluar(dias: 3, objetivo: .maraton) else {
+            return XCTFail("con 3 días el maratón no entra: hay que decirlo")
+        }
+        XCTAssertEqual(minimo, 4)
+        // Y se ofrece algo que SÍ existe con esos tres días.
+        XCTAssertFalse(alternativas.isEmpty, "sin alternativa el aviso es un callejón")
+        for alternativa in alternativas {
+            XCTAssertTrue(
+                DisponibilidadCorredor.evaluar(dias: 3, objetivo: alternativa)
+                    .alcanzaLaDisponibilidad,
+                "\(alternativa) se ofrece como salida pero tampoco entra con 3 días")
+        }
+        // El motor dice lo mismo que la pantalla: una sola verdad.
+        guard case .diasInsuficientes(let minimoMotor) = MotorPlanificacion.proponer(
+            PedidoDePlan(objetivo: .maraton, fechaObjetivo: nil, diasPorSemana: 3,
+                         aceptaSinBaseline: true, hoy: DiaLocal(fecha: Date()))) else {
+            return XCTFail("el motor tiene que rechazar 3 días para maratón")
+        }
+        XCTAssertEqual(minimoMotor, minimo)
+    }
+
+    /// Las alternativas ofrecidas nunca son el mismo objetivo que ya
+    /// falló, y siempre entran con esos días.
+    func testLasAlternativasSonRealesParaTodoObjetivoYFrecuencia() {
+        for arquetipo in biblioteca where arquetipo.listoParaProponer {
+            for dias in DisponibilidadCorredor.opciones() {
+                guard case .noAlcanza(let minimo, let alternativas) =
+                    DisponibilidadCorredor.evaluar(dias: dias,
+                                                   objetivo: arquetipo.objetivo)
+                else { continue }
+                XCTAssertGreaterThan(minimo, dias,
+                                     "\(arquetipo.id): el mínimo tiene que explicar el rechazo")
+                XCTAssertFalse(alternativas.contains(arquetipo.objetivo),
+                               "\(arquetipo.id) se ofrece a sí mismo como salida")
+                for alternativa in alternativas {
+                    XCTAssertTrue(
+                        DisponibilidadCorredor.evaluar(dias: dias, objetivo: alternativa)
+                            .alcanzaLaDisponibilidad,
+                        "\(arquetipo.id) con \(dias) días ofrece \(alternativa), que tampoco entra")
+                }
+            }
+        }
+    }
+
+    /// Tener MÁS días de los que el plan usa no es un rechazo: el plan
+    /// entra, usa los suyos y el resto queda de descanso. La
+    /// disponibilidad declarada NO se recorta.
+    func testDisponibilidadDeSobraNoRechazaNiSeRecorta() throws {
+        let compatibilidad = DisponibilidadCorredor.evaluar(dias: 6, objetivo: .maraton)
+        guard case .alcanza(let sesiones, _) = compatibilidad else {
+            return XCTFail("6 días no puede rechazar un plan de 4-5")
+        }
+        XCTAssertEqual(sesiones, 5)
+        XCTAssertEqual(compatibilidad.diasDeDescanso(sobre: 6), 1)
+        // Y el motor propone de verdad, conservando los 6 pedidos.
+        let resultado = MotorPlanificacion.proponer(
+            PedidoDePlan(objetivo: .maraton, fechaObjetivo: nil, diasPorSemana: 6,
+                         aceptaSinBaseline: true, hoy: DiaLocal(fecha: Date())))
+        guard case .propuesta(let propuesta) = resultado else {
+            return XCTFail("con 6 días el maratón tiene que proponerse")
+        }
+        // Los 6 días pedidos se conservan tal cual; lo que se topa es
+        // cuántos usa el plan, nunca lo que el corredor declaró.
+        XCTAssertEqual(propuesta.diasPedidos, 6)
+        XCTAssertLessThanOrEqual(propuesta.sesionesPorSemana, sesiones)
+        for semana in propuesta.planUsuario.semanas {
+            XCTAssertLessThanOrEqual(semana.programados.count, sesiones,
+                                     "ninguna semana puede pasar el tope del plan")
+        }
+    }
+
+    /// El rango declarado y las variantes propias son LO MISMO para
+    /// decidir: si un arquetipo escribe contenido para una frecuencia,
+    /// esa frecuencia se puede elegir (hoy todas caen dentro del rango,
+    /// pero el motor ya no las puede dejar muertas).
+    func testLasVariantesPropiasCuentanComoFrecuenciaAdmitida() {
+        for arquetipo in biblioteca {
+            for dias in arquetipo.contenidoPorDias.keys {
+                XCTAssertTrue(arquetipo.admite(dias: dias),
+                              "\(arquetipo.id) tiene contenido propio para \(dias) días y no lo admite")
+            }
+        }
+        let mejorar5K = biblioteca.first { $0.id == "mejorar-5k" }
+        XCTAssertEqual(mejorar5K?.contenidoPorDias.keys.contains(3), true)
+        guard case .alcanza(let sesiones, let variantePropia) =
+            DisponibilidadCorredor.evaluar(dias: 3, objetivo: .mejorar5K) else {
+            return XCTFail("Mejorar 5K tiene una variante escrita para 3 días")
+        }
+        XCTAssertEqual(sesiones, 3)
+        XCTAssertTrue(variantePropia, "la variante propia se avisa: no es un recorte")
+    }
+
+    /// Las dos puertas de frecuencia (catálogo y elegibilidad) tienen que
+    /// coincidir. Si divergen, la app ofrece una disponibilidad que el
+    /// arquetipo admite y el evaluador después rechaza — el bug peor: te
+    /// dejamos elegir y no te damos nada.
+    func testElMinimoDelCatalogoCoincideConElDeElegibilidad() {
+        for arquetipo in biblioteca where arquetipo.listoParaProponer {
+            XCTAssertEqual(arquetipo.frecuenciaMinima,
+                           RequisitosObjetivo.para(arquetipo.objetivo).diasPorSemana,
+                           "\(arquetipo.id): el mínimo del catálogo y el de elegibilidad divergen")
+        }
+    }
+
+    /// Toda frecuencia admitida tiene un reparto de días que la pantalla
+    /// sepa proponer — incluidas las que antes no se ofrecían nunca.
+    func testTodaDisponibilidadOfrecidaTieneReparto() {
+        for dias in DisponibilidadCorredor.opciones() {
+            let sugeridos = OnboardingDeportivo.diasSugeridos(para: dias)
+            XCTAssertEqual(Set(sugeridos).count, dias,
+                           "\(dias) días: reparto mal formado")
+            XCTAssertTrue(sugeridos.allSatisfy { (1...7).contains($0) })
+        }
+    }
+
+    /// Las tres salidas que el corredor tiene que poder tomar cuando su
+    /// disponibilidad y su objetivo no se llevan: días, objetivo, fecha.
+    /// Ninguna de ellas es "te lo cambiamos nosotros".
+    func testFaltanDiasOfreceLasTresPalancas() {
+        let acciones = MotivoSinPlan.diasInsuficientes.accionesSugeridas
+        XCTAssertTrue(acciones.contains(.ajustarDisponibilidad))
+        XCTAssertTrue(acciones.contains(.cambiarObjetivo))
+        XCTAssertTrue(acciones.contains(.cambiarFecha))
+    }
+
+    /// Un objetivo sin contenido validado no opina sobre los días: el
+    /// problema es otro y no se le miente al corredor sobre su semana.
+    func testObjetivoSinContenidoNoJuzgaLaDisponibilidad() {
+        let vacio = PlanArquetipo(
+            id: "futuro", version: 1, objetivo: .maraton, nombre: "Futuro",
+            semanasMinimas: 12, semanasRecomendadas: 16,
+            diasMinimos: 4, diasMaximos: 5,
+            recomiendaBaseline: false, contenido: nil)
+        XCTAssertEqual(DisponibilidadCorredor.evaluar(dias: 2, objetivo: .maraton,
+                                                      biblioteca: [vacio]),
+                       .sinPlan)
+    }
+}
