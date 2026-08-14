@@ -3449,10 +3449,53 @@ final class PoliticaProTests: XCTestCase {
     }
 
     func testElEstadoProDistingueVigenteDeVencido() {
+        let detalle = DetallePro(productoID: ProductoPro.anual.rawValue,
+                                 nombre: "Maratonia Pro Anual", vence: Date())
         XCTAssertFalse(EstadoPro.libre.esPro)
-        XCTAssertTrue(EstadoPro.pro(vence: nil, enPrueba: false).esPro)
-        XCTAssertTrue(EstadoPro.pro(vence: Date(), enPrueba: true).enPrueba)
+        XCTAssertTrue(EstadoPro.activa(detalle).esPro)
         XCTAssertFalse(EstadoPro.libre.enPrueba)
+        var conPrueba = detalle
+        conPrueba.enPrueba = true
+        XCTAssertTrue(EstadoPro.activa(conPrueba).enPrueba)
+    }
+
+    /// Los cinco estados que el corredor puede vivir de verdad. Antes
+    /// todo lo que no fuera "pro" se veía igual: el que nunca compró, el
+    /// reembolsado y —lo peor— el que pagó y tiene la tarjeta vencida.
+    func testCadaSituacionDeSuscripcionTieneSuEstado() {
+        let d = DetallePro(productoID: ProductoPro.mensual.rawValue,
+                           nombre: "Maratonia Pro Mensual", vence: Date())
+        XCTAssertEqual(EstadoPro.decidir(.suscrita, detalle: d), .activa(d))
+        XCTAssertEqual(EstadoPro.decidir(.enGracia, detalle: d), .gracia(d))
+        XCTAssertEqual(EstadoPro.decidir(.reintentandoCobro, detalle: d), .problemaDeCobro(d))
+        XCTAssertEqual(EstadoPro.decidir(.expirada, detalle: d), .expirada(d))
+        XCTAssertEqual(EstadoPro.decidir(.revocada, detalle: d), .revocada(d))
+    }
+
+    /// QUIÉN tiene acceso. El período de gracia lo conserva: Apple sigue
+    /// considerando suscrito al corredor mientras reintenta el cobro, y
+    /// quitarle el plan por un problema de su banco sería castigarlo.
+    /// El reintento sin gracia NO lo conserva.
+    func testElAccesoRealPorEstado() {
+        let d = DetallePro(productoID: ProductoPro.anual.rawValue, nombre: nil, vence: nil)
+        XCTAssertTrue(EstadoPro.activa(d).esPro)
+        XCTAssertTrue(EstadoPro.gracia(d).esPro, "en gracia el corredor conserva Pro")
+        XCTAssertFalse(EstadoPro.problemaDeCobro(d).esPro)
+        XCTAssertFalse(EstadoPro.expirada(d).esPro)
+        XCTAssertFalse(EstadoPro.revocada(d).esPro, "un reembolso corta el acceso")
+        XCTAssertFalse(EstadoPro.libre.esPro)
+    }
+
+    /// El nombre del plan viaja desde StoreKit y nunca se inventa: el
+    /// que compró el mensual no puede leer que tiene un anual.
+    func testElNombreDelPlanSaleDeStoreKit() {
+        let d = DetallePro(productoID: ProductoPro.mensual.rawValue,
+                           nombre: "Maratonia Pro Mensual", vence: nil)
+        XCTAssertEqual(EstadoPro.activa(d).detalle?.nombre, "Maratonia Pro Mensual")
+        // Sin productos cargados no hay nombre — y no se rellena con uno.
+        let sinNombre = DetallePro(productoID: ProductoPro.anual.rawValue,
+                                   nombre: nil, vence: nil)
+        XCTAssertNil(EstadoPro.activa(sinNombre).detalle?.nombre)
     }
 
     /// Los IDs son contrato con App Store Connect: si cambian, las

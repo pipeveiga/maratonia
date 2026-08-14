@@ -58,6 +58,41 @@ struct ContentView: View {
 
     var body: some View {
         Group {
+            #if DEBUG
+            // Catálogo de estados de suscripción. NO saltea la puerta de
+            // entrada de la app: reemplaza la raíz por una pantalla que
+            // no lee un solo dato del corredor. Compilado fuera de
+            // Release, igual que `pestanaInicial`.
+            if CatalogoEstadosPro.pedido {
+                CatalogoEstadosPro()
+            } else {
+                raiz
+            }
+            #else
+            raiz
+            #endif
+        }
+        .task {
+            IdentidadStore.conectar(identidad, con: almacen)
+            identidad.verificarRevocacionApple()
+            // StoreKit escucha desde el arranque: una compra hecha en
+            // otro dispositivo, una renovación o una revocación pueden
+            // llegar en cualquier momento.
+            TiendaPro.compartida.empezar()
+            sesion.reevaluar()
+            await sesion.restaurar(con: repositorio)
+        }
+        .onChange(of: identidad.haySesion) { _, hay in
+            Task {
+                if hay { await sesion.restaurar(con: repositorio) }
+                else { await repositorio.limpiarParaLogout(); sesion.reevaluar() }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var raiz: some View {
+        Group {
             switch sesion.estado {
             case .resolviendo:
                 DV2.Superficie.fondo.ignoresSafeArea()
@@ -75,22 +110,6 @@ struct ContentView: View {
             case .lista:
                 AppPrincipal(store: store, almacen: almacen, identidad: identidad,
                              repositorio: repositorio)
-            }
-        }
-        .task {
-            IdentidadStore.conectar(identidad, con: almacen)
-            identidad.verificarRevocacionApple()
-            // StoreKit escucha desde el arranque: una compra hecha en
-            // otro dispositivo, una renovación o una revocación pueden
-            // llegar en cualquier momento.
-            TiendaPro.compartida.empezar()
-            sesion.reevaluar()
-            await sesion.restaurar(con: repositorio)
-        }
-        .onChange(of: identidad.haySesion) { _, hay in
-            Task {
-                if hay { await sesion.restaurar(con: repositorio) }
-                else { await repositorio.limpiarParaLogout(); sesion.reevaluar() }
             }
         }
     }

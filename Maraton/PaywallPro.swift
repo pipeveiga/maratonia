@@ -131,7 +131,11 @@ struct PaywallPro: View {
         } label: {
             VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
                 HStack {
-                    Text(cual == .anual ? "Anual" : "Mensual")
+                    // El nombre lo pone App Store: si mañana el producto
+                    // se llama distinto, la app no queda mintiendo.
+                    Text(tienda.producto(cual)?.displayName
+                         ?? (cual == .anual ? String(localized: "Anual")
+                                            : String(localized: "Mensual")))
                         .font(DV2.Tipo.tituloChico)
                     Spacer()
                     if destacada {
@@ -277,29 +281,22 @@ struct SeccionPro: View {
     @State private var mostrandoPaywall = false
     @State private var aviso: String?
 
+    /// La URL nativa de gestión de suscripciones. No se inventa ninguna.
+    private static let gestionar = URL(string: "https://apps.apple.com/account/subscriptions")!
+
     var body: some View {
         Section("Maratonia Pro") {
-            if tienda.estado.esPro {
-                LabeledContent("Estado") {
-                    Label(tienda.estado.enPrueba
-                          ? String(localized: "En prueba")
-                          : String(localized: "Activo"),
-                          systemImage: "checkmark.seal.fill")
-                        .foregroundStyle(DV2.Semantico.exito)
-                }
-                if case .pro(let vence, _) = tienda.estado, let vence {
-                    LabeledContent("Se renueva", value: FormatoFecha.media(vence))
-                }
-                // El flujo nativo de App Store: no se inventa una URL.
-                Link(destination: URL(string: "https://apps.apple.com/account/subscriptions")!) {
-                    Label("Gestionar suscripción", systemImage: "creditcard")
-                }
-            } else {
-                Button {
-                    mostrandoPaywall = true
-                } label: {
-                    Label("Conocer Maratonia Pro", systemImage: "sparkles")
-                }
+            // Una fila compacta: icono, qué sos, y una línea que dice lo
+            // que hay que saber. Antes eran tres filas de `LabeledContent`
+            // con un hueco enorme y sin decir nada útil cuando algo
+            // fallaba.
+            FilaEstadoPro(estado: tienda.estado)
+
+            accionPrincipal
+
+            // Restaurar solo se ofrece cuando puede servir de algo: con
+            // Pro activo no tiene sentido y era ruido.
+            if !tienda.estado.esPro {
                 Button("Restaurar compras") {
                     Task {
                         switch await tienda.restaurar() {
@@ -318,4 +315,198 @@ struct SeccionPro: View {
             Button("Entendido", role: .cancel) {}
         }
     }
+
+    /// Qué acción corresponde en cada estado. Un problema de cobro se
+    /// arregla en App Store, no comprando de nuevo: mandarlo al paywall
+    /// sería hacerle pagar dos veces.
+    @ViewBuilder
+    private var accionPrincipal: some View {
+        switch tienda.estado {
+        case .activa, .gracia, .problemaDeCobro:
+            Link(destination: Self.gestionar) {
+                Label(tienda.estado.esPro
+                      ? String(localized: "Gestionar suscripción")
+                      : String(localized: "Actualizar forma de pago"),
+                      systemImage: "creditcard")
+            }
+        case .libre, .expirada, .revocada:
+            Button {
+                mostrandoPaywall = true
+            } label: {
+                Label(tienda.estado == .libre
+                      ? String(localized: "Conocer Maratonia Pro")
+                      : String(localized: "Volver a suscribirme"),
+                      systemImage: "sparkles")
+            }
+        }
+    }
+
 }
+
+/// LA TARJETA. Una fila compacta: icono, en qué estás, y una línea que
+/// dice lo que hace falta saber. Antes eran tres filas de
+/// `LabeledContent` con un hueco enorme, y cuando algo fallaba —cobro
+/// rechazado, reembolso, vencimiento— no decían absolutamente nada.
+struct FilaEstadoPro: View {
+    let estado: EstadoPro
+
+    struct Presentacion: Equatable {
+        var icono: String
+        var color: Color
+        var titulo: String
+        var detalle: String
+    }
+
+    /// La decisión de qué decir en cada estado. `static` y sin
+    /// dependencias: se puede ver entera sin StoreKit ni sesión.
+    static func presentacion(de estado: EstadoPro) -> Presentacion {
+        let plan = nombreDelPlan(estado.detalle)
+
+        switch estado {
+        case .libre:
+            return Presentacion(
+                icono: "sparkles", color: DV2.Marca.primario,
+                titulo: String(localized: "Maratonia Pro"),
+                detalle: String(localized: "Todos los objetivos, ajustes del plan y el Coach."))
+
+        case .activa(let detalle):
+            if detalle.enPrueba {
+                return Presentacion(
+                    icono: "gift.fill", color: DV2.Semantico.exito,
+                    titulo: String(localized: "Prueba gratis"),
+                    detalle: detalle.vence.map {
+                        String(localized: "El \(FormatoFecha.media($0)) empieza a cobrarse \(plan).")
+                    } ?? String(localized: "Estás probando \(plan)."))
+            }
+            if !detalle.renuevaSola {
+                return Presentacion(
+                    icono: "clock.badge.exclamationmark", color: DV2.Semantico.advertencia,
+                    titulo: String(localized: "Activo hasta el final del período"),
+                    detalle: detalle.vence.map {
+                        String(localized: "Cancelaste la renovación: tenés Pro hasta el \(FormatoFecha.media($0)).")
+                    } ?? String(localized: "Cancelaste la renovación automática."))
+            }
+            return Presentacion(
+                icono: "checkmark.seal.fill", color: DV2.Semantico.exito,
+                titulo: plan,
+                detalle: detalle.vence.map {
+                    String(localized: "Se renueva el \(FormatoFecha.media($0)).")
+                } ?? String(localized: "Suscripción activa."))
+
+        case .gracia(let detalle):
+            return Presentacion(
+                icono: "exclamationmark.triangle.fill", color: DV2.Semantico.advertencia,
+                titulo: String(localized: "Problema con el cobro"),
+                detalle: detalle.vence.map {
+                    String(localized: "App Store no pudo cobrar \(plan). Seguís con Pro hasta el \(FormatoFecha.media($0)): actualizá tu forma de pago.")
+                } ?? String(localized: "App Store no pudo cobrar \(plan). Seguís con Pro por ahora: actualizá tu forma de pago."))
+
+        case .problemaDeCobro:
+            return Presentacion(
+                icono: "creditcard.trianglebadge.exclamationmark", color: DV2.Semantico.destructivo,
+                titulo: String(localized: "No se pudo cobrar la renovación"),
+                detalle: String(localized: "Pro está pausado hasta que se resuelva el pago. Tu plan y tu historial siguen intactos."))
+
+        case .expirada(let detalle):
+            return Presentacion(
+                icono: "clock.arrow.circlepath", color: .secondary,
+                titulo: String(localized: "Suscripción vencida"),
+                detalle: detalle.vence.map {
+                    String(localized: "\(plan) venció el \(FormatoFecha.media($0)). Tu plan y tu historial siguen acá.")
+                } ?? String(localized: "\(plan) venció. Tu plan y tu historial siguen acá."))
+
+        case .revocada:
+            return Presentacion(
+                icono: "arrow.uturn.backward.circle.fill", color: .secondary,
+                titulo: String(localized: "Suscripción reembolsada"),
+                detalle: String(localized: "App Store cerró esta suscripción. Tu plan y tu historial siguen acá."))
+        }
+    }
+
+    /// El nombre del plan viene de StoreKit. Si todavía no cargó, se dice
+    /// "tu suscripción" — nunca "anual": el que compró el mensual no
+    /// tiene por qué leer que tiene un anual.
+    static func nombreDelPlan(_ detalle: DetallePro?) -> String {
+        if let nombre = detalle?.nombre, !nombre.isEmpty { return nombre }
+        return String(localized: "tu suscripción")
+    }
+
+    var body: some View {
+        let p = Self.presentacion(de: estado)
+        return HStack(spacing: DV2.Espacio.m) {
+            Image(systemName: p.icono)
+                .font(.title2)
+                .foregroundStyle(p.color)
+                .frame(width: 30)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(p.titulo)
+                    .font(.subheadline.weight(.semibold))
+                Text(p.detalle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+#if DEBUG
+/// CATÁLOGO DE ESTADOS (solo DEBUG, igual que `pestanaInicial`).
+///
+/// Los cinco estados de una suscripción son casi imposibles de provocar
+/// a demanda: hay que hacer que a alguien le rebote la tarjeta, pedir un
+/// reembolso o esperar a que venza. Sin esto se verifican de memoria, y
+/// de memoria fue como quedó una tarjeta que no decía nada cuando algo
+/// fallaba.
+///
+/// Uso: `xcrun simctl launch <dev> <bundle> -verEstadosPro 1`
+struct CatalogoEstadosPro: View {
+    static var pedido: Bool { UserDefaults.standard.bool(forKey: "verEstadosPro") }
+
+    private static let vence = Calendar.current.date(byAdding: .day, value: 12, to: Date())
+
+    private static var anual: DetallePro {
+        DetallePro(productoID: ProductoPro.anual.rawValue,
+                   nombre: "Maratonia Pro Anual", vence: vence)
+    }
+    private static var mensual: DetallePro {
+        DetallePro(productoID: ProductoPro.mensual.rawValue,
+                   nombre: "Maratonia Pro Mensual", vence: vence)
+    }
+
+    private var casos: [(String, EstadoPro)] {
+        var prueba = Self.anual;  prueba.enPrueba = true
+        var cancelada = Self.anual; cancelada.renuevaSola = false
+        return [
+            ("Sin Pro", .libre),
+            ("En prueba", .activa(prueba)),
+            ("Activa", .activa(Self.mensual)),
+            ("Activa, cancelada", .activa(cancelada)),
+            ("Período de gracia", .gracia(Self.anual)),
+            ("Reintento de cobro", .problemaDeCobro(Self.anual)),
+            ("Vencida", .expirada(Self.anual)),
+            ("Reembolsada", .revocada(Self.mensual)),
+        ]
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(casos, id: \.0) { titulo, estado in
+                    // El acceso va en el encabezado para que las ocho
+                    // tarjetas entren en una pantalla y se comparen de
+                    // un vistazo.
+                    Section("\(titulo)  ·  Pro: \(estado.esPro ? "sí" : "no")") {
+                        FilaEstadoPro(estado: estado)
+                    }
+                }
+            }
+            .navigationTitle("Estados Pro")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+#endif

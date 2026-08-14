@@ -33,20 +33,78 @@ enum CapacidadPro: String, CaseIterable {
     case adaptacionInteligente
 }
 
-/// El estado del corredor. `vence` nil = no se sabe (o es indefinido);
-/// lo que manda para bloquear es `esPro`.
+/// Lo que se sabe de LA suscripción, con datos de StoreKit y de nadie
+/// más. El nombre sale de `displayName` del producto: escribir "Anual"
+/// en la app es mentirle al que compró el mensual.
+struct DetallePro: Equatable {
+    var productoID: String
+    /// `Product.displayName`, tal cual lo devuelve App Store.
+    var nombre: String?
+    var vence: Date?
+    /// Si no se renueva sola, la fecha de vencimiento es una fecha de
+    /// FIN, y eso cambia por completo lo que hay que decirle al corredor.
+    var renuevaSola: Bool = true
+    var enPrueba: Bool = false
+}
+
+/// Cómo viene la renovación, en nuestros términos. Espejo mínimo de
+/// `Product.SubscriptionInfo.RenewalState`, para que la decisión de qué
+/// mostrar sea una función pura y testeable sin StoreKit.
+enum RenovacionPro: Equatable {
+    case suscrita
+    case enGracia            // falló el cobro, Apple da período de gracia
+    case reintentandoCobro   // falló el cobro y NO hay gracia
+    case expirada
+    case revocada            // reembolso o disputa
+}
+
+/// El estado del corredor.
+///
+/// Antes esto era `libre | pro`, y todo lo que no fuera pro se veía
+/// igual: el que nunca compró, el que pidió el reembolso y —lo peor— el
+/// que pagó pero tiene la tarjeta vencida veían el mismo paywall sin
+/// una palabra de por qué. Un problema de cobro es lo único de esta
+/// lista que el corredor puede arreglar, y era justo lo que no se le
+/// decía.
 enum EstadoPro: Equatable {
     case libre
-    case pro(vence: Date?, enPrueba: Bool)
+    case activa(DetallePro)
+    /// Falló el cobro pero Apple mantiene el acceso mientras reintenta.
+    case gracia(DetallePro)
+    /// Falló el cobro y ya no hay acceso.
+    case problemaDeCobro(DetallePro)
+    case expirada(DetallePro)
+    case revocada(DetallePro)
 
+    /// Acceso REAL. Período de gracia incluido: Apple sigue considerando
+    /// suscrito al corredor, y quitarle el plan mientras se reintenta el
+    /// cobro sería castigarlo por un problema de su banco.
     var esPro: Bool {
-        if case .pro = self { return true }
-        return false
+        switch self {
+        case .activa, .gracia: return true
+        case .libre, .problemaDeCobro, .expirada, .revocada: return false
+        }
     }
 
-    var enPrueba: Bool {
-        if case .pro(_, let prueba) = self { return prueba }
-        return false
+    var detalle: DetallePro? {
+        switch self {
+        case .libre: return nil
+        case .activa(let d), .gracia(let d), .problemaDeCobro(let d),
+             .expirada(let d), .revocada(let d): return d
+        }
+    }
+
+    var enPrueba: Bool { detalle?.enPrueba ?? false }
+
+    /// La decisión, pura: sin StoreKit, sin vistas, sin async.
+    static func decidir(_ renovacion: RenovacionPro, detalle: DetallePro) -> EstadoPro {
+        switch renovacion {
+        case .suscrita: return .activa(detalle)
+        case .enGracia: return .gracia(detalle)
+        case .reintentandoCobro: return .problemaDeCobro(detalle)
+        case .expirada: return .expirada(detalle)
+        case .revocada: return .revocada(detalle)
+        }
     }
 }
 
@@ -118,7 +176,7 @@ final class TiendaPro: ObservableObject {
         // Caché SOLO para que la UI no parpadee en el arranque. No
         // autoriza nada: en cuanto StoreKit responde, manda StoreKit.
         if defaults.bool(forKey: Self.claveCache) {
-            estado = .pro(vence: nil, enPrueba: false)
+            estado = .activa(DetallePro(productoID: "", nombre: nil, vence: nil))
         }
     }
 
@@ -154,29 +212,102 @@ final class TiendaPro: ObservableObject {
     }
 
     /// La verdad del entitlement en el dispositivo: lo que Apple dice
-    /// que está vigente AHORA.
+    /// AHORA. Dos fuentes, y las dos hacen falta:
+    ///
+    /// - `currentEntitlements` da lo que está VIGENTE y, sobre todo, el
+    ///   JWS firmado — lo único que el backend acepta como prueba.
+    /// - El estado de renovación del grupo de suscripción da lo que NO
+    ///   está vigente y por qué: vencida, revocada, o con un problema de
+    ///   cobro. Sin esto, esos tres casos eran indistinguibles de "nunca
+    ///   compró nada".
     func refrescarEntitlement() async {
-        var vigente: EstadoPro = .libre
         var jws: String?
+        var vigente: DetallePro?
+
         for await resultado in Transaction.currentEntitlements {
             guard case .verified(let transaccion) = resultado,
                   ProductoPro.todos.contains(transaccion.productID) else { continue }
-            // Revocada por Apple (reembolso, disputa): no es Pro.
             if transaccion.revocationDate != nil { continue }
             if let vence = transaccion.expirationDate, vence < Date() { continue }
-            // `offer` es de iOS 17.2; el deployment target es menor.
-            // El tipo de oferta solo decora el texto de la UI, así que
-            // se resuelve con la API disponible y sin bloquear nada.
-            let enPrueba: Bool
-            if #available(iOS 17.2, *) {
-                enPrueba = transaccion.offer?.type == .introductory
-            } else {
-                enPrueba = transaccion.offerType == .introductory
-            }
-            vigente = .pro(vence: transaccion.expirationDate, enPrueba: enPrueba)
+            vigente = DetallePro(
+                productoID: transaccion.productID,
+                nombre: producto(desdeID: transaccion.productID)?.displayName,
+                vence: transaccion.expirationDate,
+                enPrueba: Self.esPrueba(transaccion))
             jws = resultado.jwsRepresentation
         }
-        aplicar(vigente, jws: jws)
+
+        let porRenovacion = await estadoPorRenovacion(vigente: vigente)
+        aplicar(porRenovacion ?? (vigente.map { EstadoPro.activa($0) } ?? .libre), jws: jws)
+    }
+
+    /// `offer` es de iOS 17.2; el deployment target es menor. El tipo de
+    /// oferta solo decora el texto, así que se resuelve con la API
+    /// disponible y sin bloquear nada.
+    private static func esPrueba(_ transaccion: Transaction) -> Bool {
+        if #available(iOS 17.2, *) { return transaccion.offer?.type == .introductory }
+        return transaccion.offerType == .introductory
+    }
+
+    /// El estado del GRUPO de suscripción. nil = no se pudo consultar
+    /// (productos sin cargar, sin red): en ese caso manda lo vigente, que
+    /// es el comportamiento anterior. Nunca se inventa un estado peor del
+    /// que se puede probar.
+    private func estadoPorRenovacion(vigente: DetallePro?) async -> EstadoPro? {
+        guard let alguno = productos.first(where: { $0.subscription != nil }) else { return nil }
+        guard let estados = try? await alguno.subscription?.status, !estados.isEmpty else { return nil }
+
+        // El grupo puede traer varias (upgrade/downgrade en curso). Se
+        // toma la que da acceso si hay alguna; si no, la más informativa.
+        let ordenadas = estados.sorted { Self.prioridad($0.state) < Self.prioridad($1.state) }
+        guard let elegido = ordenadas.first,
+              case .verified(let transaccion) = elegido.transaction else { return nil }
+        guard ProductoPro.todos.contains(transaccion.productID) else { return nil }
+
+        var renuevaSola = true
+        if case .verified(let renovacion) = elegido.renewalInfo {
+            renuevaSola = renovacion.willAutoRenew
+        }
+
+        let detalle = DetallePro(
+            productoID: transaccion.productID,
+            nombre: producto(desdeID: transaccion.productID)?.displayName,
+            vence: vigente?.vence ?? transaccion.expirationDate,
+            renuevaSola: renuevaSola,
+            enPrueba: vigente?.enPrueba ?? Self.esPrueba(transaccion))
+
+        guard let renovacion = Self.renovacion(desde: elegido.state) else { return nil }
+        return EstadoPro.decidir(renovacion, detalle: detalle)
+    }
+
+    /// Primero los estados con acceso: si el corredor tiene acceso por
+    /// alguna, esa es su realidad.
+    private static func prioridad(_ estado: Product.SubscriptionInfo.RenewalState) -> Int {
+        switch estado {
+        case .subscribed: return 0
+        case .inGracePeriod: return 1
+        case .inBillingRetryPeriod: return 2
+        case .revoked: return 3
+        case .expired: return 4
+        default: return 5
+        }
+    }
+
+    private static func renovacion(desde estado: Product.SubscriptionInfo.RenewalState) -> RenovacionPro? {
+        switch estado {
+        case .subscribed: return .suscrita
+        case .inGracePeriod: return .enGracia
+        case .inBillingRetryPeriod: return .reintentandoCobro
+        case .expired: return .expirada
+        case .revoked: return .revocada
+        // Un estado que esta versión no conoce NO se interpreta: se
+        // devuelve nil y manda lo vigente, que es verificable.
+        default: return nil
+        }
+    }
+
+    private func producto(desdeID id: String) -> Product? {
+        productos.first { $0.id == id }
     }
 
     private func aplicar(_ nuevo: EstadoPro, jws: String?) {
