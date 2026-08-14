@@ -10,11 +10,24 @@ Los campos marcados **[VOS]** requieren un dato o una decisión tuya.
 
 ## FASE 0 — Antes de tocar App Store Connect
 
-- [ ] Build 61 compila sin warnings en Xcode (Product → Build)
-- [ ] Los 313 tests en verde (Product → Test)
+- [ ] Build 67 compila sin warnings en Xcode (Product → Build)
+- [ ] Los 445 tests en verde (Product → Test)
 - [ ] Recorrer las 5 pestañas en **español**
-- [ ] Cambiar el iPhone a **inglés** y recorrerlas de nuevo (build 58
-      cerró el barrido: no debería quedar nada en español)
+- [ ] Cambiar el iPhone a **inglés** y recorrerlas de nuevo.
+      El build 67 rehízo el barrido: el catálogo pasó de 636 a 809
+      claves y no queda texto de UI en español. **Lo que SÍ sigue en
+      español es el contenido deportivo** (nombres y descripciones de
+      los entrenamientos: "Rodaje medio", "Tirada larga"). Sale del
+      catálogo de planes y se congela en el snapshot del plan, así que
+      traducirlo es una decisión de producto —y una migración—, no un
+      arreglo de localización. Decidir antes de vender la app en
+      inglés. **[VOS]**
+      > Ojo con el mecanismo: `xcodebuild` NO sincroniza el
+      > .xcstrings —eso lo hace Xcode compilando desde el IDE—, así que
+      > si se agregan pantallas y solo se compila por línea de comandos,
+      > el catálogo se queda viejo en silencio y el barrido se rompe de
+      > nuevo sin que nadie lo note. La lista autoritativa son los
+      > `.stringsdata` que emite el compilador en DerivedData.
 - [ ] **Una carrera real con el Apple Watch** validando el ritmo en
       vivo (ver checklist física abajo)
 - [ ] `https://maratonia.site/privacy/` y `/support/` cargando **[VOS]**
