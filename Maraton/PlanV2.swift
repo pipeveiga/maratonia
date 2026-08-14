@@ -529,25 +529,52 @@ enum LanzadorSesion {
 
 // MARK: - UI: catálogo
 
+/// Explorar planes: los DIEZ objetivos del catálogo, siempre.
+///
+/// Antes esta pantalla listaba `Catalogo.planesDisponibles()` —los dos
+/// planes provisionales de 5K y 10K embebidos como JSON— y por eso los
+/// ocho arquetipos reales (incluidos TODOS los de 21K y 42K) eran
+/// invisibles: el corredor abría "Explorar planes" y la app le decía
+/// que solo existían 5K y 10K. No era un filtro de elegibilidad, era
+/// que la pantalla leía la fuente vieja.
+///
+/// Regla de producto: **la elegibilidad describe, nunca esconde.** Un
+/// objetivo para el que todavía falta base se muestra igual, con lo que
+/// falta escrito al lado. Que un plan no sea para vos hoy es
+/// información útil; que no exista es mentira.
 struct CatalogoView: View {
     @ObservedObject var almacen: AlmacenStore
 
-    /// Filtros listos para cuando el catálogo crezca (hoy: 2 planes
-    /// provisionales — el vacío se dice con honestidad, no se rellena
-    /// con contenido deportivo inventado).
     @State private var filtroDistancia: Double?   // metros; nil = todas
     @State private var filtroDias: Int?           // nil = todos
 
     private static let distancias: [(nombre: String, metros: Double)] =
         [("5K", 5000), ("10K", 10000), ("21K", 21097.5), ("42K", 42195)]
 
-    private var filtrados: [PlanBase] {
-        Catalogo.planesDisponibles().filter { base in
-            if let filtroDistancia,
-               abs(base.distanciaObjetivoKm * 1000 - filtroDistancia) > 500 { return false }
-            if let filtroDias, base.diasPorSemana != filtroDias { return false }
+    /// Qué se ve en la lista. Los ÚNICOS filtros son los que el
+    /// corredor eligió (distancia y días). La elegibilidad NO filtra:
+    /// si filtrara, un objetivo dejaría de existir para quien todavía
+    /// no llega, que es exactamente el bug que esto arregla. Es
+    /// `static` para que el test pueda comprobarlo sin montar la vista.
+    static func visibles(distanciaMetros: Double?, dias: Int?,
+                         biblioteca: [PlanArquetipo] = BibliotecaArquetipos.v1())
+    -> [PlanArquetipo] {
+        biblioteca.filter { arquetipo in
+            guard let base = arquetipo.contenido else { return false }
+            if let distanciaMetros,
+               abs(base.distanciaObjetivoKm * 1000 - distanciaMetros) > 500 { return false }
+            // El filtro de días acepta el RANGO del arquetipo: un plan
+            // de 4-5 días aparece tanto en "4 días" como en "5 días".
+            if let dias,
+               !(arquetipo.diasMinimos...arquetipo.diasMaximos).contains(dias) {
+                return false
+            }
             return true
         }
+    }
+
+    private var filtrados: [PlanArquetipo] {
+        Self.visibles(distanciaMetros: filtroDistancia, dias: filtroDias)
     }
 
     var body: some View {
@@ -578,34 +605,51 @@ struct CatalogoView: View {
             Section {
                 if filtrados.isEmpty {
                     ContentUnavailableView {
-                        Label("Todavía no hay planes acá", systemImage: "hourglass")
+                        Label("Nada con ese filtro", systemImage: "line.3.horizontal.decrease.circle")
                     } description: {
-                        Text("Los planes de esta distancia están en camino — no vamos a inventar contenido deportivo para llenar tarjetas. Probá con 5K o 10K.")
+                        Text("Ningún plan del catálogo combina esa distancia con esa cantidad de días. Probá con otra combinación.")
                     }
                     .listRowBackground(Color.clear)
                 }
-                ForEach(filtrados) { base in
+                ForEach(filtrados) { arquetipo in
                     NavigationLink {
-                        PlanBaseDetalleView(almacen: almacen, base: base)
-                    } label: {
-                        HStack(spacing: 12) {
-                            IconoAjuste(sistema: "figure.run", color: .green)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(base.nombre)
-                                Text("\(base.semanasTotales) semanas · \(base.diasPorSemana) días por semana")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+                        if let contenido = arquetipo.contenido {
+                            PlanBaseDetalleView(almacen: almacen,
+                                                arquetipo: arquetipo, base: contenido)
                         }
+                    } label: {
+                        filaArquetipo(arquetipo)
                     }
                 }
             } footer: {
                 if !filtrados.isEmpty {
-                    Text("Planes iniciales para validar la experiencia — el contenido es provisional y con ritmos libres. Los planes con ritmos personalizados llegan con la evaluación inicial.")
+                    Text("Todos los objetivos están acá, elijas el que elijas hoy. Si a alguno todavía le falta base, te decimos qué falta — no lo escondemos.")
                 }
             }
         }
         .navigationTitle("Explorar planes")
+    }
+
+    private func filaArquetipo(_ arquetipo: PlanArquetipo) -> some View {
+        let dias = arquetipo.diasMinimos == arquetipo.diasMaximos
+            ? "\(arquetipo.diasMinimos) días"
+            : "\(arquetipo.diasMinimos)-\(arquetipo.diasMaximos) días"
+        return HStack(spacing: 12) {
+            IconoAjuste(sistema: "figure.run", color: .green)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(arquetipo.nombre)
+                Text("\(arquetipo.contenido?.semanasTotales ?? arquetipo.semanasMinimas) semanas · \(dias) por semana")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let estado = EstadoDeObjetivo(arquetipo: arquetipo,
+                                                 perfil: almacen.almacen.perfilDeportivo,
+                                                 tieneBaseline: almacen.almacen.referenciaVigente != nil) {
+                    Label(estado.resumen, systemImage: estado.icono)
+                        .font(.caption2)
+                        .foregroundStyle(estado.color)
+                }
+            }
+        }
     }
 
     private func chip(_ texto: String, activo: Bool, accion: @escaping () -> Void) -> some View {
@@ -623,12 +667,95 @@ struct CatalogoView: View {
     }
 }
 
+/// Cómo le queda HOY un objetivo al corredor, para mostrarlo al lado
+/// del plan. Describe, no bloquea: ningún valor de este tipo esconde
+/// un objetivo — solo cambia lo que dice.
+struct EstadoDeObjetivo {
+    enum Nivel { case listo, conservador, faltaBase }
+    var nivel: Nivel
+    var motivos: [MotivoElegibilidad]
+
+    /// nil = el corredor no declaró nada todavía y no hay nada honesto
+    /// que decir. En ese caso la fila no muestra estado.
+    init?(arquetipo: PlanArquetipo, perfil: PerfilDeportivo, tieneBaseline: Bool) {
+        guard let contenido = arquetipo.contenido else { return nil }
+        let actividad = perfil.actividad
+        guard actividad != nil || perfil.diasPorSemana != nil else { return nil }
+        // Se juzga contra la variante que el corredor recibiría con SUS
+        // días (o la mínima del arquetipo si todavía no los eligió).
+        let dias = max(perfil.diasElegidos?.count ?? perfil.diasPorSemana ?? arquetipo.diasMinimos,
+                       arquetipo.diasMinimos)
+        let variante = MotorPlanificacion.recortar(
+            arquetipo.contenido(para: dias) ?? contenido,
+            aDias: min(dias, arquetipo.diasMaximos))
+        let veredicto = EvaluadorElegibilidad.evaluar(EntradaElegibilidad(
+            objetivo: arquetipo.objetivo,
+            semanasDisponibles: nil,
+            semanasMinimasDelPlan: arquetipo.semanasMinimas,
+            // Los días se juzgan aparte, en la ficha: acá no queremos
+            // que "elegiste pocos días" tape lo deportivo.
+            diasElegidos: max(dias, arquetipo.diasMinimos),
+            historial: nil,
+            actividadDeclarada: actividad,
+            tieneBaseline: tieneBaseline,
+            molestias: perfil.molestias ?? .ninguna,
+            mesesCorriendoRegular: actividad?.mesesCorriendoRegular,
+            volviendoDePausa: actividad?.volviendoDePausa ?? false,
+            kmSemana1DelPlan: variante.semanas.first.map {
+                MotorPlanificacion.volumenSemanaBase($0)
+            }))
+        switch veredicto {
+        case .elegible:
+            nivel = .listo; motivos = []
+        case .elegibleConservador(let m):
+            nivel = .conservador; motivos = m
+        case .requiereFaseBase(let m):
+            nivel = .faltaBase; motivos = m
+        case .fechaDemasiadoCerca, .frecuenciaInsuficiente:
+            return nil
+        }
+    }
+
+    var resumen: String {
+        switch nivel {
+        case .listo: return String(localized: "Listo para empezar")
+        case .conservador: return String(localized: "Se puede, arrancando prudente")
+        case .faltaBase: return String(localized: "Todavía no: falta base")
+        }
+    }
+
+    var icono: String {
+        switch nivel {
+        case .listo: return "checkmark.circle"
+        case .conservador: return "arrow.down.right.circle"
+        case .faltaBase: return "figure.strengthtraining.functional"
+        }
+    }
+
+    var color: Color {
+        switch nivel {
+        case .listo: return .green
+        case .conservador: return DV2.Marca.primario
+        case .faltaBase: return .orange
+        }
+    }
+}
+
 struct PlanBaseDetalleView: View {
     @ObservedObject var almacen: AlmacenStore
+    let arquetipo: PlanArquetipo
+    /// El contenido del arquetipo. La lista solo navega hasta acá con
+    /// arquetipos que lo tienen, así que se pasa resuelto.
     let base: PlanBase
     @Environment(\.dismiss) private var dismiss
-    @State private var fechaInicio = Date()
-    @State private var confirmandoReemplazo = false
+    @State private var resultado: ResultadoPlanificacion?
+    @State private var mostrandoPropuesta = false
+
+    private var estado: EstadoDeObjetivo? {
+        EstadoDeObjetivo(arquetipo: arquetipo,
+                         perfil: almacen.almacen.perfilDeportivo,
+                         tieneBaseline: almacen.almacen.referenciaVigente != nil)
+    }
 
     var body: some View {
         List {
@@ -638,34 +765,85 @@ struct PlanBaseDetalleView: View {
                 HStack(spacing: 8) {
                     Chip(texto: String(format: "%.0f km objetivo", base.distanciaObjetivoKm))
                     Chip(texto: "\(base.semanasTotales) semanas")
-                    Chip(texto: "\(base.diasPorSemana) días/sem")
+                    Chip(texto: arquetipo.diasMinimos == arquetipo.diasMaximos
+                         ? "\(arquetipo.diasMinimos) días/sem"
+                         : "\(arquetipo.diasMinimos)-\(arquetipo.diasMaximos) días/sem")
                 }
             }
 
-            Section("Arranque") {
-                DatePicker("Empezás el", selection: $fechaInicio, displayedComponents: .date)
-                Button {
-                    if almacen.almacen.planActivo != nil {
-                        confirmandoReemplazo = true
-                    } else {
-                        adoptar()
+            // Qué pide este objetivo. Se muestra SIEMPRE, sea o no
+            // elegible el corredor: es la información que le permite
+            // decidir, y esconderla sería decidir por él.
+            Section {
+                let requisitos = RequisitosObjetivo.para(arquetipo.objetivo)
+                if requisitos.kmSemanales > 0 {
+                    LabeledContent(String(localized: "Volumen semanal"),
+                                   value: String(format: "≈ %.0f km", requisitos.kmSemanales))
+                }
+                if requisitos.tiradaLargaKm > 0 {
+                    LabeledContent(String(localized: "Tirada larga reciente"),
+                                   value: String(format: "%.0f km", requisitos.tiradaLargaKm))
+                }
+                LabeledContent(String(localized: "Días por semana"),
+                               value: "\(requisitos.diasPorSemana) o más")
+                if requisitos.mesesRegular > 0 {
+                    LabeledContent(String(localized: "Corriendo regular"),
+                                   value: String(localized: "\(requisitos.mesesRegular) meses"))
+                }
+                if requisitos.exigeBaseline {
+                    LabeledContent(String(localized: "Referencia de ritmo"),
+                                   value: String(localized: "obligatoria"))
+                }
+            } header: {
+                Text("Para entrar cómodo")
+            } footer: {
+                Text("El volumen es orientativo: el requisito real sale de la primera semana del plan con los días que elijas, así que elegir más días sube un poco la vara.")
+            }
+
+            if let estado {
+                Section {
+                    Label(estado.resumen, systemImage: estado.icono)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(estado.color)
+                    ForEach(estado.motivos, id: \.self) { motivo in
+                        Text(motivo.texto)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
+                    if estado.nivel == .faltaBase,
+                       let puente = EvaluadorElegibilidad.objetivoPuente(para: arquetipo.objetivo) {
+                        Text("Un buen punto de partida es **\(TextosObjetivo.nombre(de: puente))**.")
+                            .font(.footnote)
+                    }
+                } header: {
+                    Text("Cómo te queda hoy")
+                } footer: {
+                    if estado.nivel == .faltaBase {
+                        Text("Podés prepararlo igual: el motor te va a explicar qué falta antes de armar nada.")
+                    }
+                }
+            }
+
+            // Preparar pasa SIEMPRE por el motor: recorte a los días
+            // del corredor, elegibilidad y atenuación del arranque. La
+            // pantalla de propuesta ya sabe explicar cada resultado
+            // —incluido "falta base"— así que desde acá no hace falta
+            // (ni conviene) bloquear nada antes de tiempo.
+            Section {
+                Button {
+                    prepararConElMotor()
                 } label: {
-                    Label("Adoptar este plan", systemImage: "checkmark.circle.fill")
+                    Label("Preparar mi plan", systemImage: "wand.and.stars")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .confirmationDialog("Ya tenés un plan activo",
-                                    isPresented: $confirmandoReemplazo,
-                                    titleVisibility: .visible) {
-                    Button("Reemplazar (el actual queda archivado)", role: .destructive) {
-                        adoptar()
-                    }
-                    Button("Cancelar", role: .cancel) {}
-                } message: {
-                    Text("Tu plan actual no se borra: queda guardado como inactivo, con su historial.")
-                }
+            } header: {
+                Text("Arranque")
+            } footer: {
+                Text(almacen.almacen.planActivo != nil
+                     ? "Tenés un plan activo: si confirmás el nuevo, el actual queda archivado con su historial."
+                     : "Vamos a armarlo con tus días, tu volumen actual y tu referencia de ritmo.")
             }
 
             ForEach(base.semanas, id: \.numero) { semana in
@@ -683,11 +861,35 @@ struct PlanBaseDetalleView: View {
         }
         .navigationTitle(base.nombre)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $mostrandoPropuesta) {
+            if let resultado {
+                PropuestaPlanView(almacen: almacen, resultado: resultado) {
+                    mostrandoPropuesta = false
+                    dismiss()
+                }
+            }
+        }
     }
 
-    private func adoptar() {
-        almacen.adoptar(base, inicio: DiaLocal(fecha: fechaInicio))
-        dismiss()
+    /// Arma el pedido con lo que el perfil ya sabe y deja que el motor
+    /// decida. Nada de adoptar el template crudo: eso salteaba el
+    /// recorte por días, la elegibilidad y la atenuación del arranque.
+    private func prepararConElMotor() {
+        let perfil = almacen.almacen.perfilDeportivo
+        let dias = perfil.diasElegidos?.count
+            ?? perfil.diasPorSemana
+            ?? arquetipo.diasMinimos
+        resultado = MotorPlanificacion.proponer(PedidoDePlan(
+            objetivo: arquetipo.objetivo,
+            fechaObjetivo: perfil.fechaObjetivo,
+            diasPorSemana: dias,
+            diasConcretos: perfil.diasElegidos,
+            referencia: almacen.almacen.referenciaVigente,
+            hoy: DiaLocal(fecha: Date()),
+            actividad: perfil.actividad,
+            molestias: perfil.molestias ?? .ninguna,
+            preferencias: perfil.preferencias))
+        mostrandoPropuesta = true
     }
 }
 

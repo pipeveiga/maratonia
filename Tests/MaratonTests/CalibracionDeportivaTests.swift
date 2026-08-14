@@ -831,6 +831,96 @@ final class InvariantesCatalogoTests: XCTestCase {
     }
 }
 
+// MARK: - Explorar planes: descubribilidad
+
+/// El bug que se veía en TestFlight: "Explorar planes" mostraba solo 5K
+/// y 10K. No era elegibilidad — la pantalla leía
+/// `Catalogo.planesDisponibles()`, el catálogo V1 legado de dos planes
+/// provisionales embebidos como JSON, y los ocho arquetipos reales
+/// (todos los de 21K y 42K entre ellos) no aparecían nunca.
+///
+/// Regla de producto que estos tests fijan: **la elegibilidad describe,
+/// nunca esconde.**
+final class DescubribilidadDelCatalogoTests: XCTestCase {
+
+    func testTodosLosObjetivosConContenidoSonVisibles() {
+        let visibles = CatalogoView.visibles(distanciaMetros: nil, dias: nil)
+        let conContenido = BibliotecaArquetipos.v1().filter { $0.contenido != nil }
+        XCTAssertEqual(Set(visibles.map(\.id)), Set(conContenido.map(\.id)))
+        XCTAssertEqual(visibles.count, 10,
+                       "los diez objetivos del catálogo tienen que ser descubribles")
+    }
+
+    func testLasCuatroDistanciasEstanRepresentadas() {
+        for (nombre, metros) in [("5K", 5000.0), ("10K", 10000.0),
+                                 ("21K", 21097.5), ("42K", 42195.0)] {
+            let visibles = CatalogoView.visibles(distanciaMetros: metros, dias: nil)
+            XCTAssertFalse(visibles.isEmpty,
+                           "\(nombre) no tiene ni un plan visible en Explorar planes")
+        }
+    }
+
+    func testLos21KY42KAparecenAunqueElCorredorNoSeaElegible() {
+        // Un corredor que no sostiene NINGÚN objetivo largo.
+        let sedentario = PerfilDeportivo(
+            objetivo: .primeros5K, diasPorSemana: 3,
+            actividad: ActividadActual(diasPorSemana: 2, kmSemanales: 5,
+                                       tiradaLargaKm: 2, mesesCorriendoRegular: 1))
+        let largos = BibliotecaArquetipos.v1().filter {
+            ($0.contenido?.distanciaObjetivoKm ?? 0) > 20
+        }
+        XCTAssertEqual(largos.count, 6, "seis planes de 21K/42K en el catálogo")
+
+        let visibles = CatalogoView.visibles(distanciaMetros: nil, dias: nil).map(\.id)
+        for arquetipo in largos {
+            XCTAssertTrue(visibles.contains(arquetipo.id),
+                          "\(arquetipo.id) desapareció de Explorar planes")
+            // Y el estado que se le muestra al lado tiene que DECIR que
+            // falta base, no hacer desaparecer la fila.
+            let estado = EstadoDeObjetivo(arquetipo: arquetipo, perfil: sedentario,
+                                          tieneBaseline: false)
+            XCTAssertEqual(estado?.nivel, .faltaBase,
+                           "\(arquetipo.id): a este corredor le falta base y hay que decírselo")
+            XCTAssertFalse(estado?.motivos.isEmpty ?? true,
+                           "\(arquetipo.id): decir 'falta base' sin decir qué falta no sirve")
+        }
+    }
+
+    func testElEstadoDescribeAlCorredorPreparado() {
+        // Corredor con base de sobra para una primera media maratón.
+        let preparado = PerfilDeportivo(
+            objetivo: .mediaMaraton, diasPorSemana: 5,
+            actividad: ActividadActual(diasPorSemana: 5, kmSemanales: 55,
+                                       tiradaLargaKm: 18, mesesCorriendoRegular: 24))
+        let media = BibliotecaArquetipos.v1().first { $0.id == "media-maraton" }
+        let estado = EstadoDeObjetivo(arquetipo: XCTUnwrap2(media),
+                                      perfil: preparado, tieneBaseline: true)
+        XCTAssertEqual(estado?.nivel, .listo)
+    }
+
+    /// El filtro de días acepta el RANGO del arquetipo, no su valor
+    /// declarado en el contenido: un plan de 4-5 días tiene que salir
+    /// tanto en "4 días" como en "5 días".
+    func testElFiltroDeDiasUsaElRangoDelArquetipo() {
+        for arquetipo in BibliotecaArquetipos.v1() where arquetipo.contenido != nil {
+            for dias in arquetipo.diasMinimos...arquetipo.diasMaximos {
+                XCTAssertTrue(
+                    CatalogoView.visibles(distanciaMetros: nil, dias: dias)
+                        .contains { $0.id == arquetipo.id },
+                    "\(arquetipo.id) acepta \(dias) días y no aparece con ese filtro")
+            }
+        }
+    }
+
+    private func XCTUnwrap2(_ arquetipo: PlanArquetipo?) -> PlanArquetipo {
+        guard let arquetipo else {
+            XCTFail("falta el arquetipo")
+            return BibliotecaArquetipos.v1()[0]
+        }
+        return arquetipo
+    }
+}
+
 // MARK: - Inercia del adaptador (§17)
 
 final class InerciaAdaptadorTests: XCTestCase {
