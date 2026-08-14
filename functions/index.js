@@ -16,6 +16,7 @@ const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const OpenAI = require("openai");
 const { Peticion, salidas } = require("./schemas");
+const { esPro } = require("./entitlement");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -126,6 +127,15 @@ exports.coach = onRequest(
     // ---- Flags server-side.
     const config = await flags();
     if (!config.habilitado) return res.status(503).json({ error: "coach-off" });
+
+    // ---- ENTITLEMENT. Antes de mirar el payload y MUCHO antes de
+    // llamar a OpenAI: el Coach es Pro y eso se decide acá, no en el
+    // cliente. `req.body.jws` es la transacción firmada por Apple; si
+    // no viene, vale lo último que el servidor haya verificado.
+    if (!(await esPro(db, uid, req.body?.jws))) {
+      console.warn("coach-sin-pro", { uid });
+      return res.status(402).json({ error: "requiere-pro" });
+    }
 
     // ---- Validación estricta de entrada.
     const parseo = Peticion.safeParse(req.body);

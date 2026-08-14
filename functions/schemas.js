@@ -88,6 +88,12 @@ const Peticion = z.object({
   // cambio ("no puedo correr el jueves"); analizar: la sesión.
   detalle: z.string().max(500).optional(),
   programadoID: z.string().uuid().optional(),
+  // La transacción firmada por Apple (StoreKit 2). NO es "isPro": es el
+  // JWS que el backend verifica contra los certificados raíz de Apple.
+  // Opcional porque, una vez verificado, el servidor recuerda el
+  // entitlement y el cliente no necesita reenviarlo en cada request.
+  // El techo evita que alguien use este campo como canal de basura.
+  jws: z.string().max(8192).optional(),
 }).strict();
 
 // ---- Schemas de SALIDA (structured outputs de OpenAI) ---------------

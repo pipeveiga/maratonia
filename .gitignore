@@ -22,3 +22,7 @@ firebase-debug.log
 .runtimeconfig.json
 serviceAccountKey*.json
 *-service-account*.json
+# Claves de App Store Server API (Issuer ID + Key ID + .p8). El .p8 es
+# una clave PRIVADA: no entra al repo ni por accidente.
+*.p8
+AuthKey_*.p8

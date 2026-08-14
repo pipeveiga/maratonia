@@ -3267,3 +3267,192 @@ final class CalendarioCompletoTests: XCTestCase {
         XCTAssertEqual(almacen.planActivo?.semanas.count, 16)
     }
 }
+
+// MARK: - Cuenta: quién entra, a qué y con qué
+
+final class ArranqueCuentaTests: XCTestCase {
+
+    /// Sin cuenta no se entra: la identidad va primero.
+    func testSinSesionLaAppPideCuenta() {
+        XCTAssertEqual(
+            SesionApp.estadoPara(haySesion: false, authDisponible: true, tienePerfil: false),
+            .necesitaAuth)
+        XCTAssertEqual(
+            SesionApp.estadoPara(haySesion: false, authDisponible: true, tienePerfil: true),
+            .necesitaAuth, "aunque haya datos locales de otro: la cuenta manda")
+    }
+
+    /// Cuenta existente con perfil: entra derecho, sin onboarding.
+    func testCuentaExistenteEntraSinOnboarding() {
+        XCTAssertEqual(
+            SesionApp.estadoPara(haySesion: true, authDisponible: true, tienePerfil: true),
+            .lista)
+    }
+
+    /// Cuenta nueva: onboarding, y una sola vez (después ya tiene perfil).
+    func testCuentaNuevaHaceOnboardingUnaSolaVez() {
+        XCTAssertEqual(
+            SesionApp.estadoPara(haySesion: true, authDisponible: true, tienePerfil: false),
+            .necesitaOnboarding)
+        XCTAssertEqual(
+            SesionApp.estadoPara(haySesion: true, authDisponible: true, tienePerfil: true),
+            .lista)
+    }
+
+    /// Sin Firebase configurado la app NO se traba: sigue siendo local.
+    /// Una build de desarrollo tiene que andar, y un fallo de config no
+    /// puede dejar a nadie afuera de sus propios datos.
+    func testSinFirebaseLaAppSigueFuncionando() {
+        XCTAssertEqual(
+            SesionApp.estadoPara(haySesion: false, authDisponible: false, tienePerfil: true),
+            .lista)
+        XCTAssertEqual(
+            SesionApp.estadoPara(haySesion: false, authDisponible: false, tienePerfil: false),
+            .necesitaOnboarding)
+    }
+
+    /// Qué cuenta como "esta cuenta ya tiene Maratonia".
+    func testTenerPerfilEsHaberTerminadoElOnboardingOTenerPlan() throws {
+        var vacio = AlmacenV2()
+        XCTAssertFalse(SesionApp.tienePerfil(vacio))
+
+        vacio.perfil = PerfilDeportivo()
+        XCTAssertFalse(SesionApp.tienePerfil(vacio), "un perfil vacío no es haber entrado")
+
+        vacio.perfil?.fechaOnboarding = Date()
+        XCTAssertTrue(SesionApp.tienePerfil(vacio))
+
+        var conPlan = AlmacenV2()
+        let base = try XCTUnwrap(BibliotecaArquetipos.v1()
+            .first { $0.clave == .mediaMaraton }?.contenido)
+        conPlan.adoptarPlan(base.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 17),
+                                         fechaAdopcion: Date()))
+        XCTAssertTrue(SesionApp.tienePerfil(conPlan), "tener plan también cuenta")
+    }
+}
+
+// MARK: - Sync: unión por ID estable y cola de pendientes
+
+final class SincronizacionTests: XCTestCase {
+
+    /// La misma sesión llegada desde dos dispositivos es UNA sesión.
+    func testLaUnionNoDuplicaPorID() {
+        let a = UUID(), b = UUID(), c = UUID()
+        let locales = [RegistroSesion(id: a, fecha: Date()),
+                       RegistroSesion(id: b, fecha: Date())]
+        let remotos = [RegistroSesion(id: b, fecha: Date()),   // ya está
+                       RegistroSesion(id: c, fecha: Date())]   // falta
+        let unidos = RepositorioCuenta.unir(locales, remotos, id: \.id)
+        XCTAssertEqual(unidos.count, 3)
+        XCTAssertEqual(Set(unidos.map(\.id)), Set([a, b, c]))
+    }
+
+    /// Lo local gana ante el mismo ID: puede tener cambios más nuevos
+    /// que todavía no subieron.
+    func testAnteElMismoIDGanaLoLocal() {
+        let id = UUID()
+        let local = RegistroSesion(id: id, fecha: Date(timeIntervalSince1970: 100))
+        let remoto = RegistroSesion(id: id, fecha: Date(timeIntervalSince1970: 0))
+        let unidos = RepositorioCuenta.unir([local], [remoto], id: \.id)
+        XCTAssertEqual(unidos.count, 1)
+        XCTAssertEqual(unidos.first?.fecha, local.fecha)
+    }
+
+    /// La cola es un CONJUNTO de "esto quedó distinto", no un log: el
+    /// mismo cambio dos veces es una sola operación.
+    func testLaColaEsIdempotentePorEntidad() {
+        let id = UUID()
+        XCTAssertEqual(OperacionPendiente.sesion(id).id, OperacionPendiente.sesion(id).id)
+        XCTAssertNotEqual(OperacionPendiente.sesion(id).id,
+                          OperacionPendiente.plan(id).id,
+                          "el tipo forma parte de la identidad")
+        XCTAssertEqual(OperacionPendiente.perfil().id, "perfil:perfil")
+    }
+
+    func testLaColaSobreviveAlDisco() throws {
+        let cola = [OperacionPendiente.perfil(),
+                    OperacionPendiente.sesion(UUID()),
+                    OperacionPendiente.plan(UUID())]
+        let datos = try JSONEncoder().encode(cola)
+        let vuelta = try JSONDecoder().decode([OperacionPendiente].self, from: datos)
+        XCTAssertEqual(vuelta, cola)
+    }
+
+    /// El documento de cuenta versiona: una build vieja que ve una
+    /// versión mayor no escribe encima.
+    func testElDocumentoDeCuentaVersiona() throws {
+        var doc = DocumentoCuenta(perfil: PerfilDeportivo(), planActivoID: nil)
+        XCTAssertEqual(doc.version, DocumentoCuenta.versionActual)
+        doc.version = DocumentoCuenta.versionActual + 1
+        let datos = try JSONEncoder().encode(doc)
+        let vuelta = try JSONDecoder().decode(DocumentoCuenta.self, from: datos)
+        XCTAssertGreaterThan(vuelta.version, DocumentoCuenta.versionActual)
+    }
+}
+
+// MARK: - Maratonia Pro: qué es libre y qué no
+
+final class PoliticaProTests: XCTestCase {
+
+    func testFreeLlegaHastaLos10K() {
+        XCTAssertFalse(PoliticaPro.requierePro(.primeros5K))
+        XCTAssertFalse(PoliticaPro.requierePro(.diez))
+    }
+
+    func testMejorarMarcasYLargasSonPro() {
+        for objetivo: ObjetivoDeportivo in [.mejorar5K, .mejorar10K,
+                                            .mediaMaraton, .mejorarMedia, .mediaRendimiento,
+                                            .maraton, .mejorarMaraton, .maratonRendimiento] {
+            XCTAssertTrue(PoliticaPro.requierePro(objetivo), "\(objetivo)")
+        }
+    }
+
+    /// Todo objetivo del catálogo tiene una respuesta: no hay ninguno
+    /// que quede sin clasificar y se cuele por omisión.
+    func testTodosLosObjetivosEstanClasificados() {
+        let objetivos = BibliotecaArquetipos.v1().map(\.objetivo)
+        XCTAssertEqual(Set(objetivos).count, 10)
+        let libres = objetivos.filter { !PoliticaPro.requierePro($0) }
+        XCTAssertEqual(Set(libres), Set([.primeros5K, .diez]))
+    }
+
+    /// Free VE el plan Pro pero no lo adopta.
+    func testFreeNoAdoptaUnPlanPro() {
+        XCTAssertFalse(PoliticaPro.puedeAdoptar(.maraton, siendoPro: false))
+        XCTAssertTrue(PoliticaPro.puedeAdoptar(.maraton, siendoPro: true))
+        XCTAssertTrue(PoliticaPro.puedeAdoptar(.primeros5K, siendoPro: false),
+                      "los planes libres se adoptan sin Pro")
+    }
+
+    /// Expirar Pro NO destruye lo que ya se adoptó. Se bloquean las
+    /// capacidades nuevas, no los datos.
+    func testExpirarProNoBorraElPlanAdoptado() throws {
+        var almacen = AlmacenV2()
+        let base = try XCTUnwrap(BibliotecaArquetipos.v1()
+            .first { $0.clave == .maraton }?.contenido)
+        almacen.adoptarPlan(base.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 17),
+                                         fechaAdopcion: Date()))
+        XCTAssertNotNil(almacen.planActivo)
+        XCTAssertTrue(PoliticaPro.conservaPlanAdoptado(siendoPro: false))
+        // El plan sigue entero: semanas, sesiones e historial.
+        XCTAssertEqual(almacen.planActivo?.semanas.count, 16)
+        XCTAssertFalse(almacen.todosLosProgramados.isEmpty)
+        // Y lo que sí se bloquea es adoptar OTRO plan premium.
+        XCTAssertFalse(PoliticaPro.puedeAdoptar(.mejorarMaraton, siendoPro: false))
+    }
+
+    func testElEstadoProDistingueVigenteDeVencido() {
+        XCTAssertFalse(EstadoPro.libre.esPro)
+        XCTAssertTrue(EstadoPro.pro(vence: nil, enPrueba: false).esPro)
+        XCTAssertTrue(EstadoPro.pro(vence: Date(), enPrueba: true).enPrueba)
+        XCTAssertFalse(EstadoPro.libre.enPrueba)
+    }
+
+    /// Los IDs son contrato con App Store Connect: si cambian, las
+    /// compras dejan de reconocerse.
+    func testLosProductIDsSonElContratoConAppStore() {
+        XCTAssertEqual(ProductoPro.mensual.rawValue, "maratonia.pro.monthly")
+        XCTAssertEqual(ProductoPro.anual.rawValue, "maratonia.pro.yearly")
+        XCTAssertEqual(Set(ProductoPro.todos).count, 2)
+    }
+}

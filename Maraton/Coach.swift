@@ -312,6 +312,11 @@ final class ServicioCoach: ObservableObject {
         var contexto: ContextoCoach
         var detalle: String?
         var programadoID: String?
+        /// La transacción FIRMADA POR APPLE. No es un "isPro": es el JWS
+        /// que el backend verifica contra los certificados raíz de
+        /// Apple antes de gastar un token. Que el cliente lo mande no
+        /// autoriza nada — solo le da al servidor con qué verificar.
+        var jws: String?
     }
 
     /// POST autenticado al backend, decodificando al tipo estricto.
@@ -343,10 +348,12 @@ final class ServicioCoach: ObservableObject {
             solicitud.timeoutInterval = 45
             solicitud.setValue("application/json", forHTTPHeaderField: "Content-Type")
             solicitud.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            let jws = await MainActor.run { TiendaPro.compartida.jwsVigente }
             solicitud.httpBody = try JSONEncoder().encode(Peticion(
                 accion: accion, requestID: requestID.uuidString.lowercased(),
                 contexto: contexto, detalle: detalle,
-                programadoID: programadoID?.uuidString.lowercased()))
+                programadoID: programadoID?.uuidString.lowercased(),
+                jws: jws))
             let (datos, respuesta) = try await URLSession.shared.data(for: solicitud)
             guard let http = respuesta as? HTTPURLResponse else { throw URLError(.badServerResponse) }
             switch http.statusCode {
@@ -356,6 +363,10 @@ final class ServicioCoach: ObservableObject {
                 // El modelo se negó a responder. Reintentar no ayuda, y
                 // no se le cobró la consulta al corredor.
                 mensajeError = String(localized: "El Coach prefirió no responder eso. Probá preguntándolo de otra forma.")
+            case 402:
+                // El backend dijo que no es Pro. Es la palabra que vale:
+                // el cliente puede creerse Pro y el servidor no.
+                mensajeError = String(localized: "El Coach es parte de Maratonia Pro.")
             case 429:
                 mensajeError = String(localized: "Llegaste al límite de consultas de hoy. El plan sigue igual — mañana el Coach vuelve.")
             case 503:

@@ -194,7 +194,7 @@ final class RepositorioCuenta: ObservableObject {
 
     /// Unión por ID: lo que ya está gana (puede tener cambios locales
     /// más nuevos), lo que falta se agrega.
-    static func unir<T, ID: Hashable>(_ locales: [T], _ remotos: [T],
+    nonisolated static func unir<T, ID: Hashable>(_ locales: [T], _ remotos: [T],
                                       id: KeyPath<T, ID>) -> [T] {
         var resultado = locales
         let conocidos = Set(locales.map { $0[keyPath: id] })

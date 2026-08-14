@@ -70,7 +70,7 @@ final class SesionApp: ObservableObject {
 
     /// La decisión de arranque. Pura respecto de la UI: mira el estado
     /// y devuelve dónde hay que estar.
-    static func estadoPara(haySesion: Bool,
+    nonisolated static func estadoPara(haySesion: Bool,
                            authDisponible: Bool,
                            tienePerfil: Bool) -> EstadoSesion {
         // Sin Firebase configurado la app no puede pedir cuenta y
@@ -96,7 +96,7 @@ final class SesionApp: ObservableObject {
     /// Qué cuenta como "esta cuenta ya tiene Maratonia". El perfil
     /// deportivo terminado es la señal: es lo que produce el onboarding
     /// y lo que hace falta para que la app tenga algo que mostrar.
-    static func tienePerfil(_ almacen: AlmacenV2) -> Bool {
+    nonisolated static func tienePerfil(_ almacen: AlmacenV2) -> Bool {
         almacen.perfilDeportivo.fechaOnboarding != nil
             || almacen.planActivo != nil
     }
