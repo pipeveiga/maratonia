@@ -117,7 +117,7 @@ final class EntrenadorRitmo: ObservableObject {
                 + " / \(duracionTexto(tramo.duracionSegundos ?? 0))"
         }
         let recorrido = max(0, distanciaMetros - progreso.inicioDistanciaMetros) / 1000
-        return String(format: "%.2f / %.1f km", recorrido, tramo.kilometros)
+        return String(localized: "\(Unidades.distancia(km: recorrido, decimales: 2, conUnidad: false)) / \(Unidades.distancia(km: tramo.kilometros, decimales: 1))")
     }
 
     /// Lo llama Entrenamiento una vez por segundo. tiempoActivo es el del
@@ -195,19 +195,23 @@ final class EntrenadorRitmo: ObservableObject {
     /// "Kilómetro 5: 4 12 el último." — una vez por km cumplido, con el
     /// parcial de ese kilómetro (tiempo activo, sin contar pausas).
     private func anunciarSplitSiCorresponde(distanciaMetros: Double, tiempoActivo: TimeInterval) {
-        let km = Int(distanciaMetros / 1000)
-        guard km > ultimoKmAnunciado, tiempoActivo > 0 else { return }
+        // El hito es la unidad del corredor (ver la voz del iPhone).
+        let porHito = Unidades.metrosPorHito()
+        let hito = Int(distanciaMetros / porHito)
+        guard hito > ultimoKmAnunciado, tiempoActivo > 0 else { return }
         let parcial = tiempoActivo - tiempoAlUltimoKm
-        let kmsCubiertos = km - ultimoKmAnunciado  // por si se saltó un chequeo
-        ultimoKmAnunciado = km
+        let cubiertos = hito - ultimoKmAnunciado  // por si se saltó un chequeo
+        ultimoKmAnunciado = hito
         tiempoAlUltimoKm = tiempoActivo
-        guard kmsCubiertos == 1, parcial > 60, parcial < 30 * 60 else {
-            Avisador.compartido.anunciar(String(localized: "Kilómetro \(km)."))
+        let nombre = Unidades.hitoHablado(numero: hito)
+        guard cubiertos == 1, parcial > 60, parcial < 30 * 60 else {
+            Avisador.compartido.anunciar(String(localized: "\(nombre)."))
             return
         }
-        parciales.append(ParcialKm(km: km, segundos: Int(parcial)))
+        parciales.append(ParcialKm(km: hito, segundos: Int(parcial)))
+        let segPorKm = Unidades.ritmoCanonico(segundosPorUnidad: Int(parcial))
         Avisador.compartido.anunciar(String(localized:
-            "Kilómetro \(km): \(ritmoParaHablar(Int(parcial))) el último."))
+            "\(nombre): \(ritmoParaHablar(segPorKm)) el último."))
     }
 
     /// Avisos configurados por distancia ("en el km 5", "cada 3 km"):

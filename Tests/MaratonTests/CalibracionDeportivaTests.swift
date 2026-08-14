@@ -2576,8 +2576,12 @@ final class LocalizacionContenidoDeportivoTests: XCTestCase {
         XCTAssertTrue(ClaveEntrenamiento.umbral(minutos: 32).nombreCanonico.contains("32"))
         let seis = ClaveEntrenamiento.series(repeticiones: 6, minutos: 3)
         XCTAssertTrue(seis.nombre.contains("6") && seis.nombre.contains("3"))
+        // La distancia del bloque se muestra en la unidad del corredor
+        // (8 km son 5 mi), así que la garantía va sobre el canónico.
         XCTAssertTrue(ClaveEntrenamiento.ritmoObjetivo(distancia: .media, km: 8)
-                        .nombre.contains("8"))
+                        .nombreCanonico.contains("8 km"))
+        XCTAssertFalse(ClaveEntrenamiento.ritmoObjetivo(distancia: .media, km: 8)
+                        .nombre.isEmpty)
 
         let segmentos: [ClaveSegmento] = [
             .rodaje, .rodajeMedio, .troteSuave, .largaComoda, .finalRitmoMaraton,
@@ -2798,5 +2802,264 @@ final class LocalizacionContenidoDeportivoTests: XCTestCase {
                       "carrera:maraton", "rodajeSuave", "tiradaLargaConFinal"] {
             XCTAssertNotNil(ClaveEntrenamiento(token: token), token)
         }
+    }
+}
+
+// MARK: - Unidades
+//
+// La regla que protegen: el almacenamiento y el motor siguen SIEMPRE en
+// unidades canónicas (metros, seg/km, kg, cm). La preferencia solo
+// cambia presentación, input y voz. Cambiar de km a millas no toca el
+// plan ni el disco.
+
+final class UnidadesTests: XCTestCase {
+
+    // ---- Conversión
+
+    func testKilometrosAMillas() {
+        XCTAssertEqual(Unidades.distanciaMostrable(km: 42.195, sistema: .imperial),
+                       26.2187, accuracy: 0.001)
+        XCTAssertEqual(Unidades.distanciaMostrable(km: 5, sistema: .imperial),
+                       3.1069, accuracy: 0.001)
+        // En métrico no se toca nada: el canónico YA es km.
+        XCTAssertEqual(Unidades.distanciaMostrable(km: 42.195, sistema: .metrico), 42.195)
+    }
+
+    func testLaVueltaDeDistanciaNoPierdeNada() {
+        for km in [1.0, 5.0, 10.0, 21.0975, 42.195] {
+            for sistema in SistemaUnidades.allCases {
+                let ida = Unidades.distanciaMostrable(km: km, sistema: sistema)
+                XCTAssertEqual(Unidades.kmDesde(ida, sistema: sistema), km, accuracy: 0.0001,
+                               "\(km) km en \(sistema.rawValue)")
+            }
+        }
+    }
+
+    /// Un ritmo es tiempo POR distancia: al pasar a millas el número
+    /// SUBE (la milla es más larga). Invertirlo es el error clásico.
+    func testRitmoPorKmAPorMilla() {
+        // 5:00 /km = 300 s/km → 8:03 /mi (482,8 s/mi).
+        XCTAssertEqual(Unidades.ritmoMostrable(segundosPorKm: 300, sistema: .imperial), 483)
+        XCTAssertEqual(Unidades.ritmo(segundosPorKm: 300, sistema: .imperial), "8:03 /mi")
+        XCTAssertEqual(Unidades.ritmo(segundosPorKm: 300, sistema: .metrico), "5:00 /km")
+        XCTAssertGreaterThan(Unidades.ritmoMostrable(segundosPorKm: 300, sistema: .imperial), 300)
+    }
+
+    func testLaVueltaDeRitmoNoPierdeNada() {
+        for segKm in [180, 240, 300, 360, 420] {
+            let porMilla = Unidades.ritmoMostrable(segundosPorKm: segKm, sistema: .imperial)
+            XCTAssertEqual(Unidades.ritmoCanonico(segundosPorUnidad: porMilla, sistema: .imperial),
+                           segKm, accuracy: 1, "\(segKm) s/km")
+        }
+    }
+
+    func testKilosALibras() {
+        XCTAssertEqual(Unidades.pesoMostrable(kg: 70, sistema: .imperial), 154.32, accuracy: 0.01)
+        XCTAssertEqual(Unidades.pesoMostrable(kg: 70, sistema: .metrico), 70)
+        XCTAssertEqual(Unidades.peso(kg: 70, sistema: .imperial), "154 lb")
+        XCTAssertEqual(Unidades.peso(kg: 70, sistema: .metrico), "70 kg")
+        XCTAssertEqual(Unidades.kgDesde(154.324, sistema: .imperial), 70, accuracy: 0.01)
+    }
+
+    func testCentimetrosAPiesYPulgadas() {
+        let (pies, pulgadas) = Unidades.alturaImperial(cm: 178)
+        XCTAssertEqual(pies, 5)
+        XCTAssertEqual(pulgadas, 10)
+        XCTAssertEqual(Unidades.altura(cm: 178, sistema: .imperial), "5′10″")
+        XCTAssertEqual(Unidades.altura(cm: 178, sistema: .metrico), "178 cm")
+        XCTAssertEqual(Unidades.cmDesde(pies: 5, pulgadas: 10), 177.8, accuracy: 0.01)
+    }
+
+    /// 12 pulgadas son un pie: 182,9 cm es 6′0″, nunca 5′12″.
+    func testLasPulgadasNuncaLleganADoce() {
+        for cm in stride(from: 140.0, through: 210.0, by: 0.5) {
+            let (_, pulgadas) = Unidades.alturaImperial(cm: cm)
+            XCTAssertLessThan(pulgadas, 12, "\(cm) cm dio \(pulgadas)″")
+            XCTAssertGreaterThanOrEqual(pulgadas, 0)
+        }
+        XCTAssertEqual(Unidades.altura(cm: 182.9, sistema: .imperial), "6′0″")
+    }
+
+    // ---- Presentación
+
+    func testElFormatoLlevaLaUnidadCorrecta() {
+        XCTAssertEqual(Unidades.distancia(km: 7, sistema: .metrico), "7 km")
+        XCTAssertEqual(Unidades.distancia(km: 7, sistema: .imperial), "4.3 mi")
+        XCTAssertEqual(Unidades.distancia(km: 7, conUnidad: false, sistema: .metrico), "7")
+        // El "/sem" se traduce ("/wk" en inglés) y el host de tests
+        // corre en el idioma del simulador: lo que se afirma acá es el
+        // NÚMERO y la UNIDAD, que es lo que depende del sistema.
+        XCTAssertTrue(Unidades.volumenSemanal(km: 43, sistema: .metrico).hasPrefix("43 km/"))
+        XCTAssertTrue(Unidades.volumenSemanal(km: 43, sistema: .imperial).hasPrefix("27 mi/"))
+        XCTAssertEqual(Unidades.rangoDeRitmo(300, 320, sistema: .metrico), "5:00–5:20 /km")
+        XCTAssertEqual(Unidades.rangoDeRitmo(300, 320, sistema: .imperial), "8:03–8:35 /mi")
+    }
+
+    // ---- Voz
+
+    func testLaVozTambienRespetaLasUnidades() {
+        // El nombre del hito se traduce; lo que importa es que el
+        // NÚMERO viaje y que métrico e imperial no digan lo mismo.
+        let metrico = Unidades.hitoHablado(numero: 5, sistema: .metrico)
+        let imperial = Unidades.hitoHablado(numero: 5, sistema: .imperial)
+        XCTAssertTrue(metrico.hasSuffix("5"), metrico)
+        XCTAssertTrue(imperial.hasSuffix("5"), imperial)
+        XCTAssertNotEqual(metrico, imperial, "un kilómetro no es una milla")
+        // El ritmo hablado va sin "/mi": nadie dice "barra milla".
+        XCTAssertEqual(Unidades.ritmoHablado(segundosPorKm: 300, sistema: .metrico), "5 00")
+        XCTAssertEqual(Unidades.ritmoHablado(segundosPorKm: 300, sistema: .imperial), "8 03")
+    }
+
+    /// Los hitos de distancia (splits y avisos por voz) son POR UNIDAD:
+    /// en imperial la milla mide 1609 m, no un kilómetro con otro nombre.
+    func testElHitoDeDistanciaEsLaUnidadReal() {
+        XCTAssertEqual(Unidades.metrosPorHito(sistema: .metrico), 1000)
+        XCTAssertEqual(Unidades.metrosPorHito(sistema: .imperial), 1609.344, accuracy: 0.001)
+    }
+
+    /// Los splits se recalculan por unidad, no se reetiquetan: 10 km a
+    /// ritmo constante son 10 splits en métrico y 6 en imperial.
+    func testLosSplitsSeRecalculanPorUnidad() {
+        // Un punto cada 100 m a 5:00/km (30 s cada 100 m).
+        let puntos = (0...100).map {
+            AnalisisSesion.Punto(t: Double($0) * 30, d: Double($0) * 100, alt: 0)
+        }
+        let metrico = AnalisisSesion.splits(puntos, metrosPorHito: 1000)
+        let imperial = AnalisisSesion.splits(puntos, metrosPorHito: 1609.344)
+        XCTAssertEqual(metrico.count, 10)
+        XCTAssertEqual(imperial.count, 6)
+        // El ritmo se guarda SIEMPRE en seg/km canónicos: el mismo
+        // esfuerzo da el mismo número en las dos listas.
+        XCTAssertEqual(metrico.first?.ritmoSegKm ?? 0, 300, accuracy: 2)
+        XCTAssertEqual(imperial.first?.ritmoSegKm ?? 0, 300, accuracy: 2)
+        XCTAssertEqual(imperial.last?.numero, 6)
+    }
+
+    // ---- Default por región y retrocompatibilidad
+
+    func testElDefaultSaleDeLaRegion() {
+        XCTAssertEqual(SistemaUnidades.segunRegion(Locale(identifier: "es_AR")), .metrico)
+        XCTAssertEqual(SistemaUnidades.segunRegion(Locale(identifier: "en_US")), .imperial)
+        XCTAssertEqual(SistemaUnidades.segunRegion(Locale(identifier: "en_GB")), .imperial)
+        XCTAssertEqual(SistemaUnidades.segunRegion(Locale(identifier: "es_ES")), .metrico)
+    }
+
+    /// Un usuario existente NO tiene preferencia guardada: recibe el
+    /// default por región, sin migración ni escritura.
+    func testUsuarioSinPreferenciaRecibeElDefaultDeSuRegion() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "test.unidades.\(UUID().uuidString)"))
+        let preferencia = PreferenciaUnidades(defaults: defaults,
+                                              locale: Locale(identifier: "en_US"))
+        XCTAssertEqual(preferencia.sistema, .imperial)
+        XCTAssertFalse(preferencia.elegidaPorElCorredor,
+                       "no eligió: el onboarding tiene que preguntar")
+        XCTAssertNil(defaults.string(forKey: "maratonia.sistemaUnidades"),
+                     "un default inferido NO se escribe: eso lo haría indistinguible de una elección")
+
+        // Un perfil viejo tampoco la trae: se mantiene el default.
+        let perfil = PerfilDeportivo()
+        XCTAssertNil(perfil.sistemaUnidades)
+        preferencia.adoptarDelPerfil(perfil.sistemaUnidades)
+        XCTAssertEqual(preferencia.sistema, .imperial)
+        XCTAssertFalse(preferencia.elegidaPorElCorredor)
+    }
+
+    func testElegirLaGuardaYLaMarcaComoElegida() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "test.unidades.\(UUID().uuidString)"))
+        let preferencia = PreferenciaUnidades(defaults: defaults,
+                                              locale: Locale(identifier: "es_AR"))
+        XCTAssertEqual(preferencia.sistema, .metrico)
+        preferencia.elegir(.imperial)
+        XCTAssertEqual(preferencia.sistema, .imperial)
+        XCTAssertTrue(preferencia.elegidaPorElCorredor)
+
+        // Y sobrevive al reinicio del proceso.
+        let despues = PreferenciaUnidades(defaults: defaults, locale: Locale(identifier: "es_AR"))
+        XCTAssertEqual(despues.sistema, .imperial)
+        XCTAssertTrue(despues.elegidaPorElCorredor)
+    }
+
+    // ---- Con un plan ya adoptado
+
+    /// Cambiar de unidades NO regenera el plan ni reescribe el disco: el
+    /// snapshot es idéntico byte a byte y solo cambia lo que se muestra.
+    func testCambiarUnidadesNoTocaElPlanAdoptado() throws {
+        let base = try XCTUnwrap(BibliotecaArquetipos.v1()
+            .first { $0.clave == .mediaMaraton }?.contenido)
+        let plan = base.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 17),
+                                fechaAdopcion: Date(timeIntervalSince1970: 0))
+        let antes = try JSONEncoder().encode(plan)
+
+        let definicion = try XCTUnwrap(plan.semanas.first?.programados.first?.definicion)
+        let km = try XCTUnwrap(definicion.distanciaPrescritaKm)
+        let enMetrico = Unidades.distancia(km: km, sistema: .metrico)
+        let enImperial = Unidades.distancia(km: km, sistema: .imperial)
+        XCTAssertNotEqual(enMetrico, enImperial, "la presentación sí cambia")
+        XCTAssertTrue(enImperial.hasSuffix("mi"))
+
+        // El dominio, intacto: mismos km guardados y mismo plan al
+        // releerlo. Se compara el VALOR y no los bytes porque el encoder
+        // no garantiza un orden estable para los diccionarios de dentro.
+        XCTAssertEqual(definicion.distanciaPrescritaKm, km)
+        XCTAssertEqual(try JSONDecoder().decode(PlanUsuario.self, from: antes), plan,
+                       "cambiar de unidades no puede reescribir el plan")
+    }
+
+    /// La preferencia viaja al reloj con la proyección, que ya se
+    /// reenvía ante cada cambio.
+    func testLaProyeccionLlevaLasUnidadesAlReloj() throws {
+        var perfil = PerfilDeportivo()
+        perfil.sistemaUnidades = .imperial
+        let datos = try JSONEncoder().encode(perfil)
+        let releido = try JSONDecoder().decode(PerfilDeportivo.self, from: datos)
+        XCTAssertEqual(releido.sistemaUnidades, .imperial)
+
+        var proyeccion = ProyeccionDia(generadaEl: Date(), dia: DiaLocal(anio: 2026, mes: 8, dia: 17))
+        proyeccion.sistemaUnidades = .imperial
+        let ida = try JSONEncoder().encode(proyeccion)
+        let vuelta = try JSONDecoder().decode(ProyeccionDia.self, from: ida)
+        XCTAssertEqual(vuelta.sistemaUnidades, .imperial)
+        XCTAssertEqual(vuelta.version, ProyeccionDia.versionActual,
+                       "agregar el campo no sube la versión: un receptor viejo lo ignora")
+    }
+
+    /// Una proyección de una build ANTERIOR no trae unidades: el reloj
+    /// no puede pisar la preferencia con un vacío.
+    func testUnaProyeccionViejaNoBorraLasUnidadesDelReloj() throws {
+        let json = """
+        {"version":1,"generadaEl":0,"dia":{"anio":2026,"mes":8,"dia":17}}
+        """
+        let vieja = try JSONDecoder().decode(ProyeccionDia.self, from: Data(json.utf8))
+        XCTAssertNil(vieja.sistemaUnidades)
+
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "test.unidades.\(UUID().uuidString)"))
+        let preferencia = PreferenciaUnidades(defaults: defaults,
+                                              locale: Locale(identifier: "es_AR"))
+        preferencia.elegir(.imperial)
+        preferencia.adoptarDelPerfil(vieja.sistemaUnidades)
+        XCTAssertEqual(preferencia.sistema, .imperial, "un nil no puede pisar lo elegido")
+    }
+
+    // ---- Idioma × unidades
+
+    /// Las dos preferencias son independientes: el idioma cambia las
+    /// palabras y las unidades cambian los números, y ninguna pisa a la
+    /// otra.
+    func testIdiomaYUnidadesSonIndependientes() {
+        let clave = ClaveEntrenamiento.tiradaLarga
+        // El título viene del catálogo (idioma) y no lleva unidades.
+        XCTAssertFalse(clave.nombre.contains("km"))
+        XCTAssertFalse(clave.nombre.contains("mi"))
+
+        // Y una sesión con distancia se muestra en la unidad elegida sin
+        // que el idioma la toque.
+        for sistema in SistemaUnidades.allCases {
+            let texto = Unidades.distancia(km: 16, sistema: sistema)
+            XCTAssertTrue(texto.hasSuffix(sistema.etiquetaDistancia), texto)
+        }
+        // El nombre de un bloque a ritmo objetivo SÍ lleva la distancia:
+        // se convierte, pero el CANÓNICO —lo que se congela— sigue en km.
+        let bloque = ClaveEntrenamiento.ritmoObjetivo(distancia: .media, km: 8)
+        XCTAssertTrue(bloque.nombreCanonico.contains("8 km"))
     }
 }

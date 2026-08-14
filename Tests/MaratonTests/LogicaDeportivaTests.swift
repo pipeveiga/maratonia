@@ -89,8 +89,13 @@ final class FormatosTests: XCTestCase {
     }
 
     func testRitmoParaHablar() {
-        XCTAssertEqual(ritmoParaHablar(230), "3 50")
-        XCTAssertEqual(ritmoParaHablar(305), "5 05")
+        // El sistema va explícito: el host de tests puede estar en
+        // imperial y entonces la voz diría el min/mi, que es correcto
+        // pero no es lo que este caso mide.
+        XCTAssertEqual(Unidades.ritmoHablado(segundosPorKm: 230, sistema: .metrico), "3 50")
+        XCTAssertEqual(Unidades.ritmoHablado(segundosPorKm: 305, sistema: .metrico), "5 05")
+        // Y en imperial dice el ritmo por milla, no el mismo número.
+        XCTAssertEqual(Unidades.ritmoHablado(segundosPorKm: 230, sistema: .imperial), "6 10")
     }
 
     func testKmTexto() {
@@ -335,6 +340,17 @@ final class ImportacionTramosTests: XCTestCase {
 // MARK: - Avance de tramos mixtos (distancia + tiempo)
 
 final class ProgresoTramosTests: XCTestCase {
+    /// Estos casos afirman TEXTO del dominio, que desde la capa de
+    /// unidades incluye "km" o "mi" según la preferencia. El host de
+    /// tests corre con la región del simulador (hoy en_US → imperial),
+    /// así que se fija el sistema: lo que se mide acá es la estructura
+    /// del texto, no en qué unidad vive el corredor. Los casos que sí
+    /// prueban la conversión son `UnidadesTests`.
+    override func setUp() {
+        super.setUp()
+        PreferenciaUnidades.compartida.elegir(.metrico)
+    }
+
 
     private func porDistancia(_ km: Double, nombre: String = "D") -> Tramo {
         Tramo(nombre: nombre, kilometros: km)
@@ -432,8 +448,11 @@ final class ProgresoTramosTests: XCTestCase {
     func testProgresoYRestanteDelTramoActual() {
         var progreso = ProgresoTramos(tramos: [porDistancia(2), porTiempo(120)])
         XCTAssertEqual(progreso.progresoTramoActual(distanciaMetros: 500, tiempoActivo: 100), 0.25)
-        XCTAssertEqual(progreso.restanteTramoActual(distanciaMetros: 500, tiempoActivo: 100),
-                       "faltan 1.5 km")
+        // La frase se traduce (el host de tests corre en el idioma del
+        // simulador); el dato que importa es la distancia y su unidad.
+        XCTAssertEqual(progreso.restanteTramoActual(distanciaMetros: 500,
+                                                    tiempoActivo: 100)?.contains("1.5 km"),
+                       true)
         XCTAssertEqual(progreso.restanteTramoActual(distanciaMetros: 1700, tiempoActivo: 400),
                        "faltan 300 m")
         _ = progreso.avanzar(distanciaMetros: 2000, tiempoActivo: 600)
@@ -865,7 +884,9 @@ final class AnalisisSesionTests: XCTestCase {
         for i in 0...250 {
             puntos.append(.init(t: Double(i) * 3.6, d: Double(i) * 10, alt: 10))
         }
-        let splits = AnalisisSesion.splits(puntos)
+        // Hito explícito: este test mide la interpolación, no la
+        // preferencia de unidades del host (que puede ser imperial).
+        let splits = AnalisisSesion.splits(puntos, metrosPorHito: 1000)
         XCTAssertEqual(splits.count, 2)
         XCTAssertEqual(splits[0].segundos, 360)
         XCTAssertEqual(splits[1].segundos, 360)

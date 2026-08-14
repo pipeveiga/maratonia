@@ -1,6 +1,28 @@
 {
   "sourceLanguage": "es",
   "strings": {
+    "%@ %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %lld"
+          }
+        }
+      }
+    },
+    "%@ / %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ / %@"
+          }
+        }
+      }
+    },
     "%@ /km": {
       "extractionState": "manual",
       "localizations": {
@@ -23,6 +45,17 @@
         }
       }
     },
+    "%@ a %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ at %@"
+          }
+        }
+      }
+    },
     "%@ a %@ /km o mejor": {
       "extractionState": "manual",
       "localizations": {
@@ -30,6 +63,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ at %@ /km or better"
+          }
+        }
+      }
+    },
+    "%@ a %@ o mejor": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ at %@ or better"
           }
         }
       }
@@ -133,6 +177,28 @@
         }
       }
     },
+    "%@ o mejor": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ or better"
+          }
+        }
+      }
+    },
+    "%@ sin pasar de %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ no slower than %@"
+          }
+        }
+      }
+    },
     "%@ sin pasar de %@ /km": {
       "extractionState": "manual",
       "localizations": {
@@ -195,6 +261,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@, meets the %@ the plan asks for"
+          }
+        }
+      }
+    },
+    "%@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@."
+          }
+        }
+      }
+    },
+    "%@/%@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@/%@"
+          }
+        }
+      }
+    },
+    "%@/sem": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@/wk"
+          }
+        }
+      }
+    },
+    "%@: %@ el último.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: %@ for that one."
           }
         }
       }
@@ -276,6 +386,17 @@
         }
       }
     },
+    "%lld %@/sem": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld %@/wk"
+          }
+        }
+      }
+    },
     "%lld avisos": {
       "extractionState": "manual",
       "localizations": {
@@ -327,6 +448,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld runs"
+          }
+        }
+      }
+    },
+    "%lld cm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld cm"
           }
         }
       }
@@ -1431,6 +1563,17 @@
         }
       }
     },
+    "Altura: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Height: %@"
+          }
+        }
+      }
+    },
     "Altura: %lld cm": {
       "extractionState": "manual",
       "localizations": {
@@ -1779,6 +1922,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Every %@ km, from km %@"
+          }
+        }
+      }
+    },
+    "Cada %@, desde %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every %@, from %@"
           }
         }
       }
@@ -3510,6 +3664,17 @@
         }
       }
     },
+    "En %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At %@"
+          }
+        }
+      }
+    },
     "En el kilómetro": {
       "extractionState": "manual",
       "localizations": {
@@ -4676,6 +4841,17 @@
         }
       }
     },
+    "Imperial": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imperial"
+          }
+        }
+      }
+    },
     "Importar": {
       "extractionState": "manual",
       "localizations": {
@@ -4793,6 +4969,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Intervals at 3-5K pace with a recovery jog between each one."
+          }
+        }
+      }
+    },
+    "Kilómetro %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kilometer %lld"
           }
         }
       }
@@ -5490,6 +5677,17 @@
         }
       }
     },
+    "Milla %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mile %lld"
+          }
+        }
+      }
+    },
     "Minuto": {
       "extractionState": "manual",
       "localizations": {
@@ -5684,6 +5882,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Maximum load and specificity. Requires a real base."
+          }
+        }
+      }
+    },
+    "Métrico": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metric"
           }
         }
       }
@@ -6502,6 +6711,17 @@
         }
       }
     },
+    "Peso: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weight: %@"
+          }
+        }
+      }
+    },
     "Peso: %lld kg": {
       "extractionState": "manual",
       "localizations": {
@@ -7217,6 +7437,17 @@
         }
       }
     },
+    "Ritmo de 10K %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "10K pace %@"
+          }
+        }
+      }
+    },
     "Ritmo de 10K %lld km": {
       "extractionState": "manual",
       "localizations": {
@@ -7224,6 +7455,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "10K pace %lld km"
+          }
+        }
+      }
+    },
+    "Ritmo de 5K %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5K pace %@"
           }
         }
       }
@@ -7261,6 +7503,17 @@
         }
       }
     },
+    "Ritmo de maratón %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marathon pace %@"
+          }
+        }
+      }
+    },
     "Ritmo de maratón %lld km": {
       "extractionState": "manual",
       "localizations": {
@@ -7268,6 +7521,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Marathon pace %lld km"
+          }
+        }
+      }
+    },
+    "Ritmo de media %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Half-marathon pace %@"
           }
         }
       }
@@ -7290,6 +7554,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Invalid pace: “%@”. Use minutes:seconds, e.g. \"3:50\"."
+          }
+        }
+      }
+    },
+    "Ritmo por %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pace per %@"
           }
         }
       }
@@ -7444,6 +7719,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Long outing"
+          }
+        }
+      }
+    },
+    "Salida más larga: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Longest run: %@"
           }
         }
       }
@@ -9076,6 +9362,17 @@
         }
       }
     },
+    "Unidades": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Units"
+          }
+        }
+      }
+    },
     "Usar un plan sugerido": {
       "extractionState": "manual",
       "localizations": {
@@ -9193,6 +9490,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "High volume — for organized weeks"
+          }
+        }
+      }
+    },
+    "Volumen por semana: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume per week: %@"
           }
         }
       }
@@ -9461,6 +9769,28 @@
         }
       }
     },
+    "faltan %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ to go"
+          }
+        }
+      }
+    },
+    "kg": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kg"
+          }
+        }
+      }
+    },
     "kilómetros": {
       "extractionState": "manual",
       "localizations": {
@@ -9494,6 +9824,17 @@
         }
       }
     },
+    "km · min/km · kg · cm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "km · min/km · kg · cm"
+          }
+        }
+      }
+    },
     "km/sem": {
       "extractionState": "manual",
       "localizations": {
@@ -9512,6 +9853,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "long run"
+          }
+        }
+      }
+    },
+    "larga %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "long %@"
+          }
+        }
+      }
+    },
+    "lb": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "lb"
           }
         }
       }
@@ -9545,6 +9908,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "best pace"
+          }
+        }
+      }
+    },
+    "mi": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "mi"
+          }
+        }
+      }
+    },
+    "mi · min/mi · lb · ft/in": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "mi · min/mi · lb · ft/in"
           }
         }
       }
@@ -9615,6 +10000,17 @@
         }
       }
     },
+    "ritmo %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "pace %@"
+          }
+        }
+      }
+    },
     "ritmo %@ · a personalizar": {
       "extractionState": "manual",
       "localizations": {
@@ -9644,6 +10040,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "longest run"
+          }
+        }
+      }
+    },
+    "sin pasar de %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "no slower than %@"
           }
         }
       }
@@ -9974,6 +10381,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Final touches, without pushing."
+          }
+        }
+      }
+    },
+    "≈ %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "≈ %@"
           }
         }
       }

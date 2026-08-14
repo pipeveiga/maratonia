@@ -220,7 +220,7 @@ struct ProgresoTab: View {
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(.secondary)
                 } else {
-                    Text("km")
+                    Text(Unidades.actual.etiquetaDistancia)
                         .font(.title3.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
@@ -405,17 +405,17 @@ struct ProgresoTab: View {
                     HStack(spacing: DV2.Espacio.xl) {
                         if let masLarga {
                             MetricaV2(titulo: "salida más larga",
-                                      valor: String(format: "%.1f km", masLarga.metros / 1000))
+                                      valor: Unidades.distancia(km: masLarga.metros / 1000, decimales: 1))
                         }
                         if let mejorRitmo,
                            let ritmo = MetricasSesion.ritmoSegKm(metros: mejorRitmo.metros,
                                                                  segundos: mejorRitmo.segundos) {
                             MetricaV2(titulo: "mejor ritmo",
-                                      valor: formatearRitmo(ritmo) + " /km")
+                                      valor: Unidades.ritmo(segundosPorKm: ritmo))
                         }
                     }
                     if let referencia = almacen.almacen.referenciaVigente {
-                        Text("Referencia vigente: \(String(format: "%.1f km", referencia.distanciaMetros / 1000)) en \(formatearDuracion(TimeInterval(referencia.segundos)))")
+                        Text("Referencia vigente: \(Unidades.distancia(km: referencia.distanciaMetros / 1000, decimales: 1)) en \(formatearDuracion(TimeInterval(referencia.segundos)))")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }

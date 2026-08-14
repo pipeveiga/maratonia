@@ -164,9 +164,9 @@ struct FeedbackSesionView: View {
     }
 
     private var resumen: String {
-        let km = String(format: "%.2f km", analisis.km)
+        let km = Unidades.distancia(km: analisis.km, decimales: 2)
         guard let ritmo = analisis.ritmoSegKm else { return km }
-        return String(localized: "\(km) · \(formatearRitmo(ritmo)) /km")
+        return String(localized: "\(km) · \(Unidades.ritmo(segundosPorKm: ritmo))")
     }
 
     private func textoDia(_ dia: DiaLocal) -> String {
@@ -234,8 +234,13 @@ struct DatosBasicosView: View {
                 // ternario de literales: un ternario en posición de
                 // LocalizedStringKey resuelve distinto según el
                 // contexto y es justo el patrón que rompe traducciones.
-                Stepper(textoAltura, value: $altura, in: 0...230, step: 1)
-                Stepper(textoPeso, value: $peso, in: 0...200, step: 1)
+                // El ESTADO sigue en cm y kg canónicos; lo que cambia
+                // con la preferencia es el paso y el texto. Así el dato
+                // guardado no depende de en qué unidad se lo tipeó.
+                Stepper(textoAltura) { ajustar(&altura, paso: pasoAltura, tope: 230) }
+                    onDecrement: { ajustar(&altura, paso: -pasoAltura, tope: 230) }
+                Stepper(textoPeso) { ajustar(&peso, paso: pasoPeso, tope: 200) }
+                    onDecrement: { ajustar(&peso, paso: -pasoPeso, tope: 200) }
             }
 
             Section {
@@ -250,13 +255,29 @@ struct DatosBasicosView: View {
         .onAppear(perform: cargar)
     }
 
+    /// Un paso del stepper, en unidades CANÓNICAS: 1 cm o 1 pulgada,
+    /// 1 kg o 1 libra. En imperial, subir de a un centímetro sería
+    /// invisible en pantalla (5′10″ no cambia) y el control se sentiría
+    /// roto.
+    private var pasoAltura: Double {
+        Unidades.actual == .imperial ? Unidades.pulgadaEnCm : 1
+    }
+
+    private var pasoPeso: Double {
+        Unidades.actual == .imperial ? Unidades.libraEnKg : 1
+    }
+
+    private func ajustar(_ valor: inout Double, paso: Double, tope: Double) {
+        valor = min(tope, max(0, valor + paso))
+    }
+
     private var textoAltura: String {
-        altura > 0 ? String(localized: "Altura: \(Int(altura)) cm")
+        altura > 0 ? String(localized: "Altura: \(Unidades.altura(cm: altura))")
                    : String(localized: "Altura: sin cargar")
     }
 
     private var textoPeso: String {
-        peso > 0 ? String(localized: "Peso: \(Int(peso)) kg")
+        peso > 0 ? String(localized: "Peso: \(Unidades.peso(kg: peso))")
                  : String(localized: "Peso: sin cargar")
     }
 

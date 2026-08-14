@@ -57,6 +57,7 @@ struct EstadoInicialOnboarding: Equatable {
     var marcaSegundos: Int
     var marcaFecha: Date
 
+    var sistemaUnidades: SistemaUnidades
     var origenActividad: ActividadActual.Origen
     var diasActuales: Int
     var kmSemanales: Double
@@ -106,6 +107,10 @@ struct EstadoInicialOnboarding: Equatable {
         marcaDistanciaMetros = marcaManual?.distanciaMetros ?? 5000
         marcaSegundos = marcaManual?.segundos ?? (25 * 60)
         marcaFecha = marcaManual?.fecha ?? hoy
+
+        // Lo que ya eligió, y si no eligió, la preferencia vigente
+        // (que a su vez nace del default por región).
+        sistemaUnidades = perfil.sistemaUnidades ?? PreferenciaUnidades.compartida.sistema
 
         let actividad = perfil.actividad
         origenActividad = actividad?.origen ?? .declarado
@@ -161,6 +166,9 @@ struct OnboardingDeportivo: View {
     @State private var mesesRegular = 0
     @State private var volviendoDePausa = false
     @State private var molestias: EstadoMolestias = .ninguna
+    /// Preseleccionado por región (o por lo que ya haya elegido); se
+    /// guarda en el perfil al cerrar.
+    @State private var sistemaUnidades: SistemaUnidades = PreferenciaUnidades.compartida.sistema
 
     // ---- Preferencias de la semana (paso 4).
     @State private var diaPreferidoFondo: Int?
@@ -204,6 +212,7 @@ struct OnboardingDeportivo: View {
         _diasElegidos = State(initialValue: inicial.diasElegidos)
         _diaPreferidoFondo = State(initialValue: inicial.diaPreferidoFondo)
         _molestias = State(initialValue: inicial.molestias)
+        _sistemaUnidades = State(initialValue: inicial.sistemaUnidades)
         _tieneFechaObjetivo = State(initialValue: inicial.tieneFechaObjetivo)
         _fechaObjetivo = State(initialValue: inicial.fechaObjetivo)
 
@@ -352,6 +361,12 @@ struct OnboardingDeportivo: View {
     private var pasoActividad: some View {
         pantalla(titulo: "¿Qué venís haciendo?",
                  subtitulo: "Es el dato que más cambia tu plan: define dónde arranca, no dónde termina.") {
+            // Las unidades se eligen ACÁ y no al final: esta es la
+            // primera pantalla que pide una distancia, así que preguntar
+            // después dejaría al corredor tipeando en una unidad y
+            // leyendo el plan en otra.
+            tarjetaUnidades
+
             if let detectada = actividadDetectada, !corrigiendoActividad {
                 tarjetaDetectada(detectada)
             } else {
@@ -379,6 +394,49 @@ struct OnboardingDeportivo: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    /// Elección corta y visual de unidades, antes de que se pida la
+    /// primera distancia. Viene preseleccionada por la región del
+    /// sistema —solo preseleccionada: la preferencia real es la que el
+    /// corredor confirma acá o cambia después en Perfil.
+    private var tarjetaUnidades: some View {
+        TarjetaV2 {
+            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                EncabezadoSeccionV2(texto: "Unidades")
+                HStack(spacing: DV2.Espacio.m) {
+                    ForEach(SistemaUnidades.allCases, id: \.self) { opcion in
+                        botonUnidades(opcion)
+                    }
+                }
+            }
+        }
+    }
+
+    private func botonUnidades(_ opcion: SistemaUnidades) -> some View {
+        let elegida = sistemaUnidades == opcion
+        return Button {
+            sistemaUnidades = opcion
+            // Se aplica en el acto: los steppers de abajo pasan a pedir
+            // millas o kilómetros mientras el corredor mira.
+            PreferenciaUnidades.compartida.elegir(opcion)
+        } label: {
+            VStack(spacing: 2) {
+                Text(opcion.nombre)
+                    .font(.subheadline.weight(.semibold))
+                Text(opcion.ejemplo)
+                    .font(.caption2)
+                    .foregroundStyle(elegida ? Color.white.opacity(0.85) : Color.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, DV2.Espacio.m)
+            .background(elegida ? AnyShapeStyle(DV2.gradienteMarca)
+                                : AnyShapeStyle(Color(.tertiarySystemGroupedBackground)),
+                        in: RoundedRectangle(cornerRadius: DV2.radioBoton, style: .continuous))
+            .foregroundStyle(elegida ? Color.white : Color.primary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(elegida ? .isSelected : [])
     }
 
     /// La propuesta calculada desde Salud: confirmar o corregir. Nunca
@@ -424,10 +482,18 @@ struct OnboardingDeportivo: View {
                 }
                 Stepper("Salidas por semana: \(diasActualesManual)",
                         value: $diasActualesManual, in: 0...14)
-                Stepper("Kilómetros por semana: \(Int(kmSemanalesManual))",
-                        value: $kmSemanalesManual, in: 0...200, step: 5)
-                Stepper("Salida más larga: \(String(format: "%.0f", tiradaLargaManual)) km",
-                        value: $tiradaLargaManual, in: 0...60, step: 1)
+                // El ESTADO sigue en km canónicos; el texto y el paso
+                // son los de la unidad elegida arriba.
+                Stepper(String(localized: "Volumen por semana: \(Unidades.volumenSemanal(km: kmSemanalesManual))")) {
+                    ajustarDistancia(&kmSemanalesManual, pasos: 5, tope: 200)
+                } onDecrement: {
+                    ajustarDistancia(&kmSemanalesManual, pasos: -5, tope: 200)
+                }
+                Stepper(String(localized: "Salida más larga: \(Unidades.distancia(km: tiradaLargaManual, decimales: 0))")) {
+                    ajustarDistancia(&tiradaLargaManual, pasos: 1, tope: 60)
+                } onDecrement: {
+                    ajustarDistancia(&tiradaLargaManual, pasos: -1, tope: 60)
+                }
                 Picker("Hace cuánto corrés seguido", selection: $mesesRegular) {
                     Text("Recién empiezo").tag(0)
                     Text("1-3 meses").tag(2)
@@ -438,6 +504,14 @@ struct OnboardingDeportivo: View {
                 Toggle("Vuelvo después de una pausa larga", isOn: $volviendoDePausa)
             }
         }
+    }
+
+    /// Suma o resta `pasos` unidades ENTERAS de la preferencia (km o
+    /// millas) sobre un valor guardado en km. En imperial, mover de a
+    /// un kilómetro daría saltos raros en pantalla (3,1 → 3,7 mi).
+    private func ajustarDistancia(_ km: inout Double, pasos: Double, tope: Double) {
+        let deltaKm = Unidades.kmDesde(pasos)
+        km = min(tope, max(0, km + deltaKm))
     }
 
     private func aplicarDetectada(_ detectada: ActividadDetectada,
@@ -1042,6 +1116,9 @@ struct OnboardingDeportivo: View {
         // editan en Perfil cuando el corredor quiera.
         if let actividad = actividadDelPerfil { perfil.actividad = actividad }
         perfil.molestias = molestias
+        // La preferencia viaja con los datos del corredor: sobrevive a
+        // reinstalar y llega al reloj con la proyección.
+        perfil.sistemaUnidades = sistemaUnidades
         // Se escribe SIEMPRE, no solo cuando hay día de fondo: con el
         // `if`, desmarcar el día elegido (tocarlo de nuevo, que la
         // pantalla ofrece explícitamente) no borraba nada y el perfil se
@@ -1246,7 +1323,7 @@ struct OnboardingDeportivo: View {
         case 10000: return "10K"
         case 21097.5: return "21K"
         case 42195: return "42K"
-        default: return String(format: "%.1f km", metros / 1000)
+        default: return Unidades.distancia(km: metros / 1000, decimales: 1)
         }
     }
 }

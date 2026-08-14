@@ -181,15 +181,15 @@ enum DV2 {
             return String(localized: "libre")
         case .absoluto(let rapido, let lento):
             switch (rapido, lento) {
-            case let (r?, l?): return "\(formatearRitmo(r))–\(formatearRitmo(l)) /km"
-            case let (nil, l?): return String(localized: "\(formatearRitmo(l)) /km o mejor")
-            case let (r?, nil): return String(localized: "sin pasar de \(formatearRitmo(r)) /km")
+            case let (r?, l?): return Unidades.rangoDeRitmo(r, l)
+            case let (nil, l?): return String(localized: "\(Unidades.ritmo(segundosPorKm: l)) o mejor")
+            case let (r?, nil): return String(localized: "sin pasar de \(Unidades.ritmo(segundosPorKm: r))")
             default: return String(localized: "libre")
             }
         case .simbolico(let tipo):
             switch Metodologias.resolver(tipo, baseline: baseline) {
             case .resuelto(let rango, _):
-                return "\(formatearRitmo(rango.minSegKm))–\(formatearRitmo(rango.maxSegKm)) /km"
+                return Unidades.rangoDeRitmo(rango.minSegKm, rango.maxSegKm)
             case .pendiente:
                 return String(localized: "ritmo \(nombre(de: tipo).lowercased()) · a personalizar")
             }
@@ -201,7 +201,7 @@ enum DV2 {
     static func metaDeSegmento(_ segmento: Segmento) -> String {
         var partes: [String] = []
         if let km = segmento.distanciaKm {
-            partes.append(km == km.rounded() ? "\(Int(km)) km" : String(format: "%.1f km", km))
+            partes.append(Unidades.distancia(km: km))
         } else if let segundos = segmento.duracionSegundos {
             partes.append(duracionTexto(segundos))
         }
@@ -615,9 +615,7 @@ struct TarjetaEntrenamientoV2: View {
             HStack(spacing: DV2.Espacio.xl) {
                 if let km = programado.definicion.distanciaPrescritaKm {
                     MetricaV2(titulo: "distancia",
-                              valor: km == km.rounded()
-                                ? "\(Int(km)) km"
-                                : String(format: "%.1f km", km),
+                              valor: Unidades.distancia(km: km),
                               sobreOscuro: esProtagonista)
                 }
                 if let segundos = programado.definicion.duracionPorTiempoSegundos {

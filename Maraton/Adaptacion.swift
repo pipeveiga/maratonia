@@ -621,8 +621,7 @@ enum AplicadorAdaptacion {
         var partes: [String] = []
         let km = programado.definicion.volumenKm()
         if km > 0 {
-            partes.append(km == km.rounded() ? "\(Int(km)) km"
-                                             : String(format: "%.1f km", km))
+            partes.append(Unidades.distancia(km: km))
         }
         partes.append(programado.definicion.nombre)
         if programado.resolucion == .omitido {

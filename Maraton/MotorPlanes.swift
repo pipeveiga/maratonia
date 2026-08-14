@@ -1268,7 +1268,7 @@ struct PropuestaPlanView: View {
                 }
                 if let km = propuesta.kmPrimeraSemana {
                     LabeledContent(String(localized: "Primera semana"),
-                                   value: String(format: "≈ %.0f km", km))
+                                   value: String(localized: "≈ \(Unidades.distancia(km: km, decimales: 0))"))
                 }
                 if let referencia = propuesta.referenciaUsada {
                     LabeledContent(String(localized: "Referencia"),

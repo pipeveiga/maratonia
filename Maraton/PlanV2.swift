@@ -348,6 +348,12 @@ final class AlmacenStore: ObservableObject {
         self.url = url
         self.conectadoAlReloj = conectadoAlReloj
         almacen = Self.cargarConCutover(urlV2: url, urlLegacy: urlLegacy, fecha: fecha)
+        // La preferencia de unidades del PERFIL manda sobre el caché del
+        // dispositivo: es la que viaja con los datos del corredor y
+        // sobrevive a reinstalar. Si el perfil no la tiene (usuario
+        // anterior a este build), no se pisa nada y queda el default
+        // determinístico por región — sin migración.
+        PreferenciaUnidades.compartida.adoptarDelPerfil(almacen.perfilDeportivo.sistemaUnidades)
         guard conectadoAlReloj else { return }
         // Fase E: el reloj recibe la proyección de HOY y devuelve
         // resultados; este store es el dueño de las dos puntas.
@@ -375,6 +381,10 @@ final class AlmacenStore: ObservableObject {
                                        programadoID: deHoy?.id,
                                        definicion: deHoy?.definicion,
                                        nombrePlan: almacen.planActivo?.nombre)
+        // Las unidades viajan con la proyección: el reloj muestra y
+        // habla en las mismas que el teléfono, sin preguntar aparte.
+        proyeccion.sistemaUnidades = almacen.perfilDeportivo.sistemaUnidades
+            ?? PreferenciaUnidades.compartida.sistema
         if deHoy == nil,
            let resuelto = almacen.programadoDelDia(hoy),
            resuelto.resolucion != .pendiente {
@@ -956,14 +966,14 @@ struct PlanBaseDetalleView: View {
                 let requisitos = RequisitosObjetivo.para(arquetipo.objetivo)
                 let actividad = almacen.almacen.perfilDeportivo.actividad
                 if requisitos.kmSemanales > 0 {
-                    BarraComparativa(titulo: String(localized: "Volumen semanal"),
-                                     tuyo: actividad?.kmSemanales ?? 0,
-                                     pedido: requisitos.kmSemanales, unidad: "km")
+                    BarraComparativaDistancia(titulo: String(localized: "Volumen semanal"),
+                                              tuyoKm: actividad?.kmSemanales ?? 0,
+                                              pedidoKm: requisitos.kmSemanales)
                 }
                 if requisitos.tiradaLargaKm > 0 {
-                    BarraComparativa(titulo: String(localized: "Tirada larga"),
-                                     tuyo: actividad?.tiradaLargaKm ?? 0,
-                                     pedido: requisitos.tiradaLargaKm, unidad: "km")
+                    BarraComparativaDistancia(titulo: String(localized: "Tirada larga"),
+                                              tuyoKm: actividad?.tiradaLargaKm ?? 0,
+                                              pedidoKm: requisitos.tiradaLargaKm)
                 }
                 BarraComparativa(
                     titulo: String(localized: "Días por semana"),
@@ -1333,8 +1343,7 @@ struct DetalleEntrenamientoView: View {
                     HStack(spacing: DV2.Espacio.xl) {
                         if let km = programado.definicion.distanciaPrescritaKm {
                             MetricaV2(titulo: "distancia",
-                                      valor: km == km.rounded()
-                                        ? "\(Int(km)) km" : String(format: "%.1f km", km))
+                                      valor: Unidades.distancia(km: km))
                         }
                         if let segundos = programado.definicion.duracionPorTiempoSegundos {
                             MetricaV2(titulo: "por tiempo", valor: duracionTexto(segundos))

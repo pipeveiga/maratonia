@@ -174,7 +174,7 @@ struct ContextoCoach: Codable {
                              programadoID: nil, detalle: "\(cantidad)")
         case .volumenSemanalBajo(let hecho, let previsto):
             return EventoDTO(tipo: "volumen-bajo", severidad: severidad, programadoID: nil,
-                             detalle: String(format: "%.0f/%.0f km", hecho, previsto))
+                             detalle: String(localized: "\(Unidades.distancia(km: hecho, decimales: 0, conUnidad: false))/\(Unidades.distancia(km: previsto, decimales: 0))"))
         case .esfuerzoMuyAlto:
             return EventoDTO(tipo: "esfuerzo-muy-alto", severidad: severidad,
                              programadoID: nil, detalle: nil)
@@ -188,7 +188,7 @@ struct ContextoCoach: Codable {
                              programadoID: id.uuidString.lowercased(), detalle: nil)
         case .carreraLibreSignificativa(_, let km):
             return EventoDTO(tipo: "carrera-libre", severidad: severidad, programadoID: nil,
-                             detalle: String(format: "%.1f km", km))
+                             detalle: Unidades.distancia(km: km, decimales: 1))
         case .cambioDeDisponibilidad:
             return EventoDTO(tipo: "cambio-disponibilidad", severidad: severidad,
                              programadoID: nil, detalle: nil)

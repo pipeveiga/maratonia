@@ -130,6 +130,12 @@ final class ConectividadWatch: NSObject, ObservableObject {
         try? datos.write(to: Self.urlProyeccion, options: .atomic)
         DispatchQueue.main.async {
             self.proyeccion = nueva
+            // El reloj no pregunta las unidades: adopta las del
+            // corredor, que viajan en la proyección. Si esta proyección
+            // viene de una build vieja el campo es nil y queda lo que
+            // ya había (o el default por región): nunca se pisa una
+            // preferencia con un vacío.
+            PreferenciaUnidades.compartida.adoptarDelPerfil(nueva.sistemaUnidades)
         }
     }
 

@@ -443,7 +443,7 @@ extension DefinicionEntrenamiento {
             // Lo que se muestra es lo que se va a correr: si el tope
             // recorta, la tarjeta no puede seguir prometiendo 30 km.
             let km = (declarada * factorDeTope() * 10).rounded() / 10
-            medidas.append(km == km.rounded() ? "\(Int(km)) km" : String(format: "%.1f km", km))
+            medidas.append(Unidades.distancia(km: km))
         }
         if let segundos = duracionPorTiempoSegundos {
             medidas.append(duracionTexto(segundos))
@@ -1020,6 +1020,14 @@ struct PerfilDeportivo: Codable, Equatable {
     var molestias: EstadoMolestias? = nil
     /// Preferencias de la semana (día de fondo, día imposible).
     var preferencias: PreferenciasSemana? = nil
+
+    /// Sistema de unidades ELEGIDO por el corredor. nil = todavía no
+    /// eligió, y entonces manda el default por región
+    /// (`SistemaUnidades.segunRegion`). Opcional a propósito: los
+    /// perfiles anteriores decodifican igual y reciben ese default sin
+    /// migración ni escritura. NO afecta al dominio ni al motor — solo
+    /// a cómo se presenta (ver `Shared/Unidades.swift`).
+    var sistemaUnidades: SistemaUnidades? = nil
 
     /// Por qué el objetivo elegido TODAVÍA NO tiene plan.
     ///
@@ -1727,6 +1735,12 @@ struct ProyeccionDia: Codable, Equatable {
     var resolucionDeHoy: ResolucionProgramado? = nil
     var nombreDeHoy: String? = nil
     var tipoDeHoy: TipoEntrenamiento? = nil
+
+    /// El sistema de unidades del corredor. Viaja con la proyección
+    /// —que ya se reenvía ante cada cambio y al abrir la app— para que
+    /// el reloj muestre y hable en las mismas unidades que el teléfono.
+    /// Opcional: un receptor viejo lo ignora y la versión no sube.
+    var sistemaUnidades: SistemaUnidades? = nil
 
     /// Una proyección de ayer NO ofrece el entrenamiento de ayer como
     /// si fuera de hoy: si el día no coincide, el reloj cae a Carrera

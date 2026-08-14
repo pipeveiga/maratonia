@@ -49,20 +49,20 @@ struct Tramo: Codable, Equatable, Identifiable, Hashable {
     /// "3 km" o "12 min" según la meta del tramo.
     var metaTexto: String {
         if esPorTiempo { return duracionTexto(duracionSegundos ?? 0) }
-        return kilometros == kilometros.rounded()
-            ? "\(Int(kilometros)) km"
-            : String(format: "%.1f km", kilometros)
+        return Unidades.distancia(km: kilometros)
     }
 
     var descripcion: String {
         let meta = metaTexto
         switch (ritmoMinSegKm, ritmoMaxSegKm) {
+        // La unidad va DENTRO del texto que arma `Unidades`, no suelta
+        // en la frase: así "/km" y "/mi" no quedan como literal.
         case let (rapido?, lento?):
-            return String(localized: "\(meta) a \(formatearRitmo(rapido))–\(formatearRitmo(lento)) /km")
+            return String(localized: "\(meta) a \(Unidades.rangoDeRitmo(rapido, lento))")
         case let (nil, lento?):
-            return String(localized: "\(meta) a \(formatearRitmo(lento)) /km o mejor")
+            return String(localized: "\(meta) a \(Unidades.ritmo(segundosPorKm: lento)) o mejor")
         case let (rapido?, nil):
-            return String(localized: "\(meta) sin pasar de \(formatearRitmo(rapido)) /km")
+            return String(localized: "\(meta) sin pasar de \(Unidades.ritmo(segundosPorKm: rapido))")
         default:
             return String(localized: "\(meta) libre")
         }
@@ -85,10 +85,12 @@ struct AvisoKm: Codable, Equatable, Identifiable, Hashable {
     var texto: String
 
     var descripcion: String {
+        // El aviso se GUARDA en km (canónico) y se muestra en la unidad
+        // del corredor: "cada 1 mi desde la mi 2".
         if let cada = cadaKm, cada > 0 {
-            return String(localized: "Cada \(kmTexto(cada)) km, desde el km \(kmTexto(kilometro))")
+            return String(localized: "Cada \(Unidades.distancia(km: cada)), desde \(Unidades.distancia(km: kilometro))")
         }
-        return String(localized: "En el km \(kmTexto(kilometro))")
+        return String(localized: "En \(Unidades.distancia(km: kilometro))")
     }
 }
 
@@ -368,7 +370,7 @@ struct ProgresoTramos: Equatable {
         }
         let falta = max(0, inicioDistanciaMetros + tramo.kilometros * 1000 - distanciaMetros)
         if falta >= 1000 {
-            return String(format: "faltan %.1f km", falta / 1000)
+            return String(localized: "faltan \(Unidades.distancia(km: falta / 1000, decimales: 1))")
         }
         return "faltan \(Int(falta.rounded())) m"
     }
@@ -392,7 +394,10 @@ func zonaCardiaca(fc: Int, reposo: Int, maxima: Int) -> Int {
 
 /// 230 -> "3 50", para que la voz lo lea natural.
 func ritmoParaHablar(_ segundosPorKm: Int) -> String {
-    "\(segundosPorKm / 60) \(String(format: "%02d", segundosPorKm % 60))"
+    // La VOZ también respeta las unidades: en imperial dice el min/mi,
+    // no el min/km con otro nombre. Se separan minutos y segundos para
+    // que el sintetizador no lo lea como una hora.
+    Unidades.ritmoHablado(segundosPorKm: segundosPorKm)
 }
 
 // MARK: - Calidad de métricas (RC1)

@@ -258,10 +258,11 @@ struct CarrerasView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text(String(format: "%.2f", carrera.distanciaMetros / 1000))
+                                Text(Unidades.distancia(km: carrera.distanciaMetros / 1000,
+                                                        decimales: 2, conUnidad: false))
                                     .font(.title3.weight(.bold))
                                     .monospacedDigit()
-                                Text("km")
+                                Text(Unidades.actual.etiquetaDistancia)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }
@@ -311,11 +312,16 @@ struct CarrerasView: View {
             VStack(alignment: .leading, spacing: DV2.Espacio.m) {
                 EncabezadoSeccionV2(texto: "Esta semana")
                 HStack(spacing: DV2.Espacio.xl) {
-                    MetricaV2(titulo: "km", valor: String(format: "%.1f", semana.km))
+                    // La etiqueta ya viene localizada de la capa de unidades:
+                    // se pasa como clave directa en vez de interpolarla,
+                    // que generaría la clave degenerada "%@".
+                    MetricaV2(titulo: LocalizedStringKey(Unidades.actual.etiquetaDistancia),
+                              valor: Unidades.distancia(km: semana.km, decimales: 1, conUnidad: false))
                     MetricaV2(titulo: semana.carreras == 1 ? "carrera" : "carreras",
                               valor: "\(semana.carreras)")
                     if let ritmo = semana.ritmo {
-                        MetricaV2(titulo: "ritmo /km", valor: formatearRitmo(ritmo))
+                        MetricaV2(titulo: "ritmo \(Unidades.actual.etiquetaRitmo)",
+                                  valor: Unidades.ritmo(segundosPorKm: ritmo, conUnidad: false))
                     } else {
                         // Sin carreras esta semana: estado semántico,
                         // no un "–:––" que parece un error.
@@ -331,7 +337,7 @@ struct CarrerasView: View {
         var partes = [FormatoFecha.fechaYHora(carrera.fecha),
                       formatearDuracion(carrera.duracion)]
         if let ritmo = carrera.ritmoPromedioSegKm {
-            partes.append(String(localized: "\(formatearRitmo(ritmo)) /km"))
+            partes.append(Unidades.ritmo(segundosPorKm: ritmo))
         }
         return partes.joined(separator: " · ")
     }
@@ -389,14 +395,14 @@ struct CarreraDetalleView: View {
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())],
                               spacing: 10) {
                         TarjetaEstadistica(titulo: "Distancia",
-                                           valor: String(format: "%.2f km", carrera.distanciaMetros / 1000),
+                                           valor: Unidades.distancia(km: carrera.distanciaMetros / 1000, decimales: 2),
                                            icono: "figure.run", color: .green)
                         TarjetaEstadistica(titulo: "Tiempo",
                                            valor: formatearDuracion(carrera.duracion),
                                            icono: "stopwatch.fill", color: .blue)
                         if let ritmo = carrera.ritmoPromedioSegKm {
                             TarjetaEstadistica(titulo: "Ritmo promedio",
-                                               valor: "\(formatearRitmo(ritmo)) /km",
+                                               valor: Unidades.ritmo(segundosPorKm: ritmo),
                                                icono: "speedometer", color: .orange)
                         }
                         if let fc = carrera.fcPromedio {
@@ -591,14 +597,14 @@ struct TarjetaCompartir: View {
                     .padding(.vertical, 4)
             }
 
-            Text(String(format: "%.2f km", carrera.distanciaMetros / 1000))
+            Text(Unidades.distancia(km: carrera.distanciaMetros / 1000, decimales: 2))
                 .font(.system(size: 56, weight: .heavy, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(.white)
             HStack(spacing: 26) {
                 datoCompartir("TIEMPO", formatearDuracion(carrera.duracion))
                 if let ritmo = carrera.ritmoPromedioSegKm {
-                    datoCompartir("RITMO", "\(formatearRitmo(ritmo)) /km")
+                    datoCompartir("RITMO", Unidades.ritmo(segundosPorKm: ritmo))
                 }
                 if let fc = carrera.fcPromedio {
                     datoCompartir("FC MEDIA", "\(Int(fc))")
@@ -649,7 +655,7 @@ struct CarrerasOcultasView: View {
             ForEach(store.ocultas) { carrera in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("\(String(format: "%.2f", carrera.distanciaMetros / 1000)) km")
+                        Text(Unidades.distancia(km: carrera.distanciaMetros / 1000, decimales: 2))
                             .font(.subheadline.weight(.semibold))
                         Text(FormatoFecha.media(carrera.fecha))
                             .font(.caption)
@@ -681,9 +687,13 @@ enum AnalisisSesion {
 
     struct Punto { var t: TimeInterval; var d: Double; var alt: Double }
 
+    /// Un split completo. `numero` es el hito (km 3 o milla 3) y
+    /// `ritmoSegKm` queda SIEMPRE en segundos por kilómetro canónicos:
+    /// la conversión a min/mi la hace la capa de unidades al mostrarlo,
+    /// no este cálculo.
     struct SplitKm: Identifiable {
-        var id: Int { km }
-        var km: Int
+        var id: Int { numero }
+        var numero: Int
         var segundos: Int
         var ritmoSegKm: Int
     }
@@ -703,26 +713,33 @@ enum AnalisisSesion {
         return resultado
     }
 
-    /// Splits por km reales (interpolando el cruce exacto de cada km).
+    /// Splits reales por unidad, interpolando el cruce exacto de cada
+    /// hito. Con la preferencia en imperial son millas de verdad —el
+    /// paso sale de `metrosPorHito`—, no kilómetros con otra etiqueta.
     /// Nota: usan el tiempo de RELOJ de la ruta (una pausa larga infla
-    /// el km donde ocurrió — igual que el split de cualquier GPS).
-    static func splits(_ puntos: [Punto]) -> [SplitKm] {
-        guard puntos.count > 1 else { return [] }
+    /// el split donde ocurrió — igual que el de cualquier GPS).
+    static func splits(_ puntos: [Punto],
+                       metrosPorHito: Double = Unidades.metrosPorHito()) -> [SplitKm] {
+        guard puntos.count > 1, metrosPorHito > 0 else { return [] }
         var resultado: [SplitKm] = []
-        var kmObjetivo = 1000.0
-        var tiempoKmAnterior = 0.0
+        var objetivo = metrosPorHito
+        var tiempoAnterior = 0.0
         for (anterior, actual) in zip(puntos, puntos.dropFirst()) {
-            while actual.d >= kmObjetivo {
+            while actual.d >= objetivo {
                 let tramo = actual.d - anterior.d
-                let fraccion = tramo > 0 ? (kmObjetivo - anterior.d) / tramo : 0
+                let fraccion = tramo > 0 ? (objetivo - anterior.d) / tramo : 0
                 let tCruce = anterior.t + (actual.t - anterior.t) * fraccion
-                let segundos = Int((tCruce - tiempoKmAnterior).rounded())
-                let km = Int(kmObjetivo / 1000)
+                let segundos = Int((tCruce - tiempoAnterior).rounded())
+                let numero = Int((objetivo / metrosPorHito).rounded())
                 if segundos > 0 {
-                    resultado.append(SplitKm(km: km, segundos: segundos, ritmoSegKm: segundos))
+                    // El ritmo se guarda en seg/km canónicos para que la
+                    // capa de unidades lo formatee como cualquier otro.
+                    let segPorKm = Int((Double(segundos) * 1000 / metrosPorHito).rounded())
+                    resultado.append(SplitKm(numero: numero, segundos: segundos,
+                                             ritmoSegKm: segPorKm))
                 }
-                tiempoKmAnterior = tCruce
-                kmObjetivo += 1000
+                tiempoAnterior = tCruce
+                objetivo += metrosPorHito
             }
         }
         return resultado
@@ -877,23 +894,23 @@ struct SeccionesAnalisis: View {
                 Section("Splits") {
                     ForEach(splits) { split in
                         HStack {
-                            Text("km \(split.km)")
+                            Text("\(Unidades.actual.etiquetaDistancia) \(split.numero)")
                                 .font(.subheadline.weight(.semibold))
                                 .monospacedDigit()
                             Spacer()
                             Text(formatearDuracion(TimeInterval(split.segundos)))
                                 .font(.subheadline)
                                 .monospacedDigit()
-                            Text("\(formatearRitmo(split.ritmoSegKm)) /km")
+                            Text(Unidades.ritmo(segundosPorKm: split.ritmoSegKm))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
                         }
                     }
                 }
-                Section("Ritmo por km") {
+                Section(String(localized: "Ritmo por \(Unidades.actual.etiquetaDistancia)")) {
                     Chart(splits) { split in
-                        BarMark(x: .value("km", split.km),
+                        BarMark(x: .value(Unidades.actual.etiquetaDistancia, split.numero),
                                 y: .value("ritmo", split.ritmoSegKm))
                             .foregroundStyle(DV2.Marca.primario)
                     }
@@ -901,7 +918,7 @@ struct SeccionesAnalisis: View {
                         AxisMarks { valor in
                             AxisValueLabel {
                                 if let seg = valor.as(Int.self) {
-                                    Text(formatearRitmo(seg))
+                                    Text(Unidades.ritmo(segundosPorKm: seg, conUnidad: false))
                                 }
                             }
                         }
@@ -935,7 +952,8 @@ struct SeccionesAnalisis: View {
                perfil.count > 1 {
                 Section("Elevación") {
                     Chart(Array(perfil.enumerated()), id: \.offset) { _, punto in
-                        LineMark(x: .value("km", punto.d / 1000),
+                        LineMark(x: .value(Unidades.actual.etiquetaDistancia,
+                                       Unidades.distanciaMostrable(km: punto.d / 1000)),
                                  y: .value("m", punto.alt))
                             .foregroundStyle(DV2.Marca.profundo)
                             .interpolationMethod(.monotone)

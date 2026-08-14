@@ -37,6 +37,12 @@ struct ContentView: View {
     @State private var mostrandoBienvenida = false
     @StateObject private var identidad = IdentidadStore()
 
+    /// Observar la preferencia acá arriba es lo que hace que cambiar de
+    /// unidades redibuje TODA la app de una vez. Sin esto, el selector
+    /// de Perfil dejaría medias pantallas en la unidad vieja hasta el
+    /// próximo refresco.
+    @ObservedObject private var unidades = PreferenciaUnidades.compartida
+
     var body: some View {
         TabView(selection: $pestana) {
             PlanTab(store: store, almacen: almacen, pestana: $pestana)
@@ -353,9 +359,7 @@ struct PlanTab: View {
                             }
                             Spacer()
                             if let km = programado.definicion.distanciaPrescritaKm {
-                                Text(km == km.rounded()
-                                     ? "\(Int(km)) km"
-                                     : String(format: "%.1f km", km))
+                                Text(Unidades.distancia(km: km))
                                     .font(.subheadline.weight(.bold))
                                     .monospacedDigit()
                                     .foregroundStyle(DV2.Marca.profundo)
@@ -1240,6 +1244,23 @@ struct PerfilTab: View {
                 if let plan = almacen.almacen.planActivo {
                     LabeledContent("Plan activo", value: plan.nombre)
                 }
+
+                // Cambiar de unidades NO regenera el plan ni reescribe
+                // nada del dominio: el plan se guarda en km y se dibuja
+                // en lo que el corredor elija.
+                Picker(selection: Binding(
+                    get: { PreferenciaUnidades.compartida.sistema },
+                    set: { nuevo in
+                        PreferenciaUnidades.compartida.elegir(nuevo)
+                        almacen.almacen.perfil?.sistemaUnidades = nuevo
+                    })) {
+                    ForEach(SistemaUnidades.allCases, id: \.self) { opcion in
+                        Text(opcion.nombre).tag(opcion)
+                    }
+                } label: {
+                    LabeledContent("Unidades", value: PreferenciaUnidades.compartida.sistema.ejemplo)
+                }
+                .pickerStyle(.menu)
                 // La referencia de ritmo, con su equivalencia detrás de
                 // un toque: la fórmula de Riegel y su cita no tienen por
                 // qué dominar la pantalla de todos los días.
@@ -1309,13 +1330,13 @@ struct PerfilTab: View {
     private func textoActividad(_ actividad: ActividadActual) -> String {
         var partes: [String] = []
         if let km = actividad.kmSemanales {
-            partes.append(String(format: "%.0f km/sem", km))
+            partes.append(Unidades.volumenSemanal(km: km))
         }
         if let dias = actividad.diasPorSemana {
-            partes.append(String(format: "%.0f días", dias))
+            partes.append(String(localized: "\(Int(dias.rounded())) días"))
         }
         if let larga = actividad.tiradaLargaKm {
-            partes.append(String(format: "larga %.0f km", larga))
+            partes.append(String(localized: "larga \(Unidades.distancia(km: larga, decimales: 0))"))
         }
         return partes.isEmpty ? String(localized: "Sin cargar") : partes.joined(separator: " · ")
     }
@@ -1353,7 +1374,7 @@ struct PerfilTab: View {
         case 10000: distancia = "10K"
         case 21097.5: distancia = "21K"
         case 42195: distancia = "42K"
-        default: distancia = String(format: "%.1f km", referencia.distanciaMetros / 1000)
+        default: distancia = Unidades.distancia(km: referencia.distanciaMetros / 1000, decimales: 1)
         }
         return "\(distancia) en \(formatearDuracion(TimeInterval(referencia.segundos)))"
     }

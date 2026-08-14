@@ -418,16 +418,24 @@ final class CarreraCelu: NSObject, ObservableObject {
     }
 
     private func chequearSplits() {
-        let km = Int(distanciaMetros / 1000)
-        guard km > ultimoKmAnunciado, tiempoTranscurrido > 0 else { return }
+        // El hito es la unidad del corredor: en imperial avisa por
+        // MILLA, no cada kilómetro llamándolo milla.
+        let porHito = Unidades.metrosPorHito()
+        let hito = Int(distanciaMetros / porHito)
+        guard hito > ultimoKmAnunciado, tiempoTranscurrido > 0 else { return }
         let parcial = tiempoTranscurrido - tiempoAlUltimoKm
-        let cubiertos = km - ultimoKmAnunciado
-        ultimoKmAnunciado = km
+        let cubiertos = hito - ultimoKmAnunciado
+        ultimoKmAnunciado = hito
         tiempoAlUltimoKm = tiempoTranscurrido
+        let nombre = Unidades.hitoHablado(numero: hito)
         if cubiertos == 1, parcial > 60, parcial < 30 * 60 {
-            anunciar(String(localized: "Kilómetro \(km): \(ritmoParaHablar(Int(parcial))) el último."))
+            // El parcial es el tiempo de ESE hito, así que ya está en
+            // segundos por unidad: se pasa a canónico para que la capa
+            // lo vuelva a convertir sin duplicar la regla.
+            let segPorKm = Unidades.ritmoCanonico(segundosPorUnidad: Int(parcial))
+            anunciar(String(localized: "\(nombre): \(ritmoParaHablar(segPorKm)) el último."))
         } else {
-            anunciar(String(localized: "Kilómetro \(km)."))
+            anunciar(String(localized: "\(nombre)."))
         }
     }
 
@@ -501,7 +509,7 @@ final class CarreraCelu: NSObject, ObservableObject {
                 + " / \(duracionTexto(tramo.duracionSegundos ?? 0))"
         }
         let recorrido = max(0, distanciaMetros - progreso.inicioDistanciaMetros) / 1000
-        return String(format: "%.2f / %.1f km", recorrido, tramo.kilometros)
+        return String(localized: "\(Unidades.distancia(km: recorrido, decimales: 2, conUnidad: false)) / \(Unidades.distancia(km: tramo.kilometros, decimales: 1))")
     }
 
     private func anuncio(de tramo: Tramo, numero: Int) -> String {
@@ -1058,10 +1066,10 @@ struct CorrerTab: View {
             Text(resumen.guardadaEnSalud ? "¡Carrera guardada!" : "Carrera terminada")
                 .font(.headline)
             HStack(spacing: 8) {
-                Chip(texto: String(format: "%.2f km", resumen.distanciaMetros / 1000))
+                Chip(texto: Unidades.distancia(km: resumen.distanciaMetros / 1000, decimales: 2))
                 Chip(texto: formatearDuracion(resumen.duracion))
                 if let ritmo = resumen.ritmoPromedioSegKm {
-                    Chip(texto: "\(formatearRitmo(ritmo)) /km")
+                    Chip(texto: Unidades.ritmo(segundosPorKm: ritmo))
                 }
             }
             Text(resumen.puntosRuta > 0
@@ -1102,10 +1110,11 @@ struct PantallaCarreraCelu: View {
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                     TarjetaEstadistica(titulo: "Distancia",
-                                       valor: String(format: "%.2f km", carrera.distanciaMetros / 1000),
+                                       valor: Unidades.distancia(km: carrera.distanciaMetros / 1000, decimales: 2),
                                        icono: "figure.run", color: .green)
                     TarjetaEstadistica(titulo: "Ritmo",
-                                       valor: carrera.ritmoActualSegKm.map { "\(formatearRitmo($0)) /km" } ?? "–:–– /km",
+                                       valor: carrera.ritmoActualSegKm.map { Unidades.ritmo(segundosPorKm: $0) }
+                            ?? "–:–– \(Unidades.actual.etiquetaRitmo)",
                                        icono: "speedometer", color: .orange)
                 }
                 .padding(.horizontal)

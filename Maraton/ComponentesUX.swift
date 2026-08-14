@@ -130,6 +130,24 @@ struct BarraComparativa: View {
     }
 }
 
+/// La MISMA barra, para magnitudes de DISTANCIA. Existe para que el
+/// llamador no tenga que saber en qué unidad está el corredor: recibe
+/// kilómetros canónicos —que es lo que guarda el dominio— y convierte
+/// adentro. Sin esto, cada pantalla que compara volúmenes tendría su
+/// propia conversión, que es justo lo que la capa de unidades evita.
+struct BarraComparativaDistancia: View {
+    var titulo: String
+    var tuyoKm: Double
+    var pedidoKm: Double
+
+    var body: some View {
+        BarraComparativa(titulo: titulo,
+                         tuyo: Unidades.distanciaMostrable(km: tuyoKm),
+                         pedido: Unidades.distanciaMostrable(km: pedidoKm),
+                         unidad: Unidades.actual.etiquetaDistancia)
+    }
+}
+
 // MARK: - Métrica suelta
 
 /// Un número grande con su etiqueta. La unidad de construcción del
@@ -428,7 +446,7 @@ struct ResumenCorredor: View {
                     HStack(alignment: .top, spacing: DV2.Espacio.m) {
                         if let kmSemanales {
                             Metrica(valor: String(format: "%.0f", kmSemanales),
-                                    etiqueta: String(localized: "km/sem"),
+                                    etiqueta: String(localized: "\(Unidades.actual.etiquetaDistancia)/sem"),
                                     alineacion: .center)
                         }
                         if let dias {

@@ -240,6 +240,17 @@ final class ExportacionCompartirTests: XCTestCase {
 }
 
 final class EstructuraYMetadataTests: XCTestCase {
+    /// Estos casos afirman TEXTO del dominio, que desde la capa de
+    /// unidades incluye "km" o "mi" según la preferencia. El host de
+    /// tests corre con la región del simulador (hoy en_US → imperial),
+    /// así que se fija el sistema: lo que se mide acá es la estructura
+    /// del texto, no en qué unidad vive el corredor. Los casos que sí
+    /// prueban la conversión son `UnidadesTests`.
+    override func setUp() {
+        super.setUp()
+        PreferenciaUnidades.compartida.elegir(.metrico)
+    }
+
 
     func testDistanciaTotalYResumen() {
         var definicion = DefinicionEntrenamiento(tipo: .series, nombre: "Series")

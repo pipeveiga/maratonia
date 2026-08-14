@@ -33,6 +33,10 @@ struct ContentView: View {
     @State private var libreEnCuentaRegresiva = false
     @State private var programadoEnCuentaRegresiva: UUID?
 
+    /// El reloj también redibuja entero al cambiar las unidades: la
+    /// preferencia llega del iPhone en la proyección.
+    @ObservedObject private var unidades = PreferenciaUnidades.compartida
+
     var body: some View {
         if let numero = cuentaRegresiva {
             ZStack {
@@ -120,10 +124,10 @@ struct ContentView: View {
             Text(formatearTiempo(resumen.duracion))
                 .font(.title3)
                 .monospacedDigit()
-            Text(String(format: "%.2f km", resumen.distanciaMetros / 1000))
+            Text(Unidades.distancia(km: resumen.distanciaMetros / 1000, decimales: 2))
                 .monospacedDigit()
             if let ritmo = resumen.ritmoPromedioSegKm {
-                Text("Ritmo \(formatearRitmo(ritmo)) /km")
+                Text(String(localized: "Ritmo \(Unidades.ritmo(segundosPorKm: ritmo))"))
                     .font(.footnote)
             }
             HStack(spacing: 10) {
@@ -687,7 +691,8 @@ struct PantallaReproduccion: View {
                         Text("Km \(parcial.km)")
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text(formatearRitmo(parcial.segundos))
+                        Text(Unidades.ritmo(segundosPorKm: Unidades.ritmoCanonico(segundosPorUnidad: parcial.segundos),
+                                    conUnidad: false))
                             .monospacedDigit()
                     }
                     .font(.footnote)
@@ -773,7 +778,8 @@ struct PantallaReproduccion: View {
         VStack(spacing: 8) {
             // El ritmo es el héroe: número gigante con semáforo de color.
             VStack(spacing: 0) {
-                Text(entrenamiento.ritmoActualSegKm.map(formatearRitmo) ?? "–:––")
+                Text(entrenamiento.ritmoActualSegKm.map {
+                Unidades.ritmo(segundosPorKm: $0, conUnidad: false) } ?? "–:––")
                     .font(.system(size: 44, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(colorDeRitmo)

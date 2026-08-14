@@ -155,11 +155,15 @@ enum ClaveEntrenamiento: Equatable, Hashable {
         case .series(let repeticiones, let minutos):
             return String(localized: "\(repeticiones)×\(minutos)′ fuertes")
         case .ritmoObjetivo(let distancia, let km):
+            // La distancia del bloque va en la unidad del corredor; el
+            // NOMBRE de la carrera (5K, media, maratón) no se convierte:
+            // un 5K se llama 5K también en millas.
+            let medida = Unidades.distancia(km: Double(km))
             switch distancia {
-            case .cinco: return String(localized: "Ritmo de 5K \(km) km")
-            case .diez: return String(localized: "Ritmo de 10K \(km) km")
-            case .media: return String(localized: "Ritmo de media \(km) km")
-            case .maraton: return String(localized: "Ritmo de maratón \(km) km")
+            case .cinco: return String(localized: "Ritmo de 5K \(medida)")
+            case .diez: return String(localized: "Ritmo de 10K \(medida)")
+            case .media: return String(localized: "Ritmo de media \(medida)")
+            case .maraton: return String(localized: "Ritmo de maratón \(medida)")
             }
         case .carrera(let distancia):
             switch distancia {
