@@ -88,7 +88,12 @@ final class RepositorioCuenta: ObservableObject {
         actualizarEstadoPendientes()
     }
 
-    private var uid: String? { Auth.auth().currentUser?.uid }
+    /// `Auth.auth()` NO es seguro de llamar sin Firebase configurado:
+    /// aborta el proceso. Se consulta siempre detrás de `disponible`.
+    private var uid: String? {
+        guard ServicioAuth.disponible else { return nil }
+        return Auth.auth().currentUser?.uid
+    }
 
     // MARK: Entrada (arranque / login)
 

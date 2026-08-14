@@ -54,6 +54,13 @@ const EventoDetectado = z.object({
 }).strict();
 
 const ContextoCoach = z.object({
+  // ANCLA TEMPORAL. Sin esto el modelo recibe fechas ISO sueltas y no
+  // puede resolver "este sábado" ni "mañana": era la causa de que el
+  // Coach negara sesiones que sí existían.
+  hoy: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  diaSemanaHoy: z.enum(["monday", "tuesday", "wednesday", "thursday",
+                        "friday", "saturday", "sunday"]),
+  zonaHoraria: z.string().max(64),
   idioma: z.enum(["es", "en"]),
   objetivo: z.string().max(30),
   fechaCarrera: z.string().max(10).nullish(),
@@ -72,7 +79,9 @@ const ContextoCoach = z.object({
   eventos: z.array(EventoDetectado).max(12),
   proximosEntrenamientos: z.array(z.object({
     programadoID: z.string().uuid(),
-    dia: z.string().max(10),
+    dia: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    diaSemana: z.enum(["monday", "tuesday", "wednesday", "thursday",
+                       "friday", "saturday", "sunday"]),
     nombre: z.string().max(80),
     tipo: z.string().max(30),
     km: z.number().min(0).max(100).nullish(),

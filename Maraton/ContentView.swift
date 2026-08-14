@@ -35,9 +35,13 @@ enum Pestana: Hashable {
 /// armaba un plan y recién después ofrecía cuenta. Ahora la cuenta va
 /// primero porque la cuenta es la que sabe qué datos son tuyos.
 struct ContentView: View {
-    @StateObject private var store = PlanStore()
-    @StateObject private var almacen = AlmacenStore()
-    @StateObject private var identidad = IdentidadStore()
+    // Sin valor por defecto: los construye `init()` UNA vez y los
+    // comparte. Un inicializador de propiedad acá sería código muerto
+    // —el init lo pisa— y la próxima persona que lo lea va a creer que
+    // hay dos formas de construirlos.
+    @StateObject private var store: PlanStore
+    @StateObject private var almacen: AlmacenStore
+    @StateObject private var identidad: IdentidadStore
     @StateObject private var sesion: SesionApp
     @StateObject private var repositorio: RepositorioCuenta
 

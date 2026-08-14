@@ -28,6 +28,9 @@ struct ContextoCoach: Codable {
     struct ProgramadoDTO: Codable {
         var programadoID: String
         var dia: String
+        /// "saturday". Canónico: que el modelo no tenga que deducir el
+        /// día de la semana de una fecha ISO.
+        var diaSemana: String
         var nombre: String
         var tipo: String
         var km: Double?
@@ -59,6 +62,14 @@ struct ContextoCoach: Codable {
         var programadoID: String?
         var detalle: String?
     }
+
+    /// EL ANCLA TEMPORAL. Sin esto el modelo recibe una lista de fechas
+    /// ISO sin saber qué día es hoy, y no puede resolver "este sábado",
+    /// "mañana" ni "la semana que viene". Fue la causa exacta de que el
+    /// Coach dijera que no había sesión el sábado teniendo una.
+    var hoy: String
+    var diaSemanaHoy: String
+    var zonaHoraria: String
 
     var idioma: String
     var objetivo: String
@@ -95,6 +106,7 @@ struct ContextoCoach: Codable {
             .map { programado in
                 ProgramadoDTO(programadoID: programado.id.uuidString.lowercased(),
                               dia: Self.texto(programado.dia ?? hoy),
+                              diaSemana: (programado.dia ?? hoy).diaDeSemanaCanonico,
                               nombre: programado.definicion.nombre,
                               tipo: programado.definicion.tipo.rawValue,
                               km: (programado.definicion.volumenKm(baseline: baselineCoach) * 10).rounded() / 10)
@@ -127,6 +139,9 @@ struct ContextoCoach: Codable {
             }
 
         return ContextoCoach(
+            hoy: Self.texto(hoy),
+            diaSemanaHoy: hoy.diaDeSemanaCanonico,
+            zonaHoraria: TimeZone.current.identifier,
             idioma: FormatoFecha.locale.language.languageCode?.identifier == "en" ? "en" : "es",
             objetivo: perfil.objetivo?.rawValue ?? "sin-objetivo",
             fechaCarrera: perfil.fechaObjetivo.map(Self.texto),
@@ -299,7 +314,9 @@ final class ServicioCoach: ObservableObject {
     /// El ID token de Firebase del usuario actual, o nil. Lo usan el
     /// Coach y el borrado de cuenta: un solo lugar donde se pide.
     nonisolated static func tokenActual() async -> String? {
-        guard let usuario = Auth.auth().currentUser else { return nil }
+        // Sin Firebase configurado, `Auth.auth()` aborta el proceso.
+        guard ServicioAuth.disponible,
+              let usuario = Auth.auth().currentUser else { return nil }
         return try? await withCheckedThrowingContinuation { continuacion in
             usuario.getIDToken { token, error in
                 if let token { continuacion.resume(returning: token) }

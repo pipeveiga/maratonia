@@ -1190,6 +1190,7 @@ final class ContratoCoachTests: XCTestCase {
 
     func testElContextoMandaExactamenteLasClavesDelSchema() throws {
         let contexto = ContextoCoach(
+            hoy: "2026-08-14", diaSemanaHoy: "friday", zonaHoraria: "America/Montevideo",
             idioma: "es", objetivo: "maraton", fechaCarrera: "2026-11-15",
             diasElegidos: [2, 4, 6, 7], diasImposibles: [3],
             baseline: .init(distanciaMetros: 5000, segundos: 1470),
@@ -1199,6 +1200,7 @@ final class ContratoCoachTests: XCTestCase {
         let claves = Set(try json(contexto).keys)
         // Espejo literal de ContextoCoach en functions/schemas.js.
         XCTAssertEqual(claves, [
+            "hoy", "diaSemanaHoy", "zonaHoraria",
             "idioma", "objetivo", "fechaCarrera", "diasElegidos", "diasImposibles",
             "baseline", "semanaActual", "semanasTotales", "faseSemanaActual",
             "cumplimientoPorciento", "kmUltimas4Semanas", "ventanas", "eventos",
@@ -1211,6 +1213,7 @@ final class ContratoCoachTests: XCTestCase {
     /// encoder para que el schema del backend pueda confiar en él.
     func testLosOpcionalesNilNoViajanComoClave() throws {
         let contexto = ContextoCoach(
+            hoy: "2026-08-14", diaSemanaHoy: "friday", zonaHoraria: "America/Montevideo",
             idioma: "es", objetivo: "primeros5K", fechaCarrera: nil,
             diasElegidos: [2, 4, 6], diasImposibles: [],
             baseline: nil, semanaActual: nil, semanasTotales: nil,
@@ -1223,7 +1226,10 @@ final class ContratoCoachTests: XCTestCase {
             XCTAssertFalse(claves.contains(ausente),
                 "\(ausente) viaja aunque sea nil — el schema tiene que seguir siendo nullish")
         }
-        XCTAssertEqual(claves, ["idioma", "objetivo", "diasElegidos", "diasImposibles",
+        // El ancla temporal NO es opcional: viaja siempre, incluso en el
+        // contexto más pelado. Es lo que hace resoluble "este sábado".
+        XCTAssertEqual(claves, ["hoy", "diaSemanaHoy", "zonaHoraria",
+                                "idioma", "objetivo", "diasElegidos", "diasImposibles",
                                 "ventanas", "eventos", "proximosEntrenamientos",
                                 "ultimasSesiones"])
     }
@@ -1238,8 +1244,9 @@ final class ContratoCoachTests: XCTestCase {
             ["distanciaMetros", "segundos"])
         XCTAssertEqual(Set(try json(ContextoCoach.ProgramadoDTO(
             programadoID: UUID().uuidString.lowercased(), dia: "2026-08-18",
+            diaSemana: "tuesday",
             nombre: "Umbral 28′", tipo: "umbral", km: 9.4)).keys),
-            ["programadoID", "dia", "nombre", "tipo", "km"])
+            ["programadoID", "dia", "diaSemana", "nombre", "tipo", "km"])
         XCTAssertEqual(Set(try json(ContextoCoach.SesionDTO(
             fecha: "2026-08-13", tipo: "facil", km: 10, ritmoSegKm: 330,
             cumplida: true, sensacion: "bien")).keys),
@@ -3454,5 +3461,118 @@ final class PoliticaProTests: XCTestCase {
         XCTAssertEqual(ProductoPro.mensual.rawValue, "maratonia.pro.monthly")
         XCTAssertEqual(ProductoPro.anual.rawValue, "maratonia.pro.yearly")
         XCTAssertEqual(Set(ProductoPro.todos).count, 2)
+    }
+}
+
+// MARK: - El Coach y las fechas (caso reportado en el build 70)
+//
+// Viernes 14/8/2026. En Plan se ven: sábado 15 Rodaje suave, domingo 16
+// Tirada larga, martes 18 Rodaje medio. El corredor escribe "no quiero
+// correr este sábado" y el Coach responde que no hay sesiones ese
+// sábado. Era falso.
+//
+// Causa: el contexto viajaba SIN ancla temporal — fechas ISO sueltas,
+// sin "hoy", sin zona horaria y sin día de la semana. El modelo no
+// podía resolver "este sábado" porque no sabía qué día era hoy.
+
+@MainActor
+final class ContextoTemporalCoachTests: XCTestCase {
+
+    private let viernes = DiaLocal(anio: 2026, mes: 8, dia: 14)
+
+    /// El día de la semana canónico, que es lo que hace inequívoca cada
+    /// fecha del contexto.
+    func testElDiaDeSemanaCanonicoEsCorrecto() {
+        XCTAssertEqual(DiaLocal(anio: 2026, mes: 8, dia: 14).diaDeSemanaCanonico, "friday")
+        XCTAssertEqual(DiaLocal(anio: 2026, mes: 8, dia: 15).diaDeSemanaCanonico, "saturday")
+        XCTAssertEqual(DiaLocal(anio: 2026, mes: 8, dia: 16).diaDeSemanaCanonico, "sunday")
+        XCTAssertEqual(DiaLocal(anio: 2026, mes: 8, dia: 17).diaDeSemanaCanonico, "monday")
+        XCTAssertEqual(DiaLocal(anio: 2026, mes: 8, dia: 18).diaDeSemanaCanonico, "tuesday")
+    }
+
+    /// Una semana entera, para que no sea una coincidencia de offset.
+    func testLosSieteDiasSalenEnOrden() {
+        let esperado = ["monday", "tuesday", "wednesday", "thursday",
+                        "friday", "saturday", "sunday"]
+        for (indice, nombre) in esperado.enumerated() {
+            let dia = DiaLocal(anio: 2026, mes: 8, dia: 10 + indice)   // 10/8 = lunes
+            XCTAssertEqual(dia.diaDeSemanaCanonico, nombre, "\(dia)")
+            XCTAssertEqual(dia.numeroDeDiaDeSemana, indice + 1)
+        }
+    }
+
+    /// EL CASO REPORTADO, de punta a punta: el contexto que se arma
+    /// desde el dominio tiene que contener la sesión del sábado 15 con
+    /// su día de la semana, y el ancla de hoy.
+    func testElContextoContieneLaSesionDelSabado() throws {
+        var almacen = AlmacenV2()
+        let programados = [
+            (DiaLocal(anio: 2026, mes: 8, dia: 15), "Rodaje suave", TipoEntrenamiento.facil, 6.0),
+            (DiaLocal(anio: 2026, mes: 8, dia: 16), "Tirada larga", .largo, 10.0),
+            (DiaLocal(anio: 2026, mes: 8, dia: 18), "Rodaje medio", .facil, 7.0),
+        ].map { dia, nombre, tipo, km in
+            EntrenamientoProgramado(
+                definicion: DefinicionEntrenamiento(
+                    tipo: tipo, nombre: nombre,
+                    segmentos: [Segmento(nombre: nombre, distanciaKm: km)]),
+                dia: dia)
+        }
+        almacen.adoptarPlan(PlanUsuario(
+            nombre: "Plan de prueba", fechaAdopcion: Date(),
+            semanas: [SemanaPlan(numero: 1, programados: programados)]))
+
+        let contexto = ContextoCoach.desde(almacen, hoy: viernes)
+
+        // El ancla.
+        XCTAssertEqual(contexto.hoy, "2026-08-14")
+        XCTAssertEqual(contexto.diaSemanaHoy, "friday")
+        XCTAssertFalse(contexto.zonaHoraria.isEmpty)
+
+        // Y la sesión que el Coach decía que no existía.
+        let sabados = contexto.proximosEntrenamientos.filter { $0.diaSemana == "saturday" }
+        XCTAssertEqual(sabados.count, 1, "el sábado 15 tiene que viajar en el contexto")
+        XCTAssertEqual(sabados.first?.dia, "2026-08-15")
+        // Se asserta el DATO, no la frase: el nombre viaja localizado al
+        // idioma del corredor (que también viaja, en `idioma`), así que
+        // el host de tests en inglés lo ve como "Easy run".
+        XCTAssertEqual(sabados.first?.tipo, TipoEntrenamiento.facil.rawValue)
+        XCTAssertEqual(sabados.first?.km, 6)
+
+        // Y las otras dos, con su día correcto.
+        XCTAssertEqual(contexto.proximosEntrenamientos.count, 3)
+        XCTAssertEqual(contexto.proximosEntrenamientos.map(\.diaSemana),
+                       ["saturday", "sunday", "tuesday"])
+    }
+
+    /// Cada fecha del contexto lleva SU día de la semana calculado del
+    /// mismo modo: nada de que el modelo tenga que deducirlo.
+    func testCadaProximoLlevaSuDiaDeSemanaCoherente() throws {
+        var almacen = AlmacenV2()
+        let base = try XCTUnwrap(BibliotecaArquetipos.v1()
+            .first { $0.clave == .mediaMaraton }?.contenido)
+        almacen.adoptarPlan(base.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 17),
+                                         fechaAdopcion: Date()))
+        let contexto = ContextoCoach.desde(almacen, hoy: DiaLocal(anio: 2026, mes: 8, dia: 17))
+        XCTAssertFalse(contexto.proximosEntrenamientos.isEmpty)
+        for programado in contexto.proximosEntrenamientos {
+            let dia = try XCTUnwrap(ContextoCoach.dia(desde: programado.dia))
+            XCTAssertEqual(programado.diaSemana, dia.diaDeSemanaCanonico,
+                           "\(programado.dia) dice \(programado.diaSemana)")
+        }
+    }
+
+    /// La sesión de HOY también cuenta: "no quiero correr hoy" tiene que
+    /// encontrar algo si hay algo.
+    func testLaSesionDeHoyEntraEnElContexto() {
+        var almacen = AlmacenV2()
+        almacen.adoptarPlan(PlanUsuario(
+            nombre: "Hoy", fechaAdopcion: Date(),
+            semanas: [SemanaPlan(numero: 1, programados: [
+                EntrenamientoProgramado(
+                    definicion: DefinicionEntrenamiento(tipo: .facil, nombre: "Rodaje"),
+                    dia: viernes)])]))
+        let contexto = ContextoCoach.desde(almacen, hoy: viernes)
+        XCTAssertEqual(contexto.proximosEntrenamientos.first?.dia, "2026-08-14")
+        XCTAssertEqual(contexto.proximosEntrenamientos.first?.diaSemana, "friday")
     }
 }

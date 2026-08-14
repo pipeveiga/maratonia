@@ -49,6 +49,33 @@ struct DiaLocal: Codable, Equatable, Hashable, Comparable {
         calendario.date(from: DateComponents(year: anio, month: mes, day: dia))
     }
 
+    /// El día de la semana en forma CANÓNICA e independiente del idioma
+    /// ("monday"… "sunday").
+    ///
+    /// Existe para que el contexto del Coach lleve fechas inequívocas.
+    /// Una fecha ISO suelta ("2026-08-15") no le dice a un modelo qué
+    /// día de la semana es, y sin eso no puede resolver "este sábado" —
+    /// que fue exactamente el bug: el Coach decía que no había sesión el
+    /// sábado teniendo una programada.
+    ///
+    /// Canónico y no localizado a propósito: es un identificador para
+    /// máquinas, no texto para el corredor.
+    var diaDeSemanaCanonico: String {
+        let nombres = ["monday", "tuesday", "wednesday", "thursday",
+                       "friday", "saturday", "sunday"]
+        return nombres[max(0, min(6, numeroDeDiaDeSemana - 1))]
+    }
+
+    /// 1 = lunes … 7 = domingo (la convención de `EntrenamientoBase`).
+    var numeroDeDiaDeSemana: Int {
+        var calendario = Calendar(identifier: .gregorian)
+        calendario.timeZone = .current
+        guard let fecha = fecha(calendario: calendario) else { return 1 }
+        // `weekday` de Foundation es 1 = domingo; el dominio usa 1 = lunes.
+        let domingoPrimero = calendario.component(.weekday, from: fecha)
+        return ((domingoPrimero + 5) % 7) + 1
+    }
+
     /// El LUNES de la semana de este día (semana deportiva L-D, sin
     /// depender del firstWeekday del locale).
     func lunesDeLaSemana(calendario: Calendar = .current) -> DiaLocal {
