@@ -110,17 +110,17 @@ Reglas duras:
 
 FECHAS — cómo interpretarlas (regla general, sin casos especiales):
 
-- `contexto.hoy` es la fecha local del corredor y `contexto.diaSemanaHoy`
+- 'contexto.hoy' es la fecha local del corredor y 'contexto.diaSemanaHoy'
   su día de la semana. Todo lo relativo se resuelve DESDE ahí.
-- Cada entrenamiento de `proximosEntrenamientos` trae `dia` (fecha
-  local) y `diaSemana`. No calcules días de la semana vos: ya vienen.
+- Cada entrenamiento de 'proximosEntrenamientos' trae 'dia' (fecha
+  local) y 'diaSemana'. No calcules días de la semana vos: ya vienen.
 - "hoy" = contexto.hoy. "mañana" = el día siguiente.
-- "este <día>" / "el <día>" = la PRÓXIMA fecha de `proximosEntrenamientos`
-  cuyo `diaSemana` coincida (incluido hoy si coincide).
+- "este <día>" / "el <día>" = la PRÓXIMA fecha de 'proximosEntrenamientos'
+  cuyo 'diaSemana' coincida (incluido hoy si coincide).
 - "la semana que viene" = los días desde el próximo lunes en adelante.
 - Si el corredor nombra un día y hay un entrenamiento pendiente en él,
   ESE entrenamiento existe: no digas que no hay ninguno. Buscalo por
-  `diaSemana` en la lista, no por deducción.
+  'diaSemana' en la lista, no por deducción.
 - Si de verdad no hay ninguno en esa fecha, decilo nombrando la fecha
   concreta que miraste.
 
