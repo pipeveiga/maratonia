@@ -1286,3 +1286,140 @@ final class DisponibilidadDelCorredorTests: XCTestCase {
                        .sinPlan)
     }
 }
+
+// MARK: - Reabrir el onboarding no borra lo que el corredor ya declaró
+//
+// El onboarding se abre desde Perfil, desde "Explorar planes" y desde la
+// bienvenida: NO es de un solo uso. Nacía con todo el @State vacío, así
+// que reabrirlo y tocar "Guardar y cerrar" escribía ese vacío encima del
+// perfil guardado. `EstadoInicialOnboarding` es la regla de precarga.
+
+final class EstadoInicialOnboardingTests: XCTestCase {
+
+    private let hoy = Date(timeIntervalSince1970: 1_770_000_000)
+
+    /// El caso que rompía: perfil completo, se reabre, y todo lo
+    /// declarado sigue ahí.
+    func testReabrirConservaLoDeclarado() {
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .mediaMaraton
+        perfil.diasPorSemana = 4
+        perfil.diasElegidos = [2, 4, 6, 7]
+        perfil.preferencias = PreferenciasSemana(diaPreferidoFondo: 7, diasImposibles: [3])
+        perfil.molestias = .molestiaLeve
+        perfil.fechaObjetivo = DiaLocal(anio: 2026, mes: 11, dia: 8)
+        perfil.fechaOnboarding = hoy
+
+        let inicial = EstadoInicialOnboarding(perfil: perfil, referencia: nil, hoy: hoy)
+
+        XCTAssertEqual(inicial.objetivo, .mediaMaraton)
+        XCTAssertEqual(inicial.diasElegidos, [2, 4, 6, 7])
+        XCTAssertEqual(inicial.diaPreferidoFondo, 7)
+        XCTAssertEqual(inicial.molestias, .molestiaLeve)
+        XCTAssertTrue(inicial.tieneFechaObjetivo)
+        XCTAssertEqual(DiaLocal(fecha: inicial.fechaObjetivo),
+                       DiaLocal(anio: 2026, mes: 11, dia: 8))
+    }
+
+    /// Un perfil vacío no se llena de defaults plausibles: sin
+    /// disponibilidad declarada, la pantalla tiene que seguir preguntando.
+    func testPerfilVacioNoInventaDisponibilidad() {
+        let inicial = EstadoInicialOnboarding(perfil: PerfilDeportivo(),
+                                              referencia: nil, hoy: hoy)
+        XCTAssertNil(inicial.objetivo)
+        XCTAssertNil(inicial.diasPorSemana)
+        XCTAssertTrue(inicial.diasElegidos.isEmpty)
+        XCTAssertFalse(inicial.tieneFechaObjetivo)
+        XCTAssertNil(inicial.experiencia)
+    }
+
+    /// La cadencia precargada sigue la MISMA regla que el resto de la
+    /// app (`disponibilidadDeclarada`): mandan los días concretos. Si no,
+    /// la tarjeta "3 días" y los 5 chips marcados se contradicen.
+    func testLaCadenciaPrecargadaSigueALosDiasConcretos() {
+        var perfil = PerfilDeportivo()
+        perfil.diasPorSemana = 3
+        perfil.diasElegidos = [1, 2, 4, 6, 7]
+        let inicial = EstadoInicialOnboarding(perfil: perfil, referencia: nil, hoy: hoy)
+        XCTAssertEqual(inicial.diasPorSemana, 5)
+        XCTAssertEqual(inicial.diasPorSemana, perfil.disponibilidadDeclarada)
+    }
+
+    /// El test pendiente sobrevive a reabrir: antes, guardar de nuevo lo
+    /// apagaba (`testPendiente = (experiencia == .hacerTest)` con
+    /// experiencia en nil) y la tarjeta del test desaparecía sola.
+    func testElTestPendienteSobrevive() {
+        var perfil = PerfilDeportivo()
+        perfil.testPendiente = true
+        let inicial = EstadoInicialOnboarding(perfil: perfil, referencia: nil, hoy: hoy)
+        XCTAssertEqual(inicial.experiencia, .hacerTest)
+    }
+
+    /// Una marca escrita a mano se precarga entera.
+    func testLaMarcaManualSePrecarga() {
+        let marca = ReferenciaRendimiento(fecha: hoy, fuente: .marcaManual,
+                                          distanciaMetros: 10000, segundos: 51 * 60 + 30)
+        let inicial = EstadoInicialOnboarding(perfil: PerfilDeportivo(),
+                                              referencia: marca, hoy: hoy)
+        XCTAssertEqual(inicial.experiencia, .marcaReciente)
+        XCTAssertEqual(inicial.marcaDistanciaMetros, 10000)
+        XCTAssertEqual(inicial.marcaSegundos, 51 * 60 + 30)
+        XCTAssertEqual(inicial.marcaFecha, hoy)
+    }
+
+    /// Una referencia de OTRA fuente no se precarga como marca manual:
+    /// volver a guardarla la duplicaría en el historial con la fuente
+    /// equivocada (`registrarReferencia` deduplica por fuente).
+    func testUnTestNoSePrecargaComoMarcaManual() {
+        let test = ReferenciaRendimiento(fecha: hoy, fuente: .test5K,
+                                         distanciaMetros: 5000, segundos: 24 * 60)
+        let inicial = EstadoInicialOnboarding(perfil: PerfilDeportivo(),
+                                              referencia: test, hoy: hoy)
+        XCTAssertNotEqual(inicial.experiencia, .marcaReciente)
+    }
+
+    /// Onboarding hecho y ninguna referencia: la única respuesta que
+    /// produce ese estado es "estoy empezando".
+    func testSinReferenciaYConOnboardingHechoEsEmpezando() {
+        var perfil = PerfilDeportivo()
+        perfil.fechaOnboarding = hoy
+        let inicial = EstadoInicialOnboarding(perfil: perfil, referencia: nil, hoy: hoy)
+        XCTAssertEqual(inicial.experiencia, .empezando)
+    }
+
+    /// Los valores de actividad entran al rango de su stepper: uno fuera
+    /// de rango deja el control mudo y el corredor no puede corregirlo.
+    func testLaActividadSePrecargaDentroDelRangoDeSuControl() {
+        var perfil = PerfilDeportivo()
+        perfil.actividad = ActividadActual(
+            origen: .corregido, fecha: hoy, diasPorSemana: 20,
+            kmSemanales: 350, tiradaLargaKm: 90, mesesCorriendoRegular: 4,
+            volviendoDePausa: true)
+        let inicial = EstadoInicialOnboarding(perfil: perfil, referencia: nil, hoy: hoy)
+        XCTAssertEqual(inicial.diasActuales, 14)
+        XCTAssertEqual(inicial.kmSemanales, 200)
+        XCTAssertEqual(inicial.tiradaLarga, 60)
+        XCTAssertEqual(inicial.origenActividad, .corregido)
+        XCTAssertTrue(inicial.volviendoDePausa)
+    }
+
+    /// Los meses caen en un tramo REAL del selector: un valor suelto
+    /// dejaría el Picker sin nada seleccionado.
+    func testLosMesesCaenEnUnTramoDelSelector() {
+        let tramos: Set<Int> = [0, 2, 4, 9, 18]
+        for meses in 0...36 {
+            XCTAssertTrue(tramos.contains(EstadoInicialOnboarding.tramoDeMeses(meses)),
+                          "\(meses) meses no cae en ningún tramo del selector")
+        }
+        XCTAssertEqual(EstadoInicialOnboarding.tramoDeMeses(nil), 0)
+        XCTAssertEqual(EstadoInicialOnboarding.tramoDeMeses(1), 2)
+        XCTAssertEqual(EstadoInicialOnboarding.tramoDeMeses(8), 9)
+        XCTAssertEqual(EstadoInicialOnboarding.tramoDeMeses(24), 18)
+    }
+
+    /// "Decinos qué días podés correr" abre DONDE se pregunta eso.
+    func testElPuntoDeEntradaDeDisponibilidadAbreEnEsePaso() {
+        XCTAssertEqual(PuntoDeEntradaOnboarding.principio.paso, 0)
+        XCTAssertEqual(PuntoDeEntradaOnboarding.disponibilidad.paso, 3)
+    }
+}

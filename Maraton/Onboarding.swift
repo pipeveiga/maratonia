@@ -8,10 +8,132 @@ import SwiftUI
 
 /// Cómo respondió el paso "experiencia". Solo la opción A produce una
 /// marca; B deja el test pendiente (se corre como entrenamiento real).
-private enum RespuestaExperiencia: Equatable {
+enum RespuestaExperiencia: Equatable {
     case marcaReciente
     case hacerTest
     case empezando
+}
+
+/// Por dónde se entra al onboarding. Reabrirlo desde "Decinos qué días
+/// podés correr" y aterrizar en el paso 1 obligaba a recorrer todo de
+/// nuevo para contestar UNA pregunta: el punto de entrada es parte del
+/// pedido, no algo que el corredor tenga que navegar.
+enum PuntoDeEntradaOnboarding {
+    case principio
+    case disponibilidad
+
+    var paso: Int {
+        switch self {
+        case .principio: return 0
+        case .disponibilidad: return 3
+        }
+    }
+}
+
+/// Lo que el onboarding YA SABE cuando se reabre.
+///
+/// El onboarding no es de un solo uso: se abre desde Perfil, desde
+/// "Explorar planes" y desde la bienvenida. Nacía con todo el `@State`
+/// vacío, así que reabrirlo y tocar "Guardar y cerrar" escribía ese
+/// vacío encima del perfil guardado — la disponibilidad declarada, los
+/// días concretos, el día de fondo y el test pendiente desaparecían sin
+/// que nadie los hubiera cambiado. Es la misma mentira que inventar una
+/// disponibilidad, en la otra dirección: borrar la que el corredor sí
+/// dio.
+///
+/// Función pura del perfil guardado (y de la referencia vigente) para
+/// que la regla se pueda testear sin instanciar la vista.
+struct EstadoInicialOnboarding: Equatable {
+    var objetivo: ObjetivoDeportivo?
+    var diasPorSemana: Int?
+    var diasElegidos: Set<Int>
+    var diaPreferidoFondo: Int?
+    var molestias: EstadoMolestias
+    var tieneFechaObjetivo: Bool
+    var fechaObjetivo: Date
+
+    var experiencia: RespuestaExperiencia?
+    var marcaDistanciaMetros: Double
+    var marcaSegundos: Int
+    var marcaFecha: Date
+
+    var origenActividad: ActividadActual.Origen
+    var diasActuales: Int
+    var kmSemanales: Double
+    var tiradaLarga: Double
+    var mesesRegular: Int
+    var volviendoDePausa: Bool
+
+    /// Las distancias que el selector de marca sabe representar. Una
+    /// referencia fuera de esta lista NO se precarga: dejaría el picker
+    /// segmentado sin nada seleccionado y el formulario mostraría una
+    /// marca distinta de la guardada.
+    static let distanciasDelSelector: Set<Double> = [5000, 10000, 21097.5, 42195]
+
+    init(perfil: PerfilDeportivo,
+         referencia: ReferenciaRendimiento?,
+         hoy: Date = Date()) {
+        objetivo = perfil.objetivo
+        // La MISMA regla que `disponibilidadDeclarada`: mandan los días
+        // concretos. Precargar `diasPorSemana` crudo dejaría la cadencia
+        // y los chips contradiciéndose en pantalla.
+        diasPorSemana = perfil.disponibilidadDeclarada
+        diasElegidos = Set(perfil.diasElegidos ?? [])
+        diaPreferidoFondo = perfil.preferencias?.diaPreferidoFondo
+        molestias = perfil.molestias ?? .ninguna
+        tieneFechaObjetivo = perfil.fechaObjetivo != nil
+        fechaObjetivo = perfil.fechaObjetivo?.fecha()
+            ?? hoy.addingTimeInterval(90 * 24 * 3600)
+
+        // La marca solo se precarga si la escribió el corredor a mano:
+        // una referencia de test o de carrera real tiene otra `fuente` y
+        // reescribirla como `.marcaManual` la duplicaría en el historial.
+        let marcaManual = referencia.flatMap {
+            $0.fuente == .marcaManual
+                && Self.distanciasDelSelector.contains($0.distanciaMetros) ? $0 : nil
+        }
+        if perfil.testPendiente {
+            experiencia = .hacerTest
+        } else if marcaManual != nil {
+            experiencia = .marcaReciente
+        } else if referencia == nil, perfil.fechaOnboarding != nil {
+            // Completó el onboarding y no dejó ninguna referencia: la
+            // única respuesta que produce ese estado es "estoy empezando".
+            experiencia = .empezando
+        } else {
+            experiencia = nil
+        }
+        marcaDistanciaMetros = marcaManual?.distanciaMetros ?? 5000
+        marcaSegundos = marcaManual?.segundos ?? (25 * 60)
+        marcaFecha = marcaManual?.fecha ?? hoy
+
+        let actividad = perfil.actividad
+        origenActividad = actividad?.origen ?? .declarado
+        // Cada valor entra al rango de SU stepper: uno fuera de rango
+        // deja el control mudo y el corredor no puede corregirlo.
+        diasActuales = Self.acotado(Int(actividad?.diasPorSemana?.rounded() ?? 0), 0, 14)
+        kmSemanales = Self.acotado(actividad?.kmSemanales ?? 0, 0, 200)
+        tiradaLarga = Self.acotado(actividad?.tiradaLargaKm ?? 0, 0, 60)
+        mesesRegular = Self.tramoDeMeses(actividad?.mesesCorriendoRegular)
+        volviendoDePausa = actividad?.volviendoDePausa ?? false
+    }
+
+    private static func acotado<T: Comparable>(_ valor: T, _ minimo: T, _ maximo: T) -> T {
+        min(max(valor, minimo), maximo)
+    }
+
+    /// El `tag` del selector "hace cuánto corrés seguido" que contiene
+    /// ese número de meses. Los tags son los extremos de cada tramo, así
+    /// que un valor cualquiera hay que ubicarlo, no compararlo.
+    static func tramoDeMeses(_ meses: Int?) -> Int {
+        guard let meses, meses > 0 else { return 0 }
+        switch meses {
+        case ..<3: return 2      // 1-3 meses
+        case ..<6: return 4      // 3-6 meses
+        case ..<12: return 9     // 6-12 meses
+        default: return 18       // más de un año
+        }
+    }
 }
 
 struct OnboardingDeportivo: View {
@@ -63,6 +185,50 @@ struct OnboardingDeportivo: View {
     @State private var mostrandoPropuesta = false
 
     private let totalPasos = 5
+
+    /// Se abre CON lo que el perfil ya sabe (`EstadoInicialOnboarding`).
+    /// Reabrirlo es lo normal —desde Perfil, desde "Explorar planes"—, y
+    /// un formulario en blanco encima de un perfil lleno no es un
+    /// formulario nuevo: es la ruta más corta a borrar datos buenos.
+    init(almacen: AlmacenStore, desde entrada: PuntoDeEntradaOnboarding = .principio) {
+        _almacen = ObservedObject(wrappedValue: almacen)
+        let inicial = EstadoInicialOnboarding(
+            perfil: almacen.almacen.perfilDeportivo,
+            referencia: almacen.almacen.referenciaVigente)
+
+        _paso = State(initialValue: entrada.paso)
+        _objetivo = State(initialValue: inicial.objetivo)
+        _distancia = State(initialValue: inicial.objetivo?.distancia)
+        _intencion = State(initialValue: inicial.objetivo?.intencion)
+        _diasPorSemana = State(initialValue: inicial.diasPorSemana)
+        _diasElegidos = State(initialValue: inicial.diasElegidos)
+        _diaPreferidoFondo = State(initialValue: inicial.diaPreferidoFondo)
+        _molestias = State(initialValue: inicial.molestias)
+        _tieneFechaObjetivo = State(initialValue: inicial.tieneFechaObjetivo)
+        _fechaObjetivo = State(initialValue: inicial.fechaObjetivo)
+
+        _experiencia = State(initialValue: inicial.experiencia)
+        _marcaDistanciaMetros = State(initialValue: inicial.marcaDistanciaMetros)
+        _marcaHoras = State(initialValue: inicial.marcaSegundos / 3600)
+        _marcaMinutos = State(initialValue: (inicial.marcaSegundos % 3600) / 60)
+        _marcaSegundos = State(initialValue: inicial.marcaSegundos % 60)
+        _marcaFecha = State(initialValue: inicial.marcaFecha)
+
+        _origenActividad = State(initialValue: inicial.origenActividad)
+        _diasActualesManual = State(initialValue: inicial.diasActuales)
+        _kmSemanalesManual = State(initialValue: inicial.kmSemanales)
+        _tiradaLargaManual = State(initialValue: inicial.tiradaLarga)
+        _mesesRegular = State(initialValue: inicial.mesesRegular)
+        _volviendoDePausa = State(initialValue: inicial.volviendoDePausa)
+
+        referenciaGuardada = almacen.almacen.referenciaVigente
+    }
+
+    /// La referencia que ya estaba guardada al abrir. Sirve para no
+    /// mostrar "A definir" en el resumen cuando existe una referencia
+    /// real que el formulario de marca no sabe representar (un test, una
+    /// carrera): el dato existe, y decir que no sería falso.
+    private let referenciaGuardada: ReferenciaRendimiento?
 
     var body: some View {
         NavigationStack {
@@ -819,7 +985,11 @@ struct OnboardingDeportivo: View {
         case .empezando:
             return "Arrancando de cero"
         case nil:
-            return "A definir"
+            // Sin respuesta en este paso puede haber igual una referencia
+            // guardada de antes (un test, una carrera). Existe y manda
+            // sobre los ritmos: decir "A definir" sería negarla.
+            guard let referencia = referenciaGuardada else { return "A definir" }
+            return "\(nombreDistancia(referencia.distanciaMetros)) en \(formatearDuracion(TimeInterval(referencia.segundos)))"
         }
     }
 
@@ -855,6 +1025,12 @@ struct OnboardingDeportivo: View {
 
     private func guardarPerfil() {
         var perfil = almacen.almacen.perfilDeportivo
+        // Lo que el motor evaluó la última vez. Si algo de esto cambia,
+        // su veredicto deja de hablar de este corredor.
+        let objetivoPrevio = perfil.objetivo
+        let fechaPrevia = perfil.fechaObjetivo
+        let disponibilidadPrevia = perfil.disponibilidadDeclarada
+
         perfil.objetivo = objetivo
         perfil.diasPorSemana = diasElegidos.isEmpty ? diasPorSemana : diasElegidos.count
         perfil.diasElegidos = diasElegidos.isEmpty ? nil : diasElegidos.sorted()
@@ -866,10 +1042,22 @@ struct OnboardingDeportivo: View {
         // editan en Perfil cuando el corredor quiera.
         if let actividad = actividadDelPerfil { perfil.actividad = actividad }
         perfil.molestias = molestias
-        if diaPreferidoFondo != nil {
-            perfil.preferencias = PreferenciasSemana(
-                diaPreferidoFondo: diaPreferidoFondo,
-                diasImposibles: perfil.preferencias?.diasImposibles)
+        // Se escribe SIEMPRE, no solo cuando hay día de fondo: con el
+        // `if`, desmarcar el día elegido (tocarlo de nuevo, que la
+        // pantalla ofrece explícitamente) no borraba nada y el perfil se
+        // quedaba con el anterior. Volver a "sin preferencia" tiene que
+        // llegar al disco. Los días imposibles no se tocan acá: los
+        // edita otra pantalla.
+        perfil.preferencias = preferenciasDelPerfil(perfil.preferencias)
+
+        // El veredicto del motor pertenece a los datos que lo
+        // produjeron. Cambiar el objetivo, la fecha o la disponibilidad
+        // y conservar el motivo dejaba la app explicando por qué NO hay
+        // plan con un argumento sobre un pedido que ya no existe.
+        if perfil.objetivo != objetivoPrevio
+            || perfil.fechaObjetivo != fechaPrevia
+            || perfil.disponibilidadDeclarada != disponibilidadPrevia {
+            perfil.objetivoSinPlan = nil
         }
 
         var marca: ReferenciaRendimiento?
@@ -880,6 +1068,17 @@ struct OnboardingDeportivo: View {
                                           segundos: segundosDeMarca)
         }
         almacen.guardarOnboarding(perfil, marca: marca)
+    }
+
+    /// El día de fondo elegido acá MÁS los días imposibles que el perfil
+    /// ya traía (se editan en otra pantalla, así que el onboarding los
+    /// transporta sin opinar). nil cuando no hay nada que declarar: "sin
+    /// preferencias" es un estado real, no un registro vacío.
+    private func preferenciasDelPerfil(_ guardadas: PreferenciasSemana?) -> PreferenciasSemana? {
+        let imposibles = guardadas?.diasImposibles
+        guard diaPreferidoFondo != nil || !(imposibles ?? []).isEmpty else { return nil }
+        return PreferenciasSemana(diaPreferidoFondo: diaPreferidoFondo,
+                                  diasImposibles: imposibles)
     }
 
     private func terminar() {
@@ -933,9 +1132,11 @@ struct OnboardingDeportivo: View {
                                                 hoy: Date()),
             actividad: actividadDelPerfil,
             molestias: molestias,
-            preferencias: diaPreferidoFondo.map {
-                PreferenciasSemana(diaPreferidoFondo: $0, diasImposibles: nil)
-            },
+            // Los días imposibles viajan con el pedido: el motor los usa
+            // para no programar ahí (`MotorPlanificacion`), y mandarlos
+            // en `nil` hacía que el plan armado en el onboarding cayera
+            // en días que el corredor ya había declarado inviables.
+            preferencias: preferenciasDelPerfil(almacen.almacen.perfilDeportivo.preferencias),
             aceptaConservador: aceptaConservador)
     }
 

@@ -1029,7 +1029,10 @@ struct PlanBaseDetalleView: View {
             }
         }
         .sheet(isPresented: $mostrandoOnboarding) {
-            OnboardingDeportivo(almacen: almacen)
+            // El botón prometía "son dos toques": abrir en el paso 1
+            // obligaba a recorrer objetivo, actividad y experiencia para
+            // contestar la única pregunta que se hizo.
+            OnboardingDeportivo(almacen: almacen, desde: .disponibilidad)
         }
     }
 
