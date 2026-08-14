@@ -26,7 +26,11 @@ struct PlanArquetipo: Identifiable {
     var id: String                    // "primeros-5k"
     var version: Int
     var objetivo: ObjetivoDeportivo
-    var nombre: String
+    /// QUÉ plan es. El nombre sale de acá y no se declara como texto:
+    /// el arquetipo se lo pasa al `PlanUsuario` al adoptar, y de ese
+    /// modo el nombre del plan tampoco queda congelado en español.
+    var clave: ClavePlan
+    var nombre: String { clave.nombre }
 
     /// Límites EXPLÍCITOS: fuera de esto el motor rechaza — nada de
     /// estirar/comprimir plantillas en silencio.
@@ -91,13 +95,13 @@ enum BibliotecaArquetipos {
         return [
             // ---- 5K
             PlanArquetipo(id: "primeros-5k", version: 2, objetivo: .primeros5K,
-                          nombre: "Primeros 5K",
+                          clave: .primeros5K,
                           semanasMinimas: 6, semanasRecomendadas: 6,
                           diasMinimos: 2, diasMaximos: 3,
                           recomiendaBaseline: false,
                           contenido: bases["primeros-5k"]),
             PlanArquetipo(id: "mejorar-5k", version: 2, objetivo: .mejorar5K,
-                          nombre: "Mejorar mis 5K",
+                          clave: .mejorar5K,
                           semanasMinimas: 8, semanasRecomendadas: 8,
                           diasMinimos: 3, diasMaximos: 5,
                           recomiendaBaseline: true,
@@ -105,7 +109,7 @@ enum BibliotecaArquetipos {
                           contenidoPorDias: [3: ContenidoPlanes.mejorar5KTresDias()]),
             // ---- 10K
             PlanArquetipo(id: "10k-continuo", version: 2, objetivo: .diez,
-                          nombre: "Rumbo a 10K",
+                          clave: .rumboA10K,
                           semanasMinimas: 8, semanasRecomendadas: 8,
                           diasMinimos: 2, diasMaximos: 3,
                           recomiendaBaseline: false,
@@ -125,45 +129,45 @@ enum BibliotecaArquetipos {
             // motor dice que 3 días no alcanzan y ofrece Rumbo a 10K,
             // que sí acepta 2-3 días. Ver METODOLOGIA.md.
             PlanArquetipo(id: "mejorar-10k", version: 1, objetivo: .mejorar10K,
-                          nombre: "Mejorar mis 10K",
+                          clave: .mejorar10K,
                           semanasMinimas: 10, semanasRecomendadas: 10,
                           diasMinimos: 4, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mejorar10K()),
             // ---- 21K
             PlanArquetipo(id: "media-maraton", version: 1, objetivo: .mediaMaraton,
-                          nombre: "Media maratón",
+                          clave: .mediaMaraton,
                           semanasMinimas: 12, semanasRecomendadas: 12,
                           diasMinimos: 4, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mediaMaraton()),
             PlanArquetipo(id: "mejorar-media", version: 1, objetivo: .mejorarMedia,
-                          nombre: "Mejorar mi media",
+                          clave: .mejorarMedia,
                           semanasMinimas: 12, semanasRecomendadas: 12,
                           diasMinimos: 4, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mejorarMedia()),
             PlanArquetipo(id: "media-rendimiento", version: 1, objetivo: .mediaRendimiento,
-                          nombre: "Media · rendimiento",
+                          clave: .mediaRendimiento,
                           semanasMinimas: 14, semanasRecomendadas: 14,
                           diasMinimos: 5, diasMaximos: 6,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mediaRendimiento()),
             // ---- 42K
             PlanArquetipo(id: "maraton", version: 2, objetivo: .maraton,
-                          nombre: "Maratón",
+                          clave: .maraton,
                           semanasMinimas: 16, semanasRecomendadas: 16,
                           diasMinimos: 4, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.maraton()),
             PlanArquetipo(id: "mejorar-maraton", version: 2, objetivo: .mejorarMaraton,
-                          nombre: "Mejorar mi maratón",
+                          clave: .mejorarMaraton,
                           semanasMinimas: 18, semanasRecomendadas: 18,
                           diasMinimos: 4, diasMaximos: 5,
                           recomiendaBaseline: true,
                           contenido: ContenidoPlanes.mejorarMaraton()),
             PlanArquetipo(id: "maraton-rendimiento", version: 2, objetivo: .maratonRendimiento,
-                          nombre: "Maratón · rendimiento",
+                          clave: .maratonRendimiento,
                           semanasMinimas: 18, semanasRecomendadas: 18,
                           diasMinimos: 5, diasMaximos: 6,
                           recomiendaBaseline: true,
@@ -689,7 +693,11 @@ enum MotorPlanificacion {
         // ---- Snapshot (reusa la adopción probada del catálogo).
         var plan = recortada.adoptar(inicio: inicio, fechaAdopcion: Date(),
                                      calendario: calendario)
-        plan.nombre = arquetipo.nombre
+        // La clave Y el español canónico juntos: la clave es lo que se
+        // muestra (en el idioma de cada momento) y el canónico lo que
+        // queda escrito para que una build vieja siga leyendo el plan.
+        plan.identificar(clave: arquetipo.clave,
+                         nombreCanonico: arquetipo.clave.nombreCanonico)
         plan.origen = .catalogo(planBaseID: arquetipo.planBaseID)
         plan.referenciaUsadaID = pedido.referencia?.id
 

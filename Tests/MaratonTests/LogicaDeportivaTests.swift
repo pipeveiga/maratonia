@@ -1277,7 +1277,7 @@ final class DisponibilidadDelCorredorTests: XCTestCase {
     /// problema es otro y no se le miente al corredor sobre su semana.
     func testObjetivoSinContenidoNoJuzgaLaDisponibilidad() {
         let vacio = PlanArquetipo(
-            id: "futuro", version: 1, objetivo: .maraton, nombre: "Futuro",
+            id: "futuro", version: 1, objetivo: .maraton, clave: .maraton,
             semanasMinimas: 12, semanasRecomendadas: 16,
             diasMinimos: 4, diasMaximos: 5,
             recomiendaBaseline: false, contenido: nil)

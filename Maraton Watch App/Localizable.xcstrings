@@ -1,6 +1,28 @@
 {
   "sourceLanguage": "es",
   "strings": {
+    "%@ a %@ /km o mejor": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ at %@ /km or better"
+          }
+        }
+      }
+    },
+    "%@ a %@–%@ /km": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ at %@–%@ /km"
+          }
+        }
+      }
+    },
     "%@ kilómetros": {
       "extractionState": "manual",
       "localizations": {
@@ -23,6 +45,17 @@
         }
       }
     },
+    "%@ sin pasar de %@ /km": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ no slower than %@ /km"
+          }
+        }
+      }
+    },
     "%@: %@": {
       "extractionState": "manual",
       "localizations": {
@@ -30,6 +63,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@: %@"
+          }
+        }
+      }
+    },
+    "%lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
           }
         }
       }
@@ -67,6 +111,17 @@
         }
       }
     },
+    "%lld pistas listas": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld tracks ready"
+          }
+        }
+      }
+    },
     "%lld segmentos": {
       "extractionState": "manual",
       "localizations": {
@@ -85,6 +140,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld seconds"
+          }
+        }
+      }
+    },
+    "%lld×%lld′ fuertes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld×%lld′ hard"
           }
         }
       }
@@ -166,6 +232,17 @@
         }
       }
     },
+    "1 pista lista": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 track ready"
+          }
+        }
+      }
+    },
     "1 segmento": {
       "extractionState": "manual",
       "localizations": {
@@ -173,6 +250,94 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 segment"
+          }
+        }
+      }
+    },
+    "10K a fondo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "10K race"
+          }
+        }
+      }
+    },
+    "10K corrido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "10K continuous"
+          }
+        }
+      }
+    },
+    "2 min de trote, 1 de caminata.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 min jogging, 1 walking."
+          }
+        }
+      }
+    },
+    "5 min de trote, 1 de caminata.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 min jogging, 1 walking."
+          }
+        }
+      }
+    },
+    "5K a fondo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5K race"
+          }
+        }
+      }
+    },
+    "5K corrido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5K continuous"
+          }
+        }
+      }
+    },
+    "8 min de trote, 1 de caminata.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "8 min jogging, 1 walking."
+          }
+        }
+      }
+    },
+    "Activación": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shakeout"
           }
         }
       }
@@ -206,6 +371,72 @@
           "stringUnit": {
             "state": "translated",
             "value": "Settings"
+          }
+        }
+      }
+    },
+    "Al ritmo objetivo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At goal pace"
+          }
+        }
+      }
+    },
+    "Alternado": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alternating"
+          }
+        }
+      }
+    },
+    "Alternado largo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Long alternating"
+          }
+        }
+      }
+    },
+    "Alternado suave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Easy alternating"
+          }
+        }
+      }
+    },
+    "Alterná 1 min de trote y 2 de caminata.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alternate 1 min jogging and 2 walking."
+          }
+        }
+      }
+    },
+    "Apagado: Maratonia reproduce las pistas que mandaste desde el iPhone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off: Maratonia plays the tracks you sent from your iPhone."
           }
         }
       }
@@ -265,6 +496,105 @@
         }
       }
     },
+    "Bloque continuo al ritmo que querés correr el día de la carrera. Sirve tanto para las piernas como para la cabeza.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A continuous block at the pace you want to run on race day. It works on your legs as much as on your head."
+          }
+        }
+      }
+    },
+    "Bloque sostenido a ritmo de umbral: exigente pero controlado (~el ritmo que aguantarías 1 hora en carrera).": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sustained block at threshold pace: demanding but controlled (~the pace you could hold for an hour in a race)."
+          }
+        }
+      }
+    },
+    "Bloque umbral": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Threshold block"
+          }
+        }
+      }
+    },
+    "Cada %@ km, desde el km %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every %@ km, from km %@"
+          }
+        }
+      }
+    },
+    "Calentamiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warm-up"
+          }
+        }
+      }
+    },
+    "Cambio de ritmo %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Surge %lld"
+          }
+        }
+      }
+    },
+    "Caminata y trote 1": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Walk and jog 1"
+          }
+        }
+      }
+    },
+    "Caminata y trote 2": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Walk and jog 2"
+          }
+        }
+      }
+    },
+    "Caminata y trote largo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Long walk and jog"
+          }
+        }
+      }
+    },
     "Cancelar": {
       "extractionState": "manual",
       "localizations": {
@@ -309,6 +639,28 @@
         }
       }
     },
+    "Casi corrido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Almost continuous"
+          }
+        }
+      }
+    },
+    "Cerca de la distancia objetivo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close to the target distance."
+          }
+        }
+      }
+    },
     "Completado": {
       "extractionState": "manual",
       "localizations": {
@@ -316,6 +668,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Completed"
+          }
+        }
+      }
+    },
+    "Constante.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Steady."
           }
         }
       }
@@ -331,6 +694,72 @@
         }
       }
     },
+    "Corrido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continuous"
+          }
+        }
+      }
+    },
+    "Cortito y fácil antes del objetivo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Short and easy before the big day."
+          }
+        }
+      }
+    },
+    "Cómodo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comfortable."
+          }
+        }
+      }
+    },
+    "De cero a correr 5 km de corrido, alternando caminata y trote con progresión suave. Ritmos libres: la regla es poder hablar mientras trotás. Contenido provisional.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From zero to running 5 km continuously, alternating walking and jogging with a gentle progression. Open paces: the rule is being able to talk while you jog. Provisional content."
+          }
+        }
+      }
+    },
+    "De corrido, ritmo de charla.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continuous, conversational pace."
+          }
+        }
+      }
+    },
+    "Descarga: piernas frescas.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Down week: fresh legs."
+          }
+        }
+      }
+    },
     "Descartar todo": {
       "extractionState": "manual",
       "localizations": {
@@ -342,6 +771,39 @@
         }
       }
     },
+    "El día que preparaste. Salí conservador y cerrá fuerte.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The day you prepared for. Start conservative and finish strong."
+          }
+        }
+      }
+    },
+    "El día: 10 km de corrido, administrate.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The day: 10 km continuous, pace yourself."
+          }
+        }
+      }
+    },
+    "El día: 5 km de corrido, a tu ritmo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The day: 5 km continuous, at your own pace."
+          }
+        }
+      }
+    },
     "El entrenamiento NO se guarda en Salud. No se puede deshacer.": {
       "extractionState": "manual",
       "localizations": {
@@ -349,6 +811,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "The workout is NOT saved to Health. This cannot be undone."
+          }
+        }
+      }
+    },
+    "El último kilómetro un toque más vivo, sin ahogarte.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The last kilometer a touch livelier, without gasping."
           }
         }
       }
@@ -386,6 +859,17 @@
         }
       }
     },
+    "En el km %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "At km %@"
+          }
+        }
+      }
+    },
     "En pausa — todo congelado": {
       "extractionState": "manual",
       "localizations": {
@@ -393,6 +877,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Paused — everything frozen"
+          }
+        }
+      }
+    },
+    "Ensayo casi 5K": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Almost-5K rehearsal"
           }
         }
       }
@@ -452,6 +947,28 @@
         }
       }
     },
+    "Final a ritmo de maratón": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marathon-pace finish"
+          }
+        }
+      }
+    },
+    "Final animado": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lively finish"
+          }
+        }
+      }
+    },
     "GPS, pulso y guardado en Salud.": {
       "extractionState": "manual",
       "localizations": {
@@ -474,6 +991,17 @@
         }
       }
     },
+    "Guarda FC, distancia y ruta en Salud. No uses Runna a la vez. Auto-pausa (requiere GPS): al frenar en un semáforo pausa todo y sigue sola. Las zonas se calculan solas con tu edad y tu FC en reposo de Salud.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saves heart rate, distance and route to Health. Don't use Runna at the same time. Auto-pause (needs GPS): when you stop at a traffic light it pauses everything and resumes on its own. Zones are calculated automatically from your age and your resting heart rate in Health."
+          }
+        }
+      }
+    },
     "HOY": {
       "extractionState": "manual",
       "localizations": {
@@ -481,6 +1009,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "TODAY"
+          }
+        }
+      }
+    },
+    "Igual que la anterior.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same as the previous one."
+          }
+        }
+      }
+    },
+    "Intervalo %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interval %lld"
+          }
+        }
+      }
+    },
+    "Intervalos a ritmo de 3-5K con trote de recuperación entre cada uno.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intervals at 3-5K pace with a recovery jog between each one."
           }
         }
       }
@@ -551,6 +1112,28 @@
         }
       }
     },
+    "La más larga del plan.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The longest one in the plan."
+          }
+        }
+      }
+    },
+    "La más larga hasta ahora.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The longest one so far."
+          }
+        }
+      }
+    },
     "La música la maneja otra app (Spotify). Usá sus controles o el Now Playing del reloj.": {
       "extractionState": "manual",
       "localizations": {
@@ -569,6 +1152,61 @@
           "stringUnit": {
             "state": "translated",
             "value": "The hardest week of the block."
+          }
+        }
+      }
+    },
+    "La sesión que construye tu resistencia. Ritmo conversable de principio a fin.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The session that builds your endurance. Conversational pace from start to finish."
+          }
+        }
+      }
+    },
+    "Larga": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Long run"
+          }
+        }
+      }
+    },
+    "Larga con final a ritmo objetivo: los últimos kilómetros se corren a ritmo de maratón.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Long run with a goal-pace finish: the last kilometers are run at marathon pace."
+          }
+        }
+      }
+    },
+    "Larga cómoda": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comfortable long run"
+          }
+        }
+      }
+    },
+    "Larga grande": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Big long run"
           }
         }
       }
@@ -602,6 +1240,105 @@
           "stringUnit": {
             "state": "translated",
             "value": "Maratonia"
+          }
+        }
+      }
+    },
+    "Maratón": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marathon"
+          }
+        }
+      }
+    },
+    "Maratón · rendimiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marathon · performance"
+          }
+        }
+      }
+    },
+    "Media maratón": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Half marathon"
+          }
+        }
+      }
+    },
+    "Media · rendimiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Half · performance"
+          }
+        }
+      }
+    },
+    "Mejorar mi maratón": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improve my marathon"
+          }
+        }
+      }
+    },
+    "Mejorar mi media": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improve my half"
+          }
+        }
+      }
+    },
+    "Mejorar mis 10K": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improve my 10K"
+          }
+        }
+      }
+    },
+    "Mejorar mis 5K": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Improve my 5K"
+          }
+        }
+      }
+    },
+    "Mismo juego, un poco más de distancia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same game, a bit more distance."
           }
         }
       }
@@ -646,6 +1383,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Music from another app"
+          }
+        }
+      }
+    },
+    "Música en pausa: avisos y entrenamiento siguen.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Music paused: cues and workout keep going."
           }
         }
       }
@@ -749,6 +1497,17 @@
         }
       }
     },
+    "Para quien ya corre ~5 km y quiere llegar a 10 de corrido. Tres salidas por semana, progresión suave y ritmos libres. Contenido provisional.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For someone who already runs ~5 km and wants to reach 10 continuously. Three runs a week, gentle progression and open paces. Provisional content."
+          }
+        }
+      }
+    },
     "Parcial — quedó guardado": {
       "extractionState": "manual",
       "localizations": {
@@ -756,6 +1515,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Partial — it was saved"
+          }
+        }
+      }
+    },
+    "Paso firme.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Firm pace."
           }
         }
       }
@@ -782,6 +1552,17 @@
         }
       }
     },
+    "Pausa solo la música: avisos y entrenamiento siguen.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pauses only the music: cues and workout keep going."
+          }
+        }
+      }
+    },
     "Pausar": {
       "extractionState": "manual",
       "localizations": {
@@ -800,6 +1581,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Interval plan completed. Nice work!"
+          }
+        }
+      }
+    },
+    "Ponés la música con Spotify u otra app; Maratonia corre avisos y entrenamiento, y la voz baja el volumen al hablar.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You play music with Spotify or another app; Maratonia runs the cues and the workout, and the voice ducks the volume when it speaks."
+          }
+        }
+      }
+    },
+    "Primeros 5K": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "First 5K"
           }
         }
       }
@@ -848,6 +1651,28 @@
         }
       }
     },
+    "Recorrido: %lld puntos GPS": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Route: %lld GPS points"
+          }
+        }
+      }
+    },
+    "Recuperación": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recovery"
+          }
+        }
+      }
+    },
     "Registrar carrera": {
       "extractionState": "manual",
       "localizations": {
@@ -870,6 +1695,61 @@
         }
       }
     },
+    "Ritmo de 10K %lld km": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "10K pace %lld km"
+          }
+        }
+      }
+    },
+    "Ritmo de 5K %lld km": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5K pace %lld km"
+          }
+        }
+      }
+    },
+    "Ritmo de charla.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conversational pace."
+          }
+        }
+      }
+    },
+    "Ritmo de maratón %lld km": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marathon pace %lld km"
+          }
+        }
+      }
+    },
+    "Ritmo de media %lld km": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Half-marathon pace %lld km"
+          }
+        }
+      }
+    },
     "Rodaje": {
       "extractionState": "manual",
       "localizations": {
@@ -877,6 +1757,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "Run"
+          }
+        }
+      }
+    },
+    "Rodaje con final animado": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run with a lively finish"
+          }
+        }
+      }
+    },
+    "Rodaje continuo cómodo: tenés que poder hablar.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Steady, comfortable run: you should be able to talk."
+          }
+        }
+      }
+    },
+    "Rodaje corto": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Short run"
+          }
+        }
+      }
+    },
+    "Rodaje corto con 3 cambios de ritmo de 1′ para llegar despierto, no cansado.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Short run with 3 surges of 1′ to arrive sharp, not tired."
           }
         }
       }
@@ -892,6 +1816,50 @@
         }
       }
     },
+    "Rodaje medio": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Medium-long run"
+          }
+        }
+      }
+    },
+    "Rodaje más largo de lo habitual, todo cómodo: suma tiempo en pie sin la fatiga de una larga.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A longer run than usual, all comfortable: it adds time on your feet without the fatigue of a long run."
+          }
+        }
+      }
+    },
+    "Rodaje suave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Easy run"
+          }
+        }
+      }
+    },
+    "Rumbo a 10K": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Road to 10K"
+          }
+        }
+      }
+    },
     "Ruta GPS": {
       "extractionState": "manual",
       "localizations": {
@@ -899,6 +1867,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "GPS route"
+          }
+        }
+      }
+    },
+    "Salida larga": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Long outing"
           }
         }
       }
@@ -947,6 +1926,17 @@
         }
       }
     },
+    "Semana amable: recuperar también entrena.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An easy week: recovering is training too."
+          }
+        }
+      }
+    },
     "Semana de carga.": {
       "extractionState": "manual",
       "localizations": {
@@ -980,6 +1970,17 @@
         }
       }
     },
+    "Sin señal GPS: quedó sin recorrido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No GPS signal: no route was recorded"
+          }
+        }
+      }
+    },
     "Solo música y avisos": {
       "extractionState": "manual",
       "localizations": {
@@ -991,6 +1992,39 @@
         }
       }
     },
+    "Solo música y avisos: compatible con Runna u otro tracker.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Music and cues only: works alongside Runna or another tracker."
+          }
+        }
+      }
+    },
+    "Soltar piernas.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loosen up the legs."
+          }
+        }
+      }
+    },
+    "Suave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Easy"
+          }
+        }
+      }
+    },
     "Subir la carga de a poco, con calidad introductoria.": {
       "extractionState": "manual",
       "localizations": {
@@ -998,6 +2032,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Build load gradually, with introductory quality work."
+          }
+        }
+      }
+    },
+    "Sumamos un poco.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We add a little."
+          }
+        }
+      }
+    },
+    "Sumá distancia sin apuro.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add distance without rushing."
           }
         }
       }
@@ -1035,6 +2091,17 @@
         }
       }
     },
+    "Tirada larga": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Long run"
+          }
+        }
+      }
+    },
     "Todavía estoy cerrando la sesión anterior. Esperá unos segundos y volvé a dar Play.": {
       "extractionState": "manual",
       "localizations": {
@@ -1064,6 +2131,138 @@
           "stringUnit": {
             "state": "translated",
             "value": "Interval %lld: %@. %@"
+          }
+        }
+      }
+    },
+    "Tranquila y constante.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calm and steady."
+          }
+        }
+      }
+    },
+    "Tranquilo, caminá cuando lo necesites.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take it easy, walk whenever you need to."
+          }
+        }
+      }
+    },
+    "Trote 5 y 1": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jog 5 and 1"
+          }
+        }
+      }
+    },
+    "Trote 8 y 1": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jog 8 and 1"
+          }
+        }
+      }
+    },
+    "Trote con pausas 1": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jog with walk breaks 1"
+          }
+        }
+      }
+    },
+    "Trote con pausas 2": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jog with walk breaks 2"
+          }
+        }
+      }
+    },
+    "Trote corrido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continuous jog"
+          }
+        }
+      }
+    },
+    "Trote corrido corto": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Short continuous jog"
+          }
+        }
+      }
+    },
+    "Trote de pausa": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recovery jog"
+          }
+        }
+      }
+    },
+    "Trote muy suave. Si el cuerpo pide caminar, se camina.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Very easy jog. If your body asks to walk, walk."
+          }
+        }
+      }
+    },
+    "Trote suave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Easy jog"
+          }
+        }
+      }
+    },
+    "Trotá de corrido; caminá solo si hace falta.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jog continuously; only walk if you have to."
           }
         }
       }
@@ -1101,6 +2300,17 @@
         }
       }
     },
+    "Umbral %lld′": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Threshold %lld′"
+          }
+        }
+      }
+    },
     "Vas a %@. Objetivo %@. Aflojá un poco.": {
       "extractionState": "manual",
       "localizations": {
@@ -1130,6 +2340,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "A gentle version of the original session: same time on feet, without the intensity."
+          }
+        }
+      }
+    },
+    "Vuelta a la calma": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cool-down"
+          }
+        }
+      }
+    },
+    "Ya casi.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Almost there."
           }
         }
       }
@@ -1167,6 +2399,17 @@
         }
       }
     },
+    "min %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "min %lld"
+          }
+        }
+      }
+    },
     "¡Carrera guardada!": {
       "extractionState": "manual",
       "localizations": {
@@ -1174,6 +2417,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Run saved!"
+          }
+        }
+      }
+    },
+    "¡Tus 10K!": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your 10K!"
+          }
+        }
+      }
+    },
+    "¡Tus primeros 5K!": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your first 5K!"
           }
         }
       }
@@ -1207,6 +2472,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "Finish the session?"
+          }
+        }
+      }
+    },
+    "Último ensayo con chispa.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last rehearsal with a bit of spark."
+          }
+        }
+      }
+    },
+    "Últimos 1,5 km más vivos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last 1.5 km a bit livelier."
+          }
+        }
+      }
+    },
+    "Últimos ajustes, sin exigirte.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Final touches, without pushing."
           }
         }
       }

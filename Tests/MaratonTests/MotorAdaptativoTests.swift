@@ -411,8 +411,12 @@ private func conVencido(_ almacen: AlmacenV2, dia: Int,
     return copia
 }
 
+/// Busca por el nombre CRUDO —el que escribió el fixture—, no por el que
+/// se muestra: desde que el contenido se localiza, `definicion.nombre`
+/// depende del idioma en que corra el host de tests y la búsqueda por
+/// texto visible fallaba en inglés.
 private func buscar(_ almacen: AlmacenV2, _ nombre: String) -> EntrenamientoProgramado {
-    almacen.todosLosProgramados.first { $0.definicion.nombre == nombre }!
+    almacen.todosLosProgramados.first { $0.definicion.nombreCrudo == nombre }!
 }
 
 // MARK: - Roles, adaptabilidad y plan original (§17, §18, §45)
@@ -1110,11 +1114,15 @@ final class PrivacidadDTOTests: XCTestCase {
         let json = String(data: try JSONEncoder().encode(contexto), encoding: .utf8)!
         let minuscula = json.lowercased()
 
+        // Se buscan CLAVES del JSON, no subcadenas sueltas: "lon" a secas
+        // también aparece dentro de "Long run", que es el título de una
+        // sesión perfectamente legítimo. Lo que no puede haber es un
+        // CAMPO que lleve coordenadas o muestras.
         for prohibido in ["lat", "lon", "coord", "ruta", "route", "gps",
                           "heartrate", "hkworkout", "workoutuuid", "muestra",
                           "sample", "altitud", "elevation"] {
-            XCTAssertFalse(minuscula.contains(prohibido),
-                           "el DTO filtra «\(prohibido)»: \(json.prefix(400))")
+            XCTAssertFalse(minuscula.contains("\"\(prohibido)\":"),
+                           "el DTO filtra el campo «\(prohibido)»: \(json.prefix(400))")
         }
         // Y sí lleva lo que TIENE que llevar: agregados.
         XCTAssertTrue(json.contains("ventanas"))

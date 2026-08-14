@@ -27,100 +27,102 @@ enum ContenidoPlanes {
 
     // MARK: Helpers declarativos
 
-    private static func seg(_ nombre: String, km: Double? = nil,
+    /// Un tramo del template. Toma la CLAVE, no el texto: el nombre en
+    /// español se calcula de ella y viaja solo como respaldo para las
+    /// builds viejas — la fuente de verdad de lo que se muestra es la
+    /// clave (ver `Shared/TextosDeportivos.swift`).
+    private static func seg(_ clave: ClaveSegmento, km: Double? = nil,
                             min: Int? = nil, zona: TipoRitmo? = nil) -> SegmentoBase {
-        SegmentoBase(nombre: nombre, distanciaKm: km,
+        SegmentoBase(clave: clave, nombre: clave.nombreCanonico, distanciaKm: km,
                      duracionSegundos: min.map { $0 * 60 },
                      ritmoMinSegKm: nil, ritmoMaxSegKm: nil, tipoRitmo: zona)
     }
 
+    /// Una sesión del template, armada desde su clave.
+    private static func sesion(_ dia: Int, _ tipo: TipoEntrenamiento,
+                               _ clave: ClaveEntrenamiento,
+                               segmentos: [SegmentoBase]) -> EntrenamientoBase {
+        // Lo que se congela es el CANÓNICO en español: el texto es el
+        // respaldo para builds viejas, no lo que se muestra, y tiene que
+        // ser el mismo sin importar en qué idioma se armó el plan.
+        EntrenamientoBase(diaDeSemana: dia, tipo: tipo, clave: clave,
+                          nombre: clave.nombreCanonico,
+                          descripcion: clave.descripcionCanonica,
+                          segmentos: segmentos)
+    }
+
     private static func facil(_ dia: Int, km: Double,
-                              nombre: String = "Rodaje suave") -> EntrenamientoBase {
-        EntrenamientoBase(diaDeSemana: dia, tipo: .facil, nombre: nombre,
-                          descripcion: "Rodaje continuo cómodo: tenés que poder hablar.",
-                          segmentos: [seg("Rodaje", km: km, zona: .facil)])
+                              clave: ClaveEntrenamiento = .rodajeSuave) -> EntrenamientoBase {
+        sesion(dia, .facil, clave, segmentos: [seg(.rodaje, km: km, zona: .facil)])
     }
 
     private static func recuperacion(_ dia: Int, km: Double) -> EntrenamientoBase {
-        EntrenamientoBase(diaDeSemana: dia, tipo: .recuperacion, nombre: "Recuperación",
-                          descripcion: "Trote muy suave. Si el cuerpo pide caminar, se camina.",
-                          segmentos: [seg("Trote suave", km: km, zona: .recuperacion)])
+        sesion(dia, .recuperacion, .recuperacion,
+               segmentos: [seg(.troteSuave, km: km, zona: .recuperacion)])
     }
 
     private static func larga(_ dia: Int, km: Double,
                               finalMaraton: Double? = nil) -> EntrenamientoBase {
-        var segmentos = [seg("Larga cómoda", km: km - (finalMaraton ?? 0), zona: .facil)]
+        var segmentos = [seg(.largaComoda, km: km - (finalMaraton ?? 0), zona: .facil)]
         if let finalMaraton {
-            segmentos.append(seg("Final a ritmo de maratón", km: finalMaraton, zona: .maraton))
+            segmentos.append(seg(.finalRitmoMaraton, km: finalMaraton, zona: .maraton))
         }
-        return EntrenamientoBase(
-            diaDeSemana: dia, tipo: .largo, nombre: "Tirada larga",
-            descripcion: finalMaraton == nil
-                ? "La sesión que construye tu resistencia. Ritmo conversable de principio a fin."
-                : "Larga con final a ritmo objetivo: los últimos kilómetros se corren a ritmo de maratón.",
-            segmentos: segmentos)
+        return sesion(dia, .largo,
+                      finalMaraton == nil ? .tiradaLarga : .tiradaLargaConFinal,
+                      segmentos: segmentos)
     }
 
     private static func umbral(_ dia: Int, minutos: Int) -> EntrenamientoBase {
-        EntrenamientoBase(
-            diaDeSemana: dia, tipo: .umbral, nombre: "Umbral \(minutos)′",
-            descripcion: "Bloque sostenido a ritmo de umbral: exigente pero controlado (~el ritmo que aguantarías 1 hora en carrera).",
-            segmentos: [seg("Calentamiento", km: 1.5, zona: .facil),
-                        seg("Bloque umbral", min: minutos, zona: .umbral),
-                        seg("Vuelta a la calma", km: 1, zona: .recuperacion)])
+        sesion(dia, .umbral, .umbral(minutos: minutos),
+               segmentos: [seg(.calentamiento, km: 1.5, zona: .facil),
+                           seg(.bloqueUmbral, min: minutos, zona: .umbral),
+                           seg(.vueltaALaCalma, km: 1, zona: .recuperacion)])
     }
 
     private static func intervalos(_ dia: Int, repeticiones: Int,
                                    minutosCada: Int) -> EntrenamientoBase {
-        var segmentos = [seg("Calentamiento", km: 2, zona: .facil)]
+        var segmentos = [seg(.calentamiento, km: 2, zona: .facil)]
         for numero in 1...repeticiones {
-            segmentos.append(seg("Intervalo \(numero)", min: minutosCada, zona: .intervalo))
-            segmentos.append(seg("Trote de pausa", min: 2, zona: .recuperacion))
+            segmentos.append(seg(.intervalo(numero: numero), min: minutosCada, zona: .intervalo))
+            segmentos.append(seg(.trotePausa, min: 2, zona: .recuperacion))
         }
-        segmentos.append(seg("Vuelta a la calma", km: 1, zona: .recuperacion))
-        return EntrenamientoBase(
-            diaDeSemana: dia, tipo: .series,
-            nombre: "\(repeticiones)×\(minutosCada)′ fuertes",
-            descripcion: "Intervalos a ritmo de 3-5K con trote de recuperación entre cada uno.",
-            segmentos: segmentos)
+        segmentos.append(seg(.vueltaALaCalma, km: 1, zona: .recuperacion))
+        return sesion(dia, .series,
+                      .series(repeticiones: repeticiones, minutos: minutosCada),
+                      segmentos: segmentos)
     }
 
-    private static func carrera(_ dia: Int, km: Double, nombre: String) -> EntrenamientoBase {
-        EntrenamientoBase(diaDeSemana: dia, tipo: .ritmoCarrera, nombre: nombre,
-                          descripcion: "El día que preparaste. Salí conservador y cerrá fuerte.",
-                          segmentos: [seg(nombre, km: km)])
+    private static func carrera(_ dia: Int, km: Double,
+                                distancia: DistanciaObjetivo) -> EntrenamientoBase {
+        sesion(dia, .ritmoCarrera, .carrera(distancia: distancia),
+               segmentos: [seg(.carrera(distancia: distancia), km: km)])
     }
 
     private static func activacion(_ dia: Int) -> EntrenamientoBase {
-        EntrenamientoBase(
-            diaDeSemana: dia, tipo: .facil, nombre: "Activación",
-            descripcion: "Rodaje corto con 3 cambios de ritmo de 1′ para llegar despierto, no cansado.",
-            segmentos: [seg("Rodaje", km: 3, zona: .facil),
-                        seg("Cambio de ritmo 1", min: 1, zona: .umbral),
-                        seg("Cambio de ritmo 2", min: 1, zona: .umbral),
-                        seg("Cambio de ritmo 3", min: 1, zona: .umbral)])
+        sesion(dia, .facil, .activacion,
+               segmentos: [seg(.rodaje, km: 3, zona: .facil),
+                           seg(.cambioDeRitmo(numero: 1), min: 1, zona: .umbral),
+                           seg(.cambioDeRitmo(numero: 2), min: 1, zona: .umbral),
+                           seg(.cambioDeRitmo(numero: 3), min: 1, zona: .umbral)])
     }
 
     /// Rodaje medio de mitad de semana: más largo que un rodaje suelto
     /// pero sin ser una segunda tirada larga. Aparece solo en los
     /// planes de más volumen, donde el tiempo en pie importa.
     private static func medioLargo(_ dia: Int, km: Double) -> EntrenamientoBase {
-        EntrenamientoBase(
-            diaDeSemana: dia, tipo: .facil, nombre: "Rodaje medio",
-            descripcion: "Rodaje más largo de lo habitual, todo cómodo: suma tiempo en pie sin la fatiga de una larga.",
-            segmentos: [seg("Rodaje medio", km: km, zona: .facil)])
+        sesion(dia, .facil, .rodajeMedio,
+               segmentos: [seg(.rodajeMedio, km: km, zona: .facil)])
     }
 
     /// Bloque continuo al ritmo objetivo de la carrera. Es la sesión
     /// más específica que existe: enseña el ritmo que vas a correr.
-    private static func ritmoObjetivo(_ dia: Int, km: Double, nombre: String,
+    private static func ritmoObjetivo(_ dia: Int, km: Double,
+                                      distancia: DistanciaObjetivo,
                                       zona: TipoRitmo) -> EntrenamientoBase {
-        EntrenamientoBase(
-            diaDeSemana: dia, tipo: .tempo, nombre: nombre,
-            descripcion: "Bloque continuo al ritmo que querés correr el día de la carrera. Sirve tanto para las piernas como para la cabeza.",
-            segmentos: [seg("Calentamiento", km: 2, zona: .facil),
-                        seg("Al ritmo objetivo", km: km, zona: zona),
-                        seg("Vuelta a la calma", km: 1, zona: .recuperacion)])
+        sesion(dia, .tempo, .ritmoObjetivo(distancia: distancia, km: Int(km)),
+               segmentos: [seg(.calentamiento, km: 2, zona: .facil),
+                           seg(.alRitmoObjetivo, km: km, zona: zona),
+                           seg(.vueltaALaCalma, km: 1, zona: .recuperacion)])
     }
 
     /// Semana estándar de 5 sesiones (recortable a 3-5 por rol):
@@ -246,11 +248,11 @@ enum ContenidoPlanes {
         semanas.append(SemanaBase(numero: 8, entrenamientos: [
             facil(2, km: 5),
             activacion(4),
-            carrera(7, km: 5, nombre: "5K a fondo"),
+            carrera(7, km: 5, distancia: .cinco),
         ], fase: .semanaDeCarrera))
         return PlanBase(
-            id: "mejorar-5k", version: 1, nombre: "Mejorar mis 5K",
-            descripcion: "8 semanas con una sesión de calidad semanal (umbral e intervalos alternados), rodajes fáciles y tirada larga progresiva. Cierra con un 5K a fondo.",
+            id: "mejorar-5k", version: 1, clave: .mejorar5K, nombre: ClavePlan.mejorar5K.nombreCanonico,
+            descripcion: String(localized: "8 semanas con una sesión de calidad semanal (umbral e intervalos alternados), rodajes fáciles y tirada larga progresiva. Cierra con un 5K a fondo."),
             distanciaObjetivoKm: 5, semanasTotales: 8, diasPorSemana: 4,
             provisional: false, semanas: semanas)
     }
@@ -296,11 +298,11 @@ enum ContenidoPlanes {
         semanas.append(SemanaBase(numero: 8, entrenamientos: [
             facil(2, km: 5),
             activacion(4),
-            carrera(7, km: 5, nombre: "5K a fondo"),
+            carrera(7, km: 5, distancia: .cinco),
         ], fase: .semanaDeCarrera))
         return PlanBase(
-            id: "mejorar-5k", version: 2, nombre: "Mejorar mis 5K",
-            descripcion: "8 semanas con una sesión de calidad semanal (umbral e intervalos alternados), un rodaje fácil y tirada larga progresiva hasta 11 km. Cierra con un 5K a fondo.",
+            id: "mejorar-5k", version: 2, clave: .mejorar5K, nombre: ClavePlan.mejorar5K.nombreCanonico,
+            descripcion: String(localized: "8 semanas con una sesión de calidad semanal (umbral e intervalos alternados), un rodaje fácil y tirada larga progresiva hasta 11 km. Cierra con un 5K a fondo."),
             distanciaObjetivoKm: 5, semanasTotales: 8, diasPorSemana: 3,
             provisional: false, semanas: semanas)
     }
@@ -314,7 +316,7 @@ enum ContenidoPlanes {
         for numero in 1...10 {
             let esDescarga = numero == 4 || numero == 8
             let calidad = numero < 3
-                ? facil(2, km: 7, nombre: "Rodaje medio")
+                ? facil(2, km: 7, clave: .rodajeMedioFacil)
                 : umbral(2, minutos: esDescarga ? 15 : min(18 + (numero - 3) * 2, 28))
             semanas.append(semana(numero, calidad: calidad,
                                   kmFacil: esDescarga ? 6 : 7,
@@ -332,11 +334,11 @@ enum ContenidoPlanes {
         semanas.append(SemanaBase(numero: 12, entrenamientos: [
             facil(2, km: 5),
             activacion(4),
-            carrera(7, km: 21.1, nombre: "Media maratón"),
+            carrera(7, km: 21.1, distancia: .media),
         ], fase: .semanaDeCarrera))
         return PlanBase(
-            id: "media-maraton", version: 1, nombre: "Media maratón",
-            descripcion: "12 semanas: larga progresiva hasta 18 km con descargas, umbral semanal desde la semana 3 y taper de 2 semanas.",
+            id: "media-maraton", version: 1, clave: .mediaMaraton, nombre: ClavePlan.mediaMaraton.nombreCanonico,
+            descripcion: String(localized: "12 semanas: larga progresiva hasta 18 km con descargas, umbral semanal desde la semana 3 y taper de 2 semanas."),
             distanciaObjetivoKm: 21.1, semanasTotales: 12, diasPorSemana: 4,
             provisional: false, semanas: semanas)
     }
@@ -386,11 +388,11 @@ enum ContenidoPlanes {
         semanas.append(SemanaBase(numero: 16, entrenamientos: [
             facil(2, km: 5),
             activacion(4),
-            carrera(7, km: 42.195, nombre: "Maratón"),
+            carrera(7, km: 42.195, distancia: .maraton),
         ], fase: .semanaDeCarrera))
         return conTope(PlanBase(
-            id: "maraton", version: 2, nombre: "Maratón",
-            descripcion: "16 semanas: larga hasta 30 km (o 3 h, lo que llegue primero) con descargas cada 4ª semana, rodaje medio de mitad de semana, umbral semanal, finales a ritmo de maratón desde la semana 9 y taper de 3 semanas.",
+            id: "maraton", version: 2, clave: .maraton, nombre: ClavePlan.maraton.nombreCanonico,
+            descripcion: String(localized: "16 semanas: larga hasta 30 km (o 3 h, lo que llegue primero) con descargas cada 4ª semana, rodaje medio de mitad de semana, umbral semanal, finales a ritmo de maratón desde la semana 9 y taper de 3 semanas."),
             distanciaObjetivoKm: 42.195, semanasTotales: 16, diasPorSemana: 4,
             provisional: false, semanas: semanas), minutos: topePrimeraMaraton)
     }
@@ -424,11 +426,11 @@ enum ContenidoPlanes {
         semanas.append(SemanaBase(numero: 10, entrenamientos: [
             facil(2, km: 5),
             activacion(4),
-            carrera(7, km: 10, nombre: "10K a fondo"),
+            carrera(7, km: 10, distancia: .diez),
         ], fase: .semanaDeCarrera))
         return PlanBase(
-            id: "mejorar-10k", version: 1, nombre: "Mejorar mis 10K",
-            descripcion: "10 semanas alternando umbral e intervalos, con larga progresiva hasta 16 km y taper de 2 semanas. Cierra con un 10K a fondo.",
+            id: "mejorar-10k", version: 1, clave: .mejorar10K, nombre: ClavePlan.mejorar10K.nombreCanonico,
+            descripcion: String(localized: "10 semanas alternando umbral e intervalos, con larga progresiva hasta 16 km y taper de 2 semanas. Cierra con un 10K a fondo."),
             distanciaObjetivoKm: 10, semanasTotales: 10, diasPorSemana: 4,
             provisional: false, semanas: semanas)
     }
@@ -448,7 +450,7 @@ enum ContenidoPlanes {
             let calidad: EntrenamientoBase
             if numero >= 6 && numero % 2 == 0 && !esDescarga {
                 calidad = ritmoObjetivo(2, km: Double(min(6 + numero / 2, 10)),
-                                        nombre: "Ritmo de media \(min(6 + numero / 2, 10)) km",
+                                        distancia: .media,
                                         zona: .umbral)
             } else {
                 calidad = umbral(2, minutos: esDescarga ? 16 : min(20 + numero * 2, 32))
@@ -467,11 +469,11 @@ enum ContenidoPlanes {
         semanas.append(SemanaBase(numero: 12, entrenamientos: [
             facil(2, km: 5),
             activacion(4),
-            carrera(7, km: 21.1, nombre: "Media maratón"),
+            carrera(7, km: 21.1, distancia: .media),
         ], fase: .semanaDeCarrera))
         return PlanBase(
-            id: "mejorar-media", version: 1, nombre: "Mejorar mi media",
-            descripcion: "12 semanas con umbral y bloques al ritmo objetivo de media desde la semana 6, larga hasta 20 km con dos descargas y taper de 2 semanas.",
+            id: "mejorar-media", version: 1, clave: .mejorarMedia, nombre: ClavePlan.mejorarMedia.nombreCanonico,
+            descripcion: String(localized: "12 semanas con umbral y bloques al ritmo objetivo de media desde la semana 6, larga hasta 20 km con dos descargas y taper de 2 semanas."),
             distanciaObjetivoKm: 21.1, semanasTotales: 12, diasPorSemana: 5,
             provisional: false, semanas: semanas)
     }
@@ -490,8 +492,8 @@ enum ContenidoPlanes {
             let segunda: EntrenamientoBase = numero % 2 == 0
                 ? intervalos(5, repeticiones: esDescarga ? 4 : 6, minutosCada: 3)
                 : ritmoObjetivo(5, km: Double(min(6 + numero / 2, 12)),
-                                nombre: "Ritmo de media \(min(6 + numero / 2, 12)) km",
-                                zona: .umbral)
+                                distancia: .media,
+                                        zona: .umbral)
             semanas.append(semanaDoble(numero, calidad: principal, segundaCalidad: segunda,
                                        kmFacil: esDescarga ? 8 : 10,
                                        kmMedio: esDescarga ? 10 : 13,
@@ -507,11 +509,11 @@ enum ContenidoPlanes {
         semanas.append(SemanaBase(numero: 14, entrenamientos: [
             facil(2, km: 6),
             activacion(4),
-            carrera(7, km: 21.1, nombre: "Media maratón"),
+            carrera(7, km: 21.1, distancia: .media),
         ], fase: .semanaDeCarrera))
         return PlanBase(
-            id: "media-rendimiento", version: 1, nombre: "Media · rendimiento",
-            descripcion: "14 semanas de alta especificidad: dos sesiones de calidad por semana, rodaje medio, larga hasta 22 km y taper de 2 semanas. Pide base real.",
+            id: "media-rendimiento", version: 1, clave: .mediaRendimiento, nombre: ClavePlan.mediaRendimiento.nombreCanonico,
+            descripcion: String(localized: "14 semanas de alta especificidad: dos sesiones de calidad por semana, rodaje medio, larga hasta 22 km y taper de 2 semanas. Pide base real."),
             distanciaObjetivoKm: 21.1, semanasTotales: 14, diasPorSemana: 6,
             provisional: false, semanas: semanas)
     }
@@ -562,11 +564,11 @@ enum ContenidoPlanes {
         semanas.append(SemanaBase(numero: 18, entrenamientos: [
             facil(2, km: 5),
             activacion(4),
-            carrera(7, km: 42.195, nombre: "Maratón"),
+            carrera(7, km: 42.195, distancia: .maraton),
         ], fase: .semanaDeCarrera))
         return conTope(PlanBase(
-            id: "mejorar-maraton", version: 2, nombre: "Mejorar mi maratón",
-            descripcion: "18 semanas: larga hasta 32 km (o 3:15, lo que llegue primero) con finales a ritmo de maratón cada vez más largos desde la semana 7, rodaje medio de mitad de semana, umbral semanal, tres descargas y taper de 3 semanas.",
+            id: "mejorar-maraton", version: 2, clave: .mejorarMaraton, nombre: ClavePlan.mejorarMaraton.nombreCanonico,
+            descripcion: String(localized: "18 semanas: larga hasta 32 km (o 3:15, lo que llegue primero) con finales a ritmo de maratón cada vez más largos desde la semana 7, rodaje medio de mitad de semana, umbral semanal, tres descargas y taper de 3 semanas."),
             distanciaObjetivoKm: 42.195, semanasTotales: 18, diasPorSemana: 5,
             provisional: false, semanas: semanas), minutos: topeMejorarMaraton)
     }
@@ -585,7 +587,7 @@ enum ContenidoPlanes {
             let principal = umbral(2, minutos: esDescarga ? 20 : min(26 + numero, 40))
             let segunda: EntrenamientoBase = numero >= 6 && !esDescarga
                 ? ritmoObjetivo(5, km: Double(min(8 + numero, 18)),
-                                nombre: "Ritmo de maratón \(min(8 + numero, 18)) km",
+                                distancia: .maraton,
                                 zona: .maraton)
                 : intervalos(5, repeticiones: esDescarga ? 4 : 6, minutosCada: 3)
             let finalMaraton: Double? = (numero >= 7 && !esDescarga)
@@ -611,11 +613,11 @@ enum ContenidoPlanes {
         semanas.append(SemanaBase(numero: 18, entrenamientos: [
             facil(2, km: 6),
             activacion(4),
-            carrera(7, km: 42.195, nombre: "Maratón"),
+            carrera(7, km: 42.195, distancia: .maraton),
         ], fase: .semanaDeCarrera))
         return conTope(PlanBase(
-            id: "maraton-rendimiento", version: 2, nombre: "Maratón · rendimiento",
-            descripcion: "18 semanas de máxima especificidad: dos calidades por semana, bloques largos a ritmo de maratón, rodaje medio, larga hasta 32 km (o 3:30, lo que llegue primero) y taper de 3 semanas. Pide base real y sin molestias.",
+            id: "maraton-rendimiento", version: 2, clave: .maratonRendimiento, nombre: ClavePlan.maratonRendimiento.nombreCanonico,
+            descripcion: String(localized: "18 semanas de máxima especificidad: dos calidades por semana, bloques largos a ritmo de maratón, rodaje medio, larga hasta 32 km (o 3:30, lo que llegue primero) y taper de 3 semanas. Pide base real y sin molestias."),
             distanciaObjetivoKm: 42.195, semanasTotales: 18, diasPorSemana: 6,
             provisional: false, semanas: semanas), minutos: topeMaratonRendimiento)
     }

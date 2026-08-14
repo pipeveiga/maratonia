@@ -397,7 +397,9 @@ final class AdopcionTests: XCTestCase {
                                        fechaAdopcion: adopcion)
         template.semanas[0].entrenamientos[0].nombre = "CAMBIADO"
         template.version = 99
-        XCTAssertEqual(usuario.semanas[0].programados[0].definicion.nombre,
+        // El CRUDO: lo que importa acá es que el snapshot no siguió al
+        // template, no en qué idioma se muestra.
+        XCTAssertEqual(usuario.semanas[0].programados[0].definicion.nombreCrudo,
                        "Caminata y trote 1")
         XCTAssertEqual(usuario.origen, .catalogo(planBaseID: "primeros-5k@1"))
     }
@@ -432,7 +434,7 @@ final class AdopcionTests: XCTestCase {
                                                from: JSONEncoder().encode(almacen))
         XCTAssertEqual(releido, almacen)
         XCTAssertEqual(releido.historialDePlanes.count, 1)  // el 5K quedó archivado
-        XCTAssertEqual(releido.planActivo?.nombre, "Rumbo a 10K")
+        XCTAssertEqual(releido.planActivo?.nombreCrudo, "Rumbo a 10K")
     }
 }
 
@@ -448,7 +450,7 @@ final class HoyTests: XCTestCase {
     func testHayUnoHoy() {
         let hoy = DiaLocal(anio: 2026, mes: 8, dia: 12)
         let almacen = almacenConPlan(inicio: DiaLocal(anio: 2026, mes: 8, dia: 10))
-        XCTAssertEqual(almacen.entrenamientoDeHoy(hoy)?.definicion.nombre, "Caminata y trote 2")
+        XCTAssertEqual(almacen.entrenamientoDeHoy(hoy)?.definicion.nombreCrudo, "Caminata y trote 2")
     }
 
     func testNingunoHoy() {
@@ -544,7 +546,7 @@ final class CutoverTests: XCTestCase {
 
         let releido = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
                                                     fecha: Date(timeIntervalSince1970: 9))
-        XCTAssertEqual(releido.planActivo?.nombre, "Primeros 5K")
+        XCTAssertEqual(releido.planActivo?.nombreCrudo, "Primeros 5K")
     }
 
     // Usuario nuevo sin legacy: almacén limpio, sin entidades basura.
@@ -704,7 +706,7 @@ final class FaseETests: XCTestCase {
         let store = storeDePrueba(almacen)
         let proyeccion = store.proyeccionDeHoy()
         XCTAssertEqual(proyeccion.programadoID, id)
-        XCTAssertEqual(proyeccion.definicion?.nombre, "Rodaje")
+        XCTAssertEqual(proyeccion.definicion?.nombre, TextosLegado.entrenamiento("Rodaje"))
         XCTAssertEqual(proyeccion.dia, hoy)
 
         // Día sin entrenamiento: proyección "vacía" pero con el día —
@@ -1110,7 +1112,10 @@ final class EstadoPostEntrenamientoWatchTests: XCTestCase {
         XCTAssertNil(proyeccion.programadoID)      // ya no se ofrece
         XCTAssertNil(proyeccion.definicion)
         XCTAssertEqual(proyeccion.resolucionDeHoy, .parcial)
-        XCTAssertEqual(proyeccion.nombreDeHoy, "Rodaje")
+        // La proyección lleva texto para MOSTRAR: en el reloj se ve en el
+        // idioma del reloj, así que se compara contra lo que el dominio dice
+        // que hay que mostrar y no contra un literal en español.
+        XCTAssertEqual(proyeccion.nombreDeHoy, TextosLegado.entrenamiento("Rodaje"))
         XCTAssertEqual(proyeccion.tipoDeHoy, .facil)
 
         // Con el programado PENDIENTE, los campos de resultado van vacíos.
@@ -1141,7 +1146,7 @@ final class EstadoPostEntrenamientoWatchTests: XCTestCase {
         XCTAssertNil(proyeccion.entrenamientoOfrecible(hoy: hoy, completadosLocal: [id]))
         let parcial = proyeccion.resultadoDeHoy(hoy: hoy, completadosLocal: [id],
                                                 estructuraLocal: [id: false])
-        XCTAssertEqual(parcial?.nombre, "Rodaje")
+        XCTAssertEqual(parcial?.nombre, TextosLegado.entrenamiento("Rodaje"))
         XCTAssertEqual(parcial?.resolucion, .parcial)
         // Estructura completa local → ✓ Completado.
         let completo = proyeccion.resultadoDeHoy(hoy: hoy, completadosLocal: [id],
@@ -1486,7 +1491,7 @@ final class MotorPlanesTests: XCTestCase {
         // inventar workouts. Se prueba con biblioteca inyectada para no
         // depender del estado del catálogo.
         let vacio = PlanArquetipo(
-            id: "futuro", version: 1, objetivo: .maraton, nombre: "Futuro",
+            id: "futuro", version: 1, objetivo: .maraton, clave: .maraton,
             semanasMinimas: 12, semanasRecomendadas: 16,
             diasMinimos: 3, diasMaximos: 5,
             recomiendaBaseline: false, contenido: nil)
@@ -1494,7 +1499,7 @@ final class MotorPlanesTests: XCTestCase {
             MotorPlanificacion.proponer(pedido(.maraton), biblioteca: [vacio]) else {
             return XCTFail("sin contenido el motor debe responder sinContenido")
         }
-        XCTAssertEqual(cual, .maraton)
+        XCTAssertEqual(cual, ObjetivoDeportivo.maraton)
         // Y los que SÍ tienen contenido ahora proponen de verdad.
         for objetivo in [ObjetivoDeportivo.mediaMaraton, .maraton, .mejorar5K] {
             let arquetipo = BibliotecaArquetipos.v1().first { $0.objetivo == objetivo }

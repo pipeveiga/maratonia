@@ -95,18 +95,82 @@ enum TipoRitmo: String, Codable {
 /// la representa para no re-migrar esquema).
 struct Segmento: Codable, Equatable, Identifiable {
     var id = UUID()
-    var nombre: String
+    /// QUÉ ES este tramo. Cuando está, manda sobre el texto guardado y
+    /// el nombre se arma en el idioma actual (ver `TextosDeportivos`).
+    var clave: ClaveSegmento? = nil
+    /// El texto tal cual quedó escrito en el plan. Es el RESPALDO, no la
+    /// fuente de verdad: sirve para los planes adoptados antes de que
+    /// existieran las claves y para los tramos que se armó el corredor.
+    private var nombreGuardado: String
     var distanciaKm: Double?
     var duracionSegundos: Int?
     var ritmo: RitmoObjetivo = .libre
+
+    /// El nombre a MOSTRAR, siempre en el idioma de ahora.
+    var nombre: String {
+        get { clave?.nombre ?? TextosLegado.segmento(nombreGuardado) }
+        set { nombreGuardado = newValue; clave = nil }
+    }
+
+    /// Lo que hay escrito en el disco, sin traducir. Solo lo necesita la
+    /// persistencia y los tests de compatibilidad.
+    var nombreCrudo: String { nombreGuardado }
+
+    enum CodingKeys: String, CodingKey {
+        case id, clave, distanciaKm, duracionSegundos, ritmo
+        case nombreGuardado = "nombre"   // el JSON no cambia de forma
+    }
+
+    init(id: UUID = UUID(), clave: ClaveSegmento? = nil, nombre: String,
+         distanciaKm: Double? = nil, duracionSegundos: Int? = nil,
+         ritmo: RitmoObjetivo = .libre) {
+        self.id = id
+        self.clave = clave
+        self.nombreGuardado = nombre
+        self.distanciaKm = distanciaKm
+        self.duracionSegundos = duracionSegundos
+        self.ritmo = ritmo
+    }
+
+    /// Una clave DESCONOCIDA (guardada por una build futura) no puede
+    /// tirar el almacén entero: se ignora y queda el texto guardado.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        clave = try? c.decodeIfPresent(ClaveSegmento.self, forKey: .clave)
+        nombreGuardado = try c.decode(String.self, forKey: .nombreGuardado)
+        distanciaKm = try c.decodeIfPresent(Double.self, forKey: .distanciaKm)
+        duracionSegundos = try c.decodeIfPresent(Int.self, forKey: .duracionSegundos)
+        ritmo = try c.decodeIfPresent(RitmoObjetivo.self, forKey: .ritmo) ?? .libre
+    }
 }
 
 struct DefinicionEntrenamiento: Codable, Equatable, Identifiable {
     var id = UUID()                      // definicionID: estable ante ediciones
     var tipo: TipoEntrenamiento
-    var nombre: String
-    var descripcion: String = ""
+    /// QUÉ ES esta sesión. Cuando está, de acá salen título y
+    /// descripción, en el idioma actual (ver `TextosDeportivos`).
+    var clave: ClaveEntrenamiento? = nil
+    /// El texto congelado al adoptar. RESPALDO: planes viejos, contenido
+    /// provisional del catálogo V1 y entrenamientos del corredor.
+    private var nombreGuardado: String
+    private var descripcionGuardada: String = ""
     var segmentos: [Segmento] = []
+
+    /// Título y descripción a MOSTRAR, siempre en el idioma de ahora.
+    var nombre: String {
+        get { clave?.nombre ?? TextosLegado.entrenamiento(nombreGuardado) }
+        set { nombreGuardado = newValue; clave = nil }
+    }
+
+    var descripcion: String {
+        get { clave?.descripcion ?? TextosLegado.descripcion(descripcionGuardada) }
+        set { descripcionGuardada = newValue; clave = nil }
+    }
+
+    /// Lo que hay escrito en el disco, sin traducir.
+    var nombreCrudo: String { nombreGuardado }
+    var descripcionCruda: String { descripcionGuardada }
 
     /// TECHO de duración de la sesión, en segundos. No es una meta: es
     /// un límite. La sesión sigue terminando por DISTANCIA cuando el
@@ -120,6 +184,37 @@ struct DefinicionEntrenamiento: Codable, Equatable, Identifiable {
     /// Opcional: nil = sin tope (todo el contenido anterior decodifica
     /// igual y se comporta exactamente como antes).
     var topeDuracionSegundos: Int? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case id, tipo, clave, segmentos, topeDuracionSegundos
+        case nombreGuardado = "nombre"            // el JSON no cambia de forma
+        case descripcionGuardada = "descripcion"
+    }
+
+    init(id: UUID = UUID(), tipo: TipoEntrenamiento, clave: ClaveEntrenamiento? = nil,
+         nombre: String, descripcion: String = "", segmentos: [Segmento] = [],
+         topeDuracionSegundos: Int? = nil) {
+        self.id = id
+        self.tipo = tipo
+        self.clave = clave
+        self.nombreGuardado = nombre
+        self.descripcionGuardada = descripcion
+        self.segmentos = segmentos
+        self.topeDuracionSegundos = topeDuracionSegundos
+    }
+
+    /// Una clave DESCONOCIDA (guardada por una build futura) no puede
+    /// tirar el almacén entero: se ignora y quedan los textos guardados.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        tipo = try c.decode(TipoEntrenamiento.self, forKey: .tipo)
+        clave = try? c.decodeIfPresent(ClaveEntrenamiento.self, forKey: .clave)
+        nombreGuardado = try c.decode(String.self, forKey: .nombreGuardado)
+        descripcionGuardada = try c.decodeIfPresent(String.self, forKey: .descripcionGuardada) ?? ""
+        segmentos = try c.decodeIfPresent([Segmento].self, forKey: .segmentos) ?? []
+        topeDuracionSegundos = try c.decodeIfPresent(Int.self, forKey: .topeDuracionSegundos)
+    }
 }
 
 // MARK: - Volumen planificado (UNA sola definición)
@@ -654,16 +749,66 @@ enum OrigenPlan: Codable, Equatable {
 /// (son structs copiados por valor y persistidos aparte).
 struct PlanUsuario: Codable, Equatable, Identifiable {
     var id = UUID()                       // planUsuarioID
-    var nombre: String
+    /// QUÉ arquetipo es. Cuando está, el nombre sale de acá en el idioma
+    /// actual; si no, del texto guardado (planes viejos o del corredor).
+    var clave: ClavePlan? = nil
+    private var nombreGuardado: String
     var origen: OrigenPlan = .personalizado
     var fechaAdopcion: Date
     var semanas: [SemanaPlan] = []
+
+    /// El nombre a MOSTRAR, siempre en el idioma de ahora.
+    var nombre: String {
+        get { clave?.nombre ?? TextosLegado.plan(nombreGuardado) }
+        set { nombreGuardado = newValue; clave = nil }
+    }
+
+    /// Lo que hay escrito en el disco, sin traducir.
+    var nombreCrudo: String { nombreGuardado }
+
+    /// Le pone identidad al plan: la clave (que es lo que se muestra) y
+    /// el español canónico (que es lo que se congela). Existe porque
+    /// `nombre = ...` a secas BORRA la clave a propósito —esa vía es
+    /// para el nombre que escribe el corredor—, y el motor necesita
+    /// poner las dos cosas juntas.
+    mutating func identificar(clave: ClavePlan?, nombreCanonico: String) {
+        nombreGuardado = nombreCanonico
+        self.clave = clave
+    }
 
     /// Con qué referencia de rendimiento se armó este plan (RC1,
     /// motor de planes). Opcional y retrocompatible: los planes
     /// anteriores no la tienen. La versión del arquetipo/metodología
     /// ya viaja en `origen` ("id@versión").
     var referenciaUsadaID: UUID? = nil
+
+    enum CodingKeys: String, CodingKey {
+        case id, clave, origen, fechaAdopcion, semanas, referenciaUsadaID
+        case nombreGuardado = "nombre"   // el JSON no cambia de forma
+    }
+
+    init(id: UUID = UUID(), clave: ClavePlan? = nil, nombre: String,
+         origen: OrigenPlan = .personalizado, fechaAdopcion: Date,
+         semanas: [SemanaPlan] = [], referenciaUsadaID: UUID? = nil) {
+        self.id = id
+        self.clave = clave
+        self.nombreGuardado = nombre
+        self.origen = origen
+        self.fechaAdopcion = fechaAdopcion
+        self.semanas = semanas
+        self.referenciaUsadaID = referenciaUsadaID
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        clave = try? c.decodeIfPresent(ClavePlan.self, forKey: .clave)
+        nombreGuardado = try c.decode(String.self, forKey: .nombreGuardado)
+        origen = try c.decodeIfPresent(OrigenPlan.self, forKey: .origen) ?? .personalizado
+        fechaAdopcion = try c.decode(Date.self, forKey: .fechaAdopcion)
+        semanas = try c.decodeIfPresent([SemanaPlan].self, forKey: .semanas) ?? []
+        referenciaUsadaID = try c.decodeIfPresent(UUID.self, forKey: .referenciaUsadaID)
+    }
 }
 
 struct SemanaPlan: Codable, Equatable, Identifiable {

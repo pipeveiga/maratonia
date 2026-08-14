@@ -249,8 +249,10 @@ final class ValidadorFaseTests: XCTestCase {
         return almacen
     }
 
+    /// Por el nombre CRUDO (ver la nota del mismo helper en
+    /// MotorAdaptativoTests): el visible ya depende del idioma.
     private func buscar(_ almacen: AlmacenV2, _ nombre: String) -> UUID {
-        almacen.todosLosProgramados.first { $0.definicion.nombre == nombre }!.id
+        almacen.todosLosProgramados.first { $0.definicion.nombreCrudo == nombre }!.id
     }
 
     func testEnTaperNoSeConvierte() {
@@ -1266,11 +1268,11 @@ final class ContratoCoachTests: XCTestCase {
     func testLaRespuestaRealDelBackendLlegaAlDominio() throws {
         var almacen = almacenConPlan()
         let umbral = try XCTUnwrap(almacen.todosLosProgramados
-            .first { $0.definicion.nombre == "Umbral" })
+            .first { $0.definicion.nombreCrudo == "Umbral" })
         let rodaje = try XCTUnwrap(almacen.todosLosProgramados
-            .first { $0.definicion.nombre == "Rodaje" })
+            .first { $0.definicion.nombreCrudo == "Rodaje" })
         let larga = try XCTUnwrap(almacen.todosLosProgramados
-            .first { $0.definicion.nombre == "Larga" })
+            .first { $0.definicion.nombreCrudo == "Larga" })
 
         let respuestaDelBackend = """
         {
@@ -1306,7 +1308,7 @@ final class ContratoCoachTests: XCTestCase {
     func testElValidadorFrenaLoQueElModeloNoDeberiaProponer() throws {
         let almacen = almacenConPlan()
         let larga = try XCTUnwrap(almacen.todosLosProgramados
-            .first { $0.definicion.nombre == "Larga" })
+            .first { $0.definicion.nombreCrudo == "Larga" })
         let hoy = DiaLocal(anio: 2026, mes: 8, dia: 11)
 
         // Un ID que no existe en el plan: se descarta.
@@ -1407,7 +1409,7 @@ final class InerciaAdaptadorTests: XCTestCase {
         AnalisisPostCarrera(sesionID: UUID(), fecha: ahoraTest, km: 8 * cumplimiento,
                             minutos: 48, ritmoSegKm: 360,
                             programadoID: almacen.todosLosProgramados.first {
-                                $0.definicion.nombre == "Umbral" }?.id,
+                                $0.definicion.nombreCrudo == "Umbral" }?.id,
                             kmPrescritos: 8, estructuraCompleta: cumplimiento >= 1,
                             sensacion: sensacion, conMolestia: molestia)
     }
@@ -2407,6 +2409,394 @@ final class ArranqueContraBaselineRealTests: XCTestCase {
                                    "\(arquetipo.id) \(dias)d · \(nombre)")
                 }
             }
+        }
+    }
+}
+
+// MARK: - Localización del contenido deportivo
+//
+// El bug de arquitectura: los títulos y descripciones de los
+// entrenamientos nacían como literales en español y se CONGELABAN en el
+// snapshot al adoptar el plan. De ahí en más eran datos, no texto, y
+// ninguna capa de presentación podía traducirlos.
+//
+// La regla que protegen estos tests: el plan guarda QUÉ ES cada cosa
+// (una clave), no cómo se llama. El texto se arma al mostrarlo.
+
+final class LocalizacionContenidoDeportivoTests: XCTestCase {
+
+    /// TODO el catálogo, sesión por sesión y tramo por tramo.
+    private func todoElContenido() -> [PlanBase] {
+        var planes: [PlanBase] = []
+        for arquetipo in BibliotecaArquetipos.v1() {
+            if let base = arquetipo.contenido { planes.append(base) }
+            planes.append(contentsOf: arquetipo.contenidoPorDias.values)
+        }
+        return planes
+    }
+
+    // ---- EL INVARIANTE
+
+    /// Ninguna sesión del contenido declarativo puede depender de un
+    /// string: si no trae clave, su título quedó congelado en español.
+    func testElContenidoDeclarativoDeclaraClaveEnCadaSesion() {
+        for base in todoElContenido() where !base.provisional {
+            for semana in base.semanas {
+                for entrenamiento in semana.entrenamientos {
+                    XCTAssertNotNil(entrenamiento.clave,
+                                    "\(base.id) semana \(semana.numero): «\(entrenamiento.nombre)» sin clave")
+                    for segmento in entrenamiento.segmentos {
+                        XCTAssertNotNil(segmento.clave,
+                                        "\(base.id): tramo «\(segmento.nombre)» sin clave")
+                    }
+                }
+            }
+        }
+    }
+
+    /// El contenido PROVISIONAL (catálogo V1, JSON embebido) no declara
+    /// claves, así que su rescate es la tabla: todo lo que muestra tiene
+    /// que estar ahí, o quedaría en español con la app en inglés.
+    func testElContenidoProvisionalEstaEnLaTablaDeRescate() {
+        for base in todoElContenido() where base.provisional {
+            for semana in base.semanas {
+                for entrenamiento in semana.entrenamientos {
+                    XCTAssertTrue(TextosLegado.conoceEntrenamiento(entrenamiento.nombre),
+                                  "\(base.id): el título «\(entrenamiento.nombre)» no está en la tabla")
+                    XCTAssertTrue(TextosLegado.conoceDescripcion(entrenamiento.descripcion),
+                                  "\(base.id): la descripción «\(entrenamiento.descripcion)» no está en la tabla")
+                    for segmento in entrenamiento.segmentos {
+                        XCTAssertTrue(TextosLegado.conoceSegmento(segmento.nombre),
+                                      "\(base.id): el tramo «\(segmento.nombre)» no está en la tabla")
+                    }
+                }
+            }
+        }
+    }
+
+    /// Todo arquetipo tiene clave de plan: el nombre del plan también se
+    /// congelaba al adoptar.
+    func testTodoArquetipoTieneClaveDePlan() {
+        let claves = BibliotecaArquetipos.v1().map(\.clave)
+        XCTAssertEqual(Set(claves).count, claves.count, "dos arquetipos comparten clave")
+        for arquetipo in BibliotecaArquetipos.v1() {
+            XCTAssertEqual(arquetipo.nombre, arquetipo.clave.nombre)
+        }
+    }
+
+    // ---- CANÓNICO vs LOCALIZADO
+    //
+    // El host de tests corre en el idioma del simulador (hoy inglés), así
+    // que NO se puede comparar el canónico contra el localizado: darían
+    // distinto justamente cuando todo funciona. Lo que sí se puede
+    // verificar es que cada canónico sea una CLAVE REAL del catálogo de
+    // strings — como el idioma fuente es español, la clave es el propio
+    // texto en español. Si alguien edita el literal de `String(localized:)`
+    // y se olvida del canónico (o al revés), la clave deja de existir y
+    // esto falla.
+
+    /// El catálogo en español, para preguntarle si una clave existe.
+    private var catalogoES: Bundle {
+        let ruta = Bundle(for: LocalizacionContenidoDeportivoTests.self)
+            .path(forResource: "es", ofType: "lproj")
+            ?? Bundle.main.path(forResource: "es", ofType: "lproj")
+        return ruta.flatMap(Bundle.init(path:)) ?? .main
+    }
+
+    private func esClaveDelCatalogo(_ texto: String) -> Bool {
+        // Un texto con interpolación ya resuelta ("Umbral 32′") no es la
+        // clave del catálogo, que la guarda como "Umbral %lld′". Esos se
+        // verifican por separado, en el test de tokens.
+        catalogoES.localizedString(forKey: texto, value: "␀", table: nil) != "␀"
+    }
+
+    func testCadaCanonicoEsUnaClaveDelCatalogo() {
+        let sinParametros: [ClaveEntrenamiento] = [
+            .rodajeSuave, .rodajeMedio, .rodajeMedioFacil, .recuperacion,
+            .tiradaLarga, .tiradaLargaConFinal, .activacion,
+            .carrera(distancia: .cinco), .carrera(distancia: .diez),
+            .carrera(distancia: .media), .carrera(distancia: .maraton),
+        ]
+        for clave in sinParametros {
+            XCTAssertTrue(esClaveDelCatalogo(clave.nombreCanonico),
+                          "«\(clave.nombreCanonico)» no es clave del catálogo (título de \(clave.token))")
+            XCTAssertTrue(esClaveDelCatalogo(clave.descripcionCanonica),
+                          "la descripción de \(clave.token) no es clave del catálogo")
+        }
+        let tramos: [ClaveSegmento] = [
+            .rodaje, .rodajeMedio, .troteSuave, .largaComoda, .finalRitmoMaraton,
+            .calentamiento, .bloqueUmbral, .vueltaALaCalma, .trotePausa,
+            .alRitmoObjetivo, .carrera(distancia: .maraton),
+        ]
+        for clave in tramos {
+            XCTAssertTrue(esClaveDelCatalogo(clave.nombreCanonico),
+                          "«\(clave.nombreCanonico)» no es clave del catálogo")
+        }
+        for clave in ClavePlan.allCases {
+            XCTAssertTrue(esClaveDelCatalogo(clave.nombreCanonico),
+                          "«\(clave.nombreCanonico)» no es clave del catálogo")
+        }
+    }
+
+    /// Y el localizado SÍ está traducido: si `nombre` devolviera el
+    /// español con la app en inglés, el bug seguiría vivo y este test
+    /// —que corre en inglés— lo detecta.
+    func testElContenidoSeTraduceDeVerdad() throws {
+        try XCTSkipIf(Bundle.main.preferredLocalizations.first == "es",
+                      "corriendo en español no hay nada que distinguir")
+        XCTAssertNotEqual(ClaveEntrenamiento.tiradaLarga.nombre,
+                          ClaveEntrenamiento.tiradaLarga.nombreCanonico)
+        XCTAssertNotEqual(ClaveSegmento.largaComoda.nombre,
+                          ClaveSegmento.largaComoda.nombreCanonico)
+        XCTAssertNotEqual(TextosLegado.entrenamiento("Tirada larga"), "Tirada larga")
+    }
+
+    func testElCanonicoYElLocalizadoTienenLaMismaForma() {
+        let entrenamientos: [ClaveEntrenamiento] = [
+            .rodajeSuave, .rodajeMedio, .rodajeMedioFacil, .recuperacion,
+            .tiradaLarga, .tiradaLargaConFinal, .activacion,
+            .umbral(minutos: 32), .series(repeticiones: 6, minutos: 3),
+            .ritmoObjetivo(distancia: .media, km: 8),
+            .ritmoObjetivo(distancia: .maraton, km: 12),
+            .ritmoObjetivo(distancia: .cinco, km: 4),
+            .ritmoObjetivo(distancia: .diez, km: 6),
+            .carrera(distancia: .cinco), .carrera(distancia: .diez),
+            .carrera(distancia: .media), .carrera(distancia: .maraton),
+        ]
+        // Ni el título ni la descripción pueden quedar vacíos en ningún
+        // idioma, y los parámetros tienen que aparecer en los dos lados.
+        for clave in entrenamientos {
+            XCTAssertFalse(clave.nombre.isEmpty, "título vacío en \(clave.token)")
+            XCTAssertFalse(clave.nombreCanonico.isEmpty, "canónico vacío en \(clave.token)")
+            XCTAssertFalse(clave.descripcion.isEmpty, "descripción vacía en \(clave.token)")
+            XCTAssertFalse(clave.descripcionCanonica.isEmpty)
+        }
+        XCTAssertTrue(ClaveEntrenamiento.umbral(minutos: 32).nombre.contains("32"),
+                      "el parámetro tiene que sobrevivir a la traducción")
+        XCTAssertTrue(ClaveEntrenamiento.umbral(minutos: 32).nombreCanonico.contains("32"))
+        let seis = ClaveEntrenamiento.series(repeticiones: 6, minutos: 3)
+        XCTAssertTrue(seis.nombre.contains("6") && seis.nombre.contains("3"))
+        XCTAssertTrue(ClaveEntrenamiento.ritmoObjetivo(distancia: .media, km: 8)
+                        .nombre.contains("8"))
+
+        let segmentos: [ClaveSegmento] = [
+            .rodaje, .rodajeMedio, .troteSuave, .largaComoda, .finalRitmoMaraton,
+            .calentamiento, .bloqueUmbral, .vueltaALaCalma, .trotePausa,
+            .alRitmoObjetivo, .intervalo(numero: 3), .cambioDeRitmo(numero: 2),
+            .carrera(distancia: .maraton),
+        ]
+        for clave in segmentos {
+            XCTAssertFalse(clave.nombre.isEmpty, "tramo vacío \(clave.token)")
+            XCTAssertFalse(clave.nombreCanonico.isEmpty)
+        }
+        XCTAssertTrue(ClaveSegmento.intervalo(numero: 3).nombre.contains("3"))
+
+        for clave in ClavePlan.allCases {
+            XCTAssertFalse(clave.nombre.isEmpty, "plan \(clave.rawValue)")
+            XCTAssertFalse(clave.nombreCanonico.isEmpty)
+        }
+    }
+
+    // ---- LO QUE SE CONGELA
+
+    /// Adoptar guarda el ESPAÑOL canónico, no el idioma en que se armó
+    /// el plan: el archivo no puede quedar atado al idioma que tenía el
+    /// corredor ese día.
+    func testAdoptarCongelaElEspanolCanonico() throws {
+        let base = try XCTUnwrap(BibliotecaArquetipos.v1()
+            .first { $0.clave == .mediaMaraton }?.contenido)
+        let plan = base.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 17),
+                                fechaAdopcion: Date())
+        let programados = plan.semanas.flatMap(\.programados)
+        XCTAssertFalse(programados.isEmpty)
+        for programado in programados {
+            let definicion = programado.definicion
+            let clave = try XCTUnwrap(definicion.clave, "la clave tiene que viajar al snapshot")
+            XCTAssertEqual(definicion.nombreCrudo, clave.nombreCanonico)
+            XCTAssertEqual(definicion.descripcionCruda, clave.descripcionCanonica)
+            for segmento in definicion.segmentos {
+                let claveSeg = try XCTUnwrap(segmento.clave)
+                XCTAssertEqual(segmento.nombreCrudo, claveSeg.nombreCanonico)
+            }
+        }
+    }
+
+    /// El nombre del PLAN también viaja como clave, y lo que queda
+    /// escrito es el canónico.
+    func testElNombreDelPlanViajaComoClave() {
+        var perfil = PerfilDeportivo()
+        perfil.diasPorSemana = 4
+        perfil.diasElegidos = [2, 4, 6, 7]
+        let hoy = DiaLocal(anio: 2026, mes: 8, dia: 17)
+        // Media maratón recomienda baseline: sin referencia el motor
+        // responde `faltaBaseline` y no habría plan que mirar.
+        let marca = ReferenciaRendimiento(fecha: Date(), fuente: .marcaManual,
+                                          distanciaMetros: 10000, segundos: 48 * 60)
+        guard let pedido = PedidoDePlan(perfil: perfil, objetivo: .mediaMaraton,
+                                        referencia: marca, hoy: hoy),
+              case .propuesta(let propuesta) = MotorPlanificacion.proponer(pedido)
+        else { return XCTFail("el motor no propuso un plan") }
+        XCTAssertEqual(propuesta.planUsuario.clave, .mediaMaraton)
+        XCTAssertEqual(propuesta.planUsuario.nombreCrudo, ClavePlan.mediaMaraton.nombreCanonico)
+        XCTAssertEqual(propuesta.planUsuario.nombre, ClavePlan.mediaMaraton.nombre)
+    }
+
+    // ---- COMPATIBILIDAD
+
+    /// Un plan de una build ANTERIOR no tiene claves. Su texto congelado
+    /// se rescata por tabla: se ve traducido sin migrar ni tocar nada.
+    func testUnPlanViejoSinClavesSeSigueLeyendo() throws {
+        let json = """
+        {
+          "id": "\(UUID().uuidString)",
+          "nombre": "Media maratón",
+          "fechaAdopcion": 0,
+          "semanas": [{
+            "id": "\(UUID().uuidString)", "numero": 1,
+            "programados": [{
+              "id": "\(UUID().uuidString)",
+              "resolucion": "pendiente",
+              "definicion": {
+                "id": "\(UUID().uuidString)",
+                "tipo": "largo",
+                "nombre": "Tirada larga",
+                "descripcion": "La sesión que construye tu resistencia. Ritmo conversable de principio a fin.",
+                "segmentos": [{
+                  "id": "\(UUID().uuidString)",
+                  "nombre": "Larga cómoda",
+                  "distanciaKm": 16
+                }]
+              }
+            }]
+          }]
+        }
+        """
+        let plan = try JSONDecoder().decode(PlanUsuario.self, from: Data(json.utf8))
+        let definicion = try XCTUnwrap(plan.semanas.first?.programados.first?.definicion)
+
+        // Sin clave: el texto sale de la tabla de rescate, no del disco.
+        XCTAssertNil(definicion.clave)
+        XCTAssertNil(plan.clave)
+        XCTAssertEqual(definicion.nombre, ClaveEntrenamiento.tiradaLarga.nombre)
+        XCTAssertEqual(definicion.descripcion, ClaveEntrenamiento.tiradaLarga.descripcion)
+        XCTAssertEqual(definicion.segmentos.first?.nombre, ClaveSegmento.largaComoda.nombre)
+        XCTAssertEqual(plan.nombre, ClavePlan.mediaMaraton.nombre)
+    }
+
+    /// La clave se guarda ADEMÁS del texto, nunca en su lugar: una build
+    /// vieja leyendo un plan nuevo encuentra el string donde siempre.
+    func testElJSONSigueTrayendoElTextoParaLasBuildsViejas() throws {
+        let base = try XCTUnwrap(BibliotecaArquetipos.v1()
+            .first { $0.clave == .mediaMaraton }?.contenido)
+        let plan = base.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 17),
+                                fechaAdopcion: Date())
+        let datos = try JSONEncoder().encode(plan)
+        let crudo = try XCTUnwrap(try JSONSerialization.jsonObject(with: datos) as? [String: Any])
+
+        XCTAssertEqual(crudo["nombre"] as? String, ClavePlan.mediaMaraton.nombreCanonico)
+        XCTAssertEqual(crudo["clave"] as? String, ClavePlan.mediaMaraton.rawValue)
+
+        let semanas = try XCTUnwrap(crudo["semanas"] as? [[String: Any]])
+        let programados = try XCTUnwrap(semanas.first?["programados"] as? [[String: Any]])
+        let definicion = try XCTUnwrap(programados.first?["definicion"] as? [String: Any])
+        XCTAssertNotNil(definicion["nombre"] as? String, "el texto tiene que seguir estando")
+        XCTAssertNotNil(definicion["descripcion"] as? String)
+        XCTAssertNotNil(definicion["clave"] as? String, "y la clave al lado")
+    }
+
+    /// Ida y vuelta por disco: la clave sobrevive.
+    func testLaClaveSobreviveElRoundTrip() throws {
+        let base = try XCTUnwrap(BibliotecaArquetipos.v1()
+            .first { $0.clave == .maraton }?.contenido)
+        let plan = base.adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 17),
+                                fechaAdopcion: Date())
+        let ida = try JSONEncoder().encode(plan)
+        let vuelta = try JSONDecoder().decode(PlanUsuario.self, from: ida)
+        XCTAssertEqual(vuelta, plan)
+        XCTAssertEqual(vuelta.clave, .maraton)
+        let claves = vuelta.semanas.flatMap(\.programados).compactMap(\.definicion.clave)
+        XCTAssertEqual(claves.count, vuelta.semanas.flatMap(\.programados).count)
+    }
+
+    /// Una clave que esta build NO conoce (la escribió una versión
+    /// futura) no puede tirar el almacén entero: se ignora y queda el
+    /// texto guardado.
+    func testUnaClaveDesconocidaNoRompeLaDecodificacion() throws {
+        let json = """
+        {
+          "id": "\(UUID().uuidString)",
+          "tipo": "largo",
+          "clave": "sesionDelFuturo:9",
+          "nombre": "Tirada larga",
+          "descripcion": "La sesión que construye tu resistencia. Ritmo conversable de principio a fin.",
+          "segmentos": [{
+            "id": "\(UUID().uuidString)",
+            "clave": "tramoDelFuturo",
+            "nombre": "Larga cómoda",
+            "distanciaKm": 16
+          }]
+        }
+        """
+        let definicion = try JSONDecoder().decode(DefinicionEntrenamiento.self,
+                                                  from: Data(json.utf8))
+        XCTAssertNil(definicion.clave, "la clave desconocida se ignora")
+        XCTAssertEqual(definicion.nombre, ClaveEntrenamiento.tiradaLarga.nombre,
+                       "y el texto guardado sigue resolviendo por tabla")
+        XCTAssertNil(definicion.segmentos.first?.clave)
+        XCTAssertEqual(definicion.segmentos.first?.nombre, ClaveSegmento.largaComoda.nombre)
+    }
+
+    /// Lo que escribió el CORREDOR no se toca: no es contenido de
+    /// Maratonia y no hay nada que traducir.
+    func testLoQueEscribeElCorredorSeMuestraTalCual() {
+        let propio = DefinicionEntrenamiento(
+            tipo: .personalizado, nombre: "Mi sesión del jueves",
+            descripcion: "Con Ana en el parque",
+            segmentos: [Segmento(nombre: "Vueltas al lago", distanciaKm: 3)])
+        XCTAssertNil(propio.clave)
+        XCTAssertEqual(propio.nombre, "Mi sesión del jueves")
+        XCTAssertEqual(propio.descripcion, "Con Ana en el parque")
+        XCTAssertEqual(propio.segmentos.first?.nombre, "Vueltas al lago")
+    }
+
+    /// Renombrar a mano ABANDONA la clave: si el corredor le puso otro
+    /// nombre, ese nombre manda y no puede volver a aparecer el del
+    /// catálogo traducido encima.
+    func testRenombrarAManoAbandonaLaClave() {
+        var definicion = DefinicionEntrenamiento(
+            tipo: .largo, clave: .tiradaLarga,
+            nombre: ClaveEntrenamiento.tiradaLarga.nombreCanonico)
+        XCTAssertEqual(definicion.nombre, ClaveEntrenamiento.tiradaLarga.nombre)
+        definicion.nombre = "La larga del domingo"
+        XCTAssertNil(definicion.clave)
+        XCTAssertEqual(definicion.nombre, "La larga del domingo")
+    }
+
+    /// Los tramos numerados del contenido viejo ("Intervalo 3") se
+    /// reconocen por forma: no entran en una tabla fija.
+    func testLosTramosNumeradosViejosSeReconocen() {
+        XCTAssertEqual(TextosLegado.segmento("Intervalo 3"),
+                       ClaveSegmento.intervalo(numero: 3).nombre)
+        XCTAssertEqual(TextosLegado.segmento("Cambio de ritmo 2"),
+                       ClaveSegmento.cambioDeRitmo(numero: 2).nombre)
+        XCTAssertEqual(TextosLegado.segmento("Intervalo de Ana"), "Intervalo de Ana",
+                       "lo que no es del catálogo no se toca")
+    }
+
+    /// El token es la forma persistida: si cambia, los planes guardados
+    /// dejan de resolver. Se fija acá a propósito.
+    func testLosTokensSonEstables() {
+        XCTAssertEqual(ClaveEntrenamiento.umbral(minutos: 32).token, "umbral:32")
+        XCTAssertEqual(ClaveEntrenamiento.series(repeticiones: 6, minutos: 3).token, "series:6:3")
+        XCTAssertEqual(ClaveEntrenamiento.ritmoObjetivo(distancia: .media, km: 8).token,
+                       "ritmoObjetivo:media:8")
+        XCTAssertEqual(ClaveEntrenamiento.carrera(distancia: .maraton).token, "carrera:maraton")
+        XCTAssertEqual(ClaveSegmento.intervalo(numero: 4).token, "intervalo:4")
+
+        // Y vuelven a leerse.
+        for token in ["umbral:32", "series:6:3", "ritmoObjetivo:media:8",
+                      "carrera:maraton", "rodajeSuave", "tiradaLargaConFinal"] {
+            XCTAssertNotNil(ClaveEntrenamiento(token: token), token)
         }
     }
 }

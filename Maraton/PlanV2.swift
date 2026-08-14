@@ -15,8 +15,22 @@ import Foundation
 struct PlanBase: Codable, Equatable, Identifiable {
     var id: String              // "primeros-5k" (estable entre versiones)
     var version: Int
-    var nombre: String
+    /// QUÉ arquetipo es. Viaja al `PlanUsuario` al adoptar para que el
+    /// nombre del plan tampoco quede congelado en español. El catálogo
+    /// V1 (JSON embebido) no la declara y cae a `TextosLegado`.
+    var clave: ClavePlan? = nil
+    private var nombreGuardado: String
+    /// La descripción NO se persiste en el plan adoptado (PlanUsuario no
+    /// la tiene), así que se puede guardar ya localizada: el contenido
+    /// declarativo la pasa por `String(localized:)` y el JSON del
+    /// catálogo V1 la resuelve al decodificar.
     var descripcion: String
+
+    /// El nombre a MOSTRAR. `nombreCrudo` es el que viaja al snapshot:
+    /// lo que se congela tiene que seguir siendo el español canónico,
+    /// porque es la clave con la que `TextosLegado` lo rescata después.
+    var nombre: String { clave?.nombre ?? TextosLegado.plan(nombreGuardado) }
+    var nombreCrudo: String { nombreGuardado }
     var distanciaObjetivoKm: Double
     var semanasTotales: Int
     var diasPorSemana: Int
@@ -27,6 +41,27 @@ struct PlanBase: Codable, Equatable, Identifiable {
 
     /// Identidad completa template+versión, guardada como procedencia.
     var planBaseID: String { "\(id)@\(version)" }
+
+    enum CodingKeys: String, CodingKey {
+        case id, version, clave, descripcion, distanciaObjetivoKm
+        case semanasTotales, diasPorSemana, provisional, semanas
+        case nombreGuardado = "nombre"   // el JSON del catálogo no cambia
+    }
+
+    init(id: String, version: Int, clave: ClavePlan? = nil, nombre: String,
+         descripcion: String, distanciaObjetivoKm: Double, semanasTotales: Int,
+         diasPorSemana: Int, provisional: Bool, semanas: [SemanaBase]) {
+        self.id = id
+        self.version = version
+        self.clave = clave
+        self.nombreGuardado = nombre
+        self.descripcion = descripcion
+        self.distanciaObjetivoKm = distanciaObjetivoKm
+        self.semanasTotales = semanasTotales
+        self.diasPorSemana = diasPorSemana
+        self.provisional = provisional
+        self.semanas = semanas
+    }
 }
 
 struct SemanaBase: Codable, Equatable {
@@ -87,6 +122,11 @@ extension ReglasSemana {
 struct EntrenamientoBase: Codable, Equatable {
     var diaDeSemana: Int        // 1...7
     var tipo: TipoEntrenamiento
+    /// QUÉ ES esta sesión. La declara el contenido declarativo y viaja
+    /// hasta el snapshot al adoptar, que es lo que permite mostrarla en
+    /// el idioma de cada momento. El catálogo V1 (JSON embebido) no la
+    /// trae: ese contenido se resuelve por `TextosLegado`.
+    var clave: ClaveEntrenamiento? = nil
     var nombre: String
     var descripcion: String
     var segmentos: [SegmentoBase]
@@ -98,6 +138,8 @@ struct EntrenamientoBase: Codable, Equatable {
 
 /// Segmento del template, SIN identidad (los UUID nacen al adoptar).
 struct SegmentoBase: Codable, Equatable {
+    /// QUÉ ES este tramo (ver `EntrenamientoBase.clave`).
+    var clave: ClaveSegmento? = nil
     var nombre: String
     var distanciaKm: Double?
     var duracionSegundos: Int?
@@ -133,10 +175,18 @@ extension PlanBase {
                     return EntrenamientoProgramado(
                         definicion: DefinicionEntrenamiento(
                             tipo: entrenamiento.tipo,
+                            // La CLAVE viaja al snapshot junto con el
+                            // texto. El texto queda como respaldo (una
+                            // build vieja leyendo este plan lo usa); la
+                            // clave es la que hace que el título se
+                            // pueda mostrar en otro idioma sin rehacer
+                            // el plan.
+                            clave: entrenamiento.clave,
                             nombre: entrenamiento.nombre,
                             descripcion: entrenamiento.descripcion,
                             segmentos: entrenamiento.segmentos.map { base in
-                                Segmento(nombre: base.nombre,
+                                Segmento(clave: base.clave,
+                                         nombre: base.nombre,
                                          distanciaKm: base.distanciaKm,
                                          duracionSegundos: base.duracionSegundos,
                                          ritmo: base.ritmo)
@@ -148,7 +198,8 @@ extension PlanBase {
                 },
                 reglas: semana.reglasDerivadas)
         }
-        return PlanUsuario(nombre: nombre,
+        return PlanUsuario(clave: clave,
+                           nombre: nombreCrudo,
                            origen: .catalogo(planBaseID: planBaseID),
                            fechaAdopcion: fechaAdopcion,
                            semanas: semanasUsuario)
@@ -171,7 +222,13 @@ enum Catalogo {
     /// formato de datos real aunque todavía viva embebido en código.
     static func planesDisponibles() -> [PlanBase] {
         [json5K, json10K].compactMap {
-            try? JSONDecoder().decode(PlanBase.self, from: Data($0.utf8))
+            guard var plan = try? JSONDecoder().decode(PlanBase.self, from: Data($0.utf8))
+            else { return nil }
+            // El NOMBRE no se toca: viaja crudo al snapshot y se traduce
+            // al mostrarlo. La descripción no se persiste, así que acá
+            // ya queda en el idioma actual.
+            plan.descripcion = TextosLegado.descripcionDePlan(plan.descripcion)
+            return plan
         }
     }
 

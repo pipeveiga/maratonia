@@ -33,6 +33,8 @@
 		A1000000000000000000004E /* Cuenta.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000004D /* Cuenta.swift */; };
 		A10000000000000000000050 /* CarreraTelefono.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000004F /* CarreraTelefono.swift */; };
 		A10000000000000000000052 /* DominioV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000051 /* DominioV2.swift */; };
+		A10000000000000000000102 /* TextosDeportivos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* TextosDeportivos.swift */; };
+		A10000000000000000000103 /* TextosDeportivos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* TextosDeportivos.swift */; };
 		A10000000000000000000053 /* DominioV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000051 /* DominioV2.swift */; };
 		A10000000000000000000055 /* PlanV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000054 /* PlanV2.swift */; };
 		A10000000000000000000057 /* DisenoV2.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000056 /* DisenoV2.swift */; };
@@ -120,6 +122,7 @@
 		A1000000000000000000004D /* Cuenta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cuenta.swift; sourceTree = "<group>"; };
 		A1000000000000000000004F /* CarreraTelefono.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarreraTelefono.swift; sourceTree = "<group>"; };
 		A10000000000000000000051 /* DominioV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DominioV2.swift; sourceTree = "<group>"; };
+		A10000000000000000000101 /* TextosDeportivos.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextosDeportivos.swift; sourceTree = "<group>"; };
 		A10000000000000000000054 /* PlanV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanV2.swift; sourceTree = "<group>"; };
 		A10000000000000000000056 /* DisenoV2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisenoV2.swift; sourceTree = "<group>"; };
 		A10000000000000000000058 /* Onboarding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Onboarding.swift; sourceTree = "<group>"; };
@@ -256,6 +259,7 @@
 				A10000000000000000000026 /* Plan.swift */,
 				A10000000000000000000046 /* Diseno.swift */,
 				A10000000000000000000051 /* DominioV2.swift */,
+				A10000000000000000000101 /* TextosDeportivos.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -442,6 +446,7 @@
 				A10000000000000000000045 /* Carreras.swift in Sources */,
 				A10000000000000000000047 /* Diseno.swift in Sources */,
 				A10000000000000000000052 /* DominioV2.swift in Sources */,
+				A10000000000000000000102 /* TextosDeportivos.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -459,6 +464,7 @@
 				A10000000000000000000043 /* EntrenadorRitmo.swift in Sources */,
 				A10000000000000000000048 /* Diseno.swift in Sources */,
 				A10000000000000000000053 /* DominioV2.swift in Sources */,
+				A10000000000000000000103 /* TextosDeportivos.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
