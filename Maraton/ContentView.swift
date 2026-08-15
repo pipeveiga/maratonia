@@ -65,6 +65,8 @@ struct ContentView: View {
             // Release, igual que `pestanaInicial`.
             if CatalogoEstadosPro.pedido {
                 CatalogoEstadosPro()
+            } else if CatalogoConversacionCoach.pedido {
+                CatalogoConversacionCoach()
             } else {
                 raiz
             }

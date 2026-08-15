@@ -237,8 +237,8 @@ struct CoachWorkoutExplanation: Codable {
     var comoEncararlo: String
 }
 
-struct CoachWeekAdjustment: Codable {
-    struct Cambio: Codable {
+struct CoachWeekAdjustment: Codable, Equatable {
+    struct Cambio: Codable, Equatable {
         /// "mantener" | "reprogramar" | "reducir" | "convertir" | "omitir"
         var tipo: String
         var programadoID: String
@@ -339,6 +339,11 @@ final class ServicioCoach: ObservableObject {
 
     @Published var ocupado = false
     @Published var mensajeError: String?
+    /// El backend rechazó la consulta por estar fuera del dominio. Es
+    /// distinto de un error: no hay nada que reintentar ni que arreglar.
+    /// Existe porque la puerta del servidor es la que vale — la de la
+    /// app ahorra el viaje, pero un request armado a mano se la saltea.
+    @Published private(set) var rechazadaFueraDeDominio = false
 
     /// Gate de runtime: URL del backend en Info.plist + Firebase arriba.
     nonisolated static var urlBase: URL? {
@@ -401,6 +406,7 @@ final class ServicioCoach: ObservableObject {
         ocupado = true
         defer { ocupado = false }
         mensajeError = nil
+        rechazadaFueraDeDominio = false
         do {
             let token: String = try await withCheckedThrowingContinuation { continuacion in
                 usuario.getIDToken { token, error in
@@ -425,9 +431,15 @@ final class ServicioCoach: ObservableObject {
             case 200:
                 return try JSONDecoder().decode(Salida.self, from: datos)
             case 422:
-                // El modelo se negó a responder. Reintentar no ayuda, y
-                // no se le cobró la consulta al corredor.
-                mensajeError = String(localized: "El Coach prefirió no responder eso. Probá preguntándolo de otra forma.")
+                // Dos motivos distintos con el mismo código: la puerta
+                // de intención del backend, o el modelo negándose. El
+                // primero no es un error y no se muestra como tal.
+                if motivo(en: datos) == "fuera-de-dominio" {
+                    rechazadaFueraDeDominio = true
+                } else {
+                    // Reintentar no ayuda, y no se le cobró la consulta.
+                    mensajeError = String(localized: "El Coach prefirió no responder eso. Probá preguntándolo de otra forma.")
+                }
             case 402:
                 // El backend dijo que no es Pro. Es la palabra que vale:
                 // el cliente puede creerse Pro y el servidor no.
@@ -444,6 +456,12 @@ final class ServicioCoach: ObservableObject {
         }
         return nil
     }
+
+    /// El campo `error` del cuerpo, si vino. Sin él, dos rechazos muy
+    /// distintos se leerían igual.
+    private func motivo(en datos: Data) -> String? {
+        (try? JSONSerialization.jsonObject(with: datos) as? [String: Any])?["error"] as? String
+    }
 }
 
 // MARK: - UI
@@ -459,6 +477,11 @@ struct CoachView: View {
     @State private var estado: CoachEstadoObjetivo?
     @State private var motivoCambio = ""
     @State private var aplicado = false
+    /// La pregunta abierta, si el Coach necesita que el corredor elija.
+    /// No es una adaptación: no toca el plan hasta que responde.
+    @State private var aclaracion: AclaracionCoach?
+    /// Por qué se rechazó la consulta, cuando quedó fuera de dominio.
+    @State private var fueraDeDominio: MotivoFueraDeDominio?
 
     private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
 
@@ -513,6 +536,10 @@ struct CoachView: View {
                     }
                 }
 
+                if let fueraDeDominio { TarjetaFueraDeDominio(motivo: fueraDeDominio) }
+                if let aclaracion {
+                    TarjetaAclaracionCoach(aclaracion: aclaracion, elegir: elegir)
+                }
                 if let explicacion { tarjetaExplicacion(explicacion) }
                 if let estado { tarjetaEstado(estado) }
                 if let ajuste { seccionPropuesta(ajuste) }
@@ -723,7 +750,7 @@ struct CoachView: View {
 
     private func explicarProximo() async {
         guard let proximo = proximoPendiente else { return }
-        ajuste = nil; estado = nil
+        ajuste = nil; estado = nil; aclaracion = nil; fueraDeDominio = nil
         explicacion = await servicio.pedir(CoachWorkoutExplanation.self,
                                            accion: "explicar", contexto: contexto(),
                                            detalle: proximo.definicion.nombre,
@@ -731,17 +758,111 @@ struct CoachView: View {
     }
 
     private func pedirEstado() async {
-        ajuste = nil; explicacion = nil
+        ajuste = nil; explicacion = nil; aclaracion = nil; fueraDeDominio = nil
         estado = await servicio.pedir(CoachEstadoObjetivo.self,
                                       accion: "estado", contexto: contexto())
     }
 
     private func pedirReorganizacion() async {
-        explicacion = nil; estado = nil; aplicado = false
-        ajuste = await servicio.pedir(CoachWeekAdjustment.self,
-                                      accion: "reorganizar",
-                                      contexto: contexto(pedidoExplicito: true),
-                                      detalle: motivoCambio)
+        explicacion = nil; estado = nil; aplicado = false; fueraDeDominio = nil
+
+        // ¿Es una respuesta a lo que se preguntó recién? Se resuelve acá,
+        // sin red y sin modelo: las opciones ya están sobre la mesa.
+        if let pendiente = aclaracion, responder(pendiente) { return }
+
+        // LA PUERTA. Antes de la red, antes del modelo y antes de gastar
+        // un token: lo que no es del dominio no entra.
+        let intencion = PuertaDeIntencion.clasificar(motivoCambio)
+        if case .fueraDeDominio(let motivo) = intencion {
+            aclaracion = nil; ajuste = nil
+            fueraDeDominio = motivo
+            servicio.mensajeError = nil
+            return
+        }
+
+        aclaracion = nil
+        guard let respuesta = await servicio.pedir(
+            CoachWeekAdjustment.self, accion: "reorganizar",
+            contexto: contexto(pedidoExplicito: true),
+            detalle: motivoCambio) else {
+            ajuste = nil
+            // La puerta del servidor también rechaza: si la de la app
+            // dejó pasar algo (versión vieja, texto raro), acá se ve.
+            if servicio.rechazadaFueraDeDominio { fueraDeDominio = .otroRubro }
+            return                       // el resto ya lo muestra el servicio
+        }
+
+        // El motor decide, y si rechaza todo, el DOMINIO busca salida.
+        switch ResolutorCoach.resolver(respuesta, en: almacen.almacen, hoy: hoy) {
+        case .propuesta(let nuevo):
+            ajuste = nuevo
+        case .sinCambios:
+            ajuste = respuesta
+        case .necesitaAclaracion(let pregunta):
+            ajuste = nil
+            aclaracion = pregunta
+        case .fueraDeDominio(let motivo):
+            ajuste = nil
+            fueraDeDominio = motivo
+        case .error(let mensaje):
+            ajuste = nil
+            servicio.mensajeError = mensaje
+        }
+    }
+
+    /// El corredor contestó a una aclaración. Devuelve true si el texto
+    /// se consumió como respuesta (y no hay que ir al modelo).
+    private func responder(_ pendiente: AclaracionCoach) -> Bool {
+        switch ResolutorCoach.interpretar(motivoCambio, para: pendiente,
+                                          en: almacen.almacen, hoy: hoy) {
+        case .elegida(let opcion):
+            // Elegir NO aplica: sigue haciendo falta confirmar, igual
+            // que con cualquier propuesta.
+            aclaracion = nil
+            ajuste = CoachWeekAdjustment(
+                explicacion: opcion.titulo,
+                cambios: [ResolutorCoach.cambioDTO(opcion.cambio)])
+            motivoCambio = ""
+            return true
+        case .yaNoEsValida:
+            // El plan cambió entre la pregunta y la respuesta: se
+            // recalcula en vez de aplicar algo validado contra otro plan.
+            aclaracion = recalcular(pendiente)
+            motivoCambio = ""
+            return true
+        case .vencida:
+            aclaracion = nil
+            return false                 // se trata como consulta nueva
+        case .noSeEntiende:
+            return false
+        }
+    }
+
+    /// Rehace la pregunta contra el plan de AHORA.
+    private func recalcular(_ pendiente: AclaracionCoach) -> AclaracionCoach? {
+        let opciones = BuscadorDeAlternativas.paraPreguntar(
+            BuscadorDeAlternativas.opciones(para: pendiente.programadoID,
+                                            en: almacen.almacen, hoy: hoy))
+        guard !opciones.isEmpty else { return nil }
+        var nueva = pendiente
+        nueva.id = UUID()
+        nueva.opciones = opciones
+        nueva.creadaEl = Date()
+        nueva.huellaDelPlan = ResolutorCoach.huella(de: almacen.almacen)
+        nueva.explicacion = String(localized: "Tu plan cambió mientras lo pensabas, así que recalculé.")
+        return nueva
+    }
+
+    /// Elegir tocando, que es lo que va a hacer casi todo el mundo.
+    private func elegir(_ opcion: OpcionDeCoach) {
+        guard ValidadorDeCoach.validar(opcion.cambio, en: almacen.almacen,
+                                       hoy: hoy).permitido else {
+            aclaracion = aclaracion.flatMap(recalcular)
+            return
+        }
+        aclaracion = nil
+        ajuste = CoachWeekAdjustment(explicacion: opcion.titulo,
+                                     cambios: [ResolutorCoach.cambioDTO(opcion.cambio)])
     }
 
     private func cambiosValidos(_ ajuste: CoachWeekAdjustment) -> [CambioPropuesto] {
@@ -772,5 +893,93 @@ struct CoachView: View {
     private func textoDia(_ dia: DiaLocal?) -> String {
         guard let dia, let fecha = dia.fecha() else { return "—" }
         return FormatoFecha.diaYMes(fecha)
+    }
+}
+
+// MARK: - Las tarjetas del flujo conversacional
+
+    /// El "no" acotado. Es una respuesta completa: no se disculpa, no
+    /// intenta ayudar con otra cosa y no deja al corredor pensando que
+    /// preguntó mal algo del plan.
+struct TarjetaFueraDeDominio: View {
+    let motivo: MotivoFueraDeDominio
+
+    var body: some View {
+        TarjetaV2 {
+            VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+                Label {
+                    Text("El Coach de Maratonia solo puede ayudarte con tu entrenamiento, tu plan y tu objetivo.")
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "figure.run.circle")
+                        .foregroundStyle(DV2.Marca.primario)
+                }
+                if motivo == .inyeccion {
+                    Text("Tampoco puedo cambiar mis instrucciones.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text("Probá con algo como \"no puedo correr el sábado\" o \"¿por qué me toca fondo el domingo?\".")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+/// LA PREGUNTA. Cada opción ya pasó por el motor: tocar cualquiera de
+/// estas no puede terminar en "rechazado".
+struct TarjetaAclaracionCoach: View {
+    let aclaracion: AclaracionCoach
+    var elegir: (OpcionDeCoach) -> Void
+
+    var body: some View {
+        TarjetaV2 {
+            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                EncabezadoSeccionV2(texto: "El Coach necesita que elijas")
+                Text(aclaracion.explicacion)
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(aclaracion.pregunta)
+                    .font(DV2.Tipo.tituloChico)
+                    .fixedSize(horizontal: false, vertical: true)
+                VStack(spacing: DV2.Espacio.s) {
+                    ForEach(aclaracion.opciones) { opcion in
+                        Button { elegir(opcion) } label: { filaOpcion(opcion) }
+                            .buttonStyle(.plain)
+                    }
+                }
+                Text("Todavía no cambié nada: elegí y después confirmás.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func filaOpcion(_ opcion: OpcionDeCoach) -> some View {
+        HStack(spacing: DV2.Espacio.m) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(opcion.titulo)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.leading)
+                if let detalle = opcion.detalle {
+                    Text(detalle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(DV2.Espacio.m)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(DV2.Superficie.fondo, in: DV2.formaTarjeta)
+        .overlay(DV2.formaTarjeta.strokeBorder(DV2.Superficie.borde, lineWidth: 1))
     }
 }

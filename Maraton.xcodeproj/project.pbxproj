@@ -68,6 +68,8 @@
 		A10000000000000000000103 /* TextosDeportivos.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* TextosDeportivos.swift */; };
 		A10000000000000000000112 /* Unidades.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* Unidades.swift */; };
 		A10000000000000000000113 /* Unidades.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* Unidades.swift */; };
+		A10000000000000000000142 /* IntencionCoach.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000141 /* IntencionCoach.swift */; };
+		A10000000000000000000144 /* AlternativasCoach.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000143 /* AlternativasCoach.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -161,6 +163,8 @@
 		A10000000000000000000138 /* PaywallPro.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallPro.swift; sourceTree = "<group>"; };
 		A10000000000000000000132 /* RepositorioCuenta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositorioCuenta.swift; sourceTree = "<group>"; };
 		A10000000000000000000111 /* Unidades.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Unidades.swift; sourceTree = "<group>"; };
+		A10000000000000000000141 /* IntencionCoach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntencionCoach.swift; sourceTree = "<group>"; };
+		A10000000000000000000143 /* AlternativasCoach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlternativasCoach.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -243,6 +247,7 @@
 				A100000000000000000000C0 /* ComponentesUX.swift */,
 				A1000000000000000000008F /* PerfilCorredor.swift */,
 				A10000000000000000000091 /* Adaptacion.swift */,
+				A10000000000000000000143 /* AlternativasCoach.swift */,
 				A10000000000000000000093 /* PerfilYFeedbackUI.swift */,
 				A10000000000000000000076 /* GoogleService-Info.plist */,
 				A1000000000000000000007A /* Info.plist */,
@@ -286,6 +291,7 @@
 				A10000000000000000000051 /* DominioV2.swift */,
 				A10000000000000000000101 /* TextosDeportivos.swift */,
 				A10000000000000000000111 /* Unidades.swift */,
+				A10000000000000000000141 /* IntencionCoach.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -486,6 +492,8 @@
 				A10000000000000000000139 /* PaywallPro.swift in Sources */,
 				A10000000000000000000133 /* RepositorioCuenta.swift in Sources */,
 				A10000000000000000000112 /* Unidades.swift in Sources */,
+				A10000000000000000000144 /* AlternativasCoach.swift in Sources */,
+				A10000000000000000000142 /* IntencionCoach.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
