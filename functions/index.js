@@ -197,6 +197,13 @@ exports.coach = onRequest(
     // que importa— antes de OpenAI. Lo que no es del dominio no cuesta
     // un token ni le gasta al corredor una consulta del día.
     //
+    // VA DESPUÉS DEL ENTITLEMENT, y es una decisión tomada: un usuario
+    // sin Pro se corta en 402 antes de que nadie mire su payload. El
+    // efecto es que un no-Pro que escriba algo ajeno lee "el Coach es
+    // parte de Pro" en vez del rechazo por alcance — se prefiere eso a
+    // parsear el cuerpo de quien no compró. En la app no se nota: la
+    // puerta del cliente lo corta antes. No reordenar.
+    //
     // Solo mira el texto libre del corredor (`detalle`). Las acciones
     // sin texto ("explicar", "estado") son botones de la app: no hay
     // nada que clasificar.
