@@ -1,6 +1,17 @@
 {
   "sourceLanguage": "es",
   "strings": {
+    "%@  ·  Pro: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@  ·  Pro: %@"
+          }
+        }
+      }
+    },
     "%@ %lld": {
       "extractionState": "manual",
       "localizations": {
@@ -228,6 +239,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ no slower than %@ /km"
+          }
+        }
+      }
+    },
+    "%@ venció el %@. Tu plan y tu historial siguen acá.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ expired on %2$@. Your plan and your history are still here."
+          }
+        }
+      }
+    },
+    "%@ venció. Tu plan y tu historial siguen acá.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ expired. Your plan and your history are still here."
           }
         }
       }
@@ -1442,6 +1475,17 @@
         }
       }
     },
+    "Activo hasta el final del período": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active until the end of the period"
+          }
+        }
+      }
+    },
     "Actual": {
       "extractionState": "manual",
       "localizations": {
@@ -1449,6 +1493,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Current"
+          }
+        }
+      }
+    },
+    "Actualizar forma de pago": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update payment method"
           }
         }
       }
@@ -1717,6 +1772,17 @@
         }
       }
     },
+    "App Store cerró esta suscripción. Tu plan y tu historial siguen acá.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The App Store closed this subscription. Your plan and your history are still here."
+          }
+        }
+      }
+    },
     "App Store devolvió algo que no sabemos leer.": {
       "extractionState": "manual",
       "localizations": {
@@ -1724,6 +1790,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "The App Store returned something we can't read."
+          }
+        }
+      }
+    },
+    "App Store no pudo cobrar %@. Seguís con Pro hasta el %@: actualizá tu forma de pago.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The App Store couldn't charge for %1$@. You keep Pro until %2$@: update your payment method."
+          }
+        }
+      }
+    },
+    "App Store no pudo cobrar %@. Seguís con Pro por ahora: actualizá tu forma de pago.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The App Store couldn't charge for %@. You keep Pro for now: update your payment method."
           }
         }
       }
@@ -2256,6 +2344,28 @@
         }
       }
     },
+    "Cancelaste la renovación automática.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You turned off automatic renewal."
+          }
+        }
+      }
+    },
+    "Cancelaste la renovación: tenés Pro hasta el %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You turned off auto-renew: you have Pro until %@."
+          }
+        }
+      }
+    },
     "Carga de rendimiento — pide base real": {
       "extractionState": "manual",
       "localizations": {
@@ -2406,6 +2516,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "AI Coach"
+          }
+        }
+      }
+    },
+    "Coach conversacional": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conversational Coach"
           }
         }
       }
@@ -3499,6 +3620,17 @@
         }
       }
     },
+    "El %@ empieza a cobrarse %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Billing for %2$@ starts on %1$@."
+          }
+        }
+      }
+    },
     "El Coach es parte de Maratonia Pro.": {
       "extractionState": "manual",
       "localizations": {
@@ -3785,6 +3917,17 @@
         }
       }
     },
+    "El resolutor no devolvió una aclaración para este escenario.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The resolver didn't return a clarification for this scenario."
+          }
+        }
+      }
+    },
     "El ritmo «más rápido» tiene que ser menor que el «más lento». Ej: 3:50 a 4:10.": {
       "extractionState": "manual",
       "localizations": {
@@ -3880,6 +4023,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pick another goal"
+          }
+        }
+      }
+    },
+    "Elegiste: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You chose: %@"
           }
         }
       }
@@ -4533,6 +4687,17 @@
         }
       }
     },
+    "Estados Pro": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro states"
+          }
+        }
+      }
+    },
     "Este entrenamiento pertenece a un plan archivado o reemplazado.": {
       "extractionState": "manual",
       "localizations": {
@@ -4705,6 +4870,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "You're tapering — moving sessions now undoes the recovery before your race."
+          }
+        }
+      }
+    },
+    "Estás probando %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You're trying %@."
           }
         }
       }
@@ -7030,6 +7206,17 @@
         }
       }
     },
+    "No se pudo cobrar la renovación": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "We couldn't charge the renewal"
+          }
+        }
+      }
+    },
     "No se pudo completar la compra.": {
       "extractionState": "manual",
       "localizations": {
@@ -7987,6 +8174,17 @@
         }
       }
     },
+    "Pro está pausado hasta que se resuelva el pago. Tu plan y tu historial siguen intactos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro is paused until the payment goes through. Your plan and your history are untouched."
+          }
+        }
+      }
+    },
     "Probando, probando. Así se escuchan los avisos.": {
       "extractionState": "manual",
       "localizations": {
@@ -8005,6 +8203,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Try Pro free"
+          }
+        }
+      }
+    },
+    "Problema con el cobro": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payment problem"
           }
         }
       }
@@ -8071,6 +8280,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Coach's proposal"
+          }
+        }
+      }
+    },
+    "Prueba gratis": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Free trial"
           }
         }
       }
@@ -8966,6 +9186,17 @@
         }
       }
     },
+    "Se renueva el %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renews on %@."
+          }
+        }
+      }
+    },
     "Se saltea": {
       "extractionState": "manual",
       "localizations": {
@@ -9571,6 +9802,39 @@
         }
       }
     },
+    "Suscripción activa.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription active."
+          }
+        }
+      }
+    },
+    "Suscripción reembolsada": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription refunded"
+          }
+        }
+      }
+    },
+    "Suscripción vencida": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscription expired"
+          }
+        }
+      }
+    },
     "Sí": {
       "extractionState": "manual",
       "localizations": {
@@ -10007,6 +10271,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Every goal"
+          }
+        }
+      }
+    },
+    "Todos los objetivos, ajustes del plan y el Coach.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every goal, plan adjustments, and the Coach."
           }
         }
       }
@@ -10913,6 +11188,17 @@
         }
       }
     },
+    "Volver a suscribirme": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Subscribe again"
+          }
+        }
+      }
+    },
     "Volver al paso anterior": {
       "extractionState": "manual",
       "localizations": {
@@ -11536,6 +11822,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "time"
+          }
+        }
+      }
+    },
+    "tu suscripción": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "your subscription"
           }
         }
       }

@@ -4792,3 +4792,98 @@ final class CapturasCoachTests: XCTestCase {
         print("CAPTURAS_EN: \(carpeta.path)")
     }
 }
+
+// MARK: - Capturas de los estados Pro
+
+/// Los ocho estados de una suscripción, renderizados. Existe por la
+/// misma razón que `CatalogoEstadosPro`: provocarlos a demanda es casi
+/// imposible —hay que hacer que rebote una tarjeta, pedir un reembolso o
+/// esperar a que venza— así que sin esto se verifican de memoria.
+///
+/// Acá sirve además para algo que ningún chequeo estático puede hacer:
+/// **leer** que la frase traducida diga lo que tiene que decir. La del
+/// trial invierte el orden de sus dos argumentos en inglés
+/// (`El %@ empieza a cobrarse %@.` → `Billing for %2$@ starts on %1$@.`)
+/// y un cruce de posicionales pasa cualquier validación de tipos: los
+/// dos son `%@`.
+@MainActor
+final class CapturasEstadosProTests: XCTestCase {
+
+    private var vence: Date {
+        Calendar.current.date(byAdding: .day, value: 12, to: Date()) ?? Date()
+    }
+
+    private func anual(_ ajustar: (inout DetallePro) -> Void = { _ in }) -> DetallePro {
+        var d = DetallePro(productoID: ProductoPro.anual.rawValue,
+                           nombre: "Maratonia Pro Anual", vence: vence)
+        ajustar(&d)
+        return d
+    }
+
+    private var casos: [(String, EstadoPro)] {
+        [("libre", .libre),
+         ("en-prueba", .activa(anual { $0.enPrueba = true })),
+         ("activa", .activa(DetallePro(productoID: ProductoPro.mensual.rawValue,
+                                       nombre: "Maratonia Pro Mensual", vence: vence))),
+         ("cancelada", .activa(anual { $0.renuevaSola = false })),
+         ("gracia", .gracia(anual())),
+         ("reintento", .problemaDeCobro(anual())),
+         ("vencida", .expirada(anual())),
+         ("reembolsada", .revocada(anual()))]
+    }
+
+    /// Ninguna de las ocho tarjetas puede mostrar una clave cruda ni
+    /// quedarse sin texto. Es el chequeo de "no hay fallback visible",
+    /// hecho sobre la función pura que decide qué decir.
+    func testNingunEstadoMuestraClaveCrudaNiVacio() {
+        for (nombre, estado) in casos {
+            let p = FilaEstadoPro.presentacion(de: estado)
+            XCTAssertFalse(p.titulo.isEmpty, "\(nombre): título vacío")
+            XCTAssertFalse(p.detalle.isEmpty, "\(nombre): detalle vacío")
+            // Una clave sin traducir se delata por el especificador crudo.
+            for texto in [p.titulo, p.detalle] {
+                XCTAssertFalse(texto.contains("%@"), "\(nombre): quedó un %@ sin sustituir en \(texto)")
+                XCTAssertFalse(texto.contains("%lld"), "\(nombre): quedó un %lld sin sustituir en \(texto)")
+                XCTAssertFalse(texto.contains("$@"), "\(nombre): posicional sin sustituir en \(texto)")
+            }
+            XCTAssertFalse(p.icono.isEmpty, "\(nombre): sin ícono")
+        }
+    }
+
+    /// Y el nombre del plan nunca se inventa: sin StoreKit cargado dice
+    /// "tu suscripción", no "anual".
+    func testSinNombreDeStoreKitNoSeInventaElPlan() {
+        let sinNombre = DetallePro(productoID: ProductoPro.anual.rawValue,
+                                   nombre: nil, vence: nil)
+        let texto = FilaEstadoPro.nombreDelPlan(sinNombre)
+        XCTAssertFalse(texto.isEmpty)
+        XCTAssertFalse(texto.localizedCaseInsensitiveContains("anual"))
+        XCTAssertFalse(texto.localizedCaseInsensitiveContains("annual"))
+    }
+
+    func testGenerarCapturas() throws {
+        let carpeta = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("estados-pro", isDirectory: true)
+        try? FileManager.default.createDirectory(at: carpeta,
+                                                 withIntermediateDirectories: true)
+        let lienzo = VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+            ForEach(casos, id: \.0) { nombre, estado in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(nombre.uppercased())
+                        .font(.caption2.weight(.heavy))
+                        .foregroundStyle(.tertiary)
+                    FilaEstadoPro(estado: estado)
+                }
+            }
+        }
+        .frame(width: 390)
+        .padding(DV2.Espacio.l)
+        .background(DV2.Superficie.fondo)
+
+        let renderer = ImageRenderer(content: lienzo)
+        renderer.scale = 3
+        let imagen = try XCTUnwrap(renderer.uiImage)
+        let datos = try XCTUnwrap(imagen.pngData())
+        try datos.write(to: carpeta.appendingPathComponent("estados-pro.png"))
+    }
+}

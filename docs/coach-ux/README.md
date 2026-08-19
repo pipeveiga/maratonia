@@ -11,6 +11,8 @@ el porqué plegado en un disclosure.
 | `3-fuera-de-dominio.png` | Consulta fuera del dominio | Una línea y tres chips que enrutan a la acción real (no rellenan texto a ciegas). |
 | `4-propuesta.png` | Propuesta lista para confirmar | El titular es el cambio (`Mover X al lun 17`), el ANTES → DESPUÉS es una fila, y el párrafo del modelo vive en "Ver por qué". |
 | `5-aplicado.png` | Aplicado | Confirmación de una línea. |
+| `6-estados-pro-es.png` | Los 8 estados de la suscripción, en español | libre · prueba · activa · cancelada · gracia · reintento de cobro · vencida · reembolsada. |
+| `7-estados-pro-en.png` | Los mismos 8, en inglés | Sirve para LEER la traducción. La del trial invierte el orden de sus argumentos (`El %@ empieza a cobrarse %@.` → `Billing for %2$@ starts on %1$@.`) y un cruce de posicionales pasa cualquier validación de tipos: los dos son `%@`. |
 
 ## Cómo se regeneran
 
@@ -31,8 +33,12 @@ quedan en un simulador temporal que se destruye al terminar. La ruta de
 salida se imprime al final del test (`tmp/coach-ux` del contenedor de la
 app). Con `-testLanguage en` se revisa la traducción.
 
-También hay un catálogo navegable en el simulador, con el motor real:
+Los estados Pro salen de `CapturasEstadosProTests`, con el mismo
+comando cambiando `-only-testing`.
+
+También hay dos catálogos navegables en el simulador, con el motor real:
 
 ```
 xcrun simctl launch <dispositivo> com.pipeveiga.maraton -verCoachConversacion 1
+xcrun simctl launch <dispositivo> com.pipeveiga.maraton -verEstadosPro 1
 ```
