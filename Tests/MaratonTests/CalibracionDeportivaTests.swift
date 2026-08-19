@@ -1,4 +1,6 @@
 import XCTest
+import SwiftUI
+import UIKit
 @testable import Maraton
 
 // Tests de la CALIBRACIÓN deportiva (post-auditoría del build 61).
@@ -4193,10 +4195,10 @@ final class ResolucionConversacionalTests: XCTestCase {
         }
         XCTAssertEqual(aclaracion.programadoID, sabado)
         XCTAssertFalse(aclaracion.opciones.isEmpty)
-        // La explicación dice CUÁL es el problema, no "el motor rechazó".
-        XCTAssertTrue(aclaracion.explicacion.contains("Tirada larga")
-                      || aclaracion.explicacion.contains("Long run"),
-                      "tiene que nombrar la sesión que choca: \(aclaracion.explicacion)")
+        // El porqué dice CUÁL es el problema, no "el motor rechazó".
+        let detalle = try XCTUnwrap(aclaracion.detalle)
+        XCTAssertTrue(detalle.contains("Tirada larga") || detalle.contains("Long run"),
+                      "tiene que nombrar la sesión que choca: \(detalle)")
         // Y ninguna opción es el domingo.
         XCTAssertFalse(aclaracion.opciones.contains {
             $0.dia == DiaLocal(anio: 2026, mes: 8, dia: 16) })
@@ -4279,7 +4281,7 @@ final class ResolucionConversacionalTests: XCTestCase {
         let sabado = try XCTUnwrap(porDia[15])
         let opciones = BuscadorDeAlternativas.opciones(para: sabado, en: almacen, hoy: hoy)
         let aclaracion = AclaracionCoach(
-            programadoID: sabado, explicacion: "…", pregunta: "…",
+            programadoID: sabado, titulo: "…", subtitulo: nil, detalle: nil,
             opciones: opciones, huellaDelPlan: ResolutorCoach.huella(de: almacen))
 
         // Mientras tanto, el lunes se ocupa.
@@ -4300,7 +4302,7 @@ final class ResolucionConversacionalTests: XCTestCase {
         let (almacen, porDia) = escenario()
         let sabado = try XCTUnwrap(porDia[15])
         let vieja = AclaracionCoach(
-            programadoID: sabado, explicacion: "…", pregunta: "…",
+            programadoID: sabado, titulo: "…", subtitulo: nil, detalle: nil,
             opciones: BuscadorDeAlternativas.opciones(para: sabado, en: almacen, hoy: hoy),
             creadaEl: Date().addingTimeInterval(-AclaracionCoach.vigencia - 1),
             huellaDelPlan: 0)
@@ -4363,5 +4365,430 @@ extension ResolucionConversacionalTests {
             XCTAssertTrue(ValidadorDeCoach.validar(opcion.cambio, en: almacen,
                                                    hoy: hoy).permitido, opcion.titulo)
         }
+    }
+}
+
+// MARK: - El Coach como herramienta de decisión (P1 UX)
+
+/// La regla que se está protegiendo acá es de PRODUCTO, no de estilo:
+/// **mostrar primero, explicar después**. El titular de una respuesta del
+/// Coach tiene que ser lo que pasó, en una línea, y el porqué tiene que
+/// caber en un disclosure.
+///
+/// Antes de esto la tarjeta abría con el párrafo del motivo, seguía con
+/// la pregunta y recién abajo mostraba las salidas: había que leer tres
+/// bloques para poder tocar uno.
+@MainActor
+final class CoachDecisionVisualTests: XCTestCase {
+
+    private let hoy = DiaLocal(anio: 2026, mes: 8, dia: 14)          // viernes
+
+    /// Sábado rodaje + domingo tirada larga, con el lunes libre: hay
+    /// días a los que mover, así que la pregunta es "¿cuándo?".
+    private func conDiasLibres() -> (AlmacenV2, UUID) {
+        var almacen = AlmacenV2()
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .diez
+        perfil.diasElegidos = [1, 2, 6, 7]
+        almacen.perfil = perfil
+
+        let programados = [
+            EntrenamientoProgramado(
+                definicion: DefinicionEntrenamiento(
+                    tipo: .facil, nombre: "Rodaje suave",
+                    segmentos: [Segmento(nombre: "Rodaje suave", distanciaKm: 6)]),
+                dia: DiaLocal(anio: 2026, mes: 8, dia: 15)),
+            EntrenamientoProgramado(
+                definicion: DefinicionEntrenamiento(
+                    tipo: .largo, nombre: "Tirada larga",
+                    segmentos: [Segmento(nombre: "Tirada larga", distanciaKm: 10)]),
+                dia: DiaLocal(anio: 2026, mes: 8, dia: 16)),
+        ]
+        almacen.adoptarPlan(PlanUsuario(nombre: "Plan", fechaAdopcion: Date(),
+                                        semanas: [SemanaPlan(numero: 1, programados: programados)]))
+        return (almacen, programados[0].id)
+    }
+
+    /// El callejón: TODOS los días del horizonte ocupados. No sobrevive
+    /// ningún destino y la salida deja de ser un día.
+    private func sinDiasLibres() -> (AlmacenV2, UUID) {
+        var almacen = AlmacenV2()
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .diez
+        perfil.diasElegidos = [1, 2, 3, 4, 5, 6, 7]
+        almacen.perfil = perfil
+
+        let calendario = Calendar.current
+        let programados: [EntrenamientoProgramado] = (0...BuscadorDeAlternativas.horizonteDias)
+            .compactMap { offset in
+                guard let base = hoy.fecha(calendario: calendario),
+                      let f = calendario.date(byAdding: .day, value: offset, to: base)
+                else { return nil }
+                return EntrenamientoProgramado(
+                    definicion: DefinicionEntrenamiento(
+                        tipo: offset == 1 ? .facil : .largo,
+                        nombre: offset == 1 ? "Rodaje suave" : "Sesión \(offset)",
+                        segmentos: [Segmento(nombre: "Bloque", distanciaKm: 8)]),
+                    dia: DiaLocal(fecha: f, calendario: calendario))
+            }
+        almacen.adoptarPlan(PlanUsuario(nombre: "Semana llena", fechaAdopcion: Date(),
+                                        semanas: [SemanaPlan(numero: 1, programados: programados)]))
+        return (almacen, programados[1].id)
+    }
+
+    private func aclaracion(_ almacen: AlmacenV2, _ sesion: UUID) throws -> AclaracionCoach {
+        let ocupado = try XCTUnwrap(
+            almacen.todosLosProgramados.first { $0.id != sesion }?.dia)
+        let resultado = ResolutorCoach.resolver(
+            CoachWeekAdjustment(
+                explicacion: "Lo paso al día siguiente.",
+                cambios: [ResolutorCoach.cambioDTO(
+                    .reprogramar(programadoID: sesion, a: ocupado))]),
+            en: almacen, hoy: hoy)
+        guard case .necesitaAclaracion(let a) = resultado else {
+            throw XCTSkip("el escenario no produjo aclaración: \(resultado)")
+        }
+        return a
+    }
+
+    // MARK: El encabezado
+
+    /// Con días libres, el titular ES la pregunta: se contesta tocando.
+    func testConDiasLibresElTitularEsLaPregunta() throws {
+        let (almacen, sesion) = conDiasLibres()
+        let a = try aclaracion(almacen, sesion)
+        XCTAssertTrue(a.titulo.contains("?") || a.titulo.contains("¿"),
+                      "el titular tendría que ser la pregunta: \(a.titulo)")
+        XCTAssertFalse(a.opciones.filter { $0.dia != nil }.isEmpty,
+                       "si el titular pregunta por un día, tiene que haber días")
+    }
+
+    /// Sin días libres, el titular es la mala noticia en una línea, y el
+    /// subtexto dice qué falta. Ninguno de los dos es el porqué.
+    func testSinDiasLibresElTitularEsLaMalaNoticia() throws {
+        let (almacen, sesion) = sinDiasLibres()
+        let a = try aclaracion(almacen, sesion)
+        // El nombre de la sesión sale del catálogo, así que en un
+        // simulador en inglés llega traducido.
+        XCTAssertTrue(a.titulo.contains("Rodaje suave") || a.titulo.contains("Easy run"),
+                      "tiene que nombrar la sesión: \(a.titulo)")
+        XCTAssertNotNil(a.subtitulo)
+        XCTAssertTrue(a.opciones.allSatisfy { $0.dia == nil },
+                      "no puede ofrecer días si ninguno es válido")
+    }
+
+    /// LO CENTRAL DEL SPRINT: el porqué no ocupa el titular. Vive en
+    /// `detalle`, que la tarjeta pliega.
+    func testElPorqueVaAlDetalleNoAlTitular() throws {
+        for (almacen, sesion) in [conDiasLibres(), sinDiasLibres()] {
+            let a = try aclaracion(almacen, sesion)
+            XCTAssertNotNil(a.detalle, "el porqué tiene que seguir existiendo")
+            XCTAssertFalse(a.titulo.contains("porque") || a.titulo.contains("because"),
+                           "el titular no explica: \(a.titulo)")
+            XCTAssertLessThanOrEqual(a.titulo.count, 60,
+                                     "titular de más de una línea: \(a.titulo)")
+            if let sub = a.subtitulo {
+                XCTAssertLessThanOrEqual(sub.count, 60,
+                                         "subtexto de más de una línea: \(sub)")
+            }
+        }
+    }
+
+    // MARK: Las opciones
+
+    /// Los chips se dibujan con `etiquetaCorta`: una o dos palabras. Un
+    /// chip con una oración adentro deja de ser un chip.
+    func testLasEtiquetasDeChipSonCortas() throws {
+        let (almacen, sesion) = conDiasLibres()
+        let opciones = BuscadorDeAlternativas.opciones(para: sesion, en: almacen, hoy: hoy)
+        XCTAssertFalse(opciones.isEmpty)
+        for opcion in opciones {
+            let corta = opcion.etiquetaCorta()
+            XCTAssertFalse(corta.isEmpty, "sin etiqueta: \(opcion.id)")
+            XCTAssertLessThanOrEqual(corta.count, 18,
+                                     "chip demasiado largo: \(corta)")
+        }
+    }
+
+    /// Un día se etiqueta con el NOMBRE del día: es lo que el corredor
+    /// busca cuando le preguntan cuándo puede.
+    func testElChipDeUnDiaEsElNombreDelDia() throws {
+        let (almacen, sesion) = conDiasLibres()
+        let opciones = BuscadorDeAlternativas.opciones(para: sesion, en: almacen, hoy: hoy)
+        let dia = try XCTUnwrap(opciones.first { $0.dia != nil })
+        let esperado = BuscadorDeAlternativas
+            .nombreDeDiaSolo(try XCTUnwrap(dia.dia)).localizedCapitalized
+        XCTAssertEqual(dia.etiquetaCorta(), esperado)
+    }
+
+    /// El subtítulo de una opción es una consecuencia en media línea, no
+    /// una explicación. Es la diferencia entre una tarjeta y un párrafo.
+    func testLosSubtitulosDeOpcionSonDeMediaLinea() throws {
+        let (almacen, sesion) = sinDiasLibres()
+        let opciones = BuscadorDeAlternativas.opciones(para: sesion, en: almacen, hoy: hoy)
+        for opcion in opciones {
+            XCTAssertLessThanOrEqual(opcion.titulo.count, 40, opcion.titulo)
+            if let detalle = opcion.detalle {
+                XCTAssertLessThanOrEqual(detalle.count, 40, detalle)
+            }
+        }
+    }
+
+    /// Cada opción tiene un símbolo propio y derivado del cambio: dos
+    /// operaciones distintas no pueden dibujarse igual.
+    func testCadaTipoDeCambioTieneSuIcono() throws {
+        let (almacen, sesion) = sinDiasLibres()
+        let opciones = BuscadorDeAlternativas.opciones(para: sesion, en: almacen, hoy: hoy)
+        let iconos = Set(opciones.map(\.icono))
+        XCTAssertEqual(iconos.count, opciones.count,
+                       "hay operaciones distintas con el mismo ícono")
+    }
+
+    /// "Dejarlo como está" siempre está: no cambiar es una respuesta, y
+    /// la tarjeta la muestra como salida secundaria.
+    func testMantenerSiempreEstaEntreLasOpciones() throws {
+        for (almacen, sesion) in [conDiasLibres(), sinDiasLibres()] {
+            let a = try aclaracion(almacen, sesion)
+            XCTAssertTrue(a.opciones.contains { if case .mantener = $0.cambio { return true }
+                                                else { return false } },
+                          "falta la salida de 'no cambies nada'")
+        }
+    }
+
+    /// DOS LUNES NO. El horizonte son dos semanas, así que hay días de
+    /// la semana que aparecen dos veces; como chips salían dos pastillas
+    /// que decían lo mismo y llevaban a fechas distintas. Se ofrece uno
+    /// por día de la semana, y es el más cercano.
+    func testNoSeOfreceDosVecesElMismoDiaDeLaSemana() throws {
+        let (almacen, sesion) = conDiasLibres()
+        let dias = BuscadorDeAlternativas.opciones(para: sesion, en: almacen, hoy: hoy)
+            .compactMap(\.dia)
+        XCTAssertEqual(Set(dias.map(\.numeroDeDiaDeSemana)).count, dias.count,
+                       "hay dos destinos con el mismo nombre de día")
+        // Y las etiquetas de chip, que es donde se veía, son distintas.
+        let etiquetas = BuscadorDeAlternativas.opciones(para: sesion, en: almacen, hoy: hoy)
+            .filter { $0.dia != nil }
+            .map { $0.etiquetaCorta() }
+        XCTAssertEqual(Set(etiquetas).count, etiquetas.count,
+                       "dos chips con el mismo texto: \(etiquetas)")
+    }
+
+    /// Y el que queda es el MÁS CERCANO al día original: mover dos días
+    /// altera menos la semana que mover nueve.
+    func testDeDosLunesQuedaElMasCercano() throws {
+        let (almacen, sesion) = conDiasLibres()
+        let lunes = try XCTUnwrap(
+            BuscadorDeAlternativas.opciones(para: sesion, en: almacen, hoy: hoy)
+                .compactMap(\.dia)
+                .first { $0.numeroDeDiaDeSemana == 1 })
+        XCTAssertEqual(lunes, DiaLocal(anio: 2026, mes: 8, dia: 17),
+                       "tendría que ser el lunes siguiente, no el de dentro de nueve días")
+    }
+
+    /// Se ofrecen hasta cinco días —los que entran en dos renglones de
+    /// chips— y nunca más, para que la fila no se vuelva una lista.
+    func testNoSeOfrecenMasDeCincoDias() throws {
+        let (almacen, sesion) = conDiasLibres()
+        let dias = BuscadorDeAlternativas.opciones(para: sesion, en: almacen, hoy: hoy)
+            .filter { $0.dia != nil }
+        XCTAssertLessThanOrEqual(dias.count, BuscadorDeAlternativas.maximoDestinos)
+        XCTAssertEqual(BuscadorDeAlternativas.maximoDestinos, 5)
+    }
+
+    // MARK: Fuera de dominio
+
+    /// LO QUE NO PUEDE PASAR: que los chips que ofrece la tarjeta de
+    /// "solo puedo ayudarte con tu entrenamiento" sean rechazados por la
+    /// propia puerta de intención. Sería mandar al corredor contra la
+    /// misma pared que acaba de chocar.
+    func testLasSugerenciasQueOfreceLaTarjetaPasanLaPuerta() {
+        for sugerencia in SugerenciaCoach.allCases {
+            XCTAssertTrue(PuertaDeIntencion.clasificar(sugerencia.texto).esValida,
+                          "la propia app sugiere algo que después rechaza: \(sugerencia.texto)")
+        }
+    }
+
+    /// Y son tres, cortas, y distintas entre sí.
+    func testLasSugerenciasSonPocasYCortas() {
+        XCTAssertEqual(SugerenciaCoach.allCases.count, 3)
+        XCTAssertEqual(Set(SugerenciaCoach.allCases.map(\.texto)).count, 3)
+        for sugerencia in SugerenciaCoach.allCases {
+            XCTAssertLessThanOrEqual(sugerencia.texto.count, 40, sugerencia.texto)
+            XCTAssertFalse(sugerencia.icono.isEmpty)
+        }
+    }
+
+    /// Cada sugerencia enruta a una acción DISTINTA, y eso lo decide el
+    /// `switch` sobre el enum en `CoachView.usar(_:)`, no la puerta: solo
+    /// `.reprogramar` pasa por el campo de texto, las otras dos llaman
+    /// directo a su endpoint.
+    ///
+    /// A propósito NO se afirma qué intención devuelve la puerta para
+    /// cada texto: depende del idioma en que se muestre —"No puedo
+    /// correr el sábado" da `.reprogramacion` y su traducción inglesa da
+    /// `.plan`— y da igual, porque río abajo lo único que se mira es
+    /// `fueraDeDominio`. Afirmarlo hacía fallar la suite en un simulador
+    /// en inglés sin que nada del producto estuviera roto.
+    func testCadaSugerenciaEsUnaAccionDistinta() {
+        XCTAssertEqual(Set(SugerenciaCoach.allCases.map(\.id)).count,
+                       SugerenciaCoach.allCases.count)
+        XCTAssertEqual(Set(SugerenciaCoach.allCases.map(\.icono)).count,
+                       SugerenciaCoach.allCases.count,
+                       "dos chips con el mismo ícono se leen como la misma acción")
+        // Y ninguna cae fuera de dominio, en el idioma que sea.
+        for sugerencia in SugerenciaCoach.allCases {
+            if case .fueraDeDominio = PuertaDeIntencion.clasificar(sugerencia.texto) {
+                XCTFail("la app sugiere algo que ella misma rechaza: \(sugerencia.texto)")
+            }
+        }
+    }
+}
+
+// MARK: - Capturas de los estados del Coach
+
+/// Renderiza los estados principales del Coach a PNG para poder MIRARLOS
+/// sin manejar el simulador (que no tiene API de tap).
+///
+/// No es un test de comportamiento: lo único que puede fallar es que
+/// una tarjeta no renderice. Corre con la suite porque es determinístico
+/// y barato (cinco renders), y deja los PNG en el tmp del simulador —
+/// la ruta se imprime al final. Para sacarlos:
+///
+///     xcodebuild test -scheme Maraton \
+///       -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
+///       -only-testing:MaratonTests/CapturasCoachTests
+///
+/// Las imágenes salen del dominio REAL —las opciones las produce
+/// `BuscadorDeAlternativas` y pasaron por `ValidadorDeCoach`—, así que
+/// lo que se ve es lo que va a ver el corredor, no una maqueta.
+@MainActor
+final class CapturasCoachTests: XCTestCase {
+
+    private let hoy = DiaLocal(anio: 2026, mes: 8, dia: 14)
+
+    /// El ancho de un iPhone moderno, menos el padding de la pantalla.
+    private let ancho: CGFloat = 390
+
+    private func escenarioConDias() -> (AlmacenV2, UUID) {
+        var almacen = AlmacenV2()
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .diez
+        perfil.diasElegidos = [1, 2, 6, 7]
+        almacen.perfil = perfil
+        let programados = [
+            EntrenamientoProgramado(
+                definicion: DefinicionEntrenamiento(
+                    tipo: .facil, nombre: "Rodaje suave",
+                    segmentos: [Segmento(nombre: "Rodaje suave", distanciaKm: 6)]),
+                dia: DiaLocal(anio: 2026, mes: 8, dia: 15)),
+            EntrenamientoProgramado(
+                definicion: DefinicionEntrenamiento(
+                    tipo: .largo, nombre: "Tirada larga",
+                    segmentos: [Segmento(nombre: "Tirada larga", distanciaKm: 10)]),
+                dia: DiaLocal(anio: 2026, mes: 8, dia: 16)),
+        ]
+        almacen.adoptarPlan(PlanUsuario(nombre: "Plan", fechaAdopcion: Date(),
+                                        semanas: [SemanaPlan(numero: 1, programados: programados)]))
+        return (almacen, programados[0].id)
+    }
+
+    private func escenarioSinDias() -> (AlmacenV2, UUID) {
+        var almacen = AlmacenV2()
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .diez
+        perfil.diasElegidos = [1, 2, 3, 4, 5, 6, 7]
+        almacen.perfil = perfil
+        let calendario = Calendar.current
+        let programados: [EntrenamientoProgramado] = (0...BuscadorDeAlternativas.horizonteDias)
+            .compactMap { offset in
+                guard let base = hoy.fecha(calendario: calendario),
+                      let f = calendario.date(byAdding: .day, value: offset, to: base)
+                else { return nil }
+                return EntrenamientoProgramado(
+                    definicion: DefinicionEntrenamiento(
+                        tipo: offset == 1 ? .facil : .largo,
+                        nombre: offset == 1 ? "Rodaje suave" : "Sesión \(offset)",
+                        segmentos: [Segmento(nombre: "Bloque", distanciaKm: 8)]),
+                    dia: DiaLocal(fecha: f, calendario: calendario))
+            }
+        almacen.adoptarPlan(PlanUsuario(nombre: "Semana llena", fechaAdopcion: Date(),
+                                        semanas: [SemanaPlan(numero: 1, programados: programados)]))
+        return (almacen, programados[1].id)
+    }
+
+    private func aclaracion(_ almacen: AlmacenV2, _ sesion: UUID) -> AclaracionCoach? {
+        guard let ocupado = almacen.todosLosProgramados
+            .first(where: { $0.id != sesion })?.dia else { return nil }
+        let resultado = ResolutorCoach.resolver(
+            CoachWeekAdjustment(
+                explicacion: "Lo paso al día siguiente.",
+                cambios: [ResolutorCoach.cambioDTO(
+                    .reprogramar(programadoID: sesion, a: ocupado))]),
+            en: almacen, hoy: hoy)
+        if case .necesitaAclaracion(let a) = resultado { return a }
+        return nil
+    }
+
+    private func guardar(_ vista: some View, como nombre: String,
+                         en carpeta: URL) throws {
+        let lienzo = vista
+            .frame(width: ancho)
+            .padding(DV2.Espacio.l)
+            .background(DV2.Superficie.fondo)
+        let renderer = ImageRenderer(content: lienzo)
+        renderer.scale = 3
+        let imagen = try XCTUnwrap(renderer.uiImage, "no se pudo renderizar \(nombre)")
+        let datos = try XCTUnwrap(imagen.pngData())
+        try datos.write(to: carpeta.appendingPathComponent("\(nombre).png"))
+    }
+
+    func testGenerarCapturas() throws {
+        let carpeta = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("coach-ux", isDirectory: true)
+        try? FileManager.default.createDirectory(at: carpeta,
+                                                 withIntermediateDirectories: true)
+
+        let (conDias, sesionConDias) = escenarioConDias()
+        if let a = aclaracion(conDias, sesionConDias) {
+            try guardar(TarjetaAclaracionCoach(aclaracion: a, elegir: { _ in },
+                                               otroDia: {}),
+                        como: "1-elegir-dia", en: carpeta)
+        }
+
+        let (sinDias, sesionSinDias) = escenarioSinDias()
+        if let a = aclaracion(sinDias, sesionSinDias) {
+            try guardar(TarjetaAclaracionCoach(aclaracion: a, elegir: { _ in }),
+                        como: "2-sin-dia-libre", en: carpeta)
+        }
+
+        try guardar(TarjetaFueraDeDominio(motivo: .otroRubro, sugerir: { _ in }),
+                    como: "3-fuera-de-dominio", en: carpeta)
+
+        // El resultado, con el titular derivado del cambio y el párrafo
+        // del modelo plegado abajo.
+        try guardar(
+            TarjetaResultadoCoach(
+                estado: .propuesta,
+                titulo: "Mover Rodaje suave al lun 17",
+                subtitulo: "Confirmá para aplicarlo",
+                detalle: "Hay entrenamientos programados para el 22, 29 y 5, pero no se puede mover a un día libre sin desarmar la progresión de la semana.") {
+                    VStack(spacing: DV2.Espacio.s) {
+                        FilaCambioCoach(nombre: "Rodaje suave", antes: "sáb 15",
+                                        despues: "lun 17", rechazo: nil)
+                        EtiquetaBotonPrimarioV2(titulo: "Aplicar cambios", icono: "checkmark")
+                        BotonSecundarioCoach(titulo: "Dejarlo como está",
+                                             icono: "equal.circle") {}
+                    }
+                },
+            como: "4-propuesta", en: carpeta)
+
+        try guardar(
+            TarjetaResultadoCoach(estado: .aplicado,
+                                  titulo: "Listo, tu semana quedó actualizada",
+                                  subtitulo: "1 cambio aplicado",
+                                  detalle: nil) { EmptyView() },
+            como: "5-aplicado", en: carpeta)
+
+        print("CAPTURAS_EN: \(carpeta.path)")
     }
 }

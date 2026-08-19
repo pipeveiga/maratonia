@@ -482,6 +482,9 @@ struct CoachView: View {
     @State private var aclaracion: AclaracionCoach?
     /// Por qué se rechazó la consulta, cuando quedó fuera de dominio.
     @State private var fueraDeDominio: MotivoFueraDeDominio?
+    /// Para que "Otro día" y las sugerencias lleven al campo en vez de
+    /// dejar al corredor buscándolo.
+    @FocusState private var campoEnfocado: Bool
 
     private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
 
@@ -513,6 +516,7 @@ struct CoachView: View {
                                   text: $motivoCambio, axis: .vertical)
                             .font(.subheadline)
                             .lineLimit(1...4)
+                            .focused($campoEnfocado)
                         Button {
                             Task { await pedirReorganizacion() }
                         } label: {
@@ -536,9 +540,15 @@ struct CoachView: View {
                     }
                 }
 
-                if let fueraDeDominio { TarjetaFueraDeDominio(motivo: fueraDeDominio) }
+                if let fueraDeDominio {
+                    TarjetaFueraDeDominio(motivo: fueraDeDominio) { sugerencia in
+                        Task { await usar(sugerencia) }
+                    }
+                }
                 if let aclaracion {
-                    TarjetaAclaracionCoach(aclaracion: aclaracion, elegir: elegir)
+                    TarjetaAclaracionCoach(aclaracion: aclaracion, elegir: elegir) {
+                        campoEnfocado = true
+                    }
                 }
                 if let explicacion { tarjetaExplicacion(explicacion) }
                 if let estado { tarjetaEstado(estado) }
@@ -628,102 +638,131 @@ struct CoachView: View {
         }
     }
 
-    /// ANTES vs PROPUESTO, con la validación del motor a la vista, y
-    /// "Aplicar cambios" que ejecuta SOLO lo validado.
+    /// El resultado, como RESULTADO y no como carta. El titular es el
+    /// cambio concreto; el párrafo del modelo se pliega abajo.
+    ///
+    /// Antes esta tarjeta abría con `ajuste.explicacion` —dos o tres
+    /// oraciones generadas— y recién después mostraba qué se iba a
+    /// tocar. Se leía un ensayo para enterarse de que había que mover un
+    /// rodaje al lunes.
     @ViewBuilder
-    private func seccionPropuesta(_ ajuste: CoachWeekAdjustment) -> some View {
-        let estado = EstadoPropuesta.decidir(
-            operaciones: ajuste.propuestasQueMutan.count,
-            validas: cambiosValidos(ajuste).count,
+    private func seccionPropuesta(_ propuesta: CoachWeekAdjustment) -> some View {
+        let validos = cambiosValidos(propuesta)
+        let situacion = EstadoPropuesta.decidir(
+            operaciones: propuesta.propuestasQueMutan.count,
+            validas: validos.count,
             aplicado: aplicado)
 
-        TarjetaV2 {
-            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
-                EncabezadoSeccionV2(texto: estado == .sinCambiosNecesarios
-                                    ? "Respuesta del Coach" : "Propuesta del Coach")
-                Text(ajuste.explicacion)
-                    .font(.subheadline)
-                    .fixedSize(horizontal: false, vertical: true)
+        switch situacion {
+        case .sinCambiosNecesarios:
+            TarjetaResultadoCoach(estado: .sinCambios,
+                                  titulo: String(localized: "Tu semana sigue igual"),
+                                  subtitulo: String(localized: "No hacen falta cambios"),
+                                  detalle: propuesta.explicacion) { EmptyView() }
 
-                // Las filas ANTES/PROPUESTO solo tienen sentido si hubo
-                // operaciones. Sin ellas, la lista sería de "mantener".
-                if estado != .sinCambiosNecesarios {
-                    VStack(alignment: .leading, spacing: DV2.Espacio.s) {
-                        ForEach(Array(ajuste.propuestas.enumerated()), id: \.offset) { _, cambio in
-                            filaCambio(cambio)
-                        }
-                    }
-                }
-
-                // UN solo mensaje de cierre: los estados son excluyentes.
-                switch estado {
-                case .sinCambiosNecesarios:
-                    Label("No hacen falta cambios: tu semana sigue como estaba.",
-                          systemImage: "checkmark.seal")
-                        .font(.footnote)
-                        .foregroundStyle(DV2.Semantico.exito)
-
-                case .aplicable(_, let rechazadas):
-                    if rechazadas > 0 {
-                        Label("^[\(rechazadas) cambio](inflect: true) no pasó la validación del motor y no se va a aplicar.",
-                              systemImage: "exclamationmark.triangle")
-                            .font(.footnote)
-                            .foregroundStyle(DV2.Semantico.advertencia)
-                    }
-                    Button {
-                        aplicar(ajuste)
-                    } label: {
+        case .aplicable(_, let rechazadas):
+            TarjetaResultadoCoach(
+                estado: .propuesta,
+                titulo: tituloDePropuesta(validos),
+                subtitulo: rechazadas > 0
+                    ? String(localized: "^[\(rechazadas) cambio](inflect: true) no pasó la validación del motor")
+                    : String(localized: "Confirmá para aplicarlo"),
+                detalle: propuesta.explicacion) {
+                VStack(spacing: DV2.Espacio.s) {
+                    filasDe(propuesta)
+                    Button { aplicar(propuesta) } label: {
                         EtiquetaBotonPrimarioV2(titulo: "Aplicar cambios",
                                                 icono: "checkmark")
                     }
                     .buttonStyle(.plain)
-
-                case .rechazadaPorElMotor:
-                    Label("El Coach propuso cambios, pero ninguno superó la validación del motor: tu plan queda como estaba.",
-                          systemImage: "xmark.octagon")
-                        .font(.footnote)
-                        .foregroundStyle(DV2.Semantico.advertencia)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                case .aplicada:
-                    Label("Cambios aplicados", systemImage: "checkmark.circle.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(DV2.Semantico.exito)
+                    BotonSecundarioCoach(titulo: String(localized: "Dejarlo como está"),
+                                         icono: "equal.circle") { ajuste = nil }
                 }
+            }
+
+        case .rechazadaPorElMotor:
+            TarjetaResultadoCoach(
+                estado: .rechazado,
+                titulo: String(localized: "No puedo aplicar eso"),
+                subtitulo: String(localized: "Tu plan queda como estaba"),
+                detalle: propuesta.explicacion) {
+                filasDe(propuesta)
+            }
+
+        case .aplicada(let cantidad):
+            TarjetaResultadoCoach(
+                estado: .aplicado,
+                titulo: String(localized: "Listo, tu semana quedó actualizada"),
+                subtitulo: String(localized: "^[\(cantidad) cambio](inflect: true) aplicado"),
+                detalle: nil) { EmptyView() }
+        }
+    }
+
+    private func filasDe(_ propuesta: CoachWeekAdjustment) -> some View {
+        VStack(spacing: DV2.Espacio.s) {
+            ForEach(Array(propuesta.propuestas.enumerated()), id: \.offset) { _, cambio in
+                filaCambio(cambio)
             }
         }
     }
 
-    /// ANTES → PROPUESTO, con el veredicto del motor a la vista. Un
-    /// cambio rechazado se muestra igual (transparencia): el corredor
-    /// ve qué pidió el Coach y por qué el motor lo frenó.
+    /// El titular de la propuesta: QUÉ va a pasar, en una línea. Con
+    /// varios cambios no se enumeran —eso es lo que hacen las filas de
+    /// abajo—, se cuenta.
+    private func tituloDePropuesta(_ cambios: [CambioPropuesto]) -> String {
+        guard let primero = cambios.first else {
+            return String(localized: "Propuesta del Coach")
+        }
+        guard cambios.count == 1 else {
+            return String(localized: "^[\(cambios.count) cambio](inflect: true) en tu semana")
+        }
+        let nombre = nombreDe(primero.programadoID)
+        switch primero {
+        case .reprogramar(_, let dia):
+            return String(localized: "Mover \(nombre) al \(textoDia(dia))")
+        case .reducir:
+            return String(localized: "Acortar \(nombre)")
+        case .convertirEnFacil:
+            return String(localized: "\(nombre), más suave")
+        case .omitir:
+            return String(localized: "Saltear \(nombre)")
+        case .mantener:
+            return String(localized: "Dejar \(nombre) como está")
+        }
+    }
+
+    /// ANTES → PROPUESTO en una línea, con el veredicto del motor a la
+    /// vista. Un cambio rechazado se muestra igual (transparencia): el
+    /// corredor ve qué pidió el Coach y por qué el motor lo frenó.
     private func filaCambio(_ cambio: CambioPropuesto) -> some View {
         let validacion = ValidadorDeCoach.validar(cambio, en: almacen.almacen, hoy: hoy)
-        return VStack(alignment: .leading, spacing: 4) {
-            switch cambio {
-            case .mantener(let id):
-                Label(String(localized: "Sin cambios: \(nombreDe(id))"),
-                      systemImage: "equal.circle")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            case .reprogramar(let id, let dia):
-                Text("\(nombreDe(id)): \(textoDia(diaDe(id))) → \(textoDia(dia))")
-                    .font(.subheadline)
-            case .reducir(let id, let factor):
-                Text("\(nombreDe(id)): acortar a \(Int((factor * 100).rounded())) %")
-                    .font(.subheadline)
-            case .convertirEnFacil(let id):
-                Text("\(nombreDe(id)): pasar a rodaje fácil")
-                    .font(.subheadline)
-            case .omitir(let id):
-                Text("Omitir: \(nombreDe(id))").font(.subheadline)
-            }
-            if !validacion.permitido {
-                Label(validacion.motivo ?? String(localized: "Rechazado por el motor."),
-                      systemImage: "xmark.octagon")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
+        let nombre = nombreDe(cambio.programadoID)
+        let rechazo = validacion.permitido
+            ? nil
+            : (validacion.motivo ?? String(localized: "Rechazado por el motor."))
+
+        switch cambio {
+        case .mantener:
+            return FilaCambioCoach(nombre: nombre, antes: nil,
+                                   despues: String(localized: "Sin cambios"),
+                                   rechazo: rechazo)
+        case .reprogramar(let id, let dia):
+            return FilaCambioCoach(nombre: nombre,
+                                   antes: textoDia(diaDe(id)),
+                                   despues: textoDia(dia),
+                                   rechazo: rechazo)
+        case .reducir(_, let factor):
+            return FilaCambioCoach(nombre: nombre, antes: nil,
+                                   despues: String(localized: "Acortar a \(Int((factor * 100).rounded())) %"),
+                                   rechazo: rechazo)
+        case .convertirEnFacil:
+            return FilaCambioCoach(nombre: nombre, antes: nil,
+                                   despues: String(localized: "Pasa a rodaje fácil"),
+                                   rechazo: rechazo)
+        case .omitir:
+            return FilaCambioCoach(nombre: nombre, antes: nil,
+                                   despues: String(localized: "Se saltea"),
+                                   rechazo: rechazo)
         }
     }
 
@@ -761,6 +800,23 @@ struct CoachView: View {
         ajuste = nil; explicacion = nil; aclaracion = nil; fueraDeDominio = nil
         estado = await servicio.pedir(CoachEstadoObjetivo.self,
                                       accion: "estado", contexto: contexto())
+    }
+
+    /// Un chip de sugerencia entra por la MISMA puerta que le
+    /// corresponde a esa intención. Rellenar el campo con "¿cómo vengo?"
+    /// y mandarlo a reorganizar sería mandar una consulta de estado al
+    /// endpoint de adaptación: contestaría cualquier cosa.
+    private func usar(_ sugerencia: SugerenciaCoach) async {
+        switch sugerencia {
+        case .reprogramar:
+            fueraDeDominio = nil
+            motivoCambio = sugerencia.texto
+            campoEnfocado = true
+        case .explicar:
+            await explicarProximo()
+        case .estado:
+            await pedirEstado()
+        }
     }
 
     private func pedirReorganizacion() async {
@@ -849,7 +905,13 @@ struct CoachView: View {
         nueva.opciones = opciones
         nueva.creadaEl = Date()
         nueva.huellaDelPlan = ResolutorCoach.huella(de: almacen.almacen)
-        nueva.explicacion = String(localized: "Tu plan cambió mientras lo pensabas, así que recalculé.")
+        // El encabezado se rehace igual que la primera vez: si el plan
+        // cambió, puede haber pasado de "no hay días" a "elegí un día".
+        let (titulo, subtitulo) = ResolutorCoach.encabezado(
+            para: opciones, sesion: pendiente.programadoID, en: almacen.almacen)
+        nueva.titulo = titulo
+        nueva.subtitulo = subtitulo
+        nueva.detalle = String(localized: "Tu plan cambió mientras lo pensabas, así que recalculé las opciones.")
         return nueva
     }
 
@@ -896,34 +958,63 @@ struct CoachView: View {
     }
 }
 
+
 // MARK: - Las tarjetas del flujo conversacional
 
-    /// El "no" acotado. Es una respuesta completa: no se disculpa, no
-    /// intenta ayudar con otra cosa y no deja al corredor pensando que
-    /// preguntó mal algo del plan.
+/// Lo que se puede pedir cuando el corredor no sabe qué pedir. Cada una
+/// enruta a la acción REAL que le corresponde: "¿cómo vengo?" no puede
+/// terminar entrando por el endpoint de reprogramar solo porque se
+/// escribió en el mismo campo.
+enum SugerenciaCoach: String, Identifiable, CaseIterable {
+    case reprogramar
+    case explicar
+    case estado
+
+    var id: String { rawValue }
+
+    var texto: String {
+        switch self {
+        case .reprogramar: return String(localized: "No puedo correr el sábado")
+        case .explicar:    return String(localized: "¿Por qué me toca fondo?")
+        case .estado:      return String(localized: "¿Cómo vengo para mi objetivo?")
+        }
+    }
+
+    var icono: String {
+        switch self {
+        case .reprogramar: return "calendar"
+        case .explicar:    return "questionmark.circle"
+        case .estado:      return "chart.line.uptrend.xyaxis"
+        }
+    }
+}
+
+/// El "no" acotado. Es una respuesta completa: no se disculpa, no
+/// intenta ayudar con otra cosa y no deja al corredor pensando que
+/// preguntó mal algo del plan.
+///
+/// Antes eran tres párrafos —el límite, la aclaración de inyección y un
+/// ejemplo— y el ejemplo era texto muerto: decía qué escribir en vez de
+/// dejar escribirlo. Ahora es una línea y tres chips que SÍ hacen algo.
 struct TarjetaFueraDeDominio: View {
     let motivo: MotivoFueraDeDominio
+    var sugerir: ((SugerenciaCoach) -> Void)?
 
     var body: some View {
-        TarjetaV2 {
-            VStack(alignment: .leading, spacing: DV2.Espacio.s) {
-                Label {
-                    Text("El Coach de Maratonia solo puede ayudarte con tu entrenamiento, tu plan y tu objetivo.")
-                        .font(.subheadline)
-                        .fixedSize(horizontal: false, vertical: true)
-                } icon: {
-                    Image(systemName: "figure.run.circle")
-                        .foregroundStyle(DV2.Marca.primario)
-                }
-                if motivo == .inyeccion {
-                    Text("Tampoco puedo cambiar mis instrucciones.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Text("Probá con algo como \"no puedo correr el sábado\" o \"¿por qué me toca fondo el domingo?\".")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        TarjetaDecisionCoach(
+            icono: "figure.run.circle",
+            titulo: String(localized: "Solo puedo ayudarte con tu entrenamiento"),
+            subtitulo: motivo == .inyeccion
+                ? String(localized: "Tampoco puedo cambiar mis instrucciones")
+                : nil,
+            tono: .limite) {
+            if let sugerir {
+                EleccionRapidaCoach(
+                    titulo: String(localized: "Probá con"),
+                    elementos: SugerenciaCoach.allCases,
+                    etiqueta: { $0.texto },
+                    icono: { $0.icono },
+                    elegir: sugerir)
             }
         }
     }
@@ -931,55 +1022,97 @@ struct TarjetaFueraDeDominio: View {
 
 /// LA PREGUNTA. Cada opción ya pasó por el motor: tocar cualquiera de
 /// estas no puede terminar en "rechazado".
+///
+/// Dos formas según lo que sobrevivió, y la diferencia no es estética:
+///
+/// - hay días → chips. "¿Cuándo sí podés correr?" se contesta con un
+///   toque, y los días entran todos en dos renglones.
+/// - no hay días → tarjetas de opción. Ahí cada salida tiene una
+///   consecuencia distinta (perder la sesión no es lo mismo que
+///   acortarla) y necesita su subtítulo.
 struct TarjetaAclaracionCoach: View {
     let aclaracion: AclaracionCoach
     var elegir: (OpcionDeCoach) -> Void
+    /// "Otro día": devuelve el foco al campo para escribirlo.
+    var otroDia: (() -> Void)?
 
-    var body: some View {
-        TarjetaV2 {
-            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
-                EncabezadoSeccionV2(texto: "El Coach necesita que elijas")
-                Text(aclaracion.explicacion)
-                    .font(.subheadline)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(aclaracion.pregunta)
-                    .font(DV2.Tipo.tituloChico)
-                    .fixedSize(horizontal: false, vertical: true)
-                VStack(spacing: DV2.Espacio.s) {
-                    ForEach(aclaracion.opciones) { opcion in
-                        Button { elegir(opcion) } label: { filaOpcion(opcion) }
-                            .buttonStyle(.plain)
-                    }
-                }
-                Text("Todavía no cambié nada: elegí y después confirmás.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
+    /// Un chip de la fila de días. El caso `nil` es "Otro día".
+    private struct Eleccion: Identifiable {
+        var id: String
+        var etiqueta: String
+        var icono: String?
+        var opcion: OpcionDeCoach?
     }
 
-    private func filaOpcion(_ opcion: OpcionDeCoach) -> some View {
-        HStack(spacing: DV2.Espacio.m) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(opcion.titulo)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .multilineTextAlignment(.leading)
-                if let detalle = opcion.detalle {
-                    Text(detalle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.leading)
+    private var dias: [OpcionDeCoach] {
+        aclaracion.opciones.filter { $0.dia != nil }
+    }
+
+    /// Las que cambian algo de verdad. "Mantener" no es una alternativa
+    /// deportiva: es el botón de salida, y va abajo y en secundario.
+    private var accionables: [OpcionDeCoach] {
+        aclaracion.opciones.filter { $0.dia == nil && $0.cambio.tipoDeAdaptacion != nil }
+    }
+
+    private var mantener: OpcionDeCoach? {
+        aclaracion.opciones.first { if case .mantener = $0.cambio { return true }
+                                    else { return false } }
+    }
+
+    private var elecciones: [Eleccion] {
+        var salida = dias.map {
+            Eleccion(id: $0.id, etiqueta: $0.etiquetaCorta(), icono: nil, opcion: $0)
+        }
+        if otroDia != nil {
+            salida.append(Eleccion(id: "otro-dia",
+                                   etiqueta: String(localized: "Otro día"),
+                                   icono: "pencil", opcion: nil))
+        }
+        return salida
+    }
+
+    var body: some View {
+        TarjetaDecisionCoach(
+            icono: dias.isEmpty ? "calendar.badge.exclamationmark" : "calendar",
+            titulo: aclaracion.titulo,
+            subtitulo: aclaracion.subtitulo,
+            detalle: aclaracion.detalle,
+            tono: dias.isEmpty ? .atencion : .neutro) {
+
+            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                if !dias.isEmpty {
+                    EleccionRapidaCoach(
+                        elementos: elecciones,
+                        etiqueta: { $0.etiqueta },
+                        icono: { $0.icono },
+                        elegir: { eleccion in
+                            if let opcion = eleccion.opcion { elegir(opcion) }
+                            else { otroDia?() }
+                        })
+                }
+
+                if !accionables.isEmpty {
+                    VStack(spacing: DV2.Espacio.s) {
+                        ForEach(accionables) { opcion in
+                            // Una sola salida real: deja de ser una fila
+                            // de lista y pasa a ser EL botón.
+                            TarjetaOpcionCoach(icono: opcion.icono,
+                                               titulo: opcion.titulo,
+                                               subtitulo: opcion.detalle,
+                                               destacada: accionables.count == 1) {
+                                elegir(opcion)
+                            }
+                        }
+                    }
+                }
+
+                if let mantener {
+                    BotonSecundarioCoach(titulo: mantener.titulo,
+                                         icono: "equal.circle") {
+                        elegir(mantener)
+                    }
                 }
             }
-            Spacer(minLength: 0)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.tertiary)
         }
-        .padding(DV2.Espacio.m)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(DV2.Superficie.fondo, in: DV2.formaTarjeta)
-        .overlay(DV2.formaTarjeta.strokeBorder(DV2.Superficie.borde, lineWidth: 1))
     }
 }

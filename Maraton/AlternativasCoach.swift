@@ -35,6 +35,37 @@ struct OpcionDeCoach: Equatable, Identifiable {
     /// El día destino, cuando la operación es mover. Es lo que permite
     /// entender "el lunes" sin preguntarle nada al modelo.
     var dia: DiaLocal?
+
+    /// El símbolo con el que se dibuja. Se DERIVA del cambio en vez de
+    /// guardarse: un ícono que hay que recordar setear termina siendo un
+    /// ícono equivocado.
+    var icono: String {
+        if dia != nil { return "calendar" }
+        switch cambio {
+        case .reprogramar:     return "calendar"
+        case .convertirEnFacil: return "wind"
+        case .reducir:          return "arrow.down.right.and.arrow.up.left"
+        case .omitir:           return "forward.end.fill"
+        case .mantener:         return "equal.circle"
+        }
+    }
+
+    /// Una o dos palabras, para cuando la opción se muestra como chip.
+    /// El título largo sigue existiendo para las tarjetas.
+    func etiquetaCorta(calendario: Calendar = .current) -> String {
+        if let dia {
+            return BuscadorDeAlternativas
+                .nombreDeDiaSolo(dia, calendario: calendario)
+                .localizedCapitalized
+        }
+        switch cambio {
+        case .reprogramar:      return titulo
+        case .convertirEnFacil: return String(localized: "Más suave")
+        case .reducir:          return String(localized: "Más corto")
+        case .omitir:           return String(localized: "Saltear")
+        case .mantener:         return String(localized: "Dejarlo igual")
+        }
+    }
 }
 
 enum BuscadorDeAlternativas {
@@ -43,9 +74,11 @@ enum BuscadorDeAlternativas {
     /// allá, mover una sesión deja de ser reprogramar y pasa a ser otro
     /// plan.
     static let horizonteDias = 14
-    /// Cuántos destinos se le muestran al corredor. Tres alcanzan para
-    /// elegir; diez son una lista.
-    static let maximoDestinos = 3
+    /// Cuántos destinos se le muestran al corredor. Como fila de chips
+    /// entran cinco sin que se vuelva una lista — y cinco es lo que hace
+    /// falta para que "¿cuándo sí podés?" se conteste de un toque en vez
+    /// de escribiendo. Con tres, media semana quedaba invisible.
+    static let maximoDestinos = 5
 
     /// TODAS las salidas válidas para esta sesión, en orden deportivo.
     /// Cada una pasó por `ValidadorDeCoach`, que es el mismo que va a
@@ -105,12 +138,21 @@ enum BuscadorDeAlternativas {
             return da == db ? a < b : da < db
         }
 
-        return ordenados.prefix(maximoDestinos).map { dia in
+        // UN destino por día de la semana. El horizonte es de dos
+        // semanas, así que sin esto se ofrecían dos lunes: como fila de
+        // chips salían dos pastillas idénticas que decían "Lunes" y
+        // llevaban a fechas distintas. Gana el más cercano, que ya es el
+        // primero por el orden de arriba — y además es el que menos
+        // altera la semana.
+        var vistos: Set<Int> = []
+        let unoPorDiaDeSemana = ordenados.filter { vistos.insert($0.numeroDeDiaDeSemana).inserted }
+
+        return unoPorDiaDeSemana.prefix(maximoDestinos).map { dia in
             OpcionDeCoach(
                 id: "mover-\(dia.anio)-\(dia.mes)-\(dia.dia)",
                 cambio: .reprogramar(programadoID: programado.id, a: dia),
                 titulo: String(localized: "Moverlo al \(nombreDeDia(dia, calendario: calendario))"),
-                detalle: String(localized: "Es uno de tus días y está libre."),
+                detalle: String(localized: "Está libre"),
                 dia: dia)
         }
     }
@@ -131,25 +173,31 @@ enum BuscadorDeAlternativas {
                                         titulo: titulo, detalle: detalle, dia: nil))
         }
 
+        // El copy es de TARJETA, no de párrafo: título = la acción en
+        // infinitivo, detalle = la consecuencia en media línea. Lo que
+        // no entra en media línea no es un detalle, es una explicación,
+        // y va al disclosure de la tarjeta.
         agregar(.convertirEnFacil(programadoID: id), id: "convertir",
-                titulo: String(localized: "Convertirlo en un rodaje fácil"),
-                detalle: String(localized: "Se corre el mismo día, más suave."))
+                titulo: String(localized: "Hacerlo más suave"),
+                detalle: String(localized: "Mismo día, menos intensidad"))
 
         // Un solo factor, y conservador: acortar es una alternativa, no
         // un dial. El motor tiene su propio mínimo por sesión.
         agregar(.reducir(programadoID: id, factor: 0.7), id: "reducir",
-                titulo: String(localized: "Acortarlo"),
-                detalle: String(localized: "Mismo día, menos volumen."))
+                titulo: String(localized: "Hacer una versión más corta"),
+                detalle: String(localized: "Mismo día, menos carga"))
 
+        // "No se compensa después" se queda aunque alargue el chip: es
+        // LA consecuencia que el corredor necesita para poder elegir.
         agregar(.omitir(programadoID: id), id: "omitir",
-                titulo: String(localized: "Saltearlo esta semana"),
-                detalle: String(localized: "No se compensa después: se pierde y ya."))
+                titulo: String(localized: "Saltear este entrenamiento"),
+                detalle: String(localized: "No se compensa después"))
 
         // "Mantener" siempre es válido si la sesión existe, y siempre
         // tiene que estar: no elegir es una respuesta legítima.
         agregar(.mantener(programadoID: id), id: "mantener",
                 titulo: String(localized: "Dejarlo como está"),
-                detalle: String(localized: "No cambia nada en tu semana."))
+                detalle: String(localized: "No hacemos cambios"))
 
         return salida
     }
@@ -288,9 +336,16 @@ struct AclaracionCoach: Equatable, Identifiable {
     var id = UUID()
     /// La sesión de la que se está hablando.
     var programadoID: UUID
-    /// Por qué no salió lo primero que se intentó.
-    var explicacion: String
-    var pregunta: String
+    /// UNA línea con lo que se detectó. Es lo primero y lo más grande
+    /// que se lee: "¿Cuándo sí podés correr?", "No pude mover tu rodaje
+    /// del sábado".
+    var titulo: String
+    /// UNA línea de contexto, o nada. No es el lugar del porqué.
+    var subtitulo: String?
+    /// El porqué completo, para quien lo quiera. Vive en un disclosure:
+    /// antes era este texto el que ocupaba la tarjeta y empujaba las
+    /// opciones fuera de la pantalla.
+    var detalle: String?
     /// Solo opciones que pasaron `ValidadorDeCoach`.
     var opciones: [OpcionDeCoach]
     var creadaEl: Date = Date()
@@ -350,20 +405,44 @@ enum ResolutorCoach {
                 cambios: [cambioDTO(unica.cambio)]))
         }
 
+        let (titulo, subtitulo) = encabezado(para: opciones, sesion: afectada,
+                                             en: almacen, calendario: calendario)
         return .necesitaAclaracion(AclaracionCoach(
             programadoID: afectada,
-            explicacion: porQueNo,
-            pregunta: pregunta(para: opciones),
+            titulo: titulo,
+            subtitulo: subtitulo,
+            detalle: porQueNo,
             opciones: opciones,
             huellaDelPlan: huella(de: almacen)))
     }
 
-    /// La pregunta se adapta a lo que hay: si sobrevivieron días, se
-    /// pregunta por días; si no, por qué hacer con la sesión.
-    private static func pregunta(para opciones: [OpcionDeCoach]) -> String {
-        opciones.contains { $0.dia != nil }
-            ? String(localized: "¿A qué día lo movemos?")
-            : String(localized: "No se puede mover sin desarmar el resto de la semana. ¿Qué preferís hacer?")
+    /// El encabezado se adapta a lo que HAY, porque son dos situaciones
+    /// distintas y merecen dos titulares distintos:
+    ///
+    /// - sobrevivieron días → la pregunta es cuándo, y se contesta
+    ///   tocando un día. El titular ES la pregunta.
+    /// - no sobrevivió ninguno → no hay nada que preguntar sobre días.
+    ///   El titular es la mala noticia, en una línea, y abajo van las
+    ///   salidas que sí existen.
+    ///
+    /// El porqué no entra acá: va al `detalle`.
+    static func encabezado(para opciones: [OpcionDeCoach], sesion: UUID,
+                           en almacen: AlmacenV2,
+                           calendario: Calendar = .current) -> (String, String?) {
+        let programado = almacen.todosLosProgramados.first { $0.id == sesion }
+        let nombre = programado?.definicion.nombre ?? String(localized: "entrenamiento")
+
+        if opciones.contains(where: { $0.dia != nil }) {
+            return (String(localized: "¿Cuándo sí podés correr?"),
+                    String(localized: "Elegí un día para tu \(nombre)"))
+        }
+        guard let dia = programado?.dia else {
+            return (String(localized: "No pude mover tu \(nombre)"),
+                    String(localized: "No encontré un día libre esta semana"))
+        }
+        let diaTexto = BuscadorDeAlternativas.nombreDeDiaSolo(dia, calendario: calendario)
+        return (String(localized: "No pude mover tu \(nombre) del \(diaTexto)"),
+                String(localized: "No encontré un día libre esta semana"))
     }
 
     /// Traducción a la forma que ya entiende el flujo de aplicación.
@@ -481,46 +560,98 @@ struct CatalogoConversacionCoach: View {
         return (almacen, programados[0].id)
     }
 
-    var body: some View {
-        let (almacen, afectada) = Self.escenario()
+    /// El callejón de verdad: TODOS los días del horizonte ocupados, así
+    /// que no sobrevive ningún destino y la tarjeta tiene que resolverse
+    /// con acciones sobre la sesión, no con días.
+    private static func escenarioSinDias() -> (AlmacenV2, UUID) {
+        var almacen = AlmacenV2()
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .diez
+        perfil.diasElegidos = [1, 2, 3, 4, 5, 6, 7]
+        almacen.perfil = perfil
+
+        let hoy = DiaLocal(fecha: Date())
+        let calendario = Calendar.current
+        let programados: [EntrenamientoProgramado] = (0...BuscadorDeAlternativas.horizonteDias)
+            .compactMap { offset in
+                guard let base = hoy.fecha(calendario: calendario),
+                      let f = calendario.date(byAdding: .day, value: offset, to: base)
+                else { return nil }
+                return EntrenamientoProgramado(
+                    definicion: DefinicionEntrenamiento(
+                        tipo: offset == 1 ? .facil : .largo,
+                        nombre: offset == 1 ? "Rodaje suave" : "Sesión \(offset)",
+                        segmentos: [Segmento(nombre: "Bloque", distanciaKm: 8)]),
+                    dia: DiaLocal(fecha: f, calendario: calendario))
+            }
+        almacen.adoptarPlan(PlanUsuario(nombre: "Semana llena", fechaAdopcion: Date(),
+                                        semanas: [SemanaPlan(numero: 1, programados: programados)]))
+        return (almacen, programados[1].id)
+    }
+
+    /// Corre el resolutor REAL para una sesión: lo que se dibuja es lo
+    /// que produce el dominio, no un mock.
+    private static func aclaracionReal(_ almacen: AlmacenV2,
+                                       _ afectada: UUID) -> AclaracionCoach? {
         let hoy = DiaLocal(fecha: Date())
         let ocupado = almacen.todosLosProgramados
             .first { $0.id != afectada }?.dia ?? hoy
-        // El rechazo REAL: mover la sesión al día que ya está ocupado.
         let resultado = ResolutorCoach.resolver(
             CoachWeekAdjustment(
                 explicacion: "Lo paso al día siguiente.",
                 cambios: [ResolutorCoach.cambioDTO(
                     .reprogramar(programadoID: afectada, a: ocupado))]),
             en: almacen, hoy: hoy)
+        if case .necesitaAclaracion(let aclaracion) = resultado { return aclaracion }
+        return nil
+    }
+
+    private func seccion(_ texto: String) -> some View {
+        Text(texto)
+            .font(DV2.Tipo.tituloChico)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func sinEstado() -> some View {
+        Text("El resolutor no devolvió una aclaración para este escenario.")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    var body: some View {
+        let (conDias, sesionConDias) = Self.escenario()
+        let (sinDias, sesionSinDias) = Self.escenarioSinDias()
 
         return NavigationStack {
             ScrollView {
                 VStack(spacing: DV2.Espacio.l) {
-                    Text("Necesita aclaración (motor real)")
-                        .font(DV2.Tipo.tituloChico)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    if case .necesitaAclaracion(let aclaracion) = resultado {
-                        TarjetaAclaracionCoach(aclaracion: aclaracion) { elegida = $0 }
+                    seccion("1 · Elegir día — chips")
+                    if let aclaracion = Self.aclaracionReal(conDias, sesionConDias) {
+                        TarjetaAclaracionCoach(aclaracion: aclaracion,
+                                               elegir: { elegida = $0 },
+                                               otroDia: {})
                     } else {
-                        Text("El resolutor devolvió \(String(describing: resultado))")
-                            .font(.footnote)
+                        sinEstado()
                     }
+
+                    seccion("2 · Sin día libre — tarjetas de opción")
+                    if let aclaracion = Self.aclaracionReal(sinDias, sesionSinDias) {
+                        TarjetaAclaracionCoach(aclaracion: aclaracion,
+                                               elegir: { elegida = $0 })
+                    } else {
+                        sinEstado()
+                    }
+
+                    seccion("3 · Fuera de dominio")
+                    TarjetaFueraDeDominio(motivo: .otroRubro) { _ in }
+
                     Divider().padding(.vertical, DV2.Espacio.s)
 
-                    Text("Puerta de intención")
-                        .font(DV2.Tipo.tituloChico)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    seccion("Puerta de intención")
                     ForEach(Self.frases, id: \.self) { frase in
                         filaIntencion(frase)
                     }
-
-                    Divider().padding(.vertical, DV2.Espacio.s)
-
-                    Text("Rechazo fuera de dominio")
-                        .font(DV2.Tipo.tituloChico)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    TarjetaFueraDeDominio(motivo: .otroRubro)
 
                     if let elegida {
                         Label("Elegiste: \(elegida.titulo)", systemImage: "checkmark.circle.fill")

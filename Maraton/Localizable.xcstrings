@@ -287,6 +287,17 @@
         }
       }
     },
+    "%@, más suave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, easier"
+          }
+        }
+      }
+    },
     "%@.": {
       "extractionState": "manual",
       "localizations": {
@@ -1372,6 +1383,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "BEFORE: %@"
+          }
+        }
+      }
+    },
+    "Acortar %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shorten %@"
+          }
+        }
+      }
+    },
+    "Acortar a %lld %%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shorten to %lld %%"
           }
         }
       }
@@ -2542,6 +2575,17 @@
         }
       }
     },
+    "Confirmá para aplicarlo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm to apply it"
+          }
+        }
+      }
+    },
     "Conocer Maratonia Pro": {
       "extractionState": "manual",
       "localizations": {
@@ -3136,6 +3180,17 @@
         }
       }
     },
+    "Dejar %@ como está": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave %@ as is"
+          }
+        }
+      }
+    },
     "Dejar el plan como está": {
       "extractionState": "manual",
       "localizations": {
@@ -3143,6 +3198,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Leave the plan as it is"
+          }
+        }
+      }
+    },
+    "Dejarlo como está": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave it as is"
+          }
+        }
+      }
+    },
+    "Dejarlo igual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leave it"
           }
         }
       }
@@ -3829,6 +3906,17 @@
         }
       }
     },
+    "Elegí un día para tu %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pick a day for your %@"
+          }
+        }
+      }
+    },
     "Elegí un objetivo y armá tu plan — o explorá el catálogo.": {
       "extractionState": "manual",
       "localizations": {
@@ -4177,6 +4265,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "That date isn't valid."
+          }
+        }
+      }
+    },
+    "Esa sesión ya no está pendiente en tu plan.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That session is no longer pending in your plan."
           }
         }
       }
@@ -4540,6 +4639,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Structure"
+          }
+        }
+      }
+    },
+    "Está libre": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It's free"
           }
         }
       }
@@ -5079,6 +5189,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Take the test"
+          }
+        }
+      }
+    },
+    "Hacer una versión más corta": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do a shorter version"
+          }
+        }
+      }
+    },
+    "Hacerlo más suave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Make it easier"
           }
         }
       }
@@ -5699,6 +5831,17 @@
         }
       }
     },
+    "Listo, tu semana quedó actualizada": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done — your week is updated"
+          }
+        }
+      }
+    },
     "Listo: Pro restaurado.": {
       "extractionState": "manual",
       "localizations": {
@@ -5761,6 +5904,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "The minimum to make progress"
+          }
+        }
+      }
+    },
+    "Lo que propuse no entraba en tu semana.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What I suggested didn't fit into your week."
           }
         }
       }
@@ -6183,6 +6337,28 @@
         }
       }
     },
+    "Mismo día, menos carga": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same day, less volume"
+          }
+        }
+      }
+    },
+    "Mismo día, menos intensidad": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same day, less intensity"
+          }
+        }
+      }
+    },
     "Mismo juego, un poco más de distancia.": {
       "extractionState": "manual",
       "localizations": {
@@ -6249,6 +6425,28 @@
         }
       }
     },
+    "Mover %@ al %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move %@ to %@"
+          }
+        }
+      }
+    },
+    "Moverlo al %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move it to %@"
+          }
+        }
+      }
+    },
     "Muy bien": {
       "extractionState": "manual",
       "localizations": {
@@ -6278,6 +6476,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Later"
+          }
+        }
+      }
+    },
+    "Más corto": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shorter"
           }
         }
       }
@@ -6322,6 +6531,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Faster"
+          }
+        }
+      }
+    },
+    "Más suave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Easier"
           }
         }
       }
@@ -6502,6 +6722,17 @@
         }
       }
     },
+    "No encontré un día libre esta semana": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I couldn't find a free day this week"
+          }
+        }
+      }
+    },
     "No es un “no”: es un “todavía no”.": {
       "extractionState": "manual",
       "localizations": {
@@ -6520,6 +6751,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "This isn't a “no” — it's a “not yet”. Building that plan now would sell you weeks that don't hold up."
+          }
+        }
+      }
+    },
+    "No hacemos cambios": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing changes"
+          }
+        }
+      }
+    },
+    "No hacen falta cambios": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No changes needed"
           }
         }
       }
@@ -6623,6 +6876,28 @@
         }
       }
     },
+    "No pude mover tu %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I couldn't move your %@"
+          }
+        }
+      }
+    },
+    "No pude mover tu %@ del %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I couldn't move your %@ on %@"
+          }
+        }
+      }
+    },
     "No pude reproducir %@.": {
       "extractionState": "manual",
       "localizations": {
@@ -6674,6 +6949,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "We couldn't verify the purchase with the App Store."
+          }
+        }
+      }
+    },
+    "No puedo aplicar eso": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I can't apply that"
+          }
+        }
+      }
+    },
+    "No puedo correr el sábado": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I can't run on Saturday"
+          }
+        }
+      }
+    },
+    "No puedo moverlo al %@ porque ya tenés %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I can't move it to %@ because you already have %@."
+          }
+        }
+      }
+    },
+    "No se compensa después": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It isn't made up later"
           }
         }
       }
@@ -6997,6 +7316,17 @@
         }
       }
     },
+    "Otro día": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another day"
+          }
+        }
+      }
+    },
     "PNG sin fondo, para tus fotos": {
       "extractionState": "manual",
       "localizations": {
@@ -7158,6 +7488,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Partial — the session was saved"
+          }
+        }
+      }
+    },
+    "Pasa a rodaje fácil": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Becomes an easy run"
           }
         }
       }
@@ -7664,6 +8005,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Try Pro free"
+          }
+        }
+      }
+    },
+    "Probá con": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try"
           }
         }
       }
@@ -8471,6 +8823,39 @@
         }
       }
     },
+    "Saltear": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip"
+          }
+        }
+      }
+    },
+    "Saltear %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip %@"
+          }
+        }
+      }
+    },
+    "Saltear este entrenamiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip this workout"
+          }
+        }
+      }
+    },
     "Salud no está disponible en este dispositivo.": {
       "extractionState": "manual",
       "localizations": {
@@ -8577,6 +8962,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Renews"
+          }
+        }
+      }
+    },
+    "Se saltea": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skipped"
           }
         }
       }
@@ -8823,6 +9219,17 @@
         }
       }
     },
+    "Sin cambios": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No changes"
+          }
+        }
+      }
+    },
     "Sin cambios: %@": {
       "extractionState": "manual",
       "localizations": {
@@ -9065,6 +9472,17 @@
         }
       }
     },
+    "Solo puedo ayudarte con tu entrenamiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I can only help you with your training"
+          }
+        }
+      }
+    },
     "Soltar piernas.": {
       "extractionState": "manual",
       "localizations": {
@@ -9215,6 +9633,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "YOUR PROPOSED PLAN"
+          }
+        }
+      }
+    },
+    "Tampoco puedo cambiar mis instrucciones": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I can't change my instructions either"
           }
         }
       }
@@ -9978,6 +10407,17 @@
         }
       }
     },
+    "Tu plan cambió mientras lo pensabas, así que recalculé las opciones.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your plan changed while you were deciding, so I recalculated the options."
+          }
+        }
+      }
+    },
     "Tu plan no se limita a decirte qué correr. Se adapta con vos.": {
       "extractionState": "manual",
       "localizations": {
@@ -9985,6 +10425,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your plan doesn't just tell you what to run. It adapts with you."
+          }
+        }
+      }
+    },
+    "Tu plan queda como estaba": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your plan stays as it was"
           }
         }
       }
@@ -10084,6 +10535,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your week reshuffles with you"
+          }
+        }
+      }
+    },
+    "Tu semana sigue igual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your week stays the same"
           }
         }
       }
@@ -10374,6 +10836,17 @@
         }
       }
     },
+    "Ver por qué": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See why"
+          }
+        }
+      }
+    },
     "Verificando tu iCloud…": {
       "extractionState": "manual",
       "localizations": {
@@ -10583,6 +11056,39 @@
         }
       }
     },
+    "^[%lld cambio](inflect: true) aplicado": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld change](inflect: true) applied"
+          }
+        }
+      }
+    },
+    "^[%lld cambio](inflect: true) en tu semana": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld change](inflect: true) in your week"
+          }
+        }
+      }
+    },
+    "^[%lld cambio](inflect: true) no pasó la validación del motor": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "^[%lld change](inflect: true) didn't pass the engine's validation"
+          }
+        }
+      }
+    },
     "aprox. %@ por mes": {
       "extractionState": "manual",
       "localizations": {
@@ -10667,6 +11173,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "days"
+          }
+        }
+      }
+    },
+    "entrenamiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "workout"
           }
         }
       }
@@ -11133,6 +11650,17 @@
         }
       }
     },
+    "¿Cuándo sí podés correr?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When can you run?"
+          }
+        }
+      }
+    },
     "¿Cuántos días por semana podés correr?": {
       "extractionState": "manual",
       "localizations": {
@@ -11228,6 +11756,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skip this workout?"
+          }
+        }
+      }
+    },
+    "¿Por qué me toca fondo?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Why do I have a long run?"
           }
         }
       }
