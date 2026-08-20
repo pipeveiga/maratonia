@@ -1,24 +1,204 @@
+<!--
+  Archivo generado por scripts/build-web.mjs. No lo edites a mano:
+  los cambios se hacen en templates/ y en scripts/seo.config.mjs,
+  y después se corre "npm run build:web".
+-->
 <!doctype html>
-<html lang="es">
+<html lang="es" data-locale="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title data-en="Maratonia — Running with Apple Watch">Maratonia — Running con Apple Watch</title>
-  <meta name="description" content="Maratonia lleva tu plan de running al Apple Watch: tramos, ritmo, voz, música y entrenamientos guardados en Apple Health." data-en="Maratonia takes your running plan to Apple Watch: intervals, pace, voice prompts, music and workouts saved in Apple Health." data-i18n-attribute="content">
+
+    <title>App de running para Apple Watch — planes de 5K a maratón | Maratonia</title>
+  <meta name="description" content="Armá el plan en el iPhone y corré la sesión desde el Apple Watch: tramos, ritmo objetivo, avisos por voz y carreras guardadas en Apple Health. Sin el teléfono.">
+  <link rel="canonical" href="https://maratonia.site/">
+  <link rel="alternate" hreflang="es" href="https://maratonia.site/">
+  <link rel="alternate" hreflang="en" href="https://maratonia.site/en/">
+  <link rel="alternate" hreflang="x-default" href="https://maratonia.site/">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   <meta name="theme-color" content="#04173F">
-  <meta property="og:title" content="Maratonia — Running con Apple Watch" data-en="Maratonia — Running with Apple Watch" data-i18n-attribute="content">
-  <meta property="og:description" content="Un plan claro en el reloj. El teléfono se queda en casa." data-en="A clear plan on your watch. Leave the phone at home." data-i18n-attribute="content">
-  <meta property="og:image" content="https://maratonia.site/assets/maratonia-icon.jpg">
-  <meta property="og:url" content="https://maratonia.site/">
+  <meta name="apple-mobile-web-app-title" content="Maratonia">
+  <meta name="application-name" content="Maratonia">
+
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Maratonia">
+  <meta property="og:locale" content="es_AR">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta property="og:title" content="App de running para Apple Watch — planes de 5K a maratón">
+  <meta property="og:description" content="Armá el plan en el iPhone y corré la sesión desde el Apple Watch: tramos, ritmo objetivo, avisos por voz y carreras guardadas en Apple Health. Sin el teléfono.">
+  <meta property="og:url" content="https://maratonia.site/">
+  <meta property="og:image" content="https://maratonia.site/assets/og-cover-es.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:alt" content="Maratonia: tu plan de running, en el Apple Watch. Planes de 5K a maratón, ritmo objetivo por voz y Apple Health.">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="App de running para Apple Watch — planes de 5K a maratón">
+  <meta name="twitter:description" content="Armá el plan en el iPhone y corré la sesión desde el Apple Watch: tramos, ritmo objetivo, avisos por voz y carreras guardadas en Apple Health. Sin el teléfono.">
+  <meta name="twitter:image" content="https://maratonia.site/assets/og-cover-es.png">
+  <meta name="twitter:image:alt" content="Maratonia: tu plan de running, en el Apple Watch. Planes de 5K a maratón, ritmo objetivo por voz y Apple Health.">
+
   <link rel="icon" type="image/png" href="/assets/favicon.png">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://maratonia.site/#organization",
+      "name": "Maratonia",
+      "url": "https://maratonia.site/",
+      "email": "contact@maratonia.site",
+      "logo": {
+        "@type": "ImageObject",
+        "@id": "https://maratonia.site/#logo",
+        "url": "https://maratonia.site/assets/maratonia-icon.jpg",
+        "contentUrl": "https://maratonia.site/assets/maratonia-icon.jpg",
+        "width": 512,
+        "height": 512,
+        "caption": "Maratonia"
+      },
+      "image": {
+        "@id": "https://maratonia.site/#logo"
+      },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "email": "contact@maratonia.site",
+        "contactType": "customer support",
+        "availableLanguage": [
+          "Spanish",
+          "English"
+        ]
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://maratonia.site/#website",
+      "url": "https://maratonia.site/",
+      "name": "Maratonia",
+      "inLanguage": "es",
+      "publisher": {
+        "@id": "https://maratonia.site/#organization"
+      }
+    },
+    {
+      "@type": [
+        "SoftwareApplication",
+        "MobileApplication"
+      ],
+      "@id": "https://maratonia.site/#app",
+      "name": "Maratonia",
+      "url": "https://maratonia.site/",
+      "applicationCategory": "HealthApplication",
+      "applicationSubCategory": "Entrenamiento de running",
+      "operatingSystem": "iOS, watchOS",
+      "description": "App de running para iPhone y Apple Watch: arma planes de entrenamiento de 5K a maratón, guía la sesión por voz con ritmo objetivo y guarda cada carrera en Apple Health.",
+      "featureList": [
+        "Planes de entrenamiento de 5K, 10K, media maratón y maratón",
+        "Entrenamiento por tramos con ritmo objetivo",
+        "Avisos por voz de splits, tramos y correcciones de ritmo",
+        "Ejecución autónoma en el Apple Watch, sin el iPhone",
+        "Registro de distancia, frecuencia cardíaca, calorías y ruta en Apple Health",
+        "Reproducción de música por Bluetooth desde el reloj"
+      ],
+      "inLanguage": [
+        "es",
+        "en"
+      ],
+      "author": {
+        "@id": "https://maratonia.site/#organization"
+      },
+      "publisher": {
+        "@id": "https://maratonia.site/#organization"
+      },
+      "image": {
+        "@id": "https://maratonia.site/#logo"
+      }
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://maratonia.site/#webpage",
+      "url": "https://maratonia.site/",
+      "name": "App de running para Apple Watch — planes de 5K a maratón | Maratonia",
+      "description": "Armá el plan en el iPhone y corré la sesión desde el Apple Watch: tramos, ritmo objetivo, avisos por voz y carreras guardadas en Apple Health. Sin el teléfono.",
+      "inLanguage": "es",
+      "isPartOf": {
+        "@id": "https://maratonia.site/#website"
+      },
+      "about": {
+        "@id": "https://maratonia.site/#app"
+      },
+      "primaryImageOfPage": {
+        "@id": "https://maratonia.site/#logo"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://maratonia.site/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "¿Puedo correr sin llevar el iPhone?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Sí. El plan viaja al Apple Watch antes de la sesión y desde ahí el reloj guía la carrera entera por su cuenta: tramos, ritmo objetivo y avisos por voz con auriculares Bluetooth. No necesita señal ni el teléfono cerca."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Qué planes de entrenamiento incluye?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Cinco puntos de partida: primeros 5K en 6 semanas, rumbo a 10K en 8, mejorar 5K en 8, media maratón en 12 y maratón en 16. Cada plan se edita bloque por bloque, así que podés cambiar tramos, ritmos y días antes de mandar la sesión al reloj."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Cómo guía el ritmo mientras corro?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "El reloj compara tu ritmo con el objetivo del bloque actual y anuncia en voz alta los tramos, los splits por kilómetro y las correcciones. Usa un ritmo suavizado en lugar del dato crudo del GPS, así el ruido normal de la señal no te hace perseguir un número que no es real."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Dónde quedan guardadas mis carreras?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "En Apple Health. Distancia, frecuencia cardíaca, calorías y la ruta GPS quedan registradas como entrenamiento en tu dispositivo, así que podés revisarlas desde Maratonia, desde Salud o desde Fitness. Los datos del entrenamiento siguen siendo tuyos."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Qué necesito para usar Maratonia?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Un iPhone con iOS 17 o posterior y un Apple Watch con watchOS 10 o posterior. Los auriculares Bluetooth son opcionales: hacen falta solo si querés escuchar los avisos por voz y la música mientras el teléfono se queda en casa."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Sirve si nunca corrí?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Para eso está el plan de primeros 5K. Alterna caminata y trote suave durante seis semanas para que construyas continuidad antes de preocuparte por el ritmo, y el reloj te avisa cuándo cambiar de una cosa a la otra."
+          }
+        }
+      ]
+    }
+  ]
+}
+  </script>
+
   <link rel="preload" href="/assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <script src="/language.js" defer></script>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <a class="skip-link" href="#producto" data-en="Skip to content">Saltar al contenido</a>
+  <a class="skip-link" href="#producto">Saltar al contenido</a>
 
   <nav class="site-nav" aria-label="Navegación principal">
     <a class="brand" href="/" aria-label="Maratonia inicio">
@@ -26,12 +206,14 @@
       <span>Maratonia</span>
     </a>
     <div class="nav-links">
-      <a href="#producto" data-en="The app">La app</a>
-      <a href="#como-funciona" data-en="How it works">Cómo funciona</a>
-      <a href="#planes" data-en="Plans">Planes</a>
-      <a href="/support/" data-en="Support">Soporte</a>
+      <a href="#producto">La app</a>
+      <a href="#como-funciona">Cómo funciona</a>
+      <a href="#planes">Planes</a>
+      <a href="#preguntas">Preguntas</a>
+      <a href="/support/">Soporte</a>
     </div>
-    <a class="button volt nav-cta" href="mailto:contact@maratonia&#46;site" data-en="Contact us">Escribinos</a>
+    <a class="button volt nav-cta" href="mailto:contact@maratonia&#46;site">Escribinos</a>
+    <a class="lang-toggle" href="/en/" hreflang="en" lang="en" title="Read this page in English" rel="alternate">EN</a>
   </nav>
 
   <header class="hero" id="inicio">
@@ -39,15 +221,15 @@
       <div class="hero-copy-block">
         <p class="eyebrow">iPhone + Apple Watch</p>
         <h1>
-          <span data-en="Your plan on the watch.">El plan en tu reloj.</span>
-          <em data-en="Leave the phone at home.">El teléfono, en casa.</em>
+          <span>Tu plan de running, en el Apple Watch.</span>
+          <em>El teléfono, en casa.</em>
         </h1>
-        <p class="hero-copy" data-en="Maratonia builds your sessions on iPhone and runs them from Apple Watch: intervals, target pace, voice prompts and Apple Health recording.">Maratonia prepara tus sesiones en el iPhone y las ejecuta desde el Apple Watch: tramos, ritmo objetivo, avisos por voz y registro en Apple Health.</p>
+        <p class="hero-copy">Maratonia prepara tus sesiones en el iPhone y las ejecuta desde el Apple Watch: tramos, ritmo objetivo, avisos por voz y registro en Apple Health.</p>
         <div class="hero-actions">
-          <a class="button volt" href="#como-funciona" data-en="See how it works">Ver cómo funciona</a>
-          <a class="text-link light" href="mailto:contact@maratonia&#46;site"><span data-en="Talk to the team">Hablar con el equipo</span> <span aria-hidden="true">&rarr;</span></a>
+          <a class="button volt" href="#como-funciona">Ver cómo funciona</a>
+          <a class="text-link light" href="mailto:contact@maratonia&#46;site"><span>Hablar con el equipo</span> <span aria-hidden="true">&rarr;</span></a>
         </div>
-        <p class="hero-note"><span class="status-dot" aria-hidden="true"></span> <span data-en="Built for running without signal and without carrying your iPhone.">Pensada para salir a correr sin señal y sin cargar el iPhone.</span></p>
+        <p class="hero-note"><span class="status-dot" aria-hidden="true"></span> <span>Pensada para salir a correr sin señal y sin cargar el iPhone.</span></p>
       </div>
 
       <div class="hero-visual" aria-label="Vista de una sesión de entrenamiento en Apple Watch">
@@ -59,25 +241,25 @@
             <div class="watch-screen">
               <div class="ws-top">
                 <span class="ws-brand">MARATONIA</span>
-                <span class="ws-live"><i aria-hidden="true"></i> <b data-en="LIVE">EN VIVO</b></span>
+                <span class="ws-live"><i aria-hidden="true"></i> <b>EN VIVO</b></span>
               </div>
-              <p class="ws-block"><span data-en="BLOCK 2">BLOQUE 2</span> <span class="ws-block-total">/ 4</span></p>
+              <p class="ws-block"><span>BLOQUE 2</span> <span class="ws-block-total">/ 4</span></p>
               <p class="ws-pace">4:58<small>/km</small></p>
-              <p class="ws-target" data-en="target 5:00 /km">objetivo 5:00 /km</p>
+              <p class="ws-target">objetivo 5:00 /km</p>
               <div class="ws-bar" aria-hidden="true"><span></span></div>
               <div class="ws-stats">
-                <div><span data-en="Distance">Distancia</span><strong>5.8 km</strong></div>
-                <div><span data-en="Time">Tiempo</span><strong>28:46</strong></div>
-                <div><span data-en="HR">FC</span><strong>152</strong></div>
+                <div><span>Distancia</span><strong>5.8 km</strong></div>
+                <div><span>Tiempo</span><strong>28:46</strong></div>
+                <div><span>FC</span><strong>152</strong></div>
               </div>
-              <p class="ws-msg" data-en="Hold this pace until km 6">Mantené este ritmo hasta el km 6</p>
+              <p class="ws-msg">Mantené este ritmo hasta el km 6</p>
             </div>
           </div>
           <div class="watch-band band-bottom" aria-hidden="true"></div>
         </div>
         <ul class="hero-chips">
-          <li data-en="Km splits">Splits por km</li>
-          <li data-en="Voice prompts">Avisos por voz</li>
+          <li>Splits por km</li>
+          <li>Avisos por voz</li>
           <li>GPS + Apple Health</li>
         </ul>
       </div>
@@ -87,22 +269,22 @@
   <div class="marquee" aria-hidden="true">
     <div class="marquee-track">
       <div class="marquee-group">
-        <span data-en="Target pace">Ritmo objetivo</span><i>·</i>
-        <span data-en="Km splits">Splits por km</span><i>·</i>
-        <span data-en="Voice prompts">Avisos por voz</span><i>·</i>
+        <span>Ritmo objetivo</span><i>·</i>
+        <span>Splits por km</span><i>·</i>
+        <span>Avisos por voz</span><i>·</i>
         <span>GPS</span><i>·</i>
         <span>Apple Health</span><i>·</i>
-        <span data-en="No signal needed">Sin señal</span><i>·</i>
-        <span data-en="Bluetooth music">Música Bluetooth</span><i>·</i>
+        <span>Sin señal</span><i>·</i>
+        <span>Música Bluetooth</span><i>·</i>
       </div>
       <div class="marquee-group">
-        <span data-en="Target pace">Ritmo objetivo</span><i>·</i>
-        <span data-en="Km splits">Splits por km</span><i>·</i>
-        <span data-en="Voice prompts">Avisos por voz</span><i>·</i>
+        <span>Ritmo objetivo</span><i>·</i>
+        <span>Splits por km</span><i>·</i>
+        <span>Avisos por voz</span><i>·</i>
         <span>GPS</span><i>·</i>
         <span>Apple Health</span><i>·</i>
-        <span data-en="No signal needed">Sin señal</span><i>·</i>
-        <span data-en="Bluetooth music">Música Bluetooth</span><i>·</i>
+        <span>Sin señal</span><i>·</i>
+        <span>Música Bluetooth</span><i>·</i>
       </div>
     </div>
   </div>
@@ -110,30 +292,30 @@
   <main>
     <section class="section" id="producto">
       <div class="section-heading reveal">
-        <p class="section-kicker" data-en="The app">La app</p>
-        <h2 data-en="A clear instruction for every part of the run.">Correr con una instrucción clara en cada momento.</h2>
-        <p class="section-lead" data-en="Maratonia brings iPhone planning together with an autonomous watch. Choose what to train, send it over, and get only the information you need while running.">Maratonia junta la planificación del iPhone con la autonomía del reloj. Elegís qué entrenar, lo enviás, y durante la sesión recibís solo la información que necesitás para seguir.</p>
-        <a class="text-link" href="/support/"><span data-en="Read help and frequently asked questions">Ver ayuda y preguntas frecuentes</span> <span aria-hidden="true">&rarr;</span></a>
+        <p class="section-kicker">La app</p>
+        <h2>Una app de running para Apple Watch con una instrucción clara en cada momento.</h2>
+        <p class="section-lead">Maratonia junta la planificación del iPhone con la autonomía del reloj. Elegís qué entrenar, lo enviás, y durante la sesión recibís solo la información que necesitás para seguir.</p>
+        <a class="text-link" href="/support/"><span>Ver ayuda y preguntas frecuentes</span> <span aria-hidden="true">&rarr;</span></a>
       </div>
 
       <div class="card-grid">
         <article class="feature-card reveal">
           <span class="card-num" aria-hidden="true">01</span>
           <span class="card-tag">Apple Watch</span>
-          <h3 data-en="The watch runs on its own">El reloj corre solo</h3>
-          <p data-en="It receives the plan and can guide you with Bluetooth headphones, even when the iPhone stays home or there is no signal.">Recibe el plan y puede guiarte con auriculares Bluetooth, incluso cuando el iPhone queda en casa o no hay señal.</p>
+          <h3>El reloj corre solo</h3>
+          <p>Recibe el plan y puede guiarte con auriculares Bluetooth, incluso cuando el iPhone queda en casa o no hay señal.</p>
         </article>
         <article class="feature-card reveal" style="--d:.08s">
           <span class="card-num" aria-hidden="true">02</span>
-          <span class="card-tag" data-en="Pace coach">Entrenador de ritmo</span>
-          <h3 data-en="Pace has context">El ritmo tiene contexto</h3>
-          <p data-en="Voice prompts announce intervals, kilometer splits and corrections using smoothed pace so GPS noise does not distract you.">La voz anuncia tramos, splits por kilómetro y correcciones con un ritmo suavizado para que el GPS no te distraiga.</p>
+          <span class="card-tag">Entrenador de ritmo</span>
+          <h3>El ritmo tiene contexto</h3>
+          <p>La voz anuncia tramos, splits por kilómetro y correcciones con un ritmo suavizado para que el GPS no te distraiga.</p>
         </article>
         <article class="feature-card reveal" style="--d:.16s">
           <span class="card-num" aria-hidden="true">03</span>
           <span class="card-tag">Apple Health</span>
-          <h3 data-en="The run stays recorded">La carrera queda registrada</h3>
-          <p data-en="Distance, heart rate, calories and route are saved in Health/Fitness so you can review the work afterwards.">Distancia, frecuencia cardíaca, calorías y ruta se guardan en Salud/Fitness para revisar el trabajo después.</p>
+          <h3>La carrera queda registrada</h3>
+          <p>Distancia, frecuencia cardíaca, calorías y ruta se guardan en Salud/Fitness para revisar el trabajo después.</p>
         </article>
       </div>
     </section>
@@ -141,29 +323,29 @@
     <section class="dark-band" id="como-funciona">
       <div class="section">
         <div class="section-heading light-heading reveal">
-          <p class="section-kicker" data-en="A short workflow">Un flujo corto</p>
-          <h2 data-en="Set it up once. Then run.">Preparás una vez. Después corrés.</h2>
+          <p class="section-kicker">Un flujo corto</p>
+          <h2>Preparás una vez. Después corrés.</h2>
         </div>
         <div class="process-grid">
           <article class="process-step reveal">
             <span aria-hidden="true">01</span>
-            <h3 data-en="Build your week">Armá tu semana</h3>
-            <p data-en="Goal, available days, race date and performance reference.">Objetivo, días disponibles, fecha de carrera y referencia de rendimiento.</p>
+            <h3>Armá tu semana</h3>
+            <p>Objetivo, días disponibles, fecha de carrera y referencia de rendimiento.</p>
           </article>
           <article class="process-step reveal" style="--d:.08s">
             <span aria-hidden="true">02</span>
-            <h3 data-en="Define the session">Definí la sesión</h3>
-            <p data-en="Use a suggested plan, manual intervals or import precise blocks.">Usá un plan sugerido, tramos manuales o importá bloques precisos.</p>
+            <h3>Definí la sesión</h3>
+            <p>Usá un plan sugerido, tramos manuales o importá bloques precisos.</p>
           </article>
           <article class="process-step reveal" style="--d:.16s">
             <span aria-hidden="true">03</span>
-            <h3 data-en="Send it to the Watch">Mandala al Watch</h3>
-            <p data-en="WatchConnectivity transfers the plan and confirms what is on the watch.">WatchConnectivity transfiere el plan y confirma qué tiene el reloj.</p>
+            <h3>Mandala al Watch</h3>
+            <p>WatchConnectivity transfiere el plan y confirma qué tiene el reloj.</p>
           </article>
           <article class="process-step reveal" style="--d:.24s">
             <span aria-hidden="true">04</span>
-            <h3 data-en="Review what you did">Revisá lo que hiciste</h3>
-            <p data-en="Go back to iPhone for the map, average pace, heart rate and calories.">Volvé al iPhone para ver mapa, ritmo promedio, frecuencia cardíaca y calorías.</p>
+            <h3>Revisá lo que hiciste</h3>
+            <p>Volvé al iPhone para ver mapa, ritmo promedio, frecuencia cardíaca y calorías.</p>
           </article>
         </div>
       </div>
@@ -171,61 +353,100 @@
 
     <section class="section" id="planes">
       <div class="section-heading reveal">
-        <p class="section-kicker" data-en="Training plans">Planes de entrenamiento</p>
-        <h2 data-en="A starting point for every distance.">Un punto de partida para cada distancia.</h2>
+        <p class="section-kicker">Planes de entrenamiento</p>
+        <h2>Planes de entrenamiento para 5K, 10K, media maratón y maratón.</h2>
       </div>
       <div class="plan-list">
         <a class="plan-line reveal" href="mailto:contact@maratonia&#46;site?subject=Plan%20Primeros%205K">
           <span class="plan-distance">5K</span>
-          <span class="plan-text"><span class="plan-name" data-en="First 5K">Primeros 5K</span><span class="plan-detail" data-en="Walk and run to build consistency.">Caminata y trote para construir continuidad.</span></span>
-          <span class="plan-weeks"><span data-en="6 weeks">6 semanas</span> <b aria-hidden="true">&rarr;</b></span>
+          <span class="plan-text"><span class="plan-name">Primeros 5K</span><span class="plan-detail">Caminata y trote para construir continuidad.</span></span>
+          <span class="plan-weeks"><span>6 semanas</span> <b aria-hidden="true">&rarr;</b></span>
         </a>
         <a class="plan-line reveal" href="mailto:contact@maratonia&#46;site?subject=Plan%20Rumbo%20a%2010K">
           <span class="plan-distance">10K</span>
-          <span class="plan-text"><span class="plan-name" data-en="Toward 10K">Rumbo a 10K</span><span class="plan-detail" data-en="Easy runs and a long run with simple progression.">Rodajes y tirada larga con progresión simple.</span></span>
-          <span class="plan-weeks"><span data-en="8 weeks">8 semanas</span> <b aria-hidden="true">&rarr;</b></span>
+          <span class="plan-text"><span class="plan-name">Rumbo a 10K</span><span class="plan-detail">Rodajes y tirada larga con progresión simple.</span></span>
+          <span class="plan-weeks"><span>8 semanas</span> <b aria-hidden="true">&rarr;</b></span>
         </a>
         <a class="plan-line reveal" href="mailto:contact@maratonia&#46;site?subject=Plan%20Mejorar%205K">
           <span class="plan-distance">5K+</span>
-          <span class="plan-text"><span class="plan-name" data-en="Improve your 5K">Mejorar 5K</span><span class="plan-detail" data-en="Threshold, intervals, recovery and a final test.">Umbral, intervalos, descarga y test final.</span></span>
-          <span class="plan-weeks"><span data-en="8 weeks">8 semanas</span> <b aria-hidden="true">&rarr;</b></span>
+          <span class="plan-text"><span class="plan-name">Mejorar 5K</span><span class="plan-detail">Umbral, intervalos, descarga y test final.</span></span>
+          <span class="plan-weeks"><span>8 semanas</span> <b aria-hidden="true">&rarr;</b></span>
         </a>
         <a class="plan-line reveal" href="mailto:contact@maratonia&#46;site?subject=Plan%20Media%20maraton">
           <span class="plan-distance">21K</span>
-          <span class="plan-text"><span class="plan-name" data-en="Half marathon">Media maratón</span><span class="plan-detail" data-en="Progressive long runs, recovery and taper.">Largas progresivas, descargas y taper.</span></span>
-          <span class="plan-weeks"><span data-en="12 weeks">12 semanas</span> <b aria-hidden="true">&rarr;</b></span>
+          <span class="plan-text"><span class="plan-name">Media maratón</span><span class="plan-detail">Largas progresivas, descargas y taper.</span></span>
+          <span class="plan-weeks"><span>12 semanas</span> <b aria-hidden="true">&rarr;</b></span>
         </a>
         <a class="plan-line reveal" href="mailto:contact@maratonia&#46;site?subject=Plan%20Maraton">
           <span class="plan-distance">42K</span>
-          <span class="plan-text"><span class="plan-name" data-en="Marathon">Maratón</span><span class="plan-detail" data-en="Volume, long runs up to 30 km and taper.">Volumen, largas hasta 30 km y taper.</span></span>
-          <span class="plan-weeks"><span data-en="16 weeks">16 semanas</span> <b aria-hidden="true">&rarr;</b></span>
+          <span class="plan-text"><span class="plan-name">Maratón</span><span class="plan-detail">Volumen, largas hasta 30 km y taper.</span></span>
+          <span class="plan-weeks"><span>16 semanas</span> <b aria-hidden="true">&rarr;</b></span>
         </a>
       </div>
-      <p class="plan-foot" data-en="Every plan is a starting point: sessions can be edited block by block before sending them to the watch.">Cada plan es un punto de partida: las sesiones se editan bloque por bloque antes de mandarlas al reloj.</p>
+      <p class="plan-foot">Cada plan es un punto de partida: las sesiones se editan bloque por bloque antes de mandarlas al reloj.</p>
     </section>
 
     <section class="section trust-wrap">
       <div class="trust-band reveal">
         <div class="trust-copy">
-          <p class="section-kicker on-dark" data-en="Built with care">Diseñada con criterio</p>
-          <h2 data-en="Your data is for training, not tracking.">Tus datos sirven para entrenar, no para seguirte.</h2>
-          <p data-en="Your plan, calendar and preferences stay on your device. Runs and routes remain in Apple Health. No advertising, analytics SDKs or cross-app tracking.">Plan, calendario y preferencias viven en tu dispositivo. Las carreras y rutas quedan en Apple Health. No hay publicidad, SDKs de analytics ni tracking entre apps.</p>
-          <a class="text-link light" href="/privacy/"><span data-en="Read the privacy policy">Leer la política de privacidad</span> <span aria-hidden="true">&rarr;</span></a>
+          <p class="section-kicker on-dark">Diseñada con criterio</p>
+          <h2>Tus datos sirven para entrenar, no para seguirte.</h2>
+          <p>Plan, calendario y preferencias viven en tu dispositivo. Las carreras y rutas quedan en Apple Health. No hay publicidad, SDKs de analytics ni tracking entre apps.</p>
+          <a class="text-link light" href="/privacy/"><span>Leer la política de privacidad</span> <span aria-hidden="true">&rarr;</span></a>
         </div>
         <div class="trust-mark">
-          <img src="/assets/maratonia-icon-256.jpg" alt="Logo de Maratonia" width="128" height="128" loading="lazy">
-          <strong data-en="Privacy by default">Privacidad por defecto</strong>
-          <span data-en="HealthKit · private iCloud · no ads">HealthKit · iCloud privado · sin anuncios</span>
+          <img src="/assets/maratonia-icon-256.jpg" width="128" height="128" loading="lazy" decoding="async" alt="Icono de Maratonia, la app de running para iPhone y Apple Watch">
+          <strong>Privacidad por defecto</strong>
+          <span>HealthKit · iCloud privado · sin anuncios</span>
         </div>
       </div>
     </section>
 
+    <section class="section faq-section" id="preguntas">
+      <div class="section-heading reveal">
+        <p class="section-kicker">Preguntas</p>
+        <h2>Preguntas frecuentes sobre Maratonia</h2>
+        <p class="section-lead">Lo que se pregunta la gente antes de instalarla: qué hace falta, qué resuelve el reloj solo y dónde terminan las carreras.</p>
+      </div>
+
+      <div class="faq-list reveal">
+        <details>
+          <summary>¿Puedo correr sin llevar el iPhone?</summary>
+          <p>Sí. El plan viaja al Apple Watch antes de la sesión y desde ahí el reloj guía la carrera entera por su cuenta: tramos, ritmo objetivo y avisos por voz con auriculares Bluetooth. No necesita señal ni el teléfono cerca.</p>
+        </details>
+        <details>
+          <summary>¿Qué planes de entrenamiento incluye?</summary>
+          <p>Cinco puntos de partida: primeros 5K en 6 semanas, rumbo a 10K en 8, mejorar 5K en 8, media maratón en 12 y maratón en 16. Cada plan se edita bloque por bloque, así que podés cambiar tramos, ritmos y días antes de mandar la sesión al reloj.</p>
+        </details>
+        <details>
+          <summary>¿Cómo guía el ritmo mientras corro?</summary>
+          <p>El reloj compara tu ritmo con el objetivo del bloque actual y anuncia en voz alta los tramos, los splits por kilómetro y las correcciones. Usa un ritmo suavizado en lugar del dato crudo del GPS, así el ruido normal de la señal no te hace perseguir un número que no es real.</p>
+        </details>
+        <details>
+          <summary>¿Dónde quedan guardadas mis carreras?</summary>
+          <p>En Apple Health. Distancia, frecuencia cardíaca, calorías y la ruta GPS quedan registradas como entrenamiento en tu dispositivo, así que podés revisarlas desde Maratonia, desde Salud o desde Fitness. Los datos del entrenamiento siguen siendo tuyos.</p>
+        </details>
+        <details>
+          <summary>¿Qué necesito para usar Maratonia?</summary>
+          <p>Un iPhone con iOS 17 o posterior y un Apple Watch con watchOS 10 o posterior. Los auriculares Bluetooth son opcionales: hacen falta solo si querés escuchar los avisos por voz y la música mientras el teléfono se queda en casa.</p>
+        </details>
+        <details>
+          <summary>¿Sirve si nunca corrí?</summary>
+          <p>Para eso está el plan de primeros 5K. Alterna caminata y trote suave durante seis semanas para que construyas continuidad antes de preocuparte por el ritmo, y el reloj te avisa cuándo cambiar de una cosa a la otra.</p>
+        </details>
+      </div>
+
+      <p class="plan-foot">
+        <span>Más respuestas sobre permisos, audio y cuentas en </span><a class="text-link" href="/support/"><span>la página de soporte</span></a>.
+      </p>
+    </section>
+
     <section class="section contact-section">
       <div class="contact-content reveal">
-        <p class="section-kicker" data-en="Contact">Contacto</p>
-        <h2 data-en="A question, an idea or a problem.">Una pregunta, una idea o un problema.</h2>
-        <p><span data-en="Write to us at ">Escribinos a </span><a href="mailto:contact@maratonia&#46;site">contact@maratonia&#46;site</a><span data-en=". This is the official channel for support, privacy and press.">. Es el canal oficial de soporte, privacidad y prensa.</span></p>
-        <a class="button dark" href="mailto:contact@maratonia&#46;site"><span data-en="Send an email">Enviar un mail</span> <span aria-hidden="true">&rarr;</span></a>
+        <p class="section-kicker">Contacto</p>
+        <h2>Una pregunta, una idea o un problema.</h2>
+        <p><span>Escribinos a </span><a href="mailto:contact@maratonia&#46;site">contact@maratonia&#46;site</a><span>. Es el canal oficial de soporte, privacidad y prensa.</span></p>
+        <a class="button dark" href="mailto:contact@maratonia&#46;site"><span>Enviar un mail</span> <span aria-hidden="true">&rarr;</span></a>
       </div>
     </section>
   </main>
@@ -234,12 +455,12 @@
     <div class="footer-inner">
       <div class="footer-brand-block">
         <a class="brand" href="/" aria-label="Maratonia inicio"><span class="brand-mark" aria-hidden="true"></span><span>Maratonia</span></a>
-        <span class="footer-tag" data-en="Running for Apple Watch + iPhone">Running para Apple Watch + iPhone</span>
+        <span class="footer-tag">Running para Apple Watch + iPhone</span>
       </div>
       <nav class="nav-links" aria-label="Links legales">
-        <a href="/privacy/" data-en="Privacy">Privacidad</a>
-        <a href="/support/" data-en="Support">Soporte</a>
-        <a href="/terms/" data-en="Terms">Términos</a>
+        <a href="/privacy/">Privacidad</a>
+        <a href="/support/">Soporte</a>
+        <a href="/terms/">Términos</a>
       </nav>
     </div>
   </footer>

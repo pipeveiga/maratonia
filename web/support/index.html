@@ -1,104 +1,282 @@
+<!--
+  Archivo generado por scripts/build-web.mjs. No lo edites a mano:
+  los cambios se hacen en templates/ y en scripts/seo.config.mjs,
+  y después se corre "npm run build:web".
+-->
 <!doctype html>
-<html lang="es">
+<html lang="es" data-locale="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title data-en="Maratonia - Support">Maratonia - Soporte / Support</title>
-  <meta name="description" content="Soporte oficial de Maratonia para permisos de Salud, ubicacion, Apple Watch, cuenta y contacto." data-en="Official Maratonia support for Health permissions, location, Apple Watch, accounts and contact." data-i18n-attribute="content">
+
+    <title>Soporte y preguntas frecuentes de Maratonia, app de running</title>
+  <meta name="description" content="Ayuda de Maratonia: permisos de Apple Health, ubicación en el Apple Watch, avisos por voz, cuenta y borrado de datos. Y contacto directo con el equipo.">
+  <link rel="canonical" href="https://maratonia.site/support/">
+  <link rel="alternate" hreflang="es" href="https://maratonia.site/support/">
+  <link rel="alternate" hreflang="en" href="https://maratonia.site/en/support/">
+  <link rel="alternate" hreflang="x-default" href="https://maratonia.site/support/">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="theme-color" content="#04173F">
+  <meta name="apple-mobile-web-app-title" content="Maratonia">
+  <meta name="application-name" content="Maratonia">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Maratonia">
+  <meta property="og:locale" content="es_AR">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta property="og:title" content="Soporte y preguntas frecuentes de Maratonia, app de running">
+  <meta property="og:description" content="Ayuda de Maratonia: permisos de Apple Health, ubicación en el Apple Watch, avisos por voz, cuenta y borrado de datos. Y contacto directo con el equipo.">
+  <meta property="og:url" content="https://maratonia.site/support/">
+  <meta property="og:image" content="https://maratonia.site/assets/og-cover-es.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:alt" content="Maratonia: tu plan de running, en el Apple Watch. Planes de 5K a maratón, ritmo objetivo por voz y Apple Health.">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Soporte y preguntas frecuentes de Maratonia, app de running">
+  <meta name="twitter:description" content="Ayuda de Maratonia: permisos de Apple Health, ubicación en el Apple Watch, avisos por voz, cuenta y borrado de datos. Y contacto directo con el equipo.">
+  <meta name="twitter:image" content="https://maratonia.site/assets/og-cover-es.png">
+  <meta name="twitter:image:alt" content="Maratonia: tu plan de running, en el Apple Watch. Planes de 5K a maratón, ritmo objetivo por voz y Apple Health.">
+
+  <link rel="icon" type="image/png" href="/assets/favicon.png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://maratonia.site/#organization",
+      "name": "Maratonia",
+      "url": "https://maratonia.site/",
+      "email": "contact@maratonia.site",
+      "logo": {
+        "@type": "ImageObject",
+        "@id": "https://maratonia.site/#logo",
+        "url": "https://maratonia.site/assets/maratonia-icon.jpg",
+        "contentUrl": "https://maratonia.site/assets/maratonia-icon.jpg",
+        "width": 512,
+        "height": 512,
+        "caption": "Maratonia"
+      },
+      "image": {
+        "@id": "https://maratonia.site/#logo"
+      },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "email": "contact@maratonia.site",
+        "contactType": "customer support",
+        "availableLanguage": [
+          "Spanish",
+          "English"
+        ]
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://maratonia.site/#website",
+      "url": "https://maratonia.site/",
+      "name": "Maratonia",
+      "inLanguage": "es",
+      "publisher": {
+        "@id": "https://maratonia.site/#organization"
+      }
+    },
+    {
+      "@type": [
+        "SoftwareApplication",
+        "MobileApplication"
+      ],
+      "@id": "https://maratonia.site/#app",
+      "name": "Maratonia",
+      "url": "https://maratonia.site/",
+      "applicationCategory": "HealthApplication",
+      "applicationSubCategory": "Entrenamiento de running",
+      "operatingSystem": "iOS, watchOS",
+      "description": "App de running para iPhone y Apple Watch: arma planes de entrenamiento de 5K a maratón, guía la sesión por voz con ritmo objetivo y guarda cada carrera en Apple Health.",
+      "featureList": [
+        "Planes de entrenamiento de 5K, 10K, media maratón y maratón",
+        "Entrenamiento por tramos con ritmo objetivo",
+        "Avisos por voz de splits, tramos y correcciones de ritmo",
+        "Ejecución autónoma en el Apple Watch, sin el iPhone",
+        "Registro de distancia, frecuencia cardíaca, calorías y ruta en Apple Health",
+        "Reproducción de música por Bluetooth desde el reloj"
+      ],
+      "inLanguage": [
+        "es",
+        "en"
+      ],
+      "author": {
+        "@id": "https://maratonia.site/#organization"
+      },
+      "publisher": {
+        "@id": "https://maratonia.site/#organization"
+      },
+      "image": {
+        "@id": "https://maratonia.site/#logo"
+      }
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://maratonia.site/support/#webpage",
+      "url": "https://maratonia.site/support/",
+      "name": "Soporte y preguntas frecuentes de Maratonia, app de running",
+      "description": "Ayuda de Maratonia: permisos de Apple Health, ubicación en el Apple Watch, avisos por voz, cuenta y borrado de datos. Y contacto directo con el equipo.",
+      "inLanguage": "es",
+      "isPartOf": {
+        "@id": "https://maratonia.site/#website"
+      },
+      "about": {
+        "@id": "https://maratonia.site/#app"
+      },
+      "primaryImageOfPage": {
+        "@id": "https://maratonia.site/#logo"
+      },
+      "breadcrumb": {
+        "@id": "https://maratonia.site/support/#breadcrumb"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://maratonia.site/support/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Maratonia",
+          "item": "https://maratonia.site/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Soporte"
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://maratonia.site/support/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "¿Necesito una cuenta?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. La app completa funciona sin registrarte. La cuenta con Apple, Google o email es opcional y sirve para identidad y respaldo cuando corresponda."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Dónde están mis entrenamientos?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "En Apple Health. Maratonia los muestra para progreso e historial, pero los datos son tuyos y viven en tu dispositivo."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "La carrera no se guardó.",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Revisá los permisos en Salud → Compartir → Apps → Maratonia. La escritura de entrenamientos tiene que estar activada."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "No aparece el mapa del recorrido.",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Revisá el permiso de ubicación en el reloj: Ajustes → Privacidad → Localización → Maratonia. Confirmá también que la sesión se haya registrado como entrenamiento."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Los avisos por voz no se escuchan.",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Comprobá que el Apple Watch tenga salida de audio activa, que los auriculares Bluetooth estén conectados y que el modo silencioso no esté bloqueando los avisos."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "¿Cómo elimino mi cuenta?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "En la app: Perfil → Cuenta Maratonia → Eliminar cuenta. Eso borra la identidad de Maratonia y el respaldo privado asociado. Tus entrenamientos de Apple Health se gestionan desde Salud."
+          }
+        }
+      ]
+    }
+  ]
+}
+  </script>
+
   <link rel="preload" href="/assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <script src="/language.js" defer></script>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <nav class="site-nav on-page" aria-label="Navegacion principal">
+  <nav class="site-nav on-page" aria-label="Navegación principal">
     <a class="brand" href="/" aria-label="Maratonia inicio">
       <span class="brand-mark" aria-hidden="true"></span>
       <span>Maratonia</span>
     </a>
     <div class="nav-links">
-      <a href="/privacy/" data-en="Privacy">Privacidad</a>
-      <a href="/support/" data-en="Support">Soporte</a>
-      <a href="/terms/" data-en="Terms">Terminos</a>
+      <a href="/privacy/">Privacidad</a>
+      <a href="/support/">Soporte</a>
+      <a href="/terms/">Terminos</a>
     </div>
+    <a class="lang-toggle" href="/en/support/" hreflang="en" lang="en" title="Read this page in English" rel="alternate">EN</a>
   </nav>
 
   <header class="doc-header">
     <div class="section">
-      <p class="eyebrow">Soporte / Support</p>
-      <h1 data-en="If something breaks, start here.">Si algo falla, empez&aacute; por ac&aacute;.</h1>
-      <p><span data-en="Permissions, audio, Apple Watch or an idea to improve the app: write to us at ">Permisos, audio, Apple Watch o una idea para mejorar la app: escribinos a </span><a href="mailto:contact@maratonia&#46;site">contact@maratonia&#46;site</a>.</p>
+      <p class="eyebrow">Soporte</p>
+      <h1>Soporte de Maratonia</h1>
+      <p><span>Si algo falla, empez&aacute; por ac&aacute;. Permisos, Apple Health, audio, Apple Watch o una idea para mejorar la app: escribinos a </span><a href="mailto:contact@maratonia&#46;site">contact@maratonia&#46;site</a>.</p>
     </div>
   </header>
 
   <main class="section doc-main">
-    <aside class="doc-aside" aria-label="Indice">
-      <a class="locale-es" href="#es">Espa&ntilde;ol</a>
-      <a class="locale-en" href="#en">English</a>
-      <a href="mailto:contact@maratonia&#46;site"><span class="locale-es">Contactar</span><span class="locale-en">Contact us</span></a>
+    <aside class="doc-aside" aria-label="Índice">
+      <a href="/">Inicio</a>
+      <a href="mailto:contact@maratonia&#46;site">Contactar</a>
     </aside>
 
     <div>
-      <section class="doc-panel lang-section locale-es" id="es">
-        <h2>Soporte de Maratonia</h2>
+      <section class="doc-panel locale-es">
         <p>Contacto oficial: <a href="mailto:contact@maratonia&#46;site">contact@maratonia&#46;site</a>.</p>
 
-        <h3>Preguntas frecuentes</h3>
+        <h2>Preguntas frecuentes sobre Maratonia</h2>
         <details>
           <summary>&iquest;Necesito una cuenta?</summary>
           <p>No. La app completa funciona sin registrarte. La cuenta con Apple, Google o email es opcional y sirve para identidad y respaldo cuando corresponda.</p>
         </details>
         <details>
-          <summary>&iquest;Donde estan mis entrenamientos?</summary>
+          <summary>&iquest;D&oacute;nde est&aacute;n mis entrenamientos?</summary>
           <p>En Apple Health. Maratonia los muestra para progreso e historial, pero los datos son tuyos y viven en tu dispositivo.</p>
         </details>
         <details>
-          <summary>La carrera no se guardo.</summary>
-          <p>Revisa permisos en Salud &rarr; Compartir &rarr; Apps &rarr; Maratonia. La escritura de entrenamientos debe estar activada.</p>
+          <summary>La carrera no se guard&oacute;.</summary>
+          <p>Revis&aacute; los permisos en Salud &rarr; Compartir &rarr; Apps &rarr; Maratonia. La escritura de entrenamientos tiene que estar activada.</p>
         </details>
         <details>
           <summary>No aparece el mapa del recorrido.</summary>
-          <p>Revisa el permiso de ubicacion en el reloj: Ajustes &rarr; Privacidad &rarr; Localizacion &rarr; Maratonia. Tambien confirma que la sesion haya sido registrada como entrenamiento.</p>
+          <p>Revis&aacute; el permiso de ubicaci&oacute;n en el reloj: Ajustes &rarr; Privacidad &rarr; Localizaci&oacute;n &rarr; Maratonia. Confirm&aacute; tambi&eacute;n que la sesi&oacute;n se haya registrado como entrenamiento.</p>
         </details>
         <details>
           <summary>Los avisos por voz no se escuchan.</summary>
-          <p>Comprueba que el Apple Watch tenga salida de audio activa, que los auriculares Bluetooth esten conectados y que el modo silencioso no este bloqueando la experiencia esperada.</p>
+          <p>Comprob&aacute; que el Apple Watch tenga salida de audio activa, que los auriculares Bluetooth est&eacute;n conectados y que el modo silencioso no est&eacute; bloqueando los avisos.</p>
         </details>
         <details>
-          <summary>&iquest;Como elimino mi cuenta?</summary>
+          <summary>&iquest;C&oacute;mo elimino mi cuenta?</summary>
           <p>En la app: Perfil &rarr; Cuenta Maratonia &rarr; Eliminar cuenta. Eso borra la identidad de Maratonia y el respaldo privado asociado. Tus entrenamientos de Apple Health se gestionan desde Salud.</p>
         </details>
       </section>
 
-      <section class="doc-panel lang-section locale-en" id="en" lang="en">
-        <h2>Maratonia Support</h2>
-        <p>Official contact: <a href="mailto:contact@maratonia&#46;site">contact@maratonia&#46;site</a>.</p>
-
-        <h3>FAQ</h3>
-        <details>
-          <summary>Do I need an account?</summary>
-          <p>No. The full app works without signing up. Apple, Google or email sign-in is optional and only used for identity and backup when applicable.</p>
-        </details>
-        <details>
-          <summary>Where are my workouts?</summary>
-          <p>In Apple Health. Maratonia displays them for progress and history, but the data is yours and remains on your device.</p>
-        </details>
-        <details>
-          <summary>My run was not saved.</summary>
-          <p>Check permissions in Health &rarr; Sharing &rarr; Apps &rarr; Maratonia. Workout writing must be enabled.</p>
-        </details>
-        <details>
-          <summary>I do not see the route map.</summary>
-          <p>Check Location permission on the watch: Settings &rarr; Privacy &rarr; Location &rarr; Maratonia. Also confirm that the session was recorded as a workout.</p>
-        </details>
-        <details>
-          <summary>Voice prompts do not play.</summary>
-          <p>Make sure the Apple Watch has an active audio route, Bluetooth headphones are connected, and silent mode is not blocking the expected experience.</p>
-        </details>
-        <details>
-          <summary>How do I delete my account?</summary>
-          <p>In the app: Profile &rarr; Maratonia Account &rarr; Delete account. This deletes the Maratonia identity and private backup. Apple Health workouts are managed from Health.</p>
-        </details>
-      </section>
+      
     </div>
   </main>
 
@@ -107,8 +285,8 @@
       <span>Maratonia Support</span>
       <nav class="nav-links" aria-label="Links legales">
         <a href="/">Inicio</a>
-        <a href="/privacy/" data-en="Privacy">Privacidad</a>
-        <a href="/terms/" data-en="Terms">Terminos</a>
+        <a href="/privacy/">Privacidad</a>
+        <a href="/terms/">Terminos</a>
       </nav>
     </div>
   </footer>

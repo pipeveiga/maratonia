@@ -1,9 +1,12 @@
 {
   "name": "maratonia-web",
   "version": "1.0.0",
-  "description": "Web pública de Maratonia: sitio estático en web/, el build lo copia a dist/",
+  "description": "Web pública de Maratonia: las plantillas viven en templates/, el generador escribe web/ y el build lo copia a dist/",
   "private": true,
   "scripts": {
-    "build": "rm -rf dist && cp -R web dist"
+    "build:web": "node scripts/build-web.mjs",
+    "build:og": "node scripts/build-og-image.mjs",
+    "build": "npm run build:web && rm -rf dist && cp -R web dist",
+    "check:seo": "node scripts/check-seo.mjs"
   }
 }

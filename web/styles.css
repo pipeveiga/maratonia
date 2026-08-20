@@ -164,7 +164,11 @@ a { color: inherit; }
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.06em;
+  line-height: 1;
   cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
   transition: border-color 0.2s ease, color 0.2s ease;
 }
 .lang-toggle:hover, .lang-toggle:focus-visible {
@@ -968,17 +972,47 @@ a { color: inherit; }
   font-size: 14.5px;
 }
 
-/* ---------- Idiomas (no tocar: language.js depende de esto) ---------- */
+/* ---------- Preguntas frecuentes de la portada ---------- */
 
-.lang-section.locale-en { display: none; }
-[data-locale="en"] .lang-section.locale-es { display: none; }
-[data-locale="en"] .lang-section.locale-en { display: block; }
-.locale-en { display: none; }
-[data-locale="en"] .locale-es { display: none; }
-[data-locale="en"] .locale-en { display: inline; }
-.doc-aside .locale-en { display: none; }
-[data-locale="en"] .doc-aside .locale-es { display: none; }
-[data-locale="en"] .doc-aside .locale-en { display: block; }
+.faq-list {
+  max-width: 820px;
+  background: var(--blanco);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 6px 26px;
+}
+.faq-list details { border-bottom: 1px solid var(--linea); }
+.faq-list details:last-child { border-bottom: 0; }
+.faq-list summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+.faq-list summary::-webkit-details-marker { display: none; }
+.faq-list summary::after {
+  content: "+";
+  flex-shrink: 0;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--volt-tinta);
+  transition: transform 0.2s ease;
+}
+.faq-list details[open] summary::after { transform: rotate(45deg); }
+.faq-list summary:hover, .faq-list summary:focus-visible { color: var(--volt-tinta); }
+.faq-list details p {
+  margin: 0 0 22px;
+  max-width: 68ch;
+  color: var(--gris);
+  font-size: 15.5px;
+}
+
+.faq-section .plan-foot a { color: inherit; }
 
 /* ---------- Reveal al hacer scroll ---------- */
 

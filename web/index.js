@@ -12,11 +12,25 @@ const PUERTO = process.env.PORT || 3000;
 // Archivos del propio servidor que jamás se sirven al público.
 const PRIVADOS = new Set(["index.js", "package.json", "package-lock.json"]);
 
+// Una URL que no existe tiene que responder 404 (para que Google no la
+// indexe) pero con la página de error del sitio, no con texto pelado.
+function noEncontrado(res) {
+  fs.readFile(path.join(RAIZ, "404.html"), (err, datos) => {
+    if (err) return responder(res, 404, "No encontrado");
+    res.writeHead(404, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-cache",
+    });
+    res.end(datos);
+  });
+}
+
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
   ".txt": "text/plain; charset=utf-8",
   ".xml": "application/xml; charset=utf-8",
   ".jpg": "image/jpeg",
@@ -47,7 +61,7 @@ function cachePara(ext) {
 function servirArchivo(res, ruta) {
   const ext = path.extname(ruta).toLowerCase();
   fs.readFile(ruta, (err, datos) => {
-    if (err) return responder(res, 404, "No encontrado");
+    if (err) return noEncontrado(res);
     res.writeHead(200, {
       "Content-Type": MIME[ext] || "application/octet-stream",
       "Cache-Control": cachePara(ext),
@@ -71,10 +85,10 @@ const servidor = http.createServer((req, res) => {
   // Nada de escaparse de la carpeta ni de leer el propio servidor.
   const ruta = path.normalize(path.join(RAIZ, pedido));
   if (!ruta.startsWith(RAIZ + path.sep) && ruta !== RAIZ) {
-    return responder(res, 404, "No encontrado");
+    return noEncontrado(res);
   }
   if (PRIVADOS.has(path.relative(RAIZ, ruta))) {
-    return responder(res, 404, "No encontrado");
+    return noEncontrado(res);
   }
 
   fs.stat(ruta, (err, info) => {
@@ -93,7 +107,7 @@ const servidor = http.createServer((req, res) => {
     if (!path.extname(ruta)) {
       return servirArchivo(res, ruta + ".html");
     }
-    return responder(res, 404, "No encontrado");
+    return noEncontrado(res);
   });
 });
 

@@ -1,0 +1,7 @@
+# robots.txt de maratonia.site
+# Sitio público y estático: se puede rastrear todo.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://maratonia.site/sitemap.xml

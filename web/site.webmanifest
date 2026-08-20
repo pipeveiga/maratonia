@@ -1,0 +1,17 @@
+{
+  "name": "Maratonia",
+  "short_name": "Maratonia",
+  "description": "App de running para iPhone y Apple Watch: planes de 5K a maratón, ritmo objetivo por voz y carreras guardadas en Apple Health.",
+  "lang": "es",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#04173f",
+  "theme_color": "#04173f",
+  "icons": [
+    { "src": "/assets/favicon.png", "sizes": "64x64", "type": "image/png" },
+    { "src": "/assets/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/assets/maratonia-icon-256.jpg", "sizes": "256x256", "type": "image/jpeg" },
+    { "src": "/assets/maratonia-icon.jpg", "sizes": "512x512", "type": "image/jpeg", "purpose": "any" }
+  ]
+}

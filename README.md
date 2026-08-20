@@ -158,6 +158,37 @@ sesiones de audio long-form y ducking) · `WatchConnectivity` · `CoreLocation` 
 2. Firmar ambos targets con tu equipo (Signing & Capabilities).
 3. Correr en simulador, o `Product → Archive` para distribuir por TestFlight.
 
+## 🌐 Web pública (maratonia.site)
+
+El sitio es estático y se genera. **No se editan los archivos de `web/`**:
+son salida del generador y se pisan en cada build.
+
+```
+templates/            plantillas bilingües (el texto en español, y el inglés
+                      en atributos data-en)
+scripts/seo.config.mjs  títulos, descripciones y rutas de cada página
+scripts/build-web.mjs   genera web/ + sitemap.xml + robots.txt
+scripts/check-seo.mjs   verifica la salida antes de publicar
+web/                  sitio generado, es lo que se publica
+```
+
+```bash
+npm run build:web    # regenera el sitio desde templates/
+npm run check:seo    # títulos, canonical, hreflang, JSON-LD, links rotos
+npm run build:og     # regenera las imágenes para compartir (necesita Playwright)
+```
+
+Cada página existe **una vez por idioma y con URL propia**
+(`/support/` y `/en/support/`), que es lo que permite que Google indexe y
+posicione las dos versiones. Antes el idioma se cambiaba con JavaScript
+sobre la misma URL: el buscador solo podía quedarse con una versión y, al
+renderizar con `Accept-Language: en`, se quedaba con la equivocada. Las
+versiones se declaran entre sí con `hreflang`.
+
+Si agregás una página, va en `templates/` y en la lista `PAGES` de
+`scripts/seo.config.mjs`; el sitemap, los `hreflang` y el JSON-LD salen
+solos de ahí.
+
 ---
 
 *Proyecto personal de Felipe Veiga.*

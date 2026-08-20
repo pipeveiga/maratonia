@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face {
+    font-family: "Archivo";
+    font-weight: 100 900;
+    font-stretch: 62% 125%;
+    src: url("../web/assets/fonts/archivo-latin.woff2") format("woff2");
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    width: 1200px; height: 630px;
+    font-family: "Archivo", Arial, sans-serif;
+    background: #04173f;
+    color: #f2f6fc;
+    overflow: hidden;
+  }
+  .card {
+    position: relative;
+    width: 1200px; height: 630px;
+    padding: 74px 80px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    background:
+      radial-gradient(900px 520px at 88% -12%, rgba(48, 160, 240, 0.42), transparent 62%),
+      radial-gradient(620px 460px at -8% 108%, rgba(0, 48, 144, 0.55), transparent 66%),
+      #04173f;
+  }
+  .card::after {
+    content: ""; position: absolute; inset: 0;
+    background-image: linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px);
+    background-size: 100% 42px;
+  }
+  .row { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 40px; }
+  .brand { display: flex; align-items: center; gap: 18px; }
+  .mark {
+    width: 46px; height: 46px; border-radius: 14px;
+    background: linear-gradient(140deg, #55b4f8, #0066b8);
+    box-shadow: 0 0 0 6px rgba(48,160,240,.16);
+  }
+  .brand span { font-size: 30px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+  .eyebrow {
+    font-size: 20px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+    color: #96a5c4;
+  }
+  h1 {
+    position: relative; z-index: 1;
+    font-size: 78px; line-height: 1.03; font-weight: 800; letter-spacing: -.025em;
+    max-width: 15ch;
+  }
+  h1 em { display: block; font-style: normal; color: #55b4f8; }
+  .chips { position: relative; z-index: 1; display: flex; gap: 14px; flex-wrap: wrap; }
+  .chips li {
+    list-style: none;
+    padding: 12px 22px; border-radius: 999px;
+    border: 1.5px solid rgba(255,255,255,.22);
+    font-size: 21px; font-weight: 600; color: #dfe8f7;
+  }
+  .icon {
+    width: 132px; height: 132px; border-radius: 34px; flex-shrink: 0;
+    box-shadow: 0 24px 60px rgba(0,0,0,.42);
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="row">
+      <div class="brand"><span class="mark"></span><span>Maratonia</span></div>
+      <p class="eyebrow" id="eyebrow">iPhone + Apple Watch</p>
+    </div>
+    <div class="row">
+      <h1><span id="line1"></span><em id="line2"></em></h1>
+      <img class="icon" id="icon" src="../web/assets/maratonia-icon.jpg" alt="">
+    </div>
+    <ul class="chips" id="chips"></ul>
+  </div>
+</body>
+</html>

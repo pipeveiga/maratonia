@@ -1,76 +1,214 @@
+<!--
+  Archivo generado por scripts/build-web.mjs. No lo edites a mano:
+  los cambios se hacen en templates/ y en scripts/seo.config.mjs,
+  y después se corre "npm run build:web".
+-->
 <!doctype html>
-<html lang="es">
+<html lang="es" data-locale="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title data-en="Maratonia - Terms">Maratonia - Terminos / Terms</title>
-  <meta name="description" content="Terminos de uso de Maratonia, app de entrenamiento de running para iPhone y Apple Watch." data-en="Maratonia terms of use, a running training app for iPhone and Apple Watch." data-i18n-attribute="content">
+
+    <title>Términos de uso | Maratonia, app de running</title>
+  <meta name="description" content="Condiciones de uso de Maratonia, app de entrenamiento de running para iPhone y Apple Watch. Los planes y ritmos son orientativos y no reemplazan el consejo médico.">
+  <link rel="canonical" href="https://maratonia.site/terms/">
+  <link rel="alternate" hreflang="es" href="https://maratonia.site/terms/">
+  <link rel="alternate" hreflang="en" href="https://maratonia.site/en/terms/">
+  <link rel="alternate" hreflang="x-default" href="https://maratonia.site/terms/">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <meta name="theme-color" content="#04173F">
+  <meta name="apple-mobile-web-app-title" content="Maratonia">
+  <meta name="application-name" content="Maratonia">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Maratonia">
+  <meta property="og:locale" content="es_AR">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta property="og:title" content="Términos de uso">
+  <meta property="og:description" content="Condiciones de uso de Maratonia, app de entrenamiento de running para iPhone y Apple Watch. Los planes y ritmos son orientativos y no reemplazan el consejo médico.">
+  <meta property="og:url" content="https://maratonia.site/terms/">
+  <meta property="og:image" content="https://maratonia.site/assets/og-cover-es.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:alt" content="Maratonia: tu plan de running, en el Apple Watch. Planes de 5K a maratón, ritmo objetivo por voz y Apple Health.">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Términos de uso">
+  <meta name="twitter:description" content="Condiciones de uso de Maratonia, app de entrenamiento de running para iPhone y Apple Watch. Los planes y ritmos son orientativos y no reemplazan el consejo médico.">
+  <meta name="twitter:image" content="https://maratonia.site/assets/og-cover-es.png">
+  <meta name="twitter:image:alt" content="Maratonia: tu plan de running, en el Apple Watch. Planes de 5K a maratón, ritmo objetivo por voz y Apple Health.">
+
+  <link rel="icon" type="image/png" href="/assets/favicon.png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://maratonia.site/#organization",
+      "name": "Maratonia",
+      "url": "https://maratonia.site/",
+      "email": "contact@maratonia.site",
+      "logo": {
+        "@type": "ImageObject",
+        "@id": "https://maratonia.site/#logo",
+        "url": "https://maratonia.site/assets/maratonia-icon.jpg",
+        "contentUrl": "https://maratonia.site/assets/maratonia-icon.jpg",
+        "width": 512,
+        "height": 512,
+        "caption": "Maratonia"
+      },
+      "image": {
+        "@id": "https://maratonia.site/#logo"
+      },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "email": "contact@maratonia.site",
+        "contactType": "customer support",
+        "availableLanguage": [
+          "Spanish",
+          "English"
+        ]
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://maratonia.site/#website",
+      "url": "https://maratonia.site/",
+      "name": "Maratonia",
+      "inLanguage": "es",
+      "publisher": {
+        "@id": "https://maratonia.site/#organization"
+      }
+    },
+    {
+      "@type": [
+        "SoftwareApplication",
+        "MobileApplication"
+      ],
+      "@id": "https://maratonia.site/#app",
+      "name": "Maratonia",
+      "url": "https://maratonia.site/",
+      "applicationCategory": "HealthApplication",
+      "applicationSubCategory": "Entrenamiento de running",
+      "operatingSystem": "iOS, watchOS",
+      "description": "App de running para iPhone y Apple Watch: arma planes de entrenamiento de 5K a maratón, guía la sesión por voz con ritmo objetivo y guarda cada carrera en Apple Health.",
+      "featureList": [
+        "Planes de entrenamiento de 5K, 10K, media maratón y maratón",
+        "Entrenamiento por tramos con ritmo objetivo",
+        "Avisos por voz de splits, tramos y correcciones de ritmo",
+        "Ejecución autónoma en el Apple Watch, sin el iPhone",
+        "Registro de distancia, frecuencia cardíaca, calorías y ruta en Apple Health",
+        "Reproducción de música por Bluetooth desde el reloj"
+      ],
+      "inLanguage": [
+        "es",
+        "en"
+      ],
+      "author": {
+        "@id": "https://maratonia.site/#organization"
+      },
+      "publisher": {
+        "@id": "https://maratonia.site/#organization"
+      },
+      "image": {
+        "@id": "https://maratonia.site/#logo"
+      }
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://maratonia.site/terms/#webpage",
+      "url": "https://maratonia.site/terms/",
+      "name": "Términos de uso | Maratonia, app de running",
+      "description": "Condiciones de uso de Maratonia, app de entrenamiento de running para iPhone y Apple Watch. Los planes y ritmos son orientativos y no reemplazan el consejo médico.",
+      "inLanguage": "es",
+      "isPartOf": {
+        "@id": "https://maratonia.site/#website"
+      },
+      "about": {
+        "@id": "https://maratonia.site/#app"
+      },
+      "primaryImageOfPage": {
+        "@id": "https://maratonia.site/#logo"
+      },
+      "breadcrumb": {
+        "@id": "https://maratonia.site/terms/#breadcrumb"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://maratonia.site/terms/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Maratonia",
+          "item": "https://maratonia.site/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Términos"
+        }
+      ]
+    }
+  ]
+}
+  </script>
+
   <link rel="preload" href="/assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <script src="/language.js" defer></script>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <nav class="site-nav on-page" aria-label="Navegacion principal">
+  <nav class="site-nav on-page" aria-label="Navegación principal">
     <a class="brand" href="/" aria-label="Maratonia inicio">
       <span class="brand-mark" aria-hidden="true"></span>
       <span>Maratonia</span>
     </a>
     <div class="nav-links">
-      <a href="/privacy/" data-en="Privacy">Privacidad</a>
-      <a href="/support/" data-en="Support">Soporte</a>
-      <a href="/terms/" data-en="Terms">Terminos</a>
+      <a href="/privacy/">Privacidad</a>
+      <a href="/support/">Soporte</a>
+      <a href="/terms/">Terminos</a>
     </div>
+    <a class="lang-toggle" href="/en/terms/" hreflang="en" lang="en" title="Read this page in English" rel="alternate">EN</a>
   </nav>
 
   <header class="doc-header">
     <div class="section">
-      <p class="eyebrow">Terminos / Terms</p>
-      <h1 data-en="Terms of use.">T&eacute;rminos de uso.</h1>
-      <p data-en="Maratonia helps plan and record running workouts. These are the conditions and limits worth knowing before you use it.">Maratonia ayuda a planificar y registrar entrenamientos de running. Estas son las condiciones y los l&iacute;mites que conviene conocer antes de usarla.</p>
+      <p class="eyebrow">T&eacute;rminos</p>
+      <h1>T&eacute;rminos de uso de Maratonia</h1>
+      <p>Maratonia ayuda a planificar y registrar entrenamientos de running. Estas son las condiciones y los l&iacute;mites que conviene conocer antes de usarla.</p>
     </div>
   </header>
 
   <main class="section doc-main">
-    <aside class="doc-aside" aria-label="Indice">
-      <a class="locale-es" href="#es">Espa&ntilde;ol</a>
-      <a class="locale-en" href="#en">English</a>
-      <a href="/support/" data-en="Support">Soporte</a>
+    <aside class="doc-aside" aria-label="Índice">
+      <a href="/">Inicio</a>
+      <a href="/support/">Soporte</a>
     </aside>
 
     <div>
-      <section class="doc-panel lang-section locale-es" id="es">
-        <h2>Terminos de uso de Maratonia</h2>
-        <p><strong>Ultima actualizacion:</strong> agosto 2026.</p>
+      <section class="doc-panel locale-es">
+        <p><strong>&Uacute;ltima actualizaci&oacute;n:</strong> agosto de 2026.</p>
         <div class="notice">
-          Maratonia no es un servicio medico. Los planes, ritmos y sugerencias son orientativos.
+          Maratonia no es un servicio m&eacute;dico. Los planes, ritmos y sugerencias son orientativos.
         </div>
         <ul>
           <li>Maratonia es una app de entrenamiento de running para iPhone y Apple Watch. Sus planes y ritmos no reemplazan el consejo de un profesional de la salud.</li>
-          <li>Consulta a un medico antes de empezar un programa exigente, especialmente si tenes lesiones, antecedentes cardiovasculares o dudas sobre tu estado fisico.</li>
-          <li>Corres bajo tu propia responsabilidad. Atende al transito, al terreno, al clima y a las se&ntilde;ales de tu cuerpo.</li>
-          <li>La cuenta es opcional. Si la usas, sos responsable de mantener acceso seguro a tu metodo de inicio de sesion.</li>
-          <li>Maratonia Coach, cuando este disponible, genera sugerencias automaticas que la app valida y que vos confirmas. Puede no estar disponible en todo momento.</li>
-          <li>Podemos actualizar estos terminos. Los cambios se publicaran en esta pagina y conservaran la fecha de actualizacion.</li>
+          <li>Consult&aacute; a un m&eacute;dico antes de empezar un programa exigente, especialmente si ten&eacute;s lesiones, antecedentes cardiovasculares o dudas sobre tu estado f&iacute;sico.</li>
+          <li>Corr&eacute;s bajo tu propia responsabilidad. Atend&eacute; al tr&aacute;nsito, al terreno, al clima y a las se&ntilde;ales de tu cuerpo.</li>
+          <li>La cuenta es opcional. Si la us&aacute;s, sos responsable de mantener el acceso seguro a tu m&eacute;todo de inicio de sesi&oacute;n.</li>
+          <li>Maratonia Coach, cuando est&eacute; disponible, genera sugerencias autom&aacute;ticas que la app valida y que vos confirm&aacute;s. Puede no estar disponible en todo momento.</li>
+          <li>Podemos actualizar estos terminos. Los cambios se publicar&aacute;n en esta p&aacute;gina y conservar&aacute;n la fecha de actualizaci&oacute;n.</li>
         </ul>
         <p>Contacto: <a href="mailto:contact@maratonia&#46;site">contact@maratonia&#46;site</a>.</p>
       </section>
 
-      <section class="doc-panel lang-section locale-en" id="en" lang="en">
-        <h2>Maratonia Terms of Use</h2>
-        <p><strong>Last updated:</strong> August 2026.</p>
-        <div class="notice">
-          Maratonia is not a medical service. Plans, paces and suggestions are guidance only.
-        </div>
-        <ul>
-          <li>Maratonia is a running training app for iPhone and Apple Watch. Its plans and paces do not replace advice from a health professional.</li>
-          <li>Talk to a doctor before starting a demanding training program, especially if you have injuries, cardiovascular history or doubts about your physical condition.</li>
-          <li>You run at your own responsibility. Pay attention to traffic, terrain, weather and your body's signals.</li>
-          <li>The account is optional. If you use it, you are responsible for keeping secure access to your sign-in method.</li>
-          <li>Maratonia Coach, when available, generates automatic suggestions that the app validates and you confirm. It may not be available at all times.</li>
-          <li>We may update these terms. Changes will be published on this page with the update date.</li>
-        </ul>
-        <p>Contact: <a href="mailto:contact@maratonia&#46;site">contact@maratonia&#46;site</a>.</p>
-      </section>
+      
     </div>
   </main>
 
@@ -79,8 +217,8 @@
       <span>Maratonia Terms</span>
       <nav class="nav-links" aria-label="Links legales">
         <a href="/">Inicio</a>
-        <a href="/privacy/" data-en="Privacy">Privacidad</a>
-        <a href="/support/" data-en="Support">Soporte</a>
+        <a href="/privacy/">Privacidad</a>
+        <a href="/support/">Soporte</a>
       </nav>
     </div>
   </footer>

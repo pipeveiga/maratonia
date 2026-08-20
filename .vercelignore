@@ -5,3 +5,12 @@
 !web/
 !web/**
 !vercel.json
+
+# El build (npm run build:web) regenera web/ desde las plantillas, así que
+# necesita estos archivos durante la compilación. No se publican: lo que se
+# sirve es lo que quede en web/ (outputDirectory).
+!package.json
+!templates/
+!templates/**
+!scripts/
+!scripts/**

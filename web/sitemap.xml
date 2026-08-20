@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://maratonia.site/</loc>
+    <xhtml:link rel="alternate" hreflang="es" href="https://maratonia.site/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://maratonia.site/en/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://maratonia.site/"/>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://maratonia.site/en/</loc>
+    <xhtml:link rel="alternate" hreflang="es" href="https://maratonia.site/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://maratonia.site/en/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://maratonia.site/"/>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://maratonia.site/support/</loc>
+    <xhtml:link rel="alternate" hreflang="es" href="https://maratonia.site/support/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://maratonia.site/en/support/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://maratonia.site/support/"/>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://maratonia.site/en/support/</loc>
+    <xhtml:link rel="alternate" hreflang="es" href="https://maratonia.site/support/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://maratonia.site/en/support/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://maratonia.site/support/"/>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://maratonia.site/privacy/</loc>
+    <xhtml:link rel="alternate" hreflang="es" href="https://maratonia.site/privacy/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://maratonia.site/en/privacy/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://maratonia.site/privacy/"/>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://maratonia.site/en/privacy/</loc>
+    <xhtml:link rel="alternate" hreflang="es" href="https://maratonia.site/privacy/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://maratonia.site/en/privacy/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://maratonia.site/privacy/"/>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://maratonia.site/terms/</loc>
+    <xhtml:link rel="alternate" hreflang="es" href="https://maratonia.site/terms/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://maratonia.site/en/terms/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://maratonia.site/terms/"/>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://maratonia.site/en/terms/</loc>
+    <xhtml:link rel="alternate" hreflang="es" href="https://maratonia.site/terms/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://maratonia.site/en/terms/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://maratonia.site/terms/"/>
+    <lastmod>2026-08-20</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+</urlset>
