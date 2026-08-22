@@ -1231,22 +1231,38 @@ struct SemanaActualV2: View {
         }
     }
 
+    // La tira de la semana es una TIRA DE CARGA: el alto de cada barra
+    // es la distancia de esa sesión y el color es su tipo. Antes eran
+    // siete círculos del mismo tamaño con un punto de 10 pt adentro, así
+    // que los siete días se veían iguales y la fila con más potencial de
+    // la pantalla no informaba nada. La forma es el dato.
+    private static let altoMaximoBarra: CGFloat = 46
+    private static let altoMinimoBarra: CGFloat = 14
+
+    private var kmMasLargo: Double {
+        almacen.almacen.semanaActual(hoy: hoy)
+            .compactMap { $0.programado?.definicion.volumenKm() }
+            .max() ?? 0
+    }
+
+    private func alto(_ km: Double) -> CGFloat {
+        guard kmMasLargo > 0, km > 0 else { return Self.altoMinimoBarra }
+        let proporcion = min(1, km / kmMasLargo)
+        return Self.altoMinimoBarra
+            + CGFloat(proporcion) * (Self.altoMaximoBarra - Self.altoMinimoBarra)
+    }
+
     private func columna(_ item: DiaDeSemana) -> some View {
         VStack(spacing: 5) {
+            ZStack(alignment: .bottom) {
+                Color.clear.frame(height: Self.altoMaximoBarra)
+                barra(item)
+            }
+            .frame(height: Self.altoMaximoBarra)
+
             Text(letra(de: item.dia))
                 .font(.caption2.weight(item.esHoy ? .bold : .regular))
                 .foregroundStyle(item.esHoy ? Color.accentColor : Color.secondary)
-            ZStack {
-                Circle()
-                    .fill(colorDeFondo(item))
-                    .frame(width: 34, height: 34)
-                if item.esHoy {
-                    Circle()
-                        .strokeBorder(Color.accentColor, lineWidth: 2)
-                        .frame(width: 34, height: 34)
-                }
-                simbolo(item)
-            }
             // El número del mes ancla la tira al calendario real: un
             // usuario nuevo entiende la semana sin leyenda.
             Text("\(item.dia.dia)")
@@ -1254,51 +1270,83 @@ struct SemanaActualV2: View {
                 .monospacedDigit()
                 .foregroundStyle(item.esHoy ? Color.accentColor : Color(.tertiaryLabel))
         }
+        .padding(.horizontal, 3)
     }
 
     @ViewBuilder
-    private func simbolo(_ item: DiaDeSemana) -> some View {
+    private func barra(_ item: DiaDeSemana) -> some View {
         if let programado = item.programado {
-            switch programado.estado(hoy: hoy) {
-            case .cumplido:
-                Image(systemName: "checkmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-            case .parcial:
-                Image(systemName: "circle.bottomhalf.filled")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-            case .omitido:
-                Image(systemName: "minus")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-            case .vencido:
-                Image(systemName: "exclamationmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-            case .programado:
-                Circle()
-                    .fill(DV2.color(de: programado.definicion.tipo))
-                    .frame(width: 10, height: 10)
+            let tipo = DV2.color(de: programado.definicion.tipo)
+            let estado = programado.estado(hoy: hoy)
+            let alto = alto(programado.definicion.volumenKm())
+            ZStack {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(relleno(estado, tipo: tipo))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(borde(estado, tipo: tipo), lineWidth: 1.5)
+                    )
+                simbolo(estado)
+            }
+            .frame(height: alto)
+            // Hoy no se marca con otro color —eso pisaría el tipo de
+            // sesión— sino con un halo alrededor de la barra.
+            .overlay {
+                if item.esHoy {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(Color.accentColor, lineWidth: 2)
+                        .padding(-3)
+                }
             }
         } else {
-            Circle()
-                .fill(Color(.systemGray4))
-                .frame(width: 5, height: 5)
+            // Día sin entrenamiento: una pastilla fina. Descansar no
+            // ocupa el mismo espacio visual que correr.
+            Capsule()
+                .fill(Color(.tertiarySystemGroupedBackground))
+                .frame(height: 8)
         }
     }
 
-    private func colorDeFondo(_ item: DiaDeSemana) -> Color {
-        guard let programado = item.programado else {
-            return Color(.tertiarySystemGroupedBackground)
+    private func relleno(_ estado: EstadoProgramado, tipo: Color) -> AnyShapeStyle {
+        switch estado {
+        case .cumplido: return AnyShapeStyle(tipo)
+        case .parcial: return AnyShapeStyle(tipo.opacity(0.55))
+        case .omitido: return AnyShapeStyle(Color(.systemGray5))
+        case .vencido: return AnyShapeStyle(DV2.Semantico.advertencia.opacity(0.20))
+        case .programado: return AnyShapeStyle(tipo.opacity(0.28))
         }
-        switch programado.estado(hoy: hoy) {
-        case .cumplido: return .green
-        case .parcial: return .yellow
+    }
+
+    private func borde(_ estado: EstadoProgramado, tipo: Color) -> Color {
+        switch estado {
+        case .cumplido, .parcial: return .clear
         case .omitido: return Color(.systemGray3)
-        case .vencido: return .orange
+        case .vencido: return DV2.Semantico.advertencia
+        case .programado: return tipo.opacity(0.85)
+        }
+    }
+
+    @ViewBuilder
+    private func simbolo(_ estado: EstadoProgramado) -> some View {
+        switch estado {
+        case .cumplido:
+            Image(systemName: "checkmark")
+                .font(.system(size: 12, weight: .heavy))
+                .foregroundStyle(.white)
+        case .parcial:
+            Image(systemName: "circle.bottomhalf.filled")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white)
+        case .omitido:
+            Image(systemName: "minus")
+                .font(.system(size: 12, weight: .heavy))
+                .foregroundStyle(Color(.systemGray))
+        case .vencido:
+            Image(systemName: "exclamationmark")
+                .font(.system(size: 12, weight: .heavy))
+                .foregroundStyle(DV2.Semantico.advertencia)
         case .programado:
-            return DV2.color(de: programado.definicion.tipo).opacity(0.15)
+            EmptyView()
         }
     }
 
