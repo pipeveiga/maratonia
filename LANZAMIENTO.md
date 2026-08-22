@@ -90,9 +90,11 @@ común de rechazo en apps con suscripción.
       **Ritmo / Desnivel**, y ahí azul es bajada, gris llano y rojo
       subida. Señal de error: la carrera entera de un solo color, o el
       llano lleno de color.
-      > Sin verificación visual todavía: se subió sin poder probarlo con
-      > una carrera real (en el simulador no se puede inyectar una ruta
-      > en Salud). La lógica sí tiene 13 tests.
+      > Sin verificación visual todavía: en el simulador no se puede
+      > inyectar una ruta en Salud. La lógica sí tiene 13 tests. Se
+      > puede probar YA con cualquier carrera vieja del historial — el
+      > ritmo se calcula al cargar la ruta, no hace falta una corrida
+      > nueva.
 - [ ] **La postal**: compartir una carrera y ver que el recorrido salga
       con el degradado, la leyenda LENTO→RÁPIDO y el contexto del plan
       ("Larga · Semana 3 de 8"). Sin plan detrás no muestra contexto, y
@@ -289,9 +291,10 @@ Lo que hay que mirar en la corrida antes de enviar:
       todavía)
 - [ ] **Compartir la carrera** y mirar la postal como la va a ver
       alguien en redes: degradado, leyenda y contexto del plan
-- [ ] Una carrera VIEJA (de antes del build 76) sigue abriendo bien: no
-      tiene ritmo por punto guardado y el recorrido se pinta liso, que
-      es el comportamiento correcto
+- [ ] Una carrera VIEJA (de antes del build 76) **también sale
+      pintada**: el ritmo por punto NO se persiste, se calcula cada vez
+      que se carga la ruta desde Salud. Sirve para probar el mapa de
+      calor sin esperar a la próxima corrida
 
 ---
 
