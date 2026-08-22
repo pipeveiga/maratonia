@@ -8,10 +8,43 @@ Los campos marcados **[VOS]** requieren un dato o una decisión tuya.
 
 ---
 
+## ⚠️ LEER PRIMERO — tres cosas que cambiaron y rompen el envío
+
+La app que se sube HOY no es la que describían las versiones viejas de
+este documento. Verificado en el código, no supuesto:
+
+1. **La app EXIGE cuenta.** `PuertaDeEntrada` ofrece Apple, Google o
+   email y **no tiene forma de saltear**. Por lo tanto:
+   - **hace falta CUENTA DEMO** en las notas al revisor (guideline 2.1:
+     sin credenciales, rechazo automático);
+   - y hay riesgo real de **5.1.1(v)** — pedir registro para funciones
+     que no lo necesitan. La justificación es la sincronización entre
+     dispositivos, y conviene escribirla en las notas.
+   - Existe `BienvenidaView` con `permiteSaltear: true`, pero **la
+     puerta no la usa**: es código muerto y no es una salida.
+
+2. **El Coach viaja ACTIVO.** `MaratoniaBackendURL` está puesto en el
+   `Info.plist` (`us-central1-maratonia.cloudfunctions.net`), así que
+   los datos salen del dispositivo hacia OpenAI. **App Privacy tiene que
+   declararlo** (ver FASE 4). No es opcional ni "para más adelante".
+
+3. **Hay suscripciones reales.** `maratonia.pro.monthly` y
+   `maratonia.pro.yearly` vía StoreKit. Los dos productos tienen que
+   EXISTIR en App Store Connect y enviarse **con** la versión (FASE 4b):
+   un paywall que apunta a productos inexistentes se le muestra roto al
+   revisor.
+
+Lo que ya está bien y no hay que tocar: el paywall muestra **Términos,
+Privacidad y el aviso de renovación automática**, que es la causa más
+común de rechazo en apps con suscripción.
+
+---
+
 ## FASE 0 — Antes de tocar App Store Connect
 
-- [ ] Build 70 compila sin warnings en Xcode (Product → Build)
-- [ ] Los 508 tests iOS + 32 del backend en verde
+- [ ] Build 76 compila sin warnings (verificado: cero warnings en
+      Release, `xcodebuild -destination generic/platform=iOS`)
+- [ ] Los 590 tests iOS + 57 del backend en verde
 - [ ] Recorrer las 5 pestañas en **español**
 - [ ] Cambiar el iPhone a **inglés** y recorrerlas de nuevo.
       El build 67 rehízo el barrido: el catálogo del iPhone pasó de 636
@@ -51,6 +84,20 @@ Los campos marcados **[VOS]** requieren un dato o una decisión tuya.
       que un plan 21K/42K se puede adoptar recién con Pro
 - [ ] **Coach con cuenta Free**: el backend responde 402 y NO llama a
       OpenAI (verificable en los logs de Functions)
+- [ ] **El recorrido pintado** (build 76): abrir una carrera con GPS y
+      mirar el mapa. El ritmo va de ámbar claro (lento) a rojo oscuro
+      (rápido); si hay desnivel medido aparece el selector
+      **Ritmo / Desnivel**, y ahí azul es bajada, gris llano y rojo
+      subida. Señal de error: la carrera entera de un solo color, o el
+      llano lleno de color.
+      > Sin verificación visual todavía: se subió sin poder probarlo con
+      > una carrera real (en el simulador no se puede inyectar una ruta
+      > en Salud). La lógica sí tiene 13 tests.
+- [ ] **La postal**: compartir una carrera y ver que el recorrido salga
+      con el degradado, la leyenda LENTO→RÁPIDO y el contexto del plan
+      ("Larga · Semana 3 de 8"). Sin plan detrás no muestra contexto, y
+      está bien.
+- [ ] **El km más rápido** aparece marcado en Splits y en el gráfico
 
 Si algo de esto falla, no sigas: se arregla antes.
 
@@ -138,10 +185,47 @@ iCloud, que es el iCloud privado del usuario.
 
 **Tracking (ATT)**: NO. Sin publicidad, sin data brokers, sin analytics.
 
-> Si el Coach NO se activa en V1 (backend sin desplegar), no declares
-> nada de OpenAI: no viaja ningún dato. **[VOS: decidir]**
-> Si algún día se activa, hay que volver acá y agregar
-> *Other Usage Data*.
+### El Coach — YA NO ES OPCIONAL DECLARARLO
+
+Las versiones viejas de este documento decían "si el Coach no se activa,
+no declares nada de OpenAI". **Se activó**: `MaratoniaBackendURL` está en
+el `Info.plist`, así que el contexto de entrenamiento (objetivo, días,
+volumen, eventos detectados) sale del dispositivo hacia el backend y de
+ahí a OpenAI. Hay que agregar:
+
+| Categoría | Dato | Vinculado | Propósito | Tracking |
+|---|---|---|---|---|
+| Other Data | Other Usage Data | Sí | App Functionality | No |
+
+Lo que SIGUE sin declararse, y con razón: el backend **no puede** recibir
+una ruta GPS ni un latido — el `.strict()` del schema los rechaza, y hay
+tests que lo prueban. Se manda el resumen numérico, no las muestras.
+
+---
+
+## FASE 4b — Suscripciones (obligatorio ANTES de enviar)
+
+La app trae StoreKit y un paywall. Los dos productos tienen que existir
+en App Store Connect, tener precio, y **adjuntarse a la versión 1.0** en
+la sección "In-App Purchases and Subscriptions" — si no, el revisor ve
+un paywall vacío y es rechazo.
+
+| Product ID | Tipo | Precio |
+|---|---|---|
+| `maratonia.pro.monthly` | Suscripción auto-renovable, 1 mes | **[VOS]** |
+| `maratonia.pro.yearly` | Suscripción auto-renovable, 1 año | **[VOS]** |
+
+Los dos van en el MISMO grupo de suscripción (así el usuario puede
+cambiar de plan sin comprar dos veces). El anual tiene **7 días de
+prueba** — configurarlo como *Introductory Offer → Free Trial*.
+
+Cada producto necesita nombre y descripción de display; Apple los revisa
+como contenido. Y la ficha de la app pide un **Privacy Policy URL** y
+unos términos (EULA): ya están en `https://maratonia.site/privacy/` y
+`/terms/`, y el paywall los enlaza.
+
+Qué habilita Pro, para escribir la descripción: objetivos avanzados
+(Mejorar 5K/10K y todo 21K/42K), el Coach, y la adaptación del plan.
 
 ---
 
@@ -162,12 +246,22 @@ dispositivo real con datos de verdad — no del simulador vacío. **[VOS]**
 3. Esperar el procesamiento (~10-30 min) y que no llegue mail de Apple
    con warnings
 4. En la versión 1.0, seleccionar el build
-5. **Notas para el revisor**: copiar el bloque "Review notes" de
-   `APP_STORE.md`. Lo importante que dice: la app funciona COMPLETA sin
-   cuenta, así que **no hace falta cuenta demo**
-6. Precio: **Gratis**
-7. Disponibilidad: todos los países (o los que quieras) **[VOS]**
-8. **Enviar para revisión**
+5. **Notas para el revisor**. El bloque de `APP_STORE.md` está
+   DESACTUALIZADO: dice que la app funciona completa sin cuenta y que no
+   hace falta cuenta demo, y las dos cosas son falsas hoy. Tiene que
+   decir, como mínimo:
+   - **Cuenta demo** con email y contraseña que el revisor pueda usar
+     (crearla con "Continuar con email" y anotarla acá) **[VOS]**
+   - Por qué se pide cuenta: el plan y el progreso se sincronizan entre
+     iPhone y Apple Watch y sobreviven a cambiar de teléfono
+   - Cómo probar Pro: cuenta sandbox de App Store, comprar el anual
+   - HealthKit: lectura de workouts/FC, escritura del workout al
+     terminar. Location: la ruta del mapa durante la carrera
+   - Eliminación de cuenta: Perfil → Cuenta Maratonia → Eliminar cuenta
+6. Precio: **Gratis con compras dentro de la app** (no "Gratis" a secas)
+7. Adjuntar los dos productos de FASE 4b a esta versión
+8. Disponibilidad: todos los países (o los que quieras) **[VOS]**
+9. **Enviar para revisión**
 
 ---
 
@@ -190,20 +284,47 @@ Lo que hay que mirar en la corrida antes de enviar:
       app Fitness de Apple**
 - [ ] En el iPhone, abrir esa carrera: **splits, ritmo por km, FC y
       elevación** (probar también con una carrera vieja)
+- [ ] **El recorrido pintado por ritmo** y, si hubo desnivel, el
+      selector Ritmo/Desnivel (build 76 — sin verificar visualmente
+      todavía)
+- [ ] **Compartir la carrera** y mirar la postal como la va a ver
+      alguien en redes: degradado, leyenda y contexto del plan
+- [ ] Una carrera VIEJA (de antes del build 76) sigue abriendo bien: no
+      tiene ritmo por punto guardado y el recorrido se pinta liso, que
+      es el comportamiento correcto
 
 ---
 
 ## Riesgos declarados (que Apple no ve, pero vos sí deberías saber)
 
+0. **Guideline 5.1.1(v) — cuenta obligatoria.** Es el riesgo más alto de
+   rechazo de todo el envío. La app no deja pasar sin cuenta, y correr
+   con un plan es algo que técnicamente funcionaría en local. Si Apple
+   objeta, hay dos salidas y conviene tenerlas pensadas ANTES: volver a
+   habilitar el salteo (el código de `BienvenidaView` ya existe y toma
+   `permiteSaltear: true`), o argumentar la sincronización entre iPhone
+   y Watch. La primera es cuestión de horas; la segunda puede costar una
+   ronda entera de revisión.
+
 1. **Auto-resume de la auto-pausa**: sin validar. Mitigado — la
    auto-pausa viene APAGADA por defecto. Si la encendés, puede no
    reanudar sola.
-2. **Coach**: solo aparece con el backend desplegado. Sin desplegar, la
-   sección no existe (cero riesgo de botón muerto).
+2. **Coach**: DESPLEGADO y activo en el build. Los riesgos ahora son
+   los de una función con costo por uso en producción: el rate limit por
+   usuario/día y el gate de Pro (402 para Free) son lo único entre un
+   bug y una factura de OpenAI. Mirar los logs de Functions después de
+   los primeros días.
 3. **Contenido deportivo**: los planes de 21K/42K tienen metodología
    citada (`METODOLOGIA.md`) pero **ningún corredor los completó
    todavía**. No los promociones como "probados".
-4. **StoreKit**: deliberadamente fuera de V1. No hay compras.
+4. **StoreKit**: ACTIVO, con dos suscripciones auto-renovables. Sin los
+   productos creados en App Store Connect el paywall se ve vacío — ver
+   FASE 4b. Y una suscripción mal configurada no se arregla con un build
+   nuevo: se arregla en la consola, pero recién en la próxima revisión.
+5. **El mapa de calor del recorrido** (build 76) se subió sin
+   verificación visual con datos reales: en el simulador no se puede
+   inyectar una ruta en Salud. La lógica tiene 13 tests; lo que no está
+   probado es cómo se ve sobre Apple Maps.
 
 ---
 
