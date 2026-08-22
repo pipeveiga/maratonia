@@ -121,32 +121,45 @@ enum DV2 {
 
     /// SEMÁFORO DE RITMO — el recorrido pintado por ritmo.
     ///
-    /// Rojo lento, amarillo medio, verde rápido. Es una decisión de
-    /// producto: la misma metáfora que ya usa el reloj para el ritmo en
-    /// rango, y la que el corredor espera.
+    /// Rojo lento, amarillo medio, verde rápido: la misma metáfora que
+    /// ya usa el reloj para el ritmo en rango.
     ///
-    /// TRES pasos y no cinco, y no es un capricho: con cinco, el ámbar
-    /// intermedio queda a ΔE 1,8 del naranja en deuteranopía —
-    /// indistinguibles— porque tres tonos cálidos seguidos se pisan. Con
-    /// tres, el par más cercano queda en ΔE 33,7 para daltonismo y 38,9
-    /// para visión normal, muy por encima del piso. Un semáforo son tres
-    /// luces; forzarlo a cinco es lo que lo rompía.
+    /// El color es CONTINUO, no por escalones. Con tres colores sueltos
+    /// el recorrido saltaba de verde a rojo de un tramo al siguiente y
+    /// se leía como zonas pegadas, no como un ritmo que cambia. Se
+    /// interpola entre anclas.
+    ///
+    /// Las anclas intermedias (naranja y lima) NO son decorativas:
+    /// interpolar directo de rojo a verde pasa por un marrón sucio,
+    /// porque la mezcla cruza el centro del espacio de color. Las anclas
+    /// obligan al degradado a ir por afuera, que es el camino del
+    /// semáforo.
     ///
     /// El amarillo no llega a 3:1 contra un mapa claro. Por eso la línea
     /// SIEMPRE va con casing: el contorno le da el borde que el fondo no.
     enum Intensidad {
-        static let pasos: [Color] = [
-            Color(red: 0.70, green: 0.15, blue: 0.10),   // #B3271A lento
-            Color(red: 0.94, green: 0.79, blue: 0.16),   // #F0C929 medio
-            Color(red: 0.05, green: 0.43, blue: 0.23),   // #0E6E3A rápido
+        /// Anclas en RGB (0-1) para poder interpolar entre ellas.
+        private static let anclas: [(r: Double, g: Double, b: Double)] = [
+            (0.70, 0.15, 0.10),   // #B3271A lento
+            (0.89, 0.40, 0.11),   // #E2661B
+            (0.94, 0.79, 0.16),   // #F0C929 medio
+            (0.50, 0.66, 0.16),   // #7FA828
+            (0.05, 0.43, 0.23),   // #0E6E3A rápido
         ]
+
+        static let pasos: [Color] = anclas.map { Color(red: $0.r, green: $0.g, blue: $0.b) }
 
         /// El color de un tramo. `intensidad` va de 0 (lo más lento de
         /// esa carrera) a 1 (lo más rápido).
         static func color(_ intensidad: Double) -> Color {
             let acotada = min(1, max(0, intensidad))
-            let indice = Int((acotada * Double(pasos.count - 1)).rounded())
-            return pasos[indice]
+            let posicion = acotada * Double(anclas.count - 1)
+            let indice = min(anclas.count - 2, Int(posicion))
+            let t = posicion - Double(indice)
+            let a = anclas[indice], b = anclas[indice + 1]
+            return Color(red: a.r + (b.r - a.r) * t,
+                         green: a.g + (b.g - a.g) * t,
+                         blue: a.b + (b.b - a.b) * t)
         }
 
         static var degradado: LinearGradient {
