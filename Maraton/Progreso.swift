@@ -202,9 +202,15 @@ struct ProgresoTab: View {
                                 icono: "chart.line.uptrend.xyaxis",
                                 titulo: String(localized: "Tu progreso arranca con la primera"),
                                 detalle: String(localized: "Volumen, marcas y racha se completan solos con cada carrera que guardes en Salud."),
-                                accion: irACorrer.map { hacer in
-                                    (texto: String(localized: "Salir a correr"), hacer: hacer)
-                                })
+                                // Sin repetir la salida: si el héroe de
+                                // arriba ya ofrece "Empezar la de hoy",
+                                // dos botones primarios apilados que van
+                                // al mismo lado son ruido, no opciones.
+                                accion: hayEntrenamientoPendienteHoy
+                                    ? nil
+                                    : irACorrer.map { hacer in
+                                        (texto: String(localized: "Salir a correr"), hacer: hacer)
+                                      })
                                 .padding(.horizontal)
                         }
                     } else {
@@ -227,59 +233,91 @@ struct ProgresoTab: View {
     private func heroSemana(_ semanas: [ResumenSemana]) -> some View {
         let actual = semanas.last ?? ResumenSemana(inicio: Date())
         let anterior = semanas.dropLast().last
-        return VStack(alignment: .leading, spacing: DV2.Espacio.s) {
-            EncabezadoSeccionV2(texto: "Esta semana")
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(String(format: "%.1f", actual.km))
-                    .font(.system(size: 52, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .minimumScaleFactor(0.6)
-                    .foregroundStyle(DV2.Marca.profundo)
-                if let previsto = kmPrevistosEstaSemana, previsto > 0 {
-                    Text("de \(String(format: "%.0f", previsto)) km previstos")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text(Unidades.actual.etiquetaDistancia)
-                        .font(.title3.weight(.semibold))
+        return Tarjeta {
+            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                HStack(alignment: .top, spacing: DV2.Espacio.l) {
+                    // Con volumen previsto el anillo dice de un vistazo
+                    // cuánto falta; sin plan no hay contra qué medir, y
+                    // entonces el número grande solo sigue siendo lo
+                    // correcto.
+                    if let previsto = kmPrevistosEstaSemana, previsto > 0 {
+                        AnilloProgreso(
+                            hechas: Int(actual.km.rounded()),
+                            total: Int(previsto.rounded()),
+                            etiqueta: String(localized: "de \(Unidades.distancia(km: previsto, decimales: 0))"),
+                            diametro: 92)
+                    } else {
+                        Text(Unidades.distancia(km: actual.km, decimales: 1))
+                            .font(.system(size: 46, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .minimumScaleFactor(0.6)
+                            .foregroundStyle(DV2.Marca.profundo)
+                    }
+
+                    VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
+                        Text(tituloSemana)
+                            .font(DV2.Tipo.tituloChico)
+                        if let (hechos, total) = entrenamientosEstaSemana, total > 0 {
+                            Text("\(hechos) de \(Plurales.entrenamientos(total)) de la semana")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        // Con la semana en cero, "0:00" y "0 carreras" no
+                        // informan nada que el anillo no haya dicho ya.
+                        if actual.carreras > 0 || actual.segundos > 0 {
+                            HStack(spacing: DV2.Espacio.l) {
+                                MetricaV2(titulo: "tiempo", valor: formatearDuracion(actual.segundos))
+                                MetricaV2(titulo: actual.carreras == 1 ? "carrera" : "carreras",
+                                          valor: "\(actual.carreras)")
+                            }
+                            .padding(.top, DV2.Espacio.xs)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+
+                // La salida: sin una carrera no hay progreso, y lo único
+                // útil que puede ofrecer esta pantalla es ir a correrla.
+                if let hacer = irACorrer, hayEntrenamientoPendienteHoy {
+                    Button(action: hacer) {
+                        EtiquetaBotonPrimarioV2(titulo: "Empezar la de hoy",
+                                                icono: "play.fill")
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                // La comparación contra la semana pasada solo cuando dice
+                // algo útil: un lunes "-22 km" es matemática correcta y UX
+                // pobre — se muestra desde mitad de semana, o antes si ya
+                // vas ganando.
+                if let anterior, anterior.metros > 0 || actual.metros > 0,
+                   diaDeLaSemanaHoy >= 4 || actual.metros >= anterior.metros {
+                    Text(comparacion(actual: actual, anterior: anterior))
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-            }
-            // Barra de progreso real contra lo previsto: azul Maratonia
-            // sobre superficie del sistema. Con previsto = 0 no hay
-            // barra (ni división por cero, ni barra absurda).
-            if let previsto = kmPrevistosEstaSemana, previsto > 0 {
-                ProgressView(value: min(actual.km, previsto), total: previsto)
-                    .tint(DV2.Marca.primario)
-            }
-            if let (hechos, total) = entrenamientosEstaSemana, total > 0 {
-                Text("\(hechos) de \(Plurales.entrenamientos(total)) de la semana")
-                    .font(.subheadline.weight(.medium))
-            }
-            // Con la semana en cero, "0:00" y "0 carreras" no informan
-            // nada que el número grande de arriba no haya dicho ya, y
-            // encima chocan con el estado vacío de abajo.
-            if actual.carreras > 0 || actual.segundos > 0 {
-                HStack(spacing: DV2.Espacio.xl) {
-                    MetricaV2(titulo: "tiempo", valor: formatearDuracion(actual.segundos))
-                    MetricaV2(titulo: actual.carreras == 1 ? "carrera" : "carreras",
-                              valor: "\(actual.carreras)")
-                }
-            }
-            // La comparación contra la semana pasada solo cuando dice
-            // algo útil: un lunes "-22 km" es matemática correcta y UX
-            // pobre — se muestra desde mitad de semana, o antes si ya
-            // vas ganando.
-            if let anterior, anterior.metros > 0 || actual.metros > 0,
-               diaDeLaSemanaHoy >= 4 || actual.metros >= anterior.metros {
-                Text(comparacion(actual: actual, anterior: anterior))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)
-        .accessibilityElement(children: .combine)
+    }
+
+    /// "Semana 3 de 8" cuando hay bloque; si no, el encabezado de
+    /// siempre. El corredor necesita saber DÓNDE está, no solo cuánto
+    /// lleva esta semana.
+    private var tituloSemana: String {
+        guard let plan = almacen.almacen.planActivo,
+              let numero = plan.numeroDeSemana(hoy: DiaLocal(fecha: Date())),
+              !plan.semanas.isEmpty else {
+            return String(localized: "Esta semana")
+        }
+        return String(localized: "Semana \(numero) de \(plan.semanas.count)")
+    }
+
+    private var hayEntrenamientoPendienteHoy: Bool {
+        let hoy = DiaLocal(fecha: Date())
+        guard let programado = almacen.almacen.entrenamientoDeHoy(hoy) else { return false }
+        return programado.resolucion == .pendiente
     }
 
     /// 1 = lunes … 7 = domingo, para decidir si la comparación semanal

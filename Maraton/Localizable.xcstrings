@@ -4247,6 +4247,17 @@
         }
       }
     },
+    "Empezar la de hoy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start today’s run"
+          }
+        }
+      }
+    },
     "Empezar por %@": {
       "extractionState": "manual",
       "localizations": {
@@ -11668,6 +11679,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "runs"
+          }
+        }
+      }
+    },
+    "de %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "of %@"
           }
         }
       }
