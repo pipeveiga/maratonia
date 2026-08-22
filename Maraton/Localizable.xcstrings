@@ -3983,6 +3983,17 @@
         }
       }
     },
+    "El recorrido está pintado por ritmo: más oscuro, más rápido.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The route is colored by pace: darker means faster."
+          }
+        }
+      }
+    },
     "El registro con email estará disponible muy pronto.": {
       "extractionState": "manual",
       "localizations": {
@@ -5838,6 +5849,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kilometres per week: %lld"
+          }
+        }
+      }
+    },
+    "LENTO": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SLOW"
           }
         }
       }
@@ -9131,6 +9153,17 @@
         }
       }
     },
+    "RÁPIDO": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FAST"
+          }
+        }
+      }
+    },
     "SIN OBJETIVO": {
       "extractionState": "manual",
       "localizations": {
@@ -11892,6 +11925,17 @@
         }
       }
     },
+    "lento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "slow"
+          }
+        }
+      }
+    },
     "libre": {
       "extractionState": "manual",
       "localizations": {
@@ -12042,6 +12086,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "pace /km"
+          }
+        }
+      }
+    },
+    "rápido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "fast"
           }
         }
       }

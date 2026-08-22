@@ -48,6 +48,11 @@ struct CarreraResumen: Identifiable {
     var id: UUID { workout.uuid }
     var fcPromedio: Double?
     var ruta: [CLLocationCoordinate2D] = []
+    /// Ritmo por punto de `ruta`, en segundos por km (nil donde no se
+    /// puede calcular). Se guarda al cargar la ruta porque HealthKit
+    /// entrega las ubicaciones CON timestamp y acá se descartaban: sin
+    /// ellos el recorrido solo puede pintarse de un color.
+    var ritmos: [Int?] = []
     var rutaCargada = false
 
     var fecha: Date { workout.startDate }
@@ -205,11 +210,16 @@ final class CarrerasStore: ObservableObject {
                 // nunca y el spinner quedaba girando para siempre.
                 // tomarResolucion garantiza UNA sola publicación.
                 guard terminado || error != nil, caja.tomarResolucion() else { return }
-                let puntos = error == nil ? caja.contenido.map(\.coordinate) : []
+                let ubicaciones = error == nil ? caja.contenido : []
+                let puntos = ubicaciones.map(\.coordinate)
+                let ritmos = AnalisisSesion.ritmos(de: ubicaciones)
                 let completa = error == nil
                 DispatchQueue.main.async { [weak self] in
                     self?.actualizar(workout: workout) {
-                        if completa { $0.ruta = puntos }
+                        if completa {
+                            $0.ruta = puntos
+                            $0.ritmos = ritmos
+                        }
                         $0.rutaCargada = true
                     }
                 }
@@ -407,13 +417,46 @@ struct CarreraDetalleView: View {
             List {
                 Section {
                     if !carrera.ruta.isEmpty {
+                        let tramos = AnalisisSesion.tramos(coordenadas: carrera.ruta,
+                                                           ritmos: carrera.ritmos)
                         // .automatic encuadra solo el contenido del mapa.
                         Map {
+                            // El CASING va primero y entero: una línea
+                            // blanca ancha debajo. Sin él los pasos
+                            // claros de la rampa desaparecen sobre un
+                            // mapa claro, y los oscuros sobre uno de
+                            // noche. Es lo que hace legible el color sin
+                            // tener que oscurecer toda la escala.
                             MapPolyline(coordinates: carrera.ruta)
-                                .stroke(.blue, lineWidth: 4)
+                                .stroke(.white, style: StrokeStyle(lineWidth: 9,
+                                                                   lineCap: .round,
+                                                                   lineJoin: .round))
+                            if tramos.isEmpty {
+                                // Carreras cargadas por una build anterior
+                                // no tienen ritmo por punto guardado.
+                                MapPolyline(coordinates: carrera.ruta)
+                                    .stroke(DV2.Marca.primario,
+                                            style: StrokeStyle(lineWidth: 5,
+                                                               lineCap: .round,
+                                                               lineJoin: .round))
+                            } else {
+                                ForEach(Array(tramos.enumerated()), id: \.offset) { par in
+                                    MapPolyline(coordinates: par.element.coordenadas)
+                                        .stroke(DV2.Intensidad.color(par.element.intensidad),
+                                                style: StrokeStyle(lineWidth: 5,
+                                                                   lineCap: .round,
+                                                                   lineJoin: .round))
+                                }
+                            }
                         }
                         .frame(height: 280)
                         .listRowInsets(EdgeInsets())
+
+                        if !tramos.isEmpty {
+                            LeyendaIntensidad()
+                                .listRowInsets(EdgeInsets(top: 10, leading: 16,
+                                                          bottom: 10, trailing: 16))
+                        }
                     } else if carrera.rutaCargada {
                         Label("Esta carrera no tiene recorrido GPS.", systemImage: "map")
                             .foregroundStyle(.secondary)
@@ -506,9 +549,16 @@ struct CarreraDetalleView: View {
         }
     }
 
+    /// Los tramos de intensidad de esta carrera, en UN solo lugar: las
+    /// tres exportaciones tienen que pintar exactamente lo mismo.
+    private func tramosDe(_ carrera: CarreraResumen) -> [AnalisisSesion.TramoIntensidad] {
+        AnalisisSesion.tramos(coordenadas: carrera.ruta, ritmos: carrera.ritmos, maximo: 60)
+    }
+
     /// La carrera como imagen linda para mandar al grupo o subir a redes.
     private func imagenParaCompartir(_ carrera: CarreraResumen) -> Image {
-        let render = ImageRenderer(content: TarjetaCompartir(carrera: carrera, ruta: carrera.ruta))
+        let render = ImageRenderer(content: TarjetaCompartir(
+            carrera: carrera, ruta: carrera.ruta, tramos: tramosDe(carrera)))
         render.scale = 3
         if let imagen = render.uiImage {
             return Image(uiImage: imagen)
@@ -518,7 +568,8 @@ struct CarreraDetalleView: View {
 
     private func imagenSinFondo(_ carrera: CarreraResumen) -> Image {
         let render = ImageRenderer(content: TarjetaCompartir(
-            carrera: carrera, ruta: carrera.ruta, transparente: true))
+            carrera: carrera, ruta: carrera.ruta,
+            tramos: tramosDe(carrera), transparente: true))
         render.scale = 3
         render.isOpaque = false
         if let imagen = render.uiImage {
@@ -531,7 +582,8 @@ struct CarreraDetalleView: View {
     /// imagen "suelta" puede aplanarla a JPG y perder el alfa.
     private func urlPNGSinFondo(_ carrera: CarreraResumen) -> URL {
         let render = ImageRenderer(content: TarjetaCompartir(
-            carrera: carrera, ruta: carrera.ruta, transparente: true))
+            carrera: carrera, ruta: carrera.ruta,
+            tramos: tramosDe(carrera), transparente: true))
         render.scale = 3
         render.isOpaque = false
         // Nombre ÚNICO por exportación: el share sheet y varios destinos
@@ -559,6 +611,11 @@ struct CarreraDetalleView: View {
 /// longitud mide cos(latitud) de lo que mide uno de latitud).
 struct TrazadoRuta: Shape {
     let coordenadas: [CLLocationCoordinate2D]
+    /// La ruta COMPLETA, cuando este trazo es solo un tramo de ella. El
+    /// encuadre tiene que salir del recorrido entero: si cada tramo
+    /// calculara el suyo, cada uno se escalaría a su propia caja y el
+    /// dibujo saldría descoyuntado.
+    var encuadre: [CLLocationCoordinate2D]? = nil
 
     func path(in rect: CGRect) -> Path {
         // Adelgazar: con miles de puntos GPS el trazo no gana nada.
@@ -566,8 +623,9 @@ struct TrazadoRuta: Shape {
         let puntos = stride(from: 0, to: coordenadas.count, by: paso).map { coordenadas[$0] }
         guard puntos.count > 1 else { return Path() }
 
-        let latitudes = puntos.map(\.latitude)
-        let longitudes = puntos.map(\.longitude)
+        let base = encuadre ?? coordenadas
+        let latitudes = base.map(\.latitude)
+        let longitudes = base.map(\.longitude)
         guard let latMin = latitudes.min(), let latMax = latitudes.max(),
               let lonMin = longitudes.min(), let lonMax = longitudes.max() else { return Path() }
 
@@ -595,9 +653,34 @@ struct TrazadoRuta: Shape {
 /// La postal para compartir: el trazado del recorrido protagonista, los
 /// km grandes y los números. Dos variantes: con degradado de marca, o
 /// transparente (todo blanco con sombra) para pegar sobre fotos.
+/// La escala del recorrido, explicada. Un mapa de calor sin leyenda es
+/// decoración: el corredor no tiene cómo saber si el naranja oscuro es
+/// lo bueno o lo malo.
+struct LeyendaIntensidad: View {
+    var body: some View {
+        HStack(spacing: DV2.Espacio.s) {
+            Text("Ritmo")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text("lento")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Capsule()
+                .fill(DV2.Intensidad.degradado)
+                .frame(height: 6)
+            Text("rápido")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("El recorrido está pintado por ritmo: más oscuro, más rápido."))
+    }
+}
+
 struct TarjetaCompartir: View {
     let carrera: CarreraResumen
     var ruta: [CLLocationCoordinate2D] = []
+    var tramos: [AnalisisSesion.TramoIntensidad] = []
     var transparente = false
 
     private var sombra: Color { transparente ? .black.opacity(0.45) : .clear }
@@ -624,12 +707,46 @@ struct TarjetaCompartir: View {
                 .foregroundStyle(.white.opacity(0.75))
 
             if ruta.count > 1 {
-                TrazadoRuta(coordenadas: ruta)
-                    .stroke(.white, style: StrokeStyle(
-                        lineWidth: 4, lineCap: .round, lineJoin: .round))
-                    .frame(height: 190)
-                    .shadow(color: sombra, radius: 3, y: 1)
-                    .padding(.vertical, 4)
+                ZStack {
+                    // Casing blanco debajo: sobre el azul profundo de la
+                    // postal los pasos oscuros de la rampa no llegan a
+                    // 3:1 solos. Además es lo que le da el aire de
+                    // sticker que tenía el trazo blanco original.
+                    TrazadoRuta(coordenadas: ruta)
+                        .stroke(.white, style: StrokeStyle(
+                            lineWidth: 7, lineCap: .round, lineJoin: .round))
+                    if tramos.isEmpty {
+                        TrazadoRuta(coordenadas: ruta)
+                            .stroke(.white, style: StrokeStyle(
+                                lineWidth: 4, lineCap: .round, lineJoin: .round))
+                    } else {
+                        ForEach(Array(tramos.enumerated()), id: \.offset) { par in
+                            TrazadoRuta(coordenadas: par.element.coordenadas, encuadre: ruta)
+                                .stroke(DV2.Intensidad.color(par.element.intensidad),
+                                        style: StrokeStyle(lineWidth: 4.5,
+                                                           lineCap: .round,
+                                                           lineJoin: .round))
+                        }
+                    }
+                }
+                .frame(height: 190)
+                .shadow(color: sombra, radius: 3, y: 1)
+                .padding(.vertical, 4)
+
+                // Una postal se mira sin contexto: sin esto el degradado
+                // del recorrido es decoración bonita y nadie sabe que
+                // está viendo el ritmo.
+                if !tramos.isEmpty {
+                    HStack(spacing: 6) {
+                        Text("LENTO")
+                        Capsule()
+                            .fill(DV2.Intensidad.degradado)
+                            .frame(width: 54, height: 4)
+                        Text("RÁPIDO")
+                    }
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.8))
+                }
             }
 
             Text(Unidades.distancia(km: carrera.distanciaMetros / 1000, decimales: 2))
@@ -721,6 +838,92 @@ import Charts
 enum AnalisisSesion {
 
     struct Punto { var t: TimeInterval; var d: Double; var alt: Double }
+
+    /// Un tramo del recorrido con su intensidad relativa. `intensidad`
+    /// va de 0 (lo más lento de ESTA carrera) a 1 (lo más rápido): el
+    /// mapa de calor compara al corredor consigo mismo, no contra una
+    /// tabla — un 6:00/km puede ser el tramo rápido de una salida suave
+    /// y el lento de una serie.
+    struct TramoIntensidad {
+        var coordenadas: [CLLocationCoordinate2D]
+        var intensidad: Double
+    }
+
+    /// Ritmo instantáneo por punto, en segundos por kilómetro.
+    ///
+    /// El GPS de muñeca es ruidoso: dos fixes consecutivos pueden dar
+    /// 2:30/km o 12:00/km sin que el corredor haya cambiado nada. Por
+    /// eso el ritmo de cada punto se mide sobre una VENTANA a su
+    /// alrededor y no contra el punto anterior. `nil` donde la ventana
+    /// no da para calcular (arranque, parado, salto de señal).
+    static func ritmos(de ubicaciones: [CLLocation], ventana: Int = 9) -> [Int?] {
+        guard ubicaciones.count > 1 else {
+            return Array(repeating: nil, count: ubicaciones.count)
+        }
+        let mitad = max(1, ventana / 2)
+        return ubicaciones.indices.map { i in
+            let desde = max(0, i - mitad)
+            let hasta = min(ubicaciones.count - 1, i + mitad)
+            guard hasta > desde else { return nil }
+            var metros = 0.0
+            for j in (desde + 1)...hasta {
+                metros += ubicaciones[j].distance(from: ubicaciones[j - 1])
+            }
+            let segundos = ubicaciones[hasta].timestamp
+                .timeIntervalSince(ubicaciones[desde].timestamp)
+            // Parado o retrocediendo en el tiempo: no hay ritmo, y un
+            // 0 acá pintaría el tramo como "lo más rápido de la carrera".
+            guard metros >= 5, segundos > 0 else { return nil }
+            let segPorKm = Int((segundos / metros * 1000).rounded())
+            // Fuera de lo humanamente posible = fix basura, no un ritmo.
+            guard (120...1800).contains(segPorKm) else { return nil }
+            return segPorKm
+        }
+    }
+
+    /// El recorrido partido en tramos con intensidad normalizada, listo
+    /// para pintar. Se reduce a `maximo` tramos porque una ruta trae
+    /// miles de puntos y dibujar uno por fix no cambia lo que se ve.
+    ///
+    /// La normalización usa los percentiles 5 y 95 y no el mínimo y el
+    /// máximo: un solo fix malo en un semáforo aplastaría toda la escala
+    /// contra un extremo y la carrera entera saldría de un color.
+    static func tramos(coordenadas: [CLLocationCoordinate2D],
+                       ritmos: [Int?],
+                       maximo: Int = 90) -> [TramoIntensidad] {
+        guard coordenadas.count > 1, coordenadas.count == ritmos.count else { return [] }
+
+        let validos = ritmos.compactMap { $0 }.sorted()
+        guard validos.count > 1 else {
+            return [TramoIntensidad(coordenadas: coordenadas, intensidad: 0.5)]
+        }
+        let rapido = Double(validos[max(0, Int(Double(validos.count - 1) * 0.05))])
+        let lento = Double(validos[min(validos.count - 1, Int(Double(validos.count - 1) * 0.95))])
+        let rango = lento - rapido
+
+        let porTramo = max(2, Int((Double(coordenadas.count) / Double(maximo)).rounded(.up)))
+        var resultado: [TramoIntensidad] = []
+        var inicio = 0
+        while inicio < coordenadas.count - 1 {
+            // El tramo COMPARTE su último punto con el primero del
+            // siguiente: sin eso la línea sale cortada en cada empalme.
+            let fin = min(coordenadas.count - 1, inicio + porTramo)
+            let ritmosDelTramo = ritmos[inicio...fin].compactMap { $0 }
+            let intensidad: Double
+            if ritmosDelTramo.isEmpty || rango <= 0 {
+                intensidad = 0.5
+            } else {
+                let medio = Double(ritmosDelTramo.reduce(0, +)) / Double(ritmosDelTramo.count)
+                // Menos segundos por km = más rápido = más intensidad.
+                intensidad = min(1, max(0, (lento - medio) / rango))
+            }
+            resultado.append(TramoIntensidad(
+                coordenadas: Array(coordenadas[inicio...fin]),
+                intensidad: intensidad))
+            inicio = fin
+        }
+        return resultado
+    }
 
     /// Un split completo. `numero` es el hito (km 3 o milla 3) y
     /// `ritmoSegKm` queda SIEMPRE en segundos por kilómetro canónicos:

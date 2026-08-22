@@ -119,6 +119,40 @@ enum DV2 {
                        startPoint: .top, endPoint: .bottomTrailing)
     }
 
+    /// RAMPA DE INTENSIDAD — el recorrido pintado por ritmo.
+    ///
+    /// Secuencial de UN SOLO TONO, claro → oscuro: el dato es magnitud
+    /// (cuánto empujaste), no polaridad, y un arcoíris haría que dos
+    /// tramos parecidos se vean de colores opuestos. Cálida a propósito:
+    /// se lee como calor y no compite con el azul de la marca ni con el
+    /// agua del mapa.
+    ///
+    /// Los pasos son monótonos en luminosidad (0.68 → 0.10), que es la
+    /// regla real de una rampa secuencial. Como los extremos no llegan a
+    /// 3:1 contra toda superficie posible, la línea SIEMPRE va con un
+    /// casing debajo — ver `TrazoConCasing`.
+    enum Intensidad {
+        static let pasos: [Color] = [
+            Color(red: 1.00, green: 0.82, blue: 0.54),   // #FFD08A
+            Color(red: 0.98, green: 0.66, blue: 0.30),   // #FBA94C
+            Color(red: 0.94, green: 0.48, blue: 0.16),   // #F07A28
+            Color(red: 0.85, green: 0.31, blue: 0.06),   // #D8500F
+            Color(red: 0.64, green: 0.17, blue: 0.02),   // #A32B06
+        ]
+
+        /// El color de un tramo. `intensidad` va de 0 (lo más lento de
+        /// esa carrera) a 1 (lo más rápido).
+        static func color(_ intensidad: Double) -> Color {
+            let acotada = min(1, max(0, intensidad))
+            let indice = Int((acotada * Double(pasos.count - 1)).rounded())
+            return pasos[indice]
+        }
+
+        static var degradado: LinearGradient {
+            LinearGradient(colors: pasos, startPoint: .leading, endPoint: .trailing)
+        }
+    }
+
     /// SUCCESS/WARNING/DESTRUCTIVE: system colors (superiores en
     /// accesibilidad y significado nativo).
     enum Semantico {

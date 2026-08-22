@@ -1,4 +1,5 @@
 import XCTest
+import CoreLocation
 @testable import Maraton
 
 // Tests de la lógica deportiva pura (Shared/Plan.swift y TramosImport).
@@ -1442,5 +1443,110 @@ final class EstadoInicialOnboardingTests: XCTestCase {
     func testElPuntoDeEntradaDeDisponibilidadAbreEnEsePaso() {
         XCTAssertEqual(PuntoDeEntradaOnboarding.principio.paso, 0)
         XCTAssertEqual(PuntoDeEntradaOnboarding.disponibilidad.paso, 3)
+    }
+}
+
+/// El mapa de calor del recorrido. La lógica es pura y se puede probar
+/// sin GPS: lo que protegen estos casos es que el ruido del GPS de
+/// muñeca no se pinte como si fuera un cambio de ritmo real.
+final class IntensidadDelRecorridoTests: XCTestCase {
+
+    /// Construye una ruta recta con un ritmo dado por tramo, en
+    /// segundos por kilómetro. Un grado de latitud ≈ 111 km.
+    private func ruta(ritmosSegKm: [Int], metrosPorPunto: Double = 20) -> [CLLocation] {
+        var ubicaciones: [CLLocation] = []
+        var t = Date(timeIntervalSince1970: 0)
+        var lat = 0.0
+        for ritmo in ritmosSegKm {
+            ubicaciones.append(CLLocation(
+                coordinate: CLLocationCoordinate2D(latitude: lat, longitude: 0),
+                altitude: 0, horizontalAccuracy: 5, verticalAccuracy: 5, timestamp: t))
+            lat += metrosPorPunto / 111_000
+            t = t.addingTimeInterval(Double(ritmo) * metrosPorPunto / 1000)
+        }
+        return ubicaciones
+    }
+
+    func testUnRitmoConstanteDaUnRitmoConstante() {
+        let ubicaciones = ruta(ritmosSegKm: Array(repeating: 300, count: 40))
+        let ritmos = AnalisisSesion.ritmos(de: ubicaciones).compactMap { $0 }
+        XCTAssertFalse(ritmos.isEmpty)
+        // Tolerancia por el redondeo de grados a metros.
+        for r in ritmos { XCTAssertEqual(Double(r), 300, accuracy: 15) }
+    }
+
+    /// Estar parado no es "ritmo infinito" ni "ritmo cero": es no saber.
+    /// Un 0 acá pintaría el semáforo como el tramo más rápido.
+    func testParadoNoProduceRitmo() {
+        var t = Date(timeIntervalSince1970: 0)
+        let ubicaciones: [CLLocation] = (0..<20).map { _ in
+            defer { t = t.addingTimeInterval(1) }
+            return CLLocation(
+                coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0),
+                altitude: 0, horizontalAccuracy: 5, verticalAccuracy: 5, timestamp: t)
+        }
+        XCTAssertTrue(AnalisisSesion.ritmos(de: ubicaciones).allSatisfy { $0 == nil })
+    }
+
+    func testUnaRutaDeUnSoloPuntoNoRompe() {
+        XCTAssertEqual(AnalisisSesion.ritmos(de: ruta(ritmosSegKm: [300])).count, 1)
+        XCTAssertTrue(AnalisisSesion.tramos(coordenadas: [], ritmos: []).isEmpty)
+    }
+
+    /// Lo más rápido de la carrera tiene que salir con MÁS intensidad
+    /// que lo más lento. Es la promesa entera del mapa de calor.
+    func testElTramoRapidoTieneMasIntensidadQueElLento() {
+        let lento = Array(repeating: 420, count: 30)
+        let rapido = Array(repeating: 240, count: 30)
+        let ubicaciones = ruta(ritmosSegKm: lento + rapido)
+        let ritmos = AnalisisSesion.ritmos(de: ubicaciones)
+        let tramos = AnalisisSesion.tramos(
+            coordenadas: ubicaciones.map(\.coordinate), ritmos: ritmos, maximo: 12)
+
+        XCTAssertGreaterThan(tramos.count, 2)
+        let primero = tramos.first!.intensidad
+        let ultimo = tramos.last!.intensidad
+        XCTAssertGreaterThan(ultimo, primero,
+                             "el tramo rápido tiene que pintarse más intenso que el lento")
+    }
+
+    /// Los tramos comparten el punto de empalme: sin eso la línea sale
+    /// cortada en cada unión y el recorrido se ve punteado.
+    func testLosTramosSonContinuos() {
+        let ubicaciones = ruta(ritmosSegKm: Array(repeating: 300, count: 60))
+        let coords = ubicaciones.map(\.coordinate)
+        let tramos = AnalisisSesion.tramos(
+            coordenadas: coords, ritmos: AnalisisSesion.ritmos(de: ubicaciones), maximo: 10)
+        for (a, b) in zip(tramos, tramos.dropFirst()) {
+            let fin = a.coordenadas.last!
+            let inicio = b.coordenadas.first!
+            XCTAssertEqual(fin.latitude, inicio.latitude, accuracy: 1e-9)
+            XCTAssertEqual(fin.longitude, inicio.longitude, accuracy: 1e-9)
+        }
+    }
+
+    /// La intensidad siempre queda dentro de 0...1, incluso con un fix
+    /// absurdo en el medio: si no, el color se sale de la rampa.
+    func testLaIntensidadNuncaSeSaleDeRango() {
+        var ritmos = Array(repeating: 300, count: 40)
+        ritmos[20] = 130
+        let ubicaciones = ruta(ritmosSegKm: ritmos)
+        let tramos = AnalisisSesion.tramos(
+            coordenadas: ubicaciones.map(\.coordinate),
+            ritmos: AnalisisSesion.ritmos(de: ubicaciones), maximo: 20)
+        for tramo in tramos {
+            XCTAssertGreaterThanOrEqual(tramo.intensidad, 0)
+            XCTAssertLessThanOrEqual(tramo.intensidad, 1)
+        }
+    }
+
+    /// Sin ritmos utilizables (ruta sin tiempos coherentes) el recorrido
+    /// se pinta entero en el medio de la rampa, no se descarta.
+    func testSinRitmosSePintaNeutro() {
+        let coords = (0..<10).map { CLLocationCoordinate2D(latitude: Double($0) / 1000, longitude: 0) }
+        let tramos = AnalisisSesion.tramos(coordenadas: coords,
+                                           ritmos: Array(repeating: nil, count: 10))
+        XCTAssertEqual(tramos.count, 1)
+        XCTAssertEqual(tramos.first?.intensidad, 0.5)
     }
 }
