@@ -287,6 +287,17 @@
         }
       }
     },
+    "%@ · Semana %lld de %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · Week %2$lld of %3$lld"
+          }
+        }
+      }
+    },
     "%@ — te falta el plan.": {
       "extractionState": "manual",
       "localizations": {
@@ -3510,6 +3521,17 @@
         }
       }
     },
+    "Desnivel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elevation"
+          }
+        }
+      }
+    },
     "Desnivel positivo: +%lld m": {
       "extractionState": "manual",
       "localizations": {
@@ -3979,6 +4001,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your plan is built around this."
+          }
+        }
+      }
+    },
+    "El recorrido está pintado por desnivel: azul bajada, gris llano, rojo subida.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The route is colored by elevation: blue downhill, gray flat, red uphill."
           }
         }
       }
@@ -8020,6 +8053,17 @@
         }
       }
     },
+    "Pintar por": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Color by"
+          }
+        }
+      }
+    },
     "Plan": {
       "extractionState": "manual",
       "localizations": {
@@ -11683,6 +11727,17 @@
         }
       }
     },
+    "bajada": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "downhill"
+          }
+        }
+      }
+    },
     "calidad": {
       "extractionState": "manual",
       "localizations": {
@@ -12013,6 +12068,17 @@
         }
       }
     },
+    "más rápido": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "fastest"
+          }
+        }
+      }
+    },
     "omitido": {
       "extractionState": "manual",
       "localizations": {
@@ -12141,6 +12207,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "no faster than %@ /km"
+          }
+        }
+      }
+    },
+    "subida": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "uphill"
           }
         }
       }

@@ -153,6 +153,37 @@ enum DV2 {
         }
     }
 
+    /// RAMPA DE PENDIENTE — el recorrido pintado por desnivel.
+    ///
+    /// DIVERGENTE, al revés que `Intensidad`: subir y bajar son polos
+    /// opuestos y el llano es la ausencia de ambos, así que la escala
+    /// tiene dos tonos y un GRIS NEUTRO en el medio. Un tono solo diría
+    /// "más pendiente" sin decir hacia dónde.
+    ///
+    /// Frío = bajada, gris = llano, cálido = subida. Validada sobre
+    /// superficie de mapa claro: separación para daltonismo y para
+    /// visión normal por encima del piso en todos los pares vecinos.
+    enum Pendiente {
+        static let pasos: [Color] = [
+            Color(red: 0.00, green: 0.23, blue: 0.53),   // #003A86 bajada fuerte
+            Color(red: 0.04, green: 0.45, blue: 0.78),   // #0A72C8
+            Color(red: 0.49, green: 0.48, blue: 0.46),   // #7C7B75 llano
+            Color(red: 0.95, green: 0.45, blue: 0.24),   // #F2743C
+            Color(red: 0.69, green: 0.07, blue: 0.03),   // #B01207 subida fuerte
+        ]
+
+        /// `intensidad` 0 = la bajada más fuerte, 0,5 = llano, 1 = la
+        /// subida más fuerte.
+        static func color(_ intensidad: Double) -> Color {
+            let acotada = min(1, max(0, intensidad))
+            return pasos[Int((acotada * Double(pasos.count - 1)).rounded())]
+        }
+
+        static var degradado: LinearGradient {
+            LinearGradient(colors: pasos, startPoint: .leading, endPoint: .trailing)
+        }
+    }
+
     /// SUCCESS/WARNING/DESTRUCTIVE: system colors (superiores en
     /// accesibilidad y significado nativo).
     enum Semantico {

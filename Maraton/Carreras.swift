@@ -53,6 +53,9 @@ struct CarreraResumen: Identifiable {
     /// entrega las ubicaciones CON timestamp y acá se descartaban: sin
     /// ellos el recorrido solo puede pintarse de un color.
     var ritmos: [Int?] = []
+    /// Pendiente por punto, en porcentaje. Mismo motivo que `ritmos`:
+    /// la altitud viene en las ubicaciones y se descartaba.
+    var desniveles: [Double?] = []
     var rutaCargada = false
 
     var fecha: Date { workout.startDate }
@@ -213,12 +216,14 @@ final class CarrerasStore: ObservableObject {
                 let ubicaciones = error == nil ? caja.contenido : []
                 let puntos = ubicaciones.map(\.coordinate)
                 let ritmos = AnalisisSesion.ritmos(de: ubicaciones)
+                let desniveles = AnalisisSesion.desniveles(de: ubicaciones)
                 let completa = error == nil
                 DispatchQueue.main.async { [weak self] in
                     self?.actualizar(workout: workout) {
                         if completa {
                             $0.ruta = puntos
                             $0.ritmos = ritmos
+                            $0.desniveles = desniveles
                         }
                         $0.rutaCargada = true
                     }
@@ -243,6 +248,9 @@ struct CarrerasView: View {
     /// Qué hacer cuando el estado vacío ofrece salir a correr. Opcional
     /// para no atar la vista a la barra de pestañas en previews y tests.
     var irACorrer: (() -> Void)?
+    /// Para que el detalle pueda decir QUÉ sesión del plan fue esta
+    /// carrera. Opcional: una carrera libre no tiene plan detrás.
+    var almacen: AlmacenStore?
 
     var body: some View {
         List {
@@ -291,7 +299,7 @@ struct CarrerasView: View {
             }
             ForEach(store.visibles) { carrera in
                 NavigationLink {
-                    CarreraDetalleView(store: store, id: carrera.id)
+                    CarreraDetalleView(store: store, almacen: almacen, id: carrera.id)
                 } label: {
                     // La DISTANCIA manda; fecha y detalle acompañan.
                     HStack(spacing: 12) {
@@ -406,19 +414,38 @@ struct CarrerasView: View {
     }
 }
 
+/// Cómo se pinta el recorrido. Dos preguntas distintas sobre la misma
+/// ruta: cuánto empujaste (magnitud) y contra qué terreno (polaridad).
+enum ModoRecorrido: String, CaseIterable, Identifiable {
+    case ritmo, desnivel
+    var id: String { rawValue }
+
+    var titulo: String {
+        switch self {
+        case .ritmo: return String(localized: "Ritmo")
+        case .desnivel: return String(localized: "Desnivel")
+        }
+    }
+}
+
 struct CarreraDetalleView: View {
     @ObservedObject var store: CarrerasStore
+    var almacen: AlmacenStore?
     let id: UUID
     @Environment(\.dismiss) private var dismiss
     @State private var confirmandoOcultar = false
+    @State private var modo: ModoRecorrido = .ritmo
 
     var body: some View {
         if let carrera = store.carreras.first(where: { $0.id == id }) {
             List {
                 Section {
                     if !carrera.ruta.isEmpty {
-                        let tramos = AnalisisSesion.tramos(coordenadas: carrera.ruta,
-                                                           ritmos: carrera.ritmos)
+                        let tramos = modo == .ritmo
+                            ? AnalisisSesion.tramos(coordenadas: carrera.ruta,
+                                                    ritmos: carrera.ritmos)
+                            : AnalisisSesion.tramosPorDesnivel(coordenadas: carrera.ruta,
+                                                               desniveles: carrera.desniveles)
                         // .automatic encuadra solo el contenido del mapa.
                         Map {
                             // El CASING va primero y entero: una línea
@@ -442,7 +469,9 @@ struct CarreraDetalleView: View {
                             } else {
                                 ForEach(Array(tramos.enumerated()), id: \.offset) { par in
                                     MapPolyline(coordinates: par.element.coordenadas)
-                                        .stroke(DV2.Intensidad.color(par.element.intensidad),
+                                        .stroke(modo == .ritmo
+                                                ? DV2.Intensidad.color(par.element.intensidad)
+                                                : DV2.Pendiente.color(par.element.intensidad),
                                                 style: StrokeStyle(lineWidth: 5,
                                                                    lineCap: .round,
                                                                    lineJoin: .round))
@@ -453,9 +482,22 @@ struct CarreraDetalleView: View {
                         .listRowInsets(EdgeInsets())
 
                         if !tramos.isEmpty {
-                            LeyendaIntensidad()
-                                .listRowInsets(EdgeInsets(top: 10, leading: 16,
-                                                          bottom: 10, trailing: 16))
+                            VStack(spacing: DV2.Espacio.s) {
+                                // El selector solo si hay desnivel medido:
+                                // una pestaña que lleva a una pantalla
+                                // gris es peor que no tenerla.
+                                if carrera.desniveles.contains(where: { $0 != nil }) {
+                                    Picker("Pintar por", selection: $modo) {
+                                        ForEach(ModoRecorrido.allCases) { m in
+                                            Text(m.titulo).tag(m)
+                                        }
+                                    }
+                                    .pickerStyle(.segmented)
+                                }
+                                LeyendaIntensidad(modo: modo)
+                            }
+                            .listRowInsets(EdgeInsets(top: 10, leading: 16,
+                                                      bottom: 10, trailing: 16))
                         }
                     } else if carrera.rutaCargada {
                         Label("Esta carrera no tiene recorrido GPS.", systemImage: "map")
@@ -549,6 +591,20 @@ struct CarreraDetalleView: View {
         }
     }
 
+    /// "Larga · Semana 3 de 8" — qué era esta carrera dentro del plan.
+    /// `nil` para una carrera libre: inventar contexto sería peor que no
+    /// tenerlo.
+    private func contextoDePlan(_ carrera: CarreraResumen) -> String? {
+        guard let almacen,
+              let programado = almacen.almacen.programadoDeSesion(carrera.id) else { return nil }
+        let nombre = programado.definicion.nombre
+        guard let semana = almacen.almacen.semanaDe(programadoID: programado.id)?.numero,
+              let total = almacen.almacen.planActivo?.semanas.count, total > 0 else {
+            return nombre
+        }
+        return String(localized: "\(nombre) · Semana \(semana) de \(total)")
+    }
+
     /// Los tramos de intensidad de esta carrera, en UN solo lugar: las
     /// tres exportaciones tienen que pintar exactamente lo mismo.
     private func tramosDe(_ carrera: CarreraResumen) -> [AnalisisSesion.TramoIntensidad] {
@@ -558,7 +614,8 @@ struct CarreraDetalleView: View {
     /// La carrera como imagen linda para mandar al grupo o subir a redes.
     private func imagenParaCompartir(_ carrera: CarreraResumen) -> Image {
         let render = ImageRenderer(content: TarjetaCompartir(
-            carrera: carrera, ruta: carrera.ruta, tramos: tramosDe(carrera)))
+            carrera: carrera, ruta: carrera.ruta, tramos: tramosDe(carrera),
+            contexto: contextoDePlan(carrera)))
         render.scale = 3
         if let imagen = render.uiImage {
             return Image(uiImage: imagen)
@@ -569,7 +626,8 @@ struct CarreraDetalleView: View {
     private func imagenSinFondo(_ carrera: CarreraResumen) -> Image {
         let render = ImageRenderer(content: TarjetaCompartir(
             carrera: carrera, ruta: carrera.ruta,
-            tramos: tramosDe(carrera), transparente: true))
+            tramos: tramosDe(carrera), contexto: contextoDePlan(carrera),
+            transparente: true))
         render.scale = 3
         render.isOpaque = false
         if let imagen = render.uiImage {
@@ -583,7 +641,8 @@ struct CarreraDetalleView: View {
     private func urlPNGSinFondo(_ carrera: CarreraResumen) -> URL {
         let render = ImageRenderer(content: TarjetaCompartir(
             carrera: carrera, ruta: carrera.ruta,
-            tramos: tramosDe(carrera), transparente: true))
+            tramos: tramosDe(carrera), contexto: contextoDePlan(carrera),
+            transparente: true))
         render.scale = 3
         render.isOpaque = false
         // Nombre ÚNICO por exportación: el share sheet y varios destinos
@@ -657,23 +716,24 @@ struct TrazadoRuta: Shape {
 /// decoración: el corredor no tiene cómo saber si el naranja oscuro es
 /// lo bueno o lo malo.
 struct LeyendaIntensidad: View {
+    var modo: ModoRecorrido = .ritmo
+
     var body: some View {
         HStack(spacing: DV2.Espacio.s) {
-            Text("Ritmo")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Text("lento")
+            Text(modo == .ritmo ? "lento" : "bajada")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
             Capsule()
-                .fill(DV2.Intensidad.degradado)
+                .fill(modo == .ritmo ? DV2.Intensidad.degradado : DV2.Pendiente.degradado)
                 .frame(height: 6)
-            Text("rápido")
+            Text(modo == .ritmo ? "rápido" : "subida")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text("El recorrido está pintado por ritmo: más oscuro, más rápido."))
+        .accessibilityLabel(Text(modo == .ritmo
+            ? "El recorrido está pintado por ritmo: más oscuro, más rápido."
+            : "El recorrido está pintado por desnivel: azul bajada, gris llano, rojo subida."))
     }
 }
 
@@ -681,6 +741,9 @@ struct TarjetaCompartir: View {
     let carrera: CarreraResumen
     var ruta: [CLLocationCoordinate2D] = []
     var tramos: [AnalisisSesion.TramoIntensidad] = []
+    /// Qué era esta carrera dentro del plan. Le da sentido a la postal:
+    /// no es "corrí 10 km", es "la larga de la semana 3 de 8".
+    var contexto: String?
     var transparente = false
 
     private var sombra: Color { transparente ? .black.opacity(0.45) : .clear }
@@ -702,9 +765,16 @@ struct TarjetaCompartir: View {
                     .font(.headline)
                     .foregroundStyle(.white.opacity(0.9))
             }
-            Text(FormatoFecha.completa(carrera.fecha))
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.75))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(FormatoFecha.completa(carrera.fecha))
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.75))
+                if let contexto {
+                    Text(contexto)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.95))
+                }
+            }
 
             if ruta.count > 1 {
                 ZStack {
@@ -879,6 +949,79 @@ enum AnalisisSesion {
             guard (120...1800).contains(segPorKm) else { return nil }
             return segPorKm
         }
+    }
+
+    /// Pendiente por punto, en porcentaje (positivo = subida).
+    ///
+    /// La altitud del GPS es MÁS ruidosa que la posición: fixes
+    /// consecutivos saltan metros sin que el terreno cambie. Por eso la
+    /// pendiente se mide sobre una ventana ancha y se descarta lo que
+    /// sale de un rango que ya no es correr sino escalar.
+    static func desniveles(de ubicaciones: [CLLocation], ventana: Int = 15) -> [Double?] {
+        guard ubicaciones.count > 1 else {
+            return Array(repeating: nil, count: ubicaciones.count)
+        }
+        let mitad = max(1, ventana / 2)
+        return ubicaciones.indices.map { i in
+            let desde = max(0, i - mitad)
+            let hasta = min(ubicaciones.count - 1, i + mitad)
+            guard hasta > desde else { return nil }
+            var metros = 0.0
+            for j in (desde + 1)...hasta {
+                metros += ubicaciones[j].distance(from: ubicaciones[j - 1])
+            }
+            // Altitud sin medir (verticalAccuracy < 0) no es altitud 0.
+            guard ubicaciones[desde].verticalAccuracy >= 0,
+                  ubicaciones[hasta].verticalAccuracy >= 0,
+                  metros >= 20 else { return nil }
+            let subida = ubicaciones[hasta].altitude - ubicaciones[desde].altitude
+            let porciento = subida / metros * 100
+            guard porciento.isFinite, abs(porciento) <= 35 else { return nil }
+            return porciento
+        }
+    }
+
+    /// El recorrido partido en tramos por PENDIENTE. La intensidad
+    /// vuelve normalizada a 0...1 con 0,5 = llano: la pendiente es
+    /// POLARIDAD (subís o bajás), no magnitud, y por eso su escala tiene
+    /// dos polos y un neutro en el medio — al revés que el ritmo.
+    ///
+    /// La escala es simétrica a propósito: si el máximo de subida y el
+    /// de bajada se normalizaran por separado, una cuesta del 8 % y una
+    /// bajadita del 1 % se pintarían igual de saturadas.
+    static func tramosPorDesnivel(coordenadas: [CLLocationCoordinate2D],
+                                  desniveles: [Double?],
+                                  maximo: Int = 90) -> [TramoIntensidad] {
+        guard coordenadas.count > 1, coordenadas.count == desniveles.count else { return [] }
+        let validos = desniveles.compactMap { $0 }.map(abs).sorted()
+        guard let tope = validos.last, tope > 0.5 else {
+            // Terreno llano: pintarlo con contraste sería inventar
+            // cuestas que no existen.
+            return [TramoIntensidad(coordenadas: coordenadas, intensidad: 0.5)]
+        }
+        // Percentil 90 del valor absoluto: un pico de altímetro no fija
+        // la escala de toda la carrera.
+        let escala = max(1.0, validos[min(validos.count - 1, Int(Double(validos.count - 1) * 0.9))])
+
+        let porTramo = max(2, Int((Double(coordenadas.count) / Double(maximo)).rounded(.up)))
+        var resultado: [TramoIntensidad] = []
+        var inicio = 0
+        while inicio < coordenadas.count - 1 {
+            let fin = min(coordenadas.count - 1, inicio + porTramo)
+            let delTramo = desniveles[inicio...fin].compactMap { $0 }
+            let intensidad: Double
+            if delTramo.isEmpty {
+                intensidad = 0.5
+            } else {
+                let medio = delTramo.reduce(0, +) / Double(delTramo.count)
+                intensidad = min(1, max(0, 0.5 + 0.5 * (medio / escala)))
+            }
+            resultado.append(TramoIntensidad(
+                coordenadas: Array(coordenadas[inicio...fin]),
+                intensidad: intensidad))
+            inicio = fin
+        }
+        return resultado
     }
 
     /// El recorrido partido en tramos con intensidad normalizada, listo
@@ -1129,19 +1272,37 @@ struct SeccionesAnalisis: View {
 
             let splits = AnalisisSesion.splits(cargador.puntos)
             if !splits.isEmpty {
+                // Con un solo split "el más rápido" no significa nada:
+                // es el único.
+                let masRapido = splits.count > 1
+                    ? splits.min(by: { $0.ritmoSegKm < $1.ritmoSegKm })
+                    : nil
                 Section("Splits") {
                     ForEach(splits) { split in
+                        let esElMasRapido = split.numero == masRapido?.numero
                         HStack {
                             Text("\(Unidades.actual.etiquetaDistancia) \(split.numero)")
                                 .font(.subheadline.weight(.semibold))
                                 .monospacedDigit()
+                            if esElMasRapido {
+                                // Con etiqueta y no solo con color: el
+                                // dato que la gente publica no puede
+                                // depender de distinguir dos naranjas.
+                                Text("más rápido")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                                    .background(DV2.Intensidad.pasos.last ?? .orange,
+                                                in: Capsule())
+                            }
                             Spacer()
                             Text(formatearDuracion(TimeInterval(split.segundos)))
                                 .font(.subheadline)
                                 .monospacedDigit()
                             Text(Unidades.ritmo(segundosPorKm: split.ritmoSegKm))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .font(esElMasRapido ? .subheadline.weight(.bold) : .subheadline)
+                                .foregroundStyle(esElMasRapido ? .primary : .secondary)
                                 .monospacedDigit()
                         }
                     }
@@ -1150,7 +1311,9 @@ struct SeccionesAnalisis: View {
                     Chart(splits) { split in
                         BarMark(x: .value(Unidades.actual.etiquetaDistancia, split.numero),
                                 y: .value("ritmo", split.ritmoSegKm))
-                            .foregroundStyle(DV2.Marca.primario)
+                            .foregroundStyle(split.numero == masRapido?.numero
+                                             ? (DV2.Intensidad.pasos.last ?? .orange)
+                                             : DV2.Marca.primario)
                     }
                     .chartYAxis {
                         AxisMarks { valor in

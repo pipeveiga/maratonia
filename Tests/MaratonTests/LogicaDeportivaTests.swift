@@ -1550,3 +1550,87 @@ final class IntensidadDelRecorridoTests: XCTestCase {
         XCTAssertEqual(tramos.first?.intensidad, 0.5)
     }
 }
+
+/// La pendiente del recorrido. El altímetro del GPS es más ruidoso que
+/// la posición, así que lo que protegen estos casos es que el ruido no
+/// se pinte como una cuesta.
+final class DesnivelDelRecorridoTests: XCTestCase {
+
+    /// Ruta recta con una subida constante dada en porcentaje.
+    private func ruta(pendientePorciento: Double, puntos: Int = 60,
+                      metrosPorPunto: Double = 20,
+                      precisionVertical: Double = 5) -> [CLLocation] {
+        var ubicaciones: [CLLocation] = []
+        var t = Date(timeIntervalSince1970: 0)
+        var lat = 0.0
+        var alt = 100.0
+        for _ in 0..<puntos {
+            ubicaciones.append(CLLocation(
+                coordinate: CLLocationCoordinate2D(latitude: lat, longitude: 0),
+                altitude: alt, horizontalAccuracy: 5,
+                verticalAccuracy: precisionVertical, timestamp: t))
+            lat += metrosPorPunto / 111_000
+            alt += metrosPorPunto * pendientePorciento / 100
+            t = t.addingTimeInterval(6)
+        }
+        return ubicaciones
+    }
+
+    func testUnaSubidaConstanteDaEsaPendiente() {
+        let valores = AnalisisSesion.desniveles(de: ruta(pendientePorciento: 5)).compactMap { $0 }
+        XCTAssertFalse(valores.isEmpty)
+        for v in valores { XCTAssertEqual(v, 5, accuracy: 1.0) }
+    }
+
+    func testUnaBajadaDaPendienteNegativa() {
+        let valores = AnalisisSesion.desniveles(de: ruta(pendientePorciento: -6)).compactMap { $0 }
+        XCTAssertFalse(valores.isEmpty)
+        for v in valores { XCTAssertLessThan(v, 0) }
+    }
+
+    /// Altitud sin medir no es altitud cero: con verticalAccuracy
+    /// negativa el altímetro no sabe, y una pendiente inventada ahí
+    /// pintaría cuestas donde el terreno es plano.
+    func testSinPrecisionVerticalNoHayPendiente() {
+        let valores = AnalisisSesion.desniveles(de: ruta(pendientePorciento: 5,
+                                                         precisionVertical: -1))
+        XCTAssertTrue(valores.allSatisfy { $0 == nil })
+    }
+
+    /// El llano se pinta neutro entero: normalizar contra un ruido de
+    /// centímetros haría que una carrera plana saliera llena de color.
+    func testTerrenoLlanoSePintaNeutro() {
+        let ubicaciones = ruta(pendientePorciento: 0)
+        let tramos = AnalisisSesion.tramosPorDesnivel(
+            coordenadas: ubicaciones.map(\.coordinate),
+            desniveles: AnalisisSesion.desniveles(de: ubicaciones))
+        XCTAssertEqual(tramos.count, 1)
+        XCTAssertEqual(tramos.first?.intensidad, 0.5)
+    }
+
+    /// Subida por encima del medio, bajada por debajo. Es la promesa
+    /// entera de la escala divergente.
+    func testSubidaYBajadaCaenALadosOpuestosDelNeutro() {
+        let subiendo = ruta(pendientePorciento: 7)
+        let bajando = ruta(pendientePorciento: -7)
+        let tSube = AnalisisSesion.tramosPorDesnivel(
+            coordenadas: subiendo.map(\.coordinate),
+            desniveles: AnalisisSesion.desniveles(de: subiendo), maximo: 10)
+        let tBaja = AnalisisSesion.tramosPorDesnivel(
+            coordenadas: bajando.map(\.coordinate),
+            desniveles: AnalisisSesion.desniveles(de: bajando), maximo: 10)
+        XCTAssertGreaterThan(tSube.map(\.intensidad).max() ?? 0, 0.5)
+        XCTAssertLessThan(tBaja.map(\.intensidad).min() ?? 1, 0.5)
+    }
+
+    func testLaIntensidadDeDesnivelNuncaSeSaleDeRango() {
+        let ubicaciones = ruta(pendientePorciento: 20)
+        let tramos = AnalisisSesion.tramosPorDesnivel(
+            coordenadas: ubicaciones.map(\.coordinate),
+            desniveles: AnalisisSesion.desniveles(de: ubicaciones), maximo: 15)
+        for tramo in tramos {
+            XCTAssertGreaterThanOrEqual(tramo.intensidad, 0)
+            XCTAssertLessThanOrEqual(tramo.intensidad, 1)
+        }
+    }
+}

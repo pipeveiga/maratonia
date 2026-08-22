@@ -838,6 +838,22 @@ struct PlanUsuario: Codable, Equatable, Identifiable {
     }
 }
 
+extension AlmacenV2 {
+    /// El entrenamiento del plan que ESTA carrera cumplió, si alguno.
+    /// `sesionVinculadaID` guarda el `HKWorkout.uuid`, así que una
+    /// carrera de Salud puede encontrar su sesión sin inventar
+    /// heurísticas por fecha.
+    func programadoDeSesion(_ hkUUID: UUID) -> EntrenamientoProgramado? {
+        for semana in planActivo?.semanas ?? [] {
+            for programado in semana.programados
+            where programado.sesionVinculadaID == hkUUID {
+                return programado
+            }
+        }
+        return nil
+    }
+}
+
 extension PlanUsuario {
     /// En qué semana del plan cae `hoy`, si cae en alguna. Vivía dentro
     /// de una vista (el subtítulo del calendario) y lo necesitan al

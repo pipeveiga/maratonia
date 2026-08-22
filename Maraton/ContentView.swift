@@ -158,7 +158,7 @@ struct AppPrincipal: View {
             ProgresoTab(almacen: almacen, irACorrer: { pestana = .correr })
                 .tabItem { Label("Progreso", systemImage: "chart.bar.fill") }
                 .tag(Pestana.progreso)
-            CarrerasTab(pestana: $pestana)
+            CarrerasTab(pestana: $pestana, almacen: almacen)
                 .tabItem { Label("Carreras", systemImage: "map.fill") }
                 .tag(Pestana.carreras)
             PerfilTab(store: store, almacen: almacen, identidad: identidad,
@@ -1194,10 +1194,11 @@ struct RelojTab: View {
 
 struct CarrerasTab: View {
     @Binding var pestana: Pestana
+    @ObservedObject var almacen: AlmacenStore
 
     var body: some View {
         NavigationStack {
-            CarrerasView(irACorrer: { pestana = .correr })
+            CarrerasView(irACorrer: { pestana = .correr }, almacen: almacen)
         }
     }
 }
