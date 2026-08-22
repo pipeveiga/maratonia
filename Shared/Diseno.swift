@@ -66,7 +66,7 @@ struct Chip: View {
 /// Ficha de estadística (título chico de color + valor grande), para
 /// grillas de métricas como el detalle de una carrera.
 struct TarjetaEstadistica: View {
-    let titulo: String
+    let titulo: LocalizedStringKey
     let valor: String
     let icono: String
     let color: Color

@@ -51,7 +51,8 @@ struct TutorialView: View {
         }
     }
 
-    private func paginaTutorial(icono: String, titulo: String, texto: String) -> some View {
+    private func paginaTutorial(icono: String, titulo: LocalizedStringKey,
+                                texto: LocalizedStringKey) -> some View {
         VStack(spacing: 16) {
             Image(systemName: icono)
                 .font(.system(size: 56))
