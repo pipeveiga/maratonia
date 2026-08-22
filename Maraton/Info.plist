@@ -2,13 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Este archivo se MERGEA con el Info.plist generado por Xcode
-	     (GENERATE_INFOPLIST_FILE=YES + INFOPLIST_FILE): acá viven solo
-	     las claves que no se pueden expresar como build settings. -->
-	<!-- URL scheme del callback de Google Sign-In: es el
-	     REVERSED_CLIENT_ID de Maraton/GoogleService-Info.plist. Si el
-	     proyecto de Firebase cambia, este valor debe cambiar con él
-	     (ServicioAuth.esquemaGoogleConfigurado lo valida en runtime). -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -18,12 +11,8 @@
 			</array>
 		</dict>
 	</array>
-	<!-- Backend del Coach (entorno de PRUEBA). Sin esta clave el Coach
-	     no aparece en la app: es el gate de runtime, cero botones
-	     muertos. La URL es pública y no es un secreto — la API key de
-	     OpenAI vive como secret de Cloud Functions y jamás toca el
-	     binario. Cada request va autenticado con el ID token de
-	     Firebase del corredor. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>MaratoniaBackendURL</key>
 	<string>https://us-central1-maratonia.cloudfunctions.net</string>
 </dict>
