@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap">
+  <style>
+    body { margin: 0; }
+    .r { font-family: -apple-system, "SF Pro Rounded", Nunito, system-ui, sans-serif; }
+    a { color: #0080DF; } a:hover { color: #002F90; }
+  </style>
+</helmet>
+
+<div class="r" style="width: 402px; height: 874px; background: #F2F2F7; color: #000; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="flex-grow: 1; overflow: hidden; padding: 60px 16px 0 16px; display: flex; flex-direction: column; gap: 16px;">
+
+    <div style="font-size: 34px; font-weight: 800; letter-spacing: -0.6px;">Maratonia</div>
+
+    <!-- Héroe: idéntico al de la pestaña Correr -->
+    <div style="background: linear-gradient(135deg, #0080DF 0%, #002F90 100%); border-radius: 20px; padding: 16px; box-shadow: 0 6px 16px rgba(0,47,144,0.28); display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="background: rgba(255,255,255,0.22); color: #fff; font-size: 11px; font-weight: 800; letter-spacing: 0.8px; padding: 5px 10px; border-radius: 999px;">HOY</span>
+        <span style="background: rgba(255,255,255,0.22); color: #fff; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px;">Larga</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div style="color: #fff; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Larga</div>
+        <div style="color: rgba(255,255,255,0.82); font-size: 15px;">Tranquila y constante.</div>
+      </div>
+      <div style="display: flex; gap: 28px; padding-top: 2px;">
+        <div style="display: flex; flex-direction: column;">
+          <span style="color: #fff; font-size: 22px; font-weight: 800;">5 km</span>
+          <span style="color: rgba(255,255,255,0.72); font-size: 10px; font-weight: 700; letter-spacing: 0.7px;">DISTANCIA</span>
+        </div>
+        <div style="display: flex; flex-direction: column;">
+          <span style="color: #fff; font-size: 22px; font-weight: 800;">1 segmento</span>
+          <span style="color: rgba(255,255,255,0.72); font-size: 10px; font-weight: 700; letter-spacing: 0.7px;">ESTRUCTURA</span>
+        </div>
+      </div>
+      <div style="background: #fff; border-radius: 14px; height: 52px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="#002F90"><path d="M8 5v14l11-7z"/></svg>
+        <span style="color: #002F90; font-size: 19px; font-weight: 800;">Empezar</span>
+      </div>
+    </div>
+
+    <!-- Tu semana: siete puntos grises -->
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <span style="font-size: 20px; font-weight: 800;">Tu semana</span>
+        <span style="font-size: 14px; color: #8A8A8E;">0 de 1</span>
+      </div>
+      <div style="background: #fff; border-radius: 20px; padding: 14px 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.07); display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="font-size: 13px; color: #8A8A8E; font-weight: 600;">L</span><span style="width: 34px; height: 34px; border-radius: 999px; background: #F2F2F7; display: flex; align-items: center; justify-content: center;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #C7C7CC;"></span></span><span style="font-size: 12px; color: #8A8A8E;">17</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="font-size: 13px; color: #8A8A8E; font-weight: 600;">M</span><span style="width: 34px; height: 34px; border-radius: 999px; background: #F2F2F7; display: flex; align-items: center; justify-content: center;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #C7C7CC;"></span></span><span style="font-size: 12px; color: #8A8A8E;">18</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="font-size: 13px; color: #8A8A8E; font-weight: 600;">X</span><span style="width: 34px; height: 34px; border-radius: 999px; background: #F2F2F7; display: flex; align-items: center; justify-content: center;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #C7C7CC;"></span></span><span style="font-size: 12px; color: #8A8A8E;">19</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="font-size: 13px; color: #8A8A8E; font-weight: 600;">J</span><span style="width: 34px; height: 34px; border-radius: 999px; background: #F2F2F7; display: flex; align-items: center; justify-content: center;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #C7C7CC;"></span></span><span style="font-size: 12px; color: #8A8A8E;">20</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="font-size: 13px; color: #8A8A8E; font-weight: 600;">V</span><span style="width: 34px; height: 34px; border-radius: 999px; background: #F2F2F7; display: flex; align-items: center; justify-content: center;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #C7C7CC;"></span></span><span style="font-size: 12px; color: #8A8A8E;">21</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="font-size: 13px; color: #0080DF; font-weight: 700;">S</span><span style="width: 34px; height: 34px; border-radius: 999px; background: #EAF0FF; border: 2px solid #0080DF; display: flex; align-items: center; justify-content: center;"><span style="width: 8px; height: 8px; border-radius: 999px; background: #3A31D8;"></span></span><span style="font-size: 12px; color: #0080DF; font-weight: 700;">22</span></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;"><span style="font-size: 13px; color: #8A8A8E; font-weight: 600;">D</span><span style="width: 34px; height: 34px; border-radius: 999px; background: #F2F2F7; display: flex; align-items: center; justify-content: center;"><span style="width: 6px; height: 6px; border-radius: 999px; background: #C7C7CC;"></span></span><span style="font-size: 12px; color: #8A8A8E;">23</span></div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <span style="font-size: 20px; font-weight: 800;">Próximos</span>
+      <div style="background: #fff; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.07); display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px;">
+          <span style="background: #E4F7E9; color: #1E8E3E; font-size: 12px; font-weight: 700; padding: 6px 8px; border-radius: 8px;">25 ago</span>
+          <div style="flex-grow: 1; display: flex; flex-direction: column;">
+            <span style="font-size: 17px; font-weight: 700;">Rodaje</span>
+            <span style="font-size: 14px; color: #8A8A8E;">Ritmo de charla.</span>
+          </div>
+          <span style="font-size: 17px; font-weight: 800; color: #002F90;">4 km</span>
+          <svg width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="#C7C7CC" stroke-width="2"><path d="M1 1l5 6-5 6"/></svg>
+        </div>
+        <div style="height: 1px; background: #E5E5EA; margin-left: 16px;"></div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px;">
+          <span style="background: #E4F7E9; color: #1E8E3E; font-size: 12px; font-weight: 700; padding: 6px 8px; border-radius: 8px;">27 ago</span>
+          <div style="flex-grow: 1; display: flex; flex-direction: column;">
+            <span style="font-size: 17px; font-weight: 700;">Rodaje</span>
+            <span style="font-size: 14px; color: #8A8A8E;">Ritmo de charla.</span>
+          </div>
+          <span style="font-size: 17px; font-weight: 800; color: #002F90;">4.5 km</span>
+          <svg width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="#C7C7CC" stroke-width="2"><path d="M1 1l5 6-5 6"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div style="padding: 8px 12px 28px 12px;">
+    <div style="background: #fff; border-radius: 999px; box-shadow: 0 4px 14px rgba(0,0,0,0.08); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 8px 4px;">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; background: #EFEFF4; border-radius: 999px; padding: 6px 0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0080DF" stroke-width="2" stroke-linecap="round"><path d="M3 7h13M19 7h2M3 17h5M11 17h10"/><circle cx="17" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>
+        <span style="font-size: 11px; color: #0080DF; font-weight: 600;">Plan</span>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#3C3C43"><circle cx="14" cy="4" r="2"/><path d="M11 8l-3 4 3 2 1 6h2l-1-7-2-2 2-2 3 3h3v-2h-2l-3-3z"/></svg>
+        <span style="font-size: 11px; color: #3C3C43; font-weight: 600;">Correr</span>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#3C3C43"><rect x="3" y="13" width="4" height="8" rx="1"/><rect x="10" y="9" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="17" rx="1"/></svg>
+        <span style="font-size: 11px; color: #3C3C43; font-weight: 600;">Progreso</span>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#3C3C43"><path d="M9 3L3 5v16l6-2 6 2 6-2V3l-6 2-6-2z"/></svg>
+        <span style="font-size: 11px; color: #3C3C43; font-weight: 600;">Carreras</span>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#3C3C43"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="9.5" r="3.2" fill="#fff"/><path d="M6 19.5a6.4 6.4 0 0 1 12 0z" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #3C3C43; font-weight: 600;">Perfil</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

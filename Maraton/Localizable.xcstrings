@@ -2245,6 +2245,17 @@
         }
       }
     },
+    "Cada carrera que corras queda acá con su recorrido, ritmo y pulso.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every run you do lands here with its route, pace, and heart rate."
+          }
+        }
+      }
+    },
     "Calculado sobre %@ de las últimas 6 semanas.": {
       "extractionState": "manual",
       "localizations": {
@@ -2967,6 +2978,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Run with Maratonia, with your watch or with any app that saves to Health: your volume, your times and your streak show up on their own."
+          }
+        }
+      }
+    },
+    "Corré con «Registrar carrera» activado: la sincronización desde el reloj tarda unos minutos — tirá hacia abajo para actualizar. Si aun así no aparecen, revisá los permisos en Salud → Compartir → Apps → Maratonia.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run with “Record run” switched on: syncing from the watch takes a few minutes — pull down to refresh. If they still don’t show up, check the permissions in Health → Sharing → Apps → Maratonia."
           }
         }
       }
@@ -9153,6 +9175,17 @@
         }
       }
     },
+    "Salir a correr": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Go for a run"
+          }
+        }
+      }
+    },
     "Saltear": {
       "extractionState": "manual",
       "localizations": {
@@ -10726,6 +10759,17 @@
         }
       }
     },
+    "Tu mapa está esperando": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your map is waiting"
+          }
+        }
+      }
+    },
     "Tu marca": {
       "extractionState": "manual",
       "localizations": {
@@ -10876,6 +10920,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your plan is backed up privately to your iCloud, independent of your Maratonia Account."
+          }
+        }
+      }
+    },
+    "Tu progreso arranca con la primera": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your progress starts with the first one"
           }
         }
       }
@@ -11331,6 +11386,17 @@
         }
       }
     },
+    "Volumen, marcas y racha se completan solos con cada carrera que guardes en Salud.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume, personal bests, and streak fill in on their own with every run you save to Health."
+          }
+        }
+      }
+    },
     "Volver a suscribirme": {
       "extractionState": "manual",
       "localizations": {
@@ -11404,6 +11470,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Almost there."
+          }
+        }
+      }
+    },
+    "Ya corrí y no aparecen": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I already ran and they aren’t showing"
           }
         }
       }

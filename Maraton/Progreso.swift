@@ -173,6 +173,9 @@ final class LectorProgreso: ObservableObject {
 struct ProgresoTab: View {
     @ObservedObject var almacen: AlmacenStore
     @StateObject private var lector = LectorProgreso()
+    /// Salida del estado vacío: sin una carrera no hay progreso, así que
+    /// lo único útil que puede ofrecer esta pantalla es ir a correr.
+    var irACorrer: (() -> Void)?
 
     var body: some View {
         NavigationStack {
@@ -196,9 +199,12 @@ struct ProgresoTab: View {
                         tarjetaPlan
                         if !lector.cargando {
                             EstadoVacio(
-                                icono: "figure.run",
-                                titulo: String(localized: "Todavía no hay carreras"),
-                                detalle: String(localized: "Corré con Maratonia, con el reloj o con cualquier app que guarde en Salud: tu volumen, tus marcas y tu racha aparecen solos."))
+                                icono: "chart.line.uptrend.xyaxis",
+                                titulo: String(localized: "Tu progreso arranca con la primera"),
+                                detalle: String(localized: "Volumen, marcas y racha se completan solos con cada carrera que guardes en Salud."),
+                                accion: irACorrer.map { hacer in
+                                    (texto: String(localized: "Salir a correr"), hacer: hacer)
+                                })
                                 .padding(.horizontal)
                         }
                     } else {

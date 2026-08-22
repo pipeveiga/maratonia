@@ -66,6 +66,11 @@ struct CarreraResumen: Identifiable {
 final class CarrerasStore: ObservableObject {
     @Published var carreras: [CarreraResumen] = []
     @Published var mensaje: String?
+    /// La consulta terminó bien y Salud no tiene ni una carrera. Es
+    /// distinto de `mensaje`: eso es un ERROR, esto es el arranque
+    /// normal de cualquiera que todavía no corrió. La pantalla los
+    /// trata distinto y por eso el estado viaja aparte.
+    @Published var sinCarreras = false
     @Published var ocultasIDs: Set<UUID> = CarrerasOcultas.compartidas.ids()
 
     /// Lo que Maratonia MUESTRA: todo menos lo oculto. El workout
@@ -148,10 +153,10 @@ final class CarrerasStore: ObservableObject {
                 nuevos.forEach { self.cargarDetalles(de: $0) }
                 if let error {
                     self.mensaje = String(localized: "No pude leer Salud: \(error.localizedDescription)")
-                } else if nuestras.isEmpty {
-                    self.mensaje = String(localized: "Todavía no hay carreras. Corré con «Registrar carrera» activado y van a aparecer acá solas (la sincronización desde el reloj tarda unos minutos — tirá hacia abajo para actualizar). Si corriste y no aparecen, revisá los permisos en Salud → Compartir → Apps → Maratonia.")
+                    self.sinCarreras = false
                 } else {
                     self.mensaje = nil
+                    self.sinCarreras = nuestras.isEmpty
                 }
                 alTerminar?()
             }
@@ -225,13 +230,43 @@ final class CarrerasStore: ObservableObject {
 struct CarrerasView: View {
     @StateObject private var store = CarrerasStore()
     @State private var aOcultar: UUID?
+    /// Qué hacer cuando el estado vacío ofrece salir a correr. Opcional
+    /// para no atar la vista a la barra de pestañas en previews y tests.
+    var irACorrer: (() -> Void)?
 
     var body: some View {
         List {
             if !store.carreras.isEmpty {
                 seccionProgreso
             }
-            if let mensaje = store.mensaje {
+            if store.sinCarreras {
+                // Una frase y una salida. El diagnóstico de permisos —que
+                // antes ocupaba siete líneas acá— vive detrás de la
+                // pregunta que lo pide: la mayoría no tiene ese problema,
+                // solo todavía no corrió.
+                EstadoVacio(
+                    icono: "map",
+                    titulo: String(localized: "Tu mapa está esperando"),
+                    detalle: String(localized: "Cada carrera que corras queda acá con su recorrido, ritmo y pulso."),
+                    accion: irACorrer.map { hacer in
+                        (texto: String(localized: "Salir a correr"), hacer: hacer)
+                    })
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+
+                Tarjeta {
+                    Detalle(titulo: String(localized: "Ya corrí y no aparecen")) {
+                        Text("Corré con «Registrar carrera» activado: la sincronización desde el reloj tarda unos minutos — tirá hacia abajo para actualizar. Si aun así no aparecen, revisá los permisos en Salud → Compartir → Apps → Maratonia.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+            } else if let mensaje = store.mensaje {
                 if store.carreras.isEmpty {
                     ContentUnavailableView {
                         Label("Sin carreras todavía", systemImage: "figure.run")

@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap">
+  <style>
+    body { margin: 0; }
+    .r { font-family: -apple-system, "SF Pro Rounded", Nunito, system-ui, sans-serif; }
+    a { color: #0080DF; } a:hover { color: #002F90; }
+  </style>
+</helmet>
+
+<div class="r" style="width: 402px; height: 874px; background: #F2F2F7; color: #000; display: flex; flex-direction: column; overflow: hidden;">
+  <div style="flex-grow: 1; overflow: hidden; padding: 56px 16px 0 16px; display: flex; flex-direction: column; gap: 14px;">
+
+    <div style="font-size: 30px; font-weight: 800; letter-spacing: -0.5px;">Perfil</div>
+
+    <!-- Cabecera de identidad: el objetivo con su progreso real, no un
+         titulo suelto y un numero centrado en el vacio. -->
+    <div style="background: linear-gradient(135deg, #0080DF 0%, #002F90 100%); border-radius: 20px; padding: 18px; box-shadow: 0 8px 20px rgba(0,47,144,0.28); display: flex; align-items: center; gap: 16px;">
+      <div style="position: relative; width: 76px; height: 76px; flex-shrink: 0;">
+        <svg width="76" height="76" viewBox="0 0 76 76">
+          <circle cx="38" cy="38" r="32" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="8"/>
+          <circle cx="38" cy="38" r="32" fill="none" stroke="#D3E056" stroke-width="8" stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="176" transform="rotate(-90 38 38)"/>
+        </svg>
+        <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <span style="color: #fff; font-size: 22px; font-weight: 800; line-height: 1;">1</span>
+          <span style="color: rgba(255,255,255,0.75); font-size: 10px; font-weight: 700;">de 8</span>
+        </div>
+      </div>
+      <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 5px;">
+        <span style="color: rgba(255,255,255,0.75); font-size: 11px; font-weight: 800; letter-spacing: 0.9px;">TU OBJETIVO</span>
+        <span style="color: #fff; font-size: 23px; font-weight: 800; letter-spacing: -0.3px;">Correr 10K</span>
+        <span style="color: rgba(255,255,255,0.85); font-size: 13px;">Rumbo a 10K · 3 días por semana</span>
+      </div>
+    </div>
+
+    <!-- Acciones de plan: cada una con su icono y su estado, agrupadas
+         por lo que hacen y no por donde vivia el codigo. -->
+    <div style="background: #fff; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.07); display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <span style="width: 34px; height: 34px; border-radius: 10px; background: #EAF2FD; display: flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0080DF" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
+        </span>
+        <div style="flex-grow: 1; display: flex; flex-direction: column;">
+          <span style="font-size: 16px; font-weight: 700;">Cambiar objetivo</span>
+          <span style="font-size: 13px; color: #8A8A8E;">Otra distancia o otra meta</span>
+        </div>
+        <svg width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="#C7C7CC" stroke-width="2"><path d="M1 1l5 6-5 6"/></svg>
+      </div>
+      <div style="height: 1px; background: #EDEDF0; margin-left: 62px;"></div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <span style="width: 34px; height: 34px; border-radius: 10px; background: #F0EEFC; display: flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5856D6" stroke-width="2.2" stroke-linecap="round"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="8.5"/></svg>
+        </span>
+        <div style="flex-grow: 1; display: flex; flex-direction: column;">
+          <span style="font-size: 16px; font-weight: 700;">Ajustes del plan</span>
+          <span style="font-size: 13px; color: #8A8A8E;">Sin ajustes todavía</span>
+        </div>
+        <svg width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="#C7C7CC" stroke-width="2"><path d="M1 1l5 6-5 6"/></svg>
+      </div>
+      <div style="height: 1px; background: #EDEDF0; margin-left: 62px;"></div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <span style="width: 34px; height: 34px; border-radius: 10px; background: #E9F7EE; display: flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E8E3E" stroke-width="2.2" stroke-linecap="round"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M8 10h3M8 14h6"/></svg>
+        </span>
+        <div style="flex-grow: 1; display: flex; flex-direction: column;">
+          <span style="font-size: 16px; font-weight: 700;">Datos básicos</span>
+          <span style="font-size: 13px; color: #8A8A8E;">Edad, altura, peso — opcional</span>
+        </div>
+        <svg width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="#C7C7CC" stroke-width="2"><path d="M1 1l5 6-5 6"/></svg>
+      </div>
+      <div style="height: 1px; background: #EDEDF0; margin-left: 62px;"></div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <span style="width: 34px; height: 34px; border-radius: 10px; background: #F2F2F7; display: flex; align-items: center; justify-content: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6C6C70" stroke-width="2.2" stroke-linecap="round"><path d="M4 12h16M9 6l-5 6 5 6"/></svg>
+        </span>
+        <span style="flex-grow: 1; font-size: 16px; font-weight: 700;">Unidades</span>
+        <div style="display: flex; background: #F2F2F7; border-radius: 10px; padding: 3px;">
+          <span style="background: #fff; border-radius: 8px; padding: 5px 12px; font-size: 13px; font-weight: 800; color: #002F90; box-shadow: 0 1px 3px rgba(0,0,0,0.10);">km</span>
+          <span style="padding: 5px 12px; font-size: 13px; font-weight: 700; color: #8A8A8E;">mi</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pro: una tarjeta que dice que da, no una fila mas -->
+    <div style="background: #fff; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.07); border: 1.5px solid #D3E056; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#8B9E00"><path d="M12 2l1.8 5.4L19 9l-4.2 2.6L16 17l-4-2.8L8 17l1.2-5.4L5 9l5.2-1.6z"/></svg>
+        <span style="font-size: 18px; font-weight: 800;">Maratonia Pro</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 7px;">
+        <div style="display: flex; align-items: center; gap: 8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1E8E3E" stroke-width="3" stroke-linecap="round"><path d="M4 12l5 5L20 6"/></svg><span style="font-size: 14px;">Planes de 21K y 42K</span></div>
+        <div style="display: flex; align-items: center; gap: 8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1E8E3E" stroke-width="3" stroke-linecap="round"><path d="M4 12l5 5L20 6"/></svg><span style="font-size: 14px;">El plan se adapta a tu semana real</span></div>
+        <div style="display: flex; align-items: center; gap: 8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1E8E3E" stroke-width="3" stroke-linecap="round"><path d="M4 12l5 5L20 6"/></svg><span style="font-size: 14px;">Coach que explica cada sesión</span></div>
+      </div>
+      <div style="background: #002F90; border-radius: 12px; height: 44px; display: flex; align-items: center; justify-content: center;">
+        <span style="color: #fff; font-size: 16px; font-weight: 800;">Probar 7 días gratis</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding: 8px 12px 28px 12px;">
+    <div style="background: #fff; border-radius: 999px; box-shadow: 0 4px 14px rgba(0,0,0,0.08); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 8px 4px;">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3C3C43" stroke-width="2" stroke-linecap="round"><path d="M3 7h13M19 7h2M3 17h5M11 17h10"/><circle cx="17" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>
+        <span style="font-size: 11px; color: #3C3C43; font-weight: 600;">Plan</span>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#3C3C43"><circle cx="14" cy="4" r="2"/><path d="M11 8l-3 4 3 2 1 6h2l-1-7-2-2 2-2 3 3h3v-2h-2l-3-3z"/></svg>
+        <span style="font-size: 11px; color: #3C3C43; font-weight: 600;">Correr</span>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#3C3C43"><rect x="3" y="13" width="4" height="8" rx="1"/><rect x="10" y="9" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="17" rx="1"/></svg>
+        <span style="font-size: 11px; color: #3C3C43; font-weight: 600;">Progreso</span>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#3C3C43"><path d="M9 3L3 5v16l6-2 6 2 6-2V3l-6 2-6-2z"/></svg>
+        <span style="font-size: 11px; color: #3C3C43; font-weight: 600;">Carreras</span>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; background: #EFEFF4; border-radius: 999px; padding: 6px 0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="#0080DF"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="9.5" r="3.2" fill="#fff"/><path d="M6 19.5a6.4 6.4 0 0 1 12 0z" fill="#fff"/></svg>
+        <span style="font-size: 11px; color: #0080DF; font-weight: 600;">Perfil</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

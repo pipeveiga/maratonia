@@ -155,10 +155,10 @@ struct AppPrincipal: View {
             // El Reloj dejó de ser pestaña (decisión D5): vive en
             // Perfil. Su lugar lo ocupa PROGRESO — correr, ver cómo
             // venís, correr de nuevo.
-            ProgresoTab(almacen: almacen)
+            ProgresoTab(almacen: almacen, irACorrer: { pestana = .correr })
                 .tabItem { Label("Progreso", systemImage: "chart.bar.fill") }
                 .tag(Pestana.progreso)
-            CarrerasTab()
+            CarrerasTab(pestana: $pestana)
                 .tabItem { Label("Carreras", systemImage: "map.fill") }
                 .tag(Pestana.carreras)
             PerfilTab(store: store, almacen: almacen, identidad: identidad,
@@ -1197,9 +1197,11 @@ struct RelojTab: View {
 // MARK: - Pestaña Carreras
 
 struct CarrerasTab: View {
+    @Binding var pestana: Pestana
+
     var body: some View {
         NavigationStack {
-            CarrerasView()
+            CarrerasView(irACorrer: { pestana = .correr })
         }
     }
 }

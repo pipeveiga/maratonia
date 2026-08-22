@@ -1,0 +1,24 @@
+{
+  "artboards": [
+    { "file": "PlanAntes.dc.html",       "x": 0,    "y": 0,   "w": 402, "h": 874, "title": "Plan · antes" },
+    { "file": "ProgresoAntes.dc.html",   "x": 482,  "y": 0,   "w": 402, "h": 874, "title": "Progreso · antes" },
+    { "file": "PerfilAntes.dc.html",     "x": 964,  "y": 0,   "w": 402, "h": 874, "title": "Perfil · antes" },
+    { "file": "VaciosAntes.dc.html",     "x": 1446, "y": 0,   "w": 402, "h": 874, "title": "Vacío · antes" },
+
+    { "file": "Main.dc.html",            "x": 0,    "y": 994, "w": 402, "h": 874, "title": "Plan · después" },
+    { "file": "ProgresoDespues.dc.html", "x": 482,  "y": 994, "w": 402, "h": 874, "title": "Progreso · después" },
+    { "file": "PerfilDespues.dc.html",   "x": 964,  "y": 994, "w": 402, "h": 874, "title": "Perfil · después" },
+    { "file": "VaciosDespues.dc.html",   "x": 1446, "y": 994, "w": 402, "h": 874, "title": "Vacío · después" }
+  ],
+  "annotations": [
+    { "id": "fila-antes", "x": 0, "y": -150, "w": 460,
+      "text": "ANTES — recreado desde el simulador con un plan real de 10K.\nMismos tokens que la app: #0080DF / #002F90, radios 20/14, sombra 0 4px 12px." },
+    { "id": "fila-despues", "x": 0, "y": 890, "w": 460,
+      "text": "DESPUÉS — misma paleta, mismos componentes, mismo estado de datos.\nNo hay ni un color nuevo: lo que cambia es qué información se muestra y con qué jerarquía." },
+    { "id": "nota-semana", "x": 1928, "y": 994, "w": 300,
+      "text": "La semana pasa de 7 puntos grises a una tira de carga: alto = distancia, color = tipo de sesión.\nEs el mismo espacio, informando." },
+    { "id": "nota-vacio", "x": 1928, "y": 0, "w": 300,
+      "text": "El estado vacío de hoy son 7 líneas de texto gris que terminan en una ruta de Ajustes.\nEs lo primero que ve alguien que recién termina el onboarding." }
+  ],
+  "launch": { "view": "canvas" }
+}
