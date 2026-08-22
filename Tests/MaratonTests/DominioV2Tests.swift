@@ -2192,3 +2192,50 @@ final class AbandonarPlanTests: XCTestCase {
         XCTAssertEqual(almacen.historialDePlanes.map(\.nombre), ["A"])
     }
 }
+
+/// `numeroDeSemana` bajó de una vista al dominio: es un dato del plan y
+/// lo consultan dos pantallas. Estos casos protegen los bordes, que es
+/// donde una semana "empieza" en un plan distribuido sobre los días
+/// elegidos y no sobre el lunes del calendario.
+final class NumeroDeSemanaTests: XCTestCase {
+
+    private func plan(inicio: DiaLocal) -> PlanUsuario {
+        Catalogo.planesDisponibles()[1]
+            .adoptar(inicio: inicio, fechaAdopcion: Date(timeIntervalSince1970: 0))
+    }
+
+    func testElDiaDeArranqueEsLaSemanaUno() {
+        let inicio = DiaLocal(anio: 2026, mes: 8, dia: 10)
+        XCTAssertEqual(plan(inicio: inicio).numeroDeSemana(hoy: inicio), 1)
+    }
+
+    /// El sexto día todavía es la misma semana: la ventana es de siete
+    /// días desde el primer entrenamiento, no hasta el domingo.
+    func testElSextoDiaSigueSiendoLaMismaSemana() {
+        let inicio = DiaLocal(anio: 2026, mes: 8, dia: 10)
+        let dentro = inicio.sumando(dias: 6)
+        XCTAssertEqual(plan(inicio: inicio).numeroDeSemana(hoy: dentro), 1)
+    }
+
+    func testUnaSemanaDespuesEsLaSiguiente() {
+        let inicio = DiaLocal(anio: 2026, mes: 8, dia: 10)
+        let siguiente = inicio.sumando(dias: 7)
+        XCTAssertEqual(plan(inicio: inicio).numeroDeSemana(hoy: siguiente), 2)
+    }
+
+    /// Antes de empezar y después de terminar no hay semana: la
+    /// cabecera no puede inventar un "1 de 8" para un plan que todavía
+    /// no arrancó.
+    func testFueraDelBloqueNoHaySemana() {
+        let inicio = DiaLocal(anio: 2026, mes: 8, dia: 10)
+        let p = plan(inicio: inicio)
+        XCTAssertNil(p.numeroDeSemana(hoy: inicio.sumando(dias: -1)))
+        XCTAssertNil(p.numeroDeSemana(hoy: inicio.sumando(dias: 400)))
+    }
+
+    func testUnPlanSinSemanasNoTieneSemanaActual() {
+        var vacio = plan(inicio: DiaLocal(anio: 2026, mes: 8, dia: 10))
+        vacio.semanas = []
+        XCTAssertNil(vacio.numeroDeSemana(hoy: DiaLocal(anio: 2026, mes: 8, dia: 10)))
+    }
+}

@@ -199,6 +199,75 @@ struct Tarjeta<Contenido: View>: View {
     }
 }
 
+/// Un chip para tarjetas de gradiente. `ChipEstado` está construido
+/// para fondo claro —tintes al 12 % y texto de color— y sobre el azul
+/// profundo queda ilegible. Este usa el vidrio blanco de la marca.
+struct EtiquetaSobreOscuro: View {
+    var texto: String
+    var icono: String
+
+    var body: some View {
+        HStack(spacing: DV2.Espacio.xs) {
+            Image(systemName: icono)
+                .font(.caption2.weight(.bold))
+            Text(texto)
+                .font(.caption.weight(.semibold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, DV2.Espacio.s)
+        .padding(.vertical, DV2.Espacio.xs)
+        .background(Color.white.opacity(0.22), in: Capsule())
+    }
+}
+
+// MARK: - Anillo de progreso
+
+/// Un número dentro de un anillo. Existe porque "1 de 8" en texto plano
+/// no se lee de un vistazo y una barra recta no cabe al lado de un
+/// titular: el anillo dice cuánto falta con la forma, no con la cifra.
+///
+/// `sobreOscuro` es para las tarjetas de gradiente, donde la pista tiene
+/// que ser blanco translúcido y no gris del sistema.
+struct AnilloProgreso: View {
+    var hechas: Int
+    var total: Int
+    var etiqueta: String
+    var diametro: CGFloat = 76
+    var sobreOscuro = false
+
+    private var fraccion: Double {
+        guard total > 0 else { return 0 }
+        return min(1, max(0, Double(hechas) / Double(total)))
+    }
+
+    private var grosor: CGFloat { max(6, diametro * 0.105) }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(sobreOscuro ? Color.white.opacity(0.28) : DV2.Superficie.elevada,
+                        lineWidth: grosor)
+            Circle()
+                .trim(from: 0, to: fraccion)
+                .stroke(sobreOscuro ? AnyShapeStyle(DV2.Marca.energia)
+                                    : AnyShapeStyle(DV2.Marca.primario),
+                        style: StrokeStyle(lineWidth: grosor, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            VStack(spacing: 0) {
+                Text("\(hechas)")
+                    .font(DV2.Tipo.numeroGrande)
+                    .foregroundStyle(sobreOscuro ? Color.white : DV2.Marca.profundo)
+                Text(etiqueta)
+                    .font(DV2.Tipo.etiqueta)
+                    .foregroundStyle(sobreOscuro ? Color.white.opacity(0.75) : Color.secondary)
+            }
+        }
+        .frame(width: diametro, height: diametro)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("\(hechas) \(etiqueta)"))
+    }
+}
+
 // MARK: - Estado vacío
 
 /// Lo que se ve cuando TODAVÍA no hay nada. Existe porque una pantalla
@@ -465,6 +534,9 @@ struct AvisoSinPlan: View {
 struct ResumenCorredor: View {
     var objetivo: ObjetivoDeportivo?
     var fecha: DiaLocal?
+    var nombrePlan: String?
+    var semanaActual: Int?
+    var semanasTotales: Int?
     var kmSemanales: Double?
     var dias: Int?
     var tiradaLarga: Double?
@@ -476,55 +548,72 @@ struct ResumenCorredor: View {
         return FormatoFecha.corta(d).uppercased()
     }
 
-    var body: some View {
-        Tarjeta {
-            VStack(alignment: .leading, spacing: DV2.Espacio.l) {
-                VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
-                    Text(objetivo.map { TextosObjetivo.nombre(de: $0).uppercased() }
-                         ?? String(localized: "SIN OBJETIVO"))
-                        .font(DV2.Tipo.titulo)
-                        .foregroundStyle(DV2.Marca.profundo)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if let fechaCorta {
-                        Text(fechaCorta)
-                            .font(.subheadline.weight(.medium).monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                    // El estado manda sobre la cuenta regresiva: sin
-                    // plan no se muestran semanas que no existen.
-                    if let motivoSinPlan {
-                        ChipEstado(texto: textoPendiente(motivoSinPlan),
-                                   tono: .base,
-                                   icono: "exclamationmark.triangle.fill",
-                                   compacto: true)
-                    } else if !tienePlan && objetivo != nil {
-                        ChipEstado(texto: String(localized: "Sin plan todavía"),
-                                   tono: .neutro, icono: "circle.dashed", compacto: true)
-                    }
-                }
+    /// El corredor en una línea: el plan que está corriendo y los
+    /// números que lo definen. Antes cada uno era una `Metrica` en un
+    /// `HStack`, y con un solo dato —lo normal recién arrancando— la
+    /// tarjeta quedaba con un número centrado en medio del vacío.
+    private var subtitulo: String {
+        var partes: [String] = []
+        if let nombrePlan { partes.append(nombrePlan) }
+        if let dias { partes.append(String(localized: "\(dias) días por semana")) }
+        if let kmSemanales, kmSemanales > 0 {
+            partes.append("\(Unidades.distancia(km: kmSemanales, decimales: 0))/sem")
+        }
+        if let tiradaLarga, tiradaLarga > 0 {
+            partes.append(String(localized: "larga \(Unidades.distancia(km: tiradaLarga, decimales: 0))"))
+        }
+        return partes.joined(separator: " · ")
+    }
 
-                if kmSemanales != nil || dias != nil || tiradaLarga != nil {
-                    Divider()
-                    HStack(alignment: .top, spacing: DV2.Espacio.m) {
-                        if let kmSemanales {
-                            Metrica(valor: String(format: "%.0f", kmSemanales),
-                                    etiqueta: String(localized: "\(Unidades.actual.etiquetaDistancia)/sem"),
-                                    alineacion: .center)
-                        }
-                        if let dias {
-                            Metrica(valor: "\(dias)",
-                                    etiqueta: String(localized: "días"),
-                                    alineacion: .center)
-                        }
-                        if let tiradaLarga {
-                            Metrica(valor: String(format: "%.0f", tiradaLarga),
-                                    etiqueta: String(localized: "larga"),
-                                    alineacion: .center)
-                        }
-                    }
+    var body: some View {
+        HStack(spacing: DV2.Espacio.l) {
+            // El anillo solo cuando hay bloque: sin plan no hay "semana
+            // 1 de 8" que mostrar, y un anillo vacío promete progreso
+            // que no existe.
+            if let semanaActual, let semanasTotales, semanasTotales > 0 {
+                AnilloProgreso(hechas: semanaActual, total: semanasTotales,
+                               etiqueta: String(localized: "de \(semanasTotales)"),
+                               sobreOscuro: true)
+            }
+
+            VStack(alignment: .leading, spacing: DV2.Espacio.xs) {
+                Text("TU OBJETIVO")
+                    .font(DV2.Tipo.etiqueta)
+                    .foregroundStyle(Color.white.opacity(0.7))
+                Text(objetivo.map { TextosObjetivo.nombre(de: $0) }
+                     ?? String(localized: "Sin objetivo"))
+                    .font(DV2.Tipo.titulo)
+                    .foregroundStyle(.white)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !subtitulo.isEmpty {
+                    Text(subtitulo)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.white.opacity(0.85))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let fechaCorta {
+                    Text(fechaCorta)
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(Color.white.opacity(0.7))
+                }
+                // El estado manda sobre la cuenta regresiva: sin plan no
+                // se muestran semanas que no existen.
+                if let motivoSinPlan {
+                    EtiquetaSobreOscuro(texto: textoPendiente(motivoSinPlan),
+                                        icono: "exclamationmark.triangle.fill")
+                } else if !tienePlan && objetivo != nil {
+                    EtiquetaSobreOscuro(texto: String(localized: "Sin plan todavía"),
+                                        icono: "circle.dashed")
                 }
             }
+            Spacer(minLength: 0)
         }
+        .padding(DV2.Espacio.l)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background { DV2.gradienteSuperficie.clipShape(DV2.formaTarjeta) }
+        .overlay(DV2.formaTarjeta.strokeBorder(Color.white.opacity(0.14), lineWidth: 0.5))
+        .shadow(color: DV2.Sombra.colorAccion,
+                radius: DV2.Sombra.radio, y: DV2.Sombra.y)
     }
 
     private func textoPendiente(_ motivo: MotivoSinPlan) -> String {

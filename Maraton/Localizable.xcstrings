@@ -9703,6 +9703,17 @@
         }
       }
     },
+    "Sin objetivo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No goal yet"
+          }
+        }
+      }
+    },
     "Sin objetivo obligatorio de distancia ni tiempo.": {
       "extractionState": "manual",
       "localizations": {
@@ -10029,6 +10040,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "SEGMENT %lld OF %lld"
+          }
+        }
+      }
+    },
+    "TU OBJETIVO": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YOUR GOAL"
           }
         }
       }
@@ -11657,6 +11679,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "of %@ km planned"
+          }
+        }
+      }
+    },
+    "de %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "of %lld"
           }
         }
       }

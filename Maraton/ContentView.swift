@@ -600,11 +600,7 @@ struct PlanTab: View {
             return String(localized: "Todas las semanas del plan")
         }
         let total = plan.semanas.count
-        let actual = plan.semanas.first { semana in
-            guard let primero = semana.programados.compactMap(\.dia).min() else { return false }
-            return !(hoy < primero) && !(primero.sumando(dias: 6) < hoy)
-        }?.numero
-        guard let actual else {
+        guard let actual = plan.numeroDeSemana(hoy: hoy) else {
             return String(localized: "\(Plurales.semanas(total)) en total")
         }
         return String(localized: "Semana \(actual) de \(total)")
@@ -1383,15 +1379,18 @@ struct PerfilTab: View {
         Section {
             if perfil.objetivo != nil {
                 // El corredor en números, no en seis filas de etiquetas.
+                let planActivo = almacen.almacen.planActivo
                 ResumenCorredor(
                     objetivo: perfil.objetivo,
                     fecha: perfil.fechaObjetivo,
+                    nombrePlan: planActivo?.nombre,
+                    semanaActual: planActivo?.numeroDeSemana(hoy: DiaLocal(fecha: Date())),
+                    semanasTotales: planActivo?.semanas.count,
                     kmSemanales: perfil.actividad?.kmSemanales,
                     dias: perfil.diasElegidos?.count ?? perfil.diasPorSemana,
                     tiradaLarga: perfil.actividad?.tiradaLargaKm,
-                    tienePlan: almacen.almacen.planActivo != nil,
-                    motivoSinPlan: almacen.almacen.planActivo == nil
-                        ? perfil.objetivoSinPlan : nil)
+                    tienePlan: planActivo != nil,
+                    motivoSinPlan: planActivo == nil ? perfil.objetivoSinPlan : nil)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: DV2.Espacio.m, trailing: 0))
                     .listRowBackground(Color.clear)
 
@@ -1412,10 +1411,6 @@ struct PerfilTab: View {
                         faseBase: fase?.nombre)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: DV2.Espacio.m, trailing: 0))
                     .listRowBackground(Color.clear)
-                }
-
-                if let plan = almacen.almacen.planActivo {
-                    LabeledContent("Plan activo", value: plan.nombre)
                 }
 
                 // Cambiar de unidades NO regenera el plan ni reescribe

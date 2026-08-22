@@ -838,6 +838,23 @@ struct PlanUsuario: Codable, Equatable, Identifiable {
     }
 }
 
+extension PlanUsuario {
+    /// En qué semana del plan cae `hoy`, si cae en alguna. Vivía dentro
+    /// de una vista (el subtítulo del calendario) y lo necesitan al
+    /// menos dos pantallas: acá arriba es un dato del plan, no una
+    /// decisión de presentación.
+    ///
+    /// Una semana empieza el día del primer entrenamiento programado y
+    /// dura siete días: los planes se distribuyen sobre los días que el
+    /// corredor eligió, así que el lunes del calendario no sirve.
+    func numeroDeSemana(hoy: DiaLocal) -> Int? {
+        semanas.first { semana in
+            guard let primero = semana.programados.compactMap(\.dia).min() else { return false }
+            return !(hoy < primero) && !(primero.sumando(dias: 6) < hoy)
+        }?.numero
+    }
+}
+
 struct SemanaPlan: Codable, Equatable, Identifiable {
     var id = UUID()
     var numero: Int
