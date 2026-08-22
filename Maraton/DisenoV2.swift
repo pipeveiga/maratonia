@@ -119,25 +119,26 @@ enum DV2 {
                        startPoint: .top, endPoint: .bottomTrailing)
     }
 
-    /// RAMPA DE INTENSIDAD — el recorrido pintado por ritmo.
+    /// SEMÁFORO DE RITMO — el recorrido pintado por ritmo.
     ///
-    /// Secuencial de UN SOLO TONO, claro → oscuro: el dato es magnitud
-    /// (cuánto empujaste), no polaridad, y un arcoíris haría que dos
-    /// tramos parecidos se vean de colores opuestos. Cálida a propósito:
-    /// se lee como calor y no compite con el azul de la marca ni con el
-    /// agua del mapa.
+    /// Rojo lento, amarillo medio, verde rápido. Es una decisión de
+    /// producto: la misma metáfora que ya usa el reloj para el ritmo en
+    /// rango, y la que el corredor espera.
     ///
-    /// Los pasos son monótonos en luminosidad (0.68 → 0.10), que es la
-    /// regla real de una rampa secuencial. Como los extremos no llegan a
-    /// 3:1 contra toda superficie posible, la línea SIEMPRE va con un
-    /// casing debajo — ver `TrazoConCasing`.
+    /// TRES pasos y no cinco, y no es un capricho: con cinco, el ámbar
+    /// intermedio queda a ΔE 1,8 del naranja en deuteranopía —
+    /// indistinguibles— porque tres tonos cálidos seguidos se pisan. Con
+    /// tres, el par más cercano queda en ΔE 33,7 para daltonismo y 38,9
+    /// para visión normal, muy por encima del piso. Un semáforo son tres
+    /// luces; forzarlo a cinco es lo que lo rompía.
+    ///
+    /// El amarillo no llega a 3:1 contra un mapa claro. Por eso la línea
+    /// SIEMPRE va con casing: el contorno le da el borde que el fondo no.
     enum Intensidad {
         static let pasos: [Color] = [
-            Color(red: 1.00, green: 0.82, blue: 0.54),   // #FFD08A
-            Color(red: 0.98, green: 0.66, blue: 0.30),   // #FBA94C
-            Color(red: 0.94, green: 0.48, blue: 0.16),   // #F07A28
-            Color(red: 0.85, green: 0.31, blue: 0.06),   // #D8500F
-            Color(red: 0.64, green: 0.17, blue: 0.02),   // #A32B06
+            Color(red: 0.70, green: 0.15, blue: 0.10),   // #B3271A lento
+            Color(red: 0.94, green: 0.79, blue: 0.16),   // #F0C929 medio
+            Color(red: 0.05, green: 0.43, blue: 0.23),   // #0E6E3A rápido
         ]
 
         /// El color de un tramo. `intensidad` va de 0 (lo más lento de
