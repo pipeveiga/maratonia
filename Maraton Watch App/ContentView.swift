@@ -363,9 +363,17 @@ struct ContentView: View {
 
     @ViewBuilder
     private func piePlan(_ plan: Plan) -> some View {
-        Label(resumenDeModo, systemImage: iconoDeModo)
-            .font(.footnote)
-            .foregroundStyle(.secondary)
+        // Con el registro apagado esto NO es un pie de página: es la
+        // diferencia entre que tu carrera quede guardada o se pierda. En
+        // gris chiquito decía "Solo música y avisos", que suena a
+        // función y no a advertencia.
+        Label(modoEntrenamiento ? resumenDeModo
+                                : String(localized: "Solo audio — la carrera NO se guarda"),
+              systemImage: iconoDeModo)
+            .font(modoEntrenamiento ? .footnote : .footnote.weight(.semibold))
+            .foregroundStyle(modoEntrenamiento ? AnyShapeStyle(.secondary)
+                                               : AnyShapeStyle(Color.orange))
+            .multilineTextAlignment(.center)
 
         // El error de arranque va acá, pegado al Play: abajo de todo no
         // lo veía nadie.
@@ -518,6 +526,17 @@ struct PantallaReproduccion: View {
     /// Tres páginas deslizables, como la app Entrenamiento de Apple:
     /// ← Sesión (pausar todo / terminar) · Métricas · Música (solo música) →
     @State private var pagina = 1
+
+    /// Qué está pasando REALMENTE con el registro de esta carrera.
+    /// Tres estados y no dos: "no se está grabando" porque vos lo
+    /// elegiste (convivencia con Runna) no es lo mismo que "tenía que
+    /// grabarse y falló", y la pantalla no puede mostrar los dos igual.
+    enum EstadoRegistro { case registrando, fallo, soloAudio }
+
+    private var estadoDeRegistro: EstadoRegistro {
+        if entrenamiento.activo { return .registrando }
+        return entrenamiento.registroEsperado ? .fallo : .soloAudio
+    }
 
     var body: some View {
         TabView(selection: $pagina) {
@@ -789,10 +808,38 @@ struct PantallaReproduccion: View {
                     .tracking(1.2)
             }
 
+            // El TIEMPO de esta pantalla sale del reproductor y la
+            // DISTANCIA del entrenamiento: si el workout no arrancó, el
+            // cronómetro corre igual y la carrera parece estar
+            // grabándose. Decirlo acá, que es donde se mira corriendo.
+            // El TIEMPO de esta pantalla sale del reproductor y la
+            // DISTANCIA del entrenamiento. Si el workout no está
+            // corriendo, el cronómetro avanza igual y la carrera PARECE
+            // estar grabándose: un 0,00 se lee como "todavía no arrancó",
+            // no como "no se está midiendo". Los tres estados se dicen.
+            switch estadoDeRegistro {
+            case .registrando:
+                EmptyView()
+            case .fallo:
+                Label("NO se está registrando", systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+            case .soloAudio:
+                Label("Solo audio — no se registra", systemImage: "music.note")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .multilineTextAlignment(.center)
+            }
+
             Grid(horizontalSpacing: 6, verticalSpacing: 6) {
                 GridRow {
+                    // Sin workout no hay distancia que mostrar: un guion
+                    // dice "no se mide", un 0,00 miente.
                     celdaMetrica("DISTANCIA",
-                                 String(format: "%.2f", entrenamiento.distanciaMetros / 1000),
+                                 estadoDeRegistro == .registrando
+                                 ? String(format: "%.2f", entrenamiento.distanciaMetros / 1000)
+                                 : "—",
                                  color: .primary)
                     celdaZona
                 }
@@ -801,7 +848,9 @@ struct PantallaReproduccion: View {
                                  formatearTiempo(reproductor.tiempoTranscurrido),
                                  color: .primary)
                     celdaMetrica("PULSO",
-                                 "\(Int(entrenamiento.frecuenciaCardiaca))",
+                                 estadoDeRegistro == .registrando
+                                 ? "\(Int(entrenamiento.frecuenciaCardiaca))"
+                                 : "—",
                                  color: .red)
                 }
             }
@@ -906,6 +955,23 @@ struct PantallaReproduccion: View {
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
+        }
+
+        switch estadoDeRegistro {
+        case .registrando:
+            EmptyView()
+        case .fallo:
+            Label("NO se está registrando: esta carrera no va a quedar en Salud.",
+                  systemImage: "exclamationmark.triangle.fill")
+                .font(.footnote)
+                .foregroundStyle(.red)
+                .multilineTextAlignment(.center)
+        case .soloAudio:
+            Label("Solo audio: no se mide distancia ni pulso, y no queda en Salud. Se activa con «Registrar carrera».",
+                  systemImage: "music.note")
+                .font(.footnote)
+                .foregroundStyle(.orange)
+                .multilineTextAlignment(.center)
         }
 
         if entrenamiento.activo, entrenamiento.usaGPS, entrenamiento.puntosRuta == 0 {

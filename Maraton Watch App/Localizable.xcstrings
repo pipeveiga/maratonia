@@ -1552,6 +1552,28 @@
         }
       }
     },
+    "NO se está registrando": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOT recording"
+          }
+        }
+      }
+    },
+    "NO se está registrando: esta carrera no va a quedar en Salud.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOT recording: this run won’t be saved to Health."
+          }
+        }
+      }
+    },
     "Ninguna pista se pudo reproducir.": {
       "extractionState": "manual",
       "localizations": {
@@ -2186,6 +2208,39 @@
           "stringUnit": {
             "state": "translated",
             "value": "No GPS signal: no route was recorded"
+          }
+        }
+      }
+    },
+    "Solo audio — la carrera NO se guarda": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio only — the run is NOT saved"
+          }
+        }
+      }
+    },
+    "Solo audio — no se registra": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio only — not recording"
+          }
+        }
+      }
+    },
+    "Solo audio: no se mide distancia ni pulso, y no queda en Salud. Se activa con «Registrar carrera».": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio only: distance and heart rate aren’t measured, and nothing is saved to Health. Turn on “Record run” to enable it."
           }
         }
       }

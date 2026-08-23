@@ -28,6 +28,18 @@ final class Entrenamiento: NSObject, ObservableObject {
     static let compartido = Entrenamiento()
 
     @Published var activo = false
+
+    /// Esta carrera TENÍA que registrarse. Se enciende al pedir los
+    /// permisos —o sea, cuando el reloj decidió que hay que grabar— y se
+    /// apaga recién al terminar o cancelar.
+    ///
+    /// Existe porque `activo` solo dice si la sesión ARRANCÓ, y la
+    /// pantalla de carrera mezcla dos relojes: el TIEMPO sale del
+    /// reproductor y la DISTANCIA del entrenamiento. Sin esta bandera, un
+    /// workout que nunca arrancó se ve igual que uno que sí: el
+    /// cronómetro corriendo y la distancia en cero. Con ella, la pantalla
+    /// puede decirlo.
+    @Published private(set) var registroEsperado = false
     @Published var pausado = false
 
     /// Resumen de la última carrera guardada, para mostrar al volver al
@@ -154,6 +166,7 @@ final class Entrenamiento: NSObject, ObservableObject {
     }
 
     func pedirPermisos(conGPS: Bool, alTerminar: @escaping () -> Void) {
+        registroEsperado = true
         guard HKHealthStore.isHealthDataAvailable() else {
             mensajeError = String(localized: "Salud no está disponible en este reloj.")
             return
@@ -680,6 +693,7 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
         descartarAlTerminar = false
         programadoID = nil
         estructuraCompletaAlGuardar = false
+        registroEsperado = false
     }
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
