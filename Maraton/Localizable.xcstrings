@@ -7140,6 +7140,17 @@
         }
       }
     },
+    "No es uno de tus días habituales": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not one of your usual days"
+          }
+        }
+      }
+    },
     "No hacemos cambios": {
       "extractionState": "manual",
       "localizations": {

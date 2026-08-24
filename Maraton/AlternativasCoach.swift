@@ -124,14 +124,25 @@ enum BuscadorDeAlternativas {
             return dia == original ? nil : dia
         }
 
+        // `.corredor`: esto se ofrece porque el corredor DIJO que no
+        // puede ese día. Un día no habitual es una salida legítima; sin
+        // esto, alguien con una sesión en cada uno de sus días elegidos
+        // no tenía ningún destino y "moverlo" no servía para nada.
         let validos = candidatos.filter { dia in
             ValidadorDeCoach.validar(.reprogramar(programadoID: programado.id, a: dia),
-                                     en: almacen, hoy: hoy, calendario: calendario).permitido
+                                     en: almacen, hoy: hoy, calendario: calendario,
+                                     origen: .corredor).permitido
         }
 
         // Lo más cerca del día original primero: mover dos días altera
         // menos la semana que mover seis. A igual distancia, antes.
+        let habitualesSet = Set(almacen.perfilDeportivo.diasElegidos ?? [])
         let ordenados = validos.sorted { a, b in
+            // Primero los días en que YA corrés: mover dentro de tu
+            // semana altera menos que estrenar un día nuevo.
+            let ha = habitualesSet.isEmpty || habitualesSet.contains(a.numeroDeDiaDeSemana)
+            let hb = habitualesSet.isEmpty || habitualesSet.contains(b.numeroDeDiaDeSemana)
+            if ha != hb { return ha }
             let base = original ?? hoy
             let da = abs(distanciaEnDias(base, a, calendario: calendario))
             let db = abs(distanciaEnDias(base, b, calendario: calendario))
@@ -147,12 +158,18 @@ enum BuscadorDeAlternativas {
         var vistos: Set<Int> = []
         let unoPorDiaDeSemana = ordenados.filter { vistos.insert($0.numeroDeDiaDeSemana).inserted }
 
+        let habituales = almacen.perfilDeportivo.diasElegidos ?? []
         return unoPorDiaDeSemana.prefix(maximoDestinos).map { dia in
-            OpcionDeCoach(
+            // Decir CUÁL es un día prestado: mover la larga a un día que
+            // no corrés normalmente es una decisión distinta a correrla
+            // un día antes, y el corredor tiene que poder verla.
+            let habitual = habituales.isEmpty || habituales.contains(dia.numeroDeDiaDeSemana)
+            return OpcionDeCoach(
                 id: "mover-\(dia.anio)-\(dia.mes)-\(dia.dia)",
                 cambio: .reprogramar(programadoID: programado.id, a: dia),
                 titulo: String(localized: "Moverlo al \(nombreDeDia(dia, calendario: calendario))"),
-                detalle: String(localized: "Está libre"),
+                detalle: habitual ? String(localized: "Está libre")
+                                  : String(localized: "No es uno de tus días habituales"),
                 dia: dia)
         }
     }

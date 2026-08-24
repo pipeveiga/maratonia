@@ -771,7 +771,8 @@ struct CoachView: View {
     /// vista. Un cambio rechazado se muestra igual (transparencia): el
     /// corredor ve qué pidió el Coach y por qué el motor lo frenó.
     private func filaCambio(_ cambio: CambioPropuesto) -> some View {
-        let validacion = ValidadorDeCoach.validar(cambio, en: almacen.almacen, hoy: hoy)
+        let validacion = ValidadorDeCoach.validar(cambio, en: almacen.almacen,
+                                                  hoy: hoy, origen: .corredor)
         let nombre = nombreDe(cambio.programadoID)
         let rechazo = validacion.permitido
             ? nil
@@ -1019,8 +1020,11 @@ struct CoachView: View {
 
     /// Elegir tocando, que es lo que va a hacer casi todo el mundo.
     private func elegir(_ opcion: OpcionDeCoach) {
+        // MISMO origen con el que se ofreció. Con el default (.motor) un
+        // día no habitual se ofrecía y después se rechazaba al tocarlo:
+        // la opción existía y no hacía nada.
         guard ValidadorDeCoach.validar(opcion.cambio, en: almacen.almacen,
-                                       hoy: hoy).permitido else {
+                                       hoy: hoy, origen: .corredor).permitido else {
             aclaracion = aclaracion.flatMap(recalcular)
             return
         }
@@ -1030,7 +1034,11 @@ struct CoachView: View {
     }
 
     private func cambiosValidos(_ ajuste: CoachWeekAdjustment) -> [CambioPropuesto] {
-        ValidadorDeCoach.validas(ajuste.propuestasQueMutan, en: almacen.almacen, hoy: hoy)
+        // El corredor está mirando esta propuesta porque él pidió el
+        // cambio. Con el origen por defecto, un día no habitual pasaba
+        // el ofrecimiento y moría acá, al aplicar.
+        ValidadorDeCoach.validas(ajuste.propuestasQueMutan, en: almacen.almacen,
+                                 hoy: hoy, origen: .corredor)
     }
 
     /// La mutación REAL: motor manda, usuario confirmó, se aplica solo

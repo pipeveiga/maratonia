@@ -4124,12 +4124,18 @@ final class ResolucionConversacionalTests: XCTestCase {
     /// El escenario reportado. `diasElegidos` incluye el lunes, que
     /// queda libre: existe una salida real.
     private func escenario(diasElegidos: [Int] = [1, 2, 6, 7],
-                           carrera: DiaLocal? = nil) -> (AlmacenV2, [Int: UUID]) {
+                           carrera: DiaLocal? = nil,
+                           diasImposibles: [Int] = []) -> (AlmacenV2, [Int: UUID]) {
         var almacen = AlmacenV2()
         var perfil = PerfilDeportivo()
         perfil.objetivo = .diez
         perfil.diasElegidos = diasElegidos
         perfil.fechaObjetivo = carrera
+        if !diasImposibles.isEmpty {
+            var preferencias = perfil.preferencias ?? PreferenciasSemana()
+            preferencias.diasImposibles = diasImposibles
+            perfil.preferencias = preferencias
+        }
         almacen.perfil = perfil
 
         let sesiones: [(Int, String, TipoEntrenamiento, Double)] = [
@@ -4162,9 +4168,13 @@ final class ResolucionConversacionalTests: XCTestCase {
         let sabado = try XCTUnwrap(porDia[15])
         let opciones = BuscadorDeAlternativas.opciones(para: sabado, en: almacen, hoy: hoy)
         XCTAssertFalse(opciones.isEmpty)
+        // MISMO origen con el que la app las ofrece y las aplica. Con
+        // el default (.motor) esto probaba un contrato distinto al que
+        // corre de verdad.
         for opcion in opciones {
             XCTAssertTrue(
-                ValidadorDeCoach.validar(opcion.cambio, en: almacen, hoy: hoy).permitido,
+                ValidadorDeCoach.validar(opcion.cambio, en: almacen, hoy: hoy,
+                                         origen: .corredor).permitido,
                 "se ofrece algo que el motor rechaza: \(opcion.titulo)")
         }
     }
@@ -4220,11 +4230,16 @@ final class ResolucionConversacionalTests: XCTestCase {
     /// Si NO se puede mover a ningún lado, no se corta: se ofrecen las
     /// otras operaciones permitidas, y solo las que pasan el motor.
     func testSinDestinoValidoSeOfrecenLasOtrasOperaciones() throws {
-        // Sábado y domingo elegidos y los dos ocupados, y la carrera el
-        // domingo 16: no hay ningún día al que mover — más allá del 16
-        // no se programa nada, y el 16 está tomado.
+        // Sábado y domingo elegidos y los dos ocupados, la carrera el
+        // domingo 16 —más allá no se programa nada— y el resto de la
+        // semana declarado IMPOSIBLE. Recién ahí no queda ningún día.
+        //
+        // Antes alcanzaba con que los otros días no fueran "elegidos",
+        // pero eso era justamente el bug: un día no habitual y no
+        // imposible es una salida válida cuando la pide el corredor.
         let (almacen, porDia) = escenario(diasElegidos: [6, 7],
-                                          carrera: DiaLocal(anio: 2026, mes: 8, dia: 16))
+                                          carrera: DiaLocal(anio: 2026, mes: 8, dia: 16),
+                                          diasImposibles: [1, 2, 3, 4, 5])
         let sabado = try XCTUnwrap(porDia[15])
         let opciones = BuscadorDeAlternativas.opciones(para: sabado, en: almacen, hoy: hoy)
 
@@ -4233,7 +4248,8 @@ final class ResolucionConversacionalTests: XCTestCase {
         XCTAssertFalse(opciones.isEmpty, "siempre queda algo que ofrecer")
         for opcion in opciones {
             XCTAssertTrue(ValidadorDeCoach.validar(opcion.cambio, en: almacen,
-                                                   hoy: hoy).permitido, opcion.titulo)
+                                                   hoy: hoy, origen: .corredor).permitido,
+                          opcion.titulo)
         }
         // "Dejarlo como está" siempre está: no elegir es una respuesta.
         XCTAssertTrue(opciones.contains { if case .mantener = $0.cambio { return true }
@@ -4355,7 +4371,8 @@ extension ResolucionConversacionalTests {
     /// hacen falta.
     func testSinDiasAparecenLasOtrasOperaciones() throws {
         let (almacen, porDia) = escenario(diasElegidos: [6, 7],
-                                          carrera: DiaLocal(anio: 2026, mes: 8, dia: 16))
+                                          carrera: DiaLocal(anio: 2026, mes: 8, dia: 16),
+                                          diasImposibles: [1, 2, 3, 4, 5])
         let sabado = try XCTUnwrap(porDia[15])
         let aPreguntar = BuscadorDeAlternativas.paraPreguntar(
             BuscadorDeAlternativas.opciones(para: sabado, en: almacen, hoy: hoy))
@@ -4363,7 +4380,8 @@ extension ResolucionConversacionalTests {
         XCTAssertTrue(aPreguntar.count > 1, "tiene que quedar algo para elegir")
         for opcion in aPreguntar {
             XCTAssertTrue(ValidadorDeCoach.validar(opcion.cambio, en: almacen,
-                                                   hoy: hoy).permitido, opcion.titulo)
+                                                   hoy: hoy, origen: .corredor).permitido,
+                          opcion.titulo)
         }
     }
 }

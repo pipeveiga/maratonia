@@ -362,8 +362,25 @@ struct ValidacionDeCambio: Equatable {
 /// frase que el corredor entiende.
 enum ValidadorDeCoach {
 
+    /// Quién pide el cambio. No es lo mismo que lo proponga el motor a
+    /// que lo pida el corredor: `diasElegidos` son los días en que
+    /// SUELE correr, no los únicos en que PUEDE. Cuando alguien dice
+    /// "no puedo el jueves", correr el viernes por única vez es
+    /// exactamente la respuesta — y tratarlo como prohibido dejaba el
+    /// Coach sin ninguna salida que ofrecer.
+    ///
+    /// Los días marcados como IMPOSIBLES siguen siendo imposibles para
+    /// los dos: esos sí los declaró como que no puede.
+    enum OrigenDelCambio {
+        /// El motor distribuyendo: respeta los días habituales.
+        case motor
+        /// El corredor pidiéndolo a mano, sabiendo lo que pide.
+        case corredor
+    }
+
     static func validar(_ cambio: CambioPropuesto, en almacen: AlmacenV2,
-                        hoy: DiaLocal, calendario: Calendar = .current) -> ValidacionDeCambio {
+                        hoy: DiaLocal, calendario: Calendar = .current,
+                        origen: OrigenDelCambio = .motor) -> ValidacionDeCambio {
         // ---- Existencia.
         guard let programado = almacen.todosLosProgramados
             .first(where: { $0.id == cambio.programadoID }) else {
@@ -416,7 +433,8 @@ enum ValidadorDeCoach {
             if let carrera, nuevoDia > carrera {
                 return .no(String(localized: "No se programan entrenamientos después de tu carrera."))
             }
-            if let motivo = diaNoDisponible(nuevoDia, almacen: almacen, calendario: calendario) {
+            if let motivo = diaNoDisponible(nuevoDia, almacen: almacen,
+                                            calendario: calendario, origen: origen) {
                 return .no(motivo)
             }
             if almacen.conflictoEnDia(nuevoDia, salvo: programado.id) != nil {
@@ -469,8 +487,11 @@ enum ValidadorDeCoach {
 
     /// Filtra una tanda de propuestas dejando solo las válidas.
     static func validas(_ cambios: [CambioPropuesto], en almacen: AlmacenV2,
-                        hoy: DiaLocal, calendario: Calendar = .current) -> [CambioPropuesto] {
-        cambios.filter { validar($0, en: almacen, hoy: hoy, calendario: calendario).permitido }
+                        hoy: DiaLocal, calendario: Calendar = .current,
+                        origen: OrigenDelCambio = .motor) -> [CambioPropuesto] {
+        cambios.filter {
+            validar($0, en: almacen, hoy: hoy, calendario: calendario, origen: origen).permitido
+        }
     }
 
     // MARK: reglas auxiliares
@@ -504,7 +525,8 @@ enum ValidadorDeCoach {
     /// El día tiene que ser uno de los que el corredor dijo que puede
     /// correr, y nunca uno de los imposibles (§9).
     private static func diaNoDisponible(_ dia: DiaLocal, almacen: AlmacenV2,
-                                        calendario: Calendar) -> String? {
+                                        calendario: Calendar,
+                                        origen: OrigenDelCambio = .motor) -> String? {
         guard let fecha = dia.fecha(calendario: calendario) else {
             return String(localized: "Esa fecha no es válida.")
         }
@@ -514,7 +536,14 @@ enum ValidadorDeCoach {
         if let imposibles = perfil.preferencias?.diasImposibles, imposibles.contains(indice) {
             return String(localized: "Marcaste ese día como imposible para entrenar.")
         }
-        if let elegidos = perfil.diasElegidos, !elegidos.isEmpty, !elegidos.contains(indice) {
+        // Un día no habitual es una EXCEPCIÓN, no una prohibición: se
+        // rechaza cuando reparte el motor y se acepta cuando lo pide el
+        // corredor. Con la regla anterior, alguien con 3 sesiones en sus
+        // 3 días elegidos no tenía NINGÚN destino posible —los suyos
+        // ocupados, el resto prohibido— y "moverlo de día" no funcionaba
+        // nunca. Era el caso más común que existe.
+        if origen == .motor,
+           let elegidos = perfil.diasElegidos, !elegidos.isEmpty, !elegidos.contains(indice) {
             return String(localized: "Ese no es uno de los días que elegiste para correr.")
         }
         return nil

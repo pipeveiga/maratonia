@@ -2303,3 +2303,76 @@ final class PorteroDeArranqueTests: XCTestCase {
         }
     }
 }
+
+/// El caso que dejaba al Coach sin nada que ofrecer: N sesiones en los N
+/// días elegidos. Todos los días propios ocupados, todos los ajenos
+/// prohibidos — o sea, ningún destino posible y "moverlo de día" que no
+/// funcionaba nunca. Es la configuración más común que existe.
+final class DestinosDelCoachTests: XCTestCase {
+
+    /// Plan de 3 sesiones en 3 días elegidos: lunes, miércoles, viernes.
+    private func almacenLleno() -> (AlmacenV2, EntrenamientoProgramado) {
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .diez
+        perfil.diasPorSemana = 3
+        perfil.diasElegidos = [1, 3, 5]
+        perfil.fechaOnboarding = Date(timeIntervalSince1970: 0)
+
+        var almacen = AlmacenV2()
+        almacen.activado = true
+        almacen.perfil = perfil
+        almacen.adoptarPlan(Catalogo.planesDisponibles()[1]
+            .adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 24),
+                     fechaAdopcion: Date(timeIntervalSince1970: 0)))
+        let programado = almacen.todosLosProgramados
+            .filter { $0.dia != nil }
+            .sorted { ($0.dia ?? DiaLocal(anio: 0, mes: 1, dia: 1))
+                    < ($1.dia ?? DiaLocal(anio: 0, mes: 1, dia: 1)) }[1]
+        return (almacen, programado)
+    }
+
+    /// EL bug: con la semana llena tiene que haber al menos una salida.
+    func testConLaSemanaLlenaSigueHabiendoDondeMoverlo() {
+        let (almacen, programado) = almacenLleno()
+        let hoy = programado.dia!.sumando(dias: -1)
+        let opciones = BuscadorDeAlternativas.opciones(para: programado.id,
+                                                       en: almacen, hoy: hoy)
+        let dias = opciones.filter { $0.dia != nil }
+        XCTAssertFalse(dias.isEmpty,
+                       "sin destinos, «no puedo entrenar este día» no tiene respuesta")
+    }
+
+    /// Y lo que se ofrece tiene que poder APLICARSE: ofrecer una opción
+    /// que el validador después rechaza es peor que no ofrecerla.
+    func testLoQueSeOfreceSePuedeAplicar() {
+        let (almacen, programado) = almacenLleno()
+        let hoy = programado.dia!.sumando(dias: -1)
+        let opciones = BuscadorDeAlternativas.opciones(para: programado.id,
+                                                       en: almacen, hoy: hoy)
+        XCTAssertFalse(opciones.isEmpty)
+        for opcion in opciones {
+            XCTAssertTrue(
+                ValidadorDeCoach.validar(opcion.cambio, en: almacen, hoy: hoy,
+                                         origen: .corredor).permitido,
+                "se ofrecía «\(opcion.titulo)» y el validador la rechaza")
+        }
+    }
+
+    /// El motor NO gana ese permiso: repartir el plan sigue respetando
+    /// los días que el corredor eligió.
+    func testElMotorSigueRespetandoLosDiasElegidos() {
+        let (almacen, programado) = almacenLleno()
+        let hoy = programado.dia!.sumando(dias: -1)
+        // Un día que no está entre [1, 3, 5]: martes.
+        let martes = (0...13)
+            .map { hoy.sumando(dias: $0) }
+            .first { $0.numeroDeDiaDeSemana == 2 }!
+        let cambio = CambioPropuesto.reprogramar(programadoID: programado.id, a: martes)
+        XCTAssertFalse(
+            ValidadorDeCoach.validar(cambio, en: almacen, hoy: hoy, origen: .motor).permitido,
+            "el motor no puede repartir fuera de los días elegidos")
+        XCTAssertTrue(
+            ValidadorDeCoach.validar(cambio, en: almacen, hoy: hoy, origen: .corredor).permitido,
+            "el corredor sí puede pedirlo a mano")
+    }
+}
