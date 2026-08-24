@@ -42,9 +42,12 @@ común de rechazo en apps con suscripción.
 
 ## FASE 0 — Antes de tocar App Store Connect
 
-- [ ] Build 76 compila sin warnings (verificado: cero warnings en
+- [ ] Build 84 compila sin warnings (verificado: cero warnings en
       Release, `xcodebuild -destination generic/platform=iOS`)
-- [ ] Los 590 tests iOS + 57 del backend en verde
+- [ ] Los 601 tests iOS + 57 del backend en verde
+- [ ] **La app tiene TRES pestañas** — Hoy, Progreso y Perfil. Si ves
+      cinco, estás mirando un build viejo (hasta el 80 eran Plan,
+      Correr, Progreso, Carreras y Perfil)
 - [ ] Recorrer las 5 pestañas en **español**
 - [ ] Cambiar el iPhone a **inglés** y recorrerlas de nuevo.
       El build 67 rehízo el barrido: el catálogo del iPhone pasó de 636
@@ -84,7 +87,7 @@ común de rechazo en apps con suscripción.
       que un plan 21K/42K se puede adoptar recién con Pro
 - [ ] **Coach con cuenta Free**: el backend responde 402 y NO llama a
       OpenAI (verificable en los logs de Functions)
-- [ ] **El recorrido pintado** (build 76): abrir una carrera con GPS y
+- [ ] **El recorrido pintado**: abrir una carrera con GPS y
       mirar el mapa. El ritmo va de ámbar claro (lento) a rojo oscuro
       (rápido); si hay desnivel medido aparece el selector
       **Ritmo / Desnivel**, y ahí azul es bajada, gris llano y rojo
@@ -100,6 +103,31 @@ común de rechazo en apps con suscripción.
       ("Larga · Semana 3 de 8"). Sin plan detrás no muestra contexto, y
       está bien.
 - [ ] **El km más rápido** aparece marcado en Splits y en el gráfico
+
+### Lo que cambió del 77 al 84 y NUNCA se probó en dispositivo
+
+Son los cambios más grandes de toda la semana y ninguno pasó por un
+teléfono. Es lo primero que hay que recorrer:
+
+- [ ] **Tres pestañas en vez de cinco** (build 81). Plan y Correr eran la
+      misma tarjeta y se fusionaron en Hoy; Carreras se metió adentro de
+      Progreso. Con una carrera del teléfono en curso, la pestaña Hoy ES
+      la carrera.
+- [ ] **La pantalla Coach ya no existe** (build 84). Sus tres funciones
+      se mudaron: "no puedo entrenar" y "¿por qué me toca esto?" al
+      entrenamiento, y "¿cómo vengo?" a Progreso. Tocar el entrenamiento
+      del jueves → **"No puedo este día"** → tiene que ofrecer días
+      concretos y APLICARLOS al tocarlos.
+- [ ] **"Ahora no" y "Confirmar plan" en una cuenta nueva** (build 82).
+      Los dos eran botones muertos: la pantalla se dibujaba como raíz y
+      `dismiss()` no tenía nada que cerrar. Crear una cuenta nueva y
+      probar los dos.
+- [ ] **Terminar una carrera en el reloj** (build 80). "Terminar" y
+      "Cancelar" eran dos botones iguales y pegados; ahora terminar es un
+      botón ancho verde y descartar quedó al pie. Es lo que borró una
+      carrera de verdad.
+- [ ] **El semáforo del recorrido** (build 78): rojo lento, amarillo
+      medio, verde rápido, con transición continua.
 
 Si algo de esto falla, no sigas: se arregla antes.
 
@@ -287,11 +315,10 @@ Lo que hay que mirar en la corrida antes de enviar:
 - [ ] En el iPhone, abrir esa carrera: **splits, ritmo por km, FC y
       elevación** (probar también con una carrera vieja)
 - [ ] **El recorrido pintado por ritmo** y, si hubo desnivel, el
-      selector Ritmo/Desnivel (build 76 — sin verificar visualmente
-      todavía)
+      selector Ritmo/Desnivel (sin verificar visualmente todavía)
 - [ ] **Compartir la carrera** y mirar la postal como la va a ver
       alguien en redes: degradado, leyenda y contexto del plan
-- [ ] Una carrera VIEJA (de antes del build 76) **también sale
+- [ ] Una carrera VIEJA **también sale
       pintada**: el ritmo por punto NO se persiste, se calcula cada vez
       que se carga la ruta desde Salud. Sirve para probar el mapa de
       calor sin esperar a la próxima corrida
@@ -324,7 +351,7 @@ Lo que hay que mirar en la corrida antes de enviar:
    productos creados en App Store Connect el paywall se ve vacío — ver
    FASE 4b. Y una suscripción mal configurada no se arregla con un build
    nuevo: se arregla en la consola, pero recién en la próxima revisión.
-5. **El mapa de calor del recorrido** (build 76) se subió sin
+5. **El mapa de calor del recorrido** se subió sin
    verificación visual con datos reales: en el simulador no se puede
    inyectar una ruta en Salud. La lógica tiene 13 tests; lo que no está
    probado es cómo se ve sobre Apple Maps.

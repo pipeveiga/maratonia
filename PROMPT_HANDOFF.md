@@ -25,7 +25,10 @@ App Store.
 ## Documentos que ya existen y hay que leer antes de tocar nada
 
 - `LANZAMIENTO.md` — el checklist de envío, en orden. Empieza con un
-  bloque "⚠️ LEER PRIMERO" con tres cosas que rompen el envío.
+  bloque "⚠️ LEER PRIMERO" con tres cosas que rompen el envío, y sigue
+  con lo que cambió del build 77 al 84 y NUNCA se probó en un teléfono:
+  las tres pestañas y la desaparición de la pantalla Coach. Eso es lo
+  primero que hay que recorrer.
 - `PARA_PEGAR.md` — todo el texto de App Store Connect ya redactado:
   notas al revisor, App Privacy fila por fila, descripciones de las
   suscripciones.
