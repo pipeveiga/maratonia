@@ -16,10 +16,11 @@ son falsas hoy, y ese error solo se descubre cuando Apple rechaza.
 
 ```
 CUENTA DE PRUEBA
-Email: [VOS: el email de la cuenta demo]
-Contraseña: [VOS: la contraseña]
+Email: pipeveiga2003+apple@gmail.com
+Contraseña: MaratoniaRevisor2026
 
 Se entra desde la primera pantalla con "Continuar con email".
+La cuenta ya tiene un plan adoptado: la app se ve con contenido.
 
 POR QUÉ LA APP PIDE CUENTA
 El plan de entrenamiento y el progreso se sincronizan entre el iPhone y
@@ -135,9 +136,16 @@ El orden importa: el primero es el que se ve sin deslizar.
 
 ---
 
-## 5. Lo que queda decidir **[VOS]**
+## 5. Decisiones tomadas
 
-- [ ] Idioma principal de la ficha: Español (México) o Español (España)
-- [ ] Países de disponibilidad: todos, o una lista
-- [ ] Email y contraseña de la cuenta demo (crearla con "Continuar con
-      email" desde la app, y anotarla acá arriba)
+- **Idioma principal**: Español (México)
+- **Disponibilidad**: todos los países
+- **Cuenta demo**: `pipeveiga2003+apple@gmail.com` / `MaratoniaRevisor2026`
+
+  El `+apple` hace que Gmail la trate como una dirección distinta —así
+  Firebase la acepta como cuenta nueva— pero los mails llegan a la
+  casilla de siempre. Hay que crearla DESDE la app con "Continuar con
+  email", completar el onboarding y adoptar un plan: si el revisor entra
+  y ve la app vacía, no puede evaluar nada.
+
+- [ ] **[VOS]** Crear esa cuenta en la app antes de enviar

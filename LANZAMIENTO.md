@@ -113,7 +113,7 @@ appstoreconnect.apple.com → Apps → **+** → Nueva app
 |---|---|
 | Plataformas | iOS |
 | Nombre | `Maratonia` |
-| Idioma principal | Español (México) o Español (España) **[VOS]** |
+| Idioma principal | **Español (México)** |
 | Bundle ID | `com.pipeveiga.maraton` |
 | SKU | `maratonia-001` |
 | Acceso de usuario | Acceso completo |
@@ -262,7 +262,7 @@ dispositivo real con datos de verdad — no del simulador vacío. **[VOS]**
    - Eliminación de cuenta: Perfil → Cuenta Maratonia → Eliminar cuenta
 6. Precio: **Gratis con compras dentro de la app** (no "Gratis" a secas)
 7. Adjuntar los dos productos de FASE 4b a esta versión
-8. Disponibilidad: todos los países (o los que quieras) **[VOS]**
+8. Disponibilidad: **todos los países**
 9. **Enviar para revisión**
 
 ---
