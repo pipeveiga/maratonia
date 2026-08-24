@@ -342,7 +342,7 @@ struct ProgresoTab: View {
                     }
                 } else {
                     Button {
-                        Task { await pedirEstado() }
+                        Task { estadoCoach = await pedirEstado() }
                     } label: {
                         Tarjeta {
                             HStack(spacing: DV2.Espacio.m) {
@@ -383,15 +383,15 @@ struct ProgresoTab: View {
     }
 
     @MainActor
-    private func pedirEstado() async {
+    private func pedirEstado() async -> CoachEstadoObjetivo? {
         let hoy = DiaLocal(fecha: Date())
         let eventos = DetectorEventos.detectar(EntradaDeteccion(
             hoy: hoy, almacen: almacen.almacen, analisis: nil,
             kmSemanaActual: nil, pedidoExplicito: true))
         let contexto = ContextoCoach.desde(almacen.almacen, hoy: hoy,
                                            historial: lector.sesiones, eventos: eventos)
-        estadoCoach = await coach.pedir(CoachEstadoObjetivo.self,
-                                        accion: "estado", contexto: contexto)
+        return await coach.pedir(CoachEstadoObjetivo.self,
+                                 accion: "estado", contexto: contexto)
     }
 
     /// Las últimas carreras, con el camino a todas. No se repite la

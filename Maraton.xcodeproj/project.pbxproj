@@ -69,6 +69,7 @@
 		A10000000000000000000112 /* Unidades.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* Unidades.swift */; };
 		A10000000000000000000113 /* Unidades.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000111 /* Unidades.swift */; };
 		A10000000000000000000142 /* IntencionCoach.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000141 /* IntencionCoach.swift */; };
+		A1000000000000000000FA02 /* SalidasCoach.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000FA01 /* SalidasCoach.swift */; };
 		A10000000000000000000144 /* AlternativasCoach.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000143 /* AlternativasCoach.swift */; };
 		A10000000000000000000146 /* CoachUX.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000145 /* CoachUX.swift */; };
 /* End PBXBuildFile section */
@@ -165,6 +166,7 @@
 		A10000000000000000000132 /* RepositorioCuenta.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositorioCuenta.swift; sourceTree = "<group>"; };
 		A10000000000000000000111 /* Unidades.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Unidades.swift; sourceTree = "<group>"; };
 		A10000000000000000000141 /* IntencionCoach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntencionCoach.swift; sourceTree = "<group>"; };
+		A1000000000000000000FA01 /* SalidasCoach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalidasCoach.swift; sourceTree = "<group>"; };
 		A10000000000000000000143 /* AlternativasCoach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlternativasCoach.swift; sourceTree = "<group>"; };
 		A10000000000000000000145 /* CoachUX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachUX.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -250,6 +252,7 @@
 				A1000000000000000000008F /* PerfilCorredor.swift */,
 				A10000000000000000000091 /* Adaptacion.swift */,
 				A10000000000000000000143 /* AlternativasCoach.swift */,
+				A1000000000000000000FA01 /* SalidasCoach.swift */,
 				A10000000000000000000145 /* CoachUX.swift */,
 				A10000000000000000000093 /* PerfilYFeedbackUI.swift */,
 				A10000000000000000000076 /* GoogleService-Info.plist */,
@@ -496,6 +499,7 @@
 				A10000000000000000000133 /* RepositorioCuenta.swift in Sources */,
 				A10000000000000000000112 /* Unidades.swift in Sources */,
 				A10000000000000000000144 /* AlternativasCoach.swift in Sources */,
+				A1000000000000000000FA02 /* SalidasCoach.swift in Sources */,
 				A10000000000000000000146 /* CoachUX.swift in Sources */,
 				A10000000000000000000142 /* IntencionCoach.swift in Sources */,
 			);
