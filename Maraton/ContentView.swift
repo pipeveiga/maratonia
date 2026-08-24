@@ -240,7 +240,6 @@ struct HoyTab: View {
     @State private var abrirPlanCompletoQA =
         UserDefaults.standard.bool(forKey: "abrirPlanCompleto")
     @State private var abrirRelojQA = UserDefaults.standard.bool(forKey: "abrirReloj")
-    @State private var abrirCoachQA = UserDefaults.standard.bool(forKey: "abrirCoach")
     #endif
 
     private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
@@ -296,7 +295,6 @@ struct HoyTab: View {
                 seccionHoy
                 seccionCarreraLibre
                 seccionSemana
-                seccionCoach
                 seccionProximos
                 seccionObjetivo
 
@@ -363,9 +361,6 @@ struct HoyTab: View {
             // capturar la pantalla del reloj desde el simulador.
             .navigationDestination(isPresented: $abrirRelojQA) {
                 RelojTab(store: store)
-            }
-            .navigationDestination(isPresented: $abrirCoachQA) {
-                CoachView(almacen: almacen)
             }
             #endif
             #if DEBUG
@@ -517,33 +512,6 @@ struct HoyTab: View {
                 .listRowInsets(EdgeInsets(top: 0, leading: 0,
                                           bottom: DV2.Espacio.s, trailing: 0))
                 .listRowBackground(Color.clear)
-        }
-    }
-
-    @ViewBuilder
-    private var seccionCoach: some View {
-        if coachOfrecible {
-            Section {
-                NavigationLink {
-                    CoachView(almacen: almacen)
-                } label: {
-                    HStack(spacing: DV2.Espacio.m) {
-                        Image(systemName: "figure.run.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(DV2.Marca.primario)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Preguntale al Coach")
-                                .font(.subheadline.weight(.semibold))
-                            Text(almacen.almacen.entrenamientoDeHoy(hoy) != nil
-                                 ? String(localized: "Por qué te toca esto hoy, o reorganizá tu semana")
-                                 : String(localized: "Cómo venís para tu objetivo"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-            }
         }
     }
 
@@ -1257,27 +1225,6 @@ struct PerfilTab: View {
 
                 SeccionCuentaMaratonia(identidad: identidad, cuentaCloud: cuenta,
                                        repositorio: repositorio)
-
-                // Maratonia Coach: solo con backend configurado
-                // (MaratoniaBackendURL en Info.plist) y sesión iniciada
-                // — sin eso no aparece, cero botones muertos.
-                if ServicioCoach.disponible && identidad.haySesion {
-                    Section("Coach") {
-                        NavigationLink {
-                            CoachView(almacen: almacen)
-                        } label: {
-                            HStack(spacing: 10) {
-                                IconoAjuste(sistema: "figure.run.circle.fill", color: .purple)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Maratonia Coach")
-                                    Text("Explicaciones y ajustes sobre tu plan")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                }
 
                 Section("Dispositivos") {
                     NavigationLink {

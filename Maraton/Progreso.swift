@@ -174,6 +174,11 @@ struct ProgresoTab: View {
     @ObservedObject var almacen: AlmacenStore
     @StateObject private var lector = LectorProgreso()
     @StateObject private var carreras = CarrerasStore()
+    @ObservedObject private var coach = ServicioCoach.compartido
+    /// "¿Cómo vengo?" vive ACÁ y no en una pantalla aparte llamada
+    /// Coach: es exactamente la pregunta que contesta esta pestaña, y
+    /// nadie la iba a buscar dentro de Ajustes.
+    @State private var estadoCoach: CoachEstadoObjetivo?
     /// Salida del estado vacío: sin una carrera no hay progreso, así que
     /// lo único útil que puede ofrecer esta pantalla es ir a correr.
     var irACorrer: (() -> Void)?
@@ -227,6 +232,7 @@ struct ProgresoTab: View {
                     // los mapas del otro, y había que elegir pestaña sin
                     // saber cuál tenía lo que buscabas.
                     seccionCarreras
+                    seccionComoVengo
                 }
                 .padding(.vertical)
             }
@@ -308,6 +314,83 @@ struct ProgresoTab: View {
             }
         }
         .padding(.horizontal)
+    }
+
+    /// La lectura del Coach sobre cómo venís para tu objetivo. Solo con
+    /// backend y sesión: sin eso no aparece, cero botones muertos.
+    @ViewBuilder
+    private var seccionComoVengo: some View {
+        if ServicioCoach.disponible, almacen.almacen.planActivo != nil {
+            VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+                if let e = estadoCoach {
+                    Tarjeta {
+                        VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+                            EncabezadoSeccionV2(texto: "Cómo venís")
+                            Text(e.veredicto)
+                                .font(DV2.Tipo.tituloChico)
+                                .foregroundStyle(DV2.Marca.profundo)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(e.detalle)
+                                .font(.subheadline)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Divider()
+                            Label(e.focoProximasSemanas, systemImage: "target")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                } else {
+                    Button {
+                        Task { await pedirEstado() }
+                    } label: {
+                        Tarjeta {
+                            HStack(spacing: DV2.Espacio.m) {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .font(.title3)
+                                    .foregroundStyle(DV2.Marca.primario)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("¿Cómo vengo para mi objetivo?")
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                    Text("Una lectura de tu plan y tu historial")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                if coach.ocupado {
+                                    ProgressView()
+                                } else {
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption2.weight(.bold))
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(coach.ocupado)
+                }
+
+                if let mensaje = coach.mensajeError {
+                    Text(mensaje)
+                        .font(.caption)
+                        .foregroundStyle(DV2.Semantico.advertencia)
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    private func pedirEstado() async {
+        let hoy = DiaLocal(fecha: Date())
+        let eventos = DetectorEventos.detectar(EntradaDeteccion(
+            hoy: hoy, almacen: almacen.almacen, analisis: nil,
+            kmSemanaActual: nil, pedidoExplicito: true))
+        let contexto = ContextoCoach.desde(almacen.almacen, hoy: hoy,
+                                           historial: lector.sesiones, eventos: eventos)
+        estadoCoach = await coach.pedir(CoachEstadoObjetivo.self,
+                                        accion: "estado", contexto: contexto)
     }
 
     /// Las últimas carreras, con el camino a todas. No se repite la

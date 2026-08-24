@@ -611,11 +611,20 @@ enum AplicadorAdaptacion {
     static func aplicar(_ cambios: [CambioPropuesto], a almacen: inout AlmacenV2,
                         hoy: DiaLocal, origen: RegistroAdaptacion.Origen,
                         motivo: String, ahora: Date = Date(),
-                        calendario: Calendar = .current) -> Int {
+                        calendario: Calendar = .current,
+                        pedidoPorElCorredor: Bool = false) -> Int {
         var aplicados = 0
+        // El aplicador REVALIDA todo antes de tocar nada, y tiene que
+        // hacerlo con el mismo criterio con que se ofreció: si se ofrece
+        // un día no habitual —porque el corredor dijo que no puede el
+        // suyo— y acá se revalida como si repartiera el motor, el cambio
+        // se descarta EN SILENCIO y el botón no hace nada.
+        let criterio: ValidadorDeCoach.OrigenDelCambio =
+            pedidoPorElCorredor ? .corredor : .motor
         for cambio in cambios {
             guard ValidadorDeCoach.validar(cambio, en: almacen, hoy: hoy,
-                                           calendario: calendario).permitido,
+                                           calendario: calendario,
+                                           origen: criterio).permitido,
                   let programado = almacen.todosLosProgramados
                     .first(where: { $0.id == cambio.programadoID }) else { continue }
             let antes = descripcion(programado, calendario: calendario)

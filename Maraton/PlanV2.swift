@@ -1390,6 +1390,10 @@ struct DetalleEntrenamientoView: View {
     @State private var mostrandoReprogramar = false
     @State private var nuevaFecha = Date()
     @State private var confirmandoOmitir = false
+    /// Las salidas de ESTA sesión, desplegadas acá mismo. Antes vivían
+    /// en una pantalla aparte llamada "Coach" a la que había que llegar
+    /// y volver a elegir de una lista la sesión que ya tenías enfrente.
+    @State private var mostrandoSalidas = false
 
     private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
 
@@ -1526,12 +1530,45 @@ struct DetalleEntrenamientoView: View {
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             }
+            // "No puedo este día" reemplaza al calendario a ciegas: el
+            // buscador ya sabe qué días son válidos —mismo validador que
+            // decide al confirmar— así que se ofrecen ESOS y no una
+            // fecha cualquiera que después choca.
             Section {
+                Button {
+                    withAnimation(.snappy(duration: 0.25)) { mostrandoSalidas.toggle() }
+                } label: {
+                    HStack {
+                        Label("No puedo este día", systemImage: "calendar.badge.exclamationmark")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.tertiary)
+                            .rotationEffect(.degrees(mostrandoSalidas ? 90 : 0))
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if mostrandoSalidas {
+                    SalidasDelEntrenamiento(almacen: almacen, programadoID: programadoID) {
+                        withAnimation { mostrandoSalidas = false }
+                    }
+                    .listRowInsets(EdgeInsets(top: DV2.Espacio.s, leading: DV2.Espacio.l,
+                                              bottom: DV2.Espacio.m, trailing: DV2.Espacio.l))
+                }
+
+                // "¿Por qué me toca esto?" — acá, sobre la sesión que se
+                // está mirando. Es la única de las tres funciones del
+                // Coach que de verdad necesita el modelo: explicar para
+                // qué sirve ESTE entrenamiento en ESTE plan.
+                PorQueEsteEntrenamiento(almacen: almacen, programado: programado)
+
                 Button {
                     nuevaFecha = programado.dia?.fecha() ?? Date()
                     mostrandoReprogramar = true
                 } label: {
-                    Label("Reprogramar", systemImage: "calendar.badge.clock")
+                    Label("Elegir otra fecha", systemImage: "calendar")
                 }
                 Button(role: .destructive) {
                     confirmandoOmitir = true

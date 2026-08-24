@@ -2376,3 +2376,60 @@ final class DestinosDelCoachTests: XCTestCase {
             "el corredor sí puede pedirlo a mano")
     }
 }
+
+/// El aplicador revalida TODO antes de tocar nada. Si lo hace con otro
+/// criterio del que se uso para ofrecer, el cambio se descarta en
+/// silencio: el corredor toca "moverlo al viernes" y no pasa nada.
+final class AplicarLoOfrecidoTests: XCTestCase {
+
+    private func almacenLleno() -> (AlmacenV2, EntrenamientoProgramado) {
+        var perfil = PerfilDeportivo()
+        perfil.objetivo = .diez
+        perfil.diasPorSemana = 3
+        perfil.diasElegidos = [1, 3, 5]
+        perfil.fechaOnboarding = Date(timeIntervalSince1970: 0)
+        var almacen = AlmacenV2()
+        almacen.activado = true
+        almacen.perfil = perfil
+        almacen.adoptarPlan(Catalogo.planesDisponibles()[1]
+            .adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 24),
+                     fechaAdopcion: Date(timeIntervalSince1970: 0)))
+        let p = almacen.todosLosProgramados
+            .filter { $0.dia != nil }
+            .sorted { ($0.dia ?? DiaLocal(anio: 0, mes: 1, dia: 1))
+                    < ($1.dia ?? DiaLocal(anio: 0, mes: 1, dia: 1)) }[1]
+        return (almacen, p)
+    }
+
+    /// Lo que el corredor elige de la lista SE APLICA. Antes esto
+    /// devolvía 0 y no había forma de enterarse.
+    func testLoQueElCorredorEligeSeAplica() {
+        var (almacen, programado) = almacenLleno()
+        let hoy = programado.dia!.sumando(dias: -1)
+        let opciones = BuscadorDeAlternativas.opciones(para: programado.id,
+                                                       en: almacen, hoy: hoy)
+        let mover = opciones.first { $0.dia != nil }
+        XCTAssertNotNil(mover, "sin destino no hay nada que probar")
+
+        let aplicados = AplicadorAdaptacion.aplicar(
+            [mover!.cambio], a: &almacen, hoy: hoy, origen: .coach,
+            motivo: mover!.titulo, pedidoPorElCorredor: true)
+        XCTAssertEqual(aplicados, 1, "se eligió una opción válida y no se aplicó nada")
+
+        let despues = almacen.todosLosProgramados.first { $0.id == programado.id }
+        XCTAssertEqual(despues?.dia, mover!.dia, "el día no cambió")
+    }
+
+    /// Y el motor sigue sin poder saltarse los días elegidos por su
+    /// cuenta: el permiso es del corredor, no del sistema.
+    func testElMotorNoHeredaElPermiso() {
+        var (almacen, programado) = almacenLleno()
+        let hoy = programado.dia!.sumando(dias: -1)
+        let martes = (0...13).map { hoy.sumando(dias: $0) }
+            .first { $0.numeroDeDiaDeSemana == 2 }!
+        let aplicados = AplicadorAdaptacion.aplicar(
+            [.reprogramar(programadoID: programado.id, a: martes)],
+            a: &almacen, hoy: hoy, origen: .motor, motivo: "prueba")
+        XCTAssertEqual(aplicados, 0, "el motor no puede repartir fuera de los días elegidos")
+    }
+}

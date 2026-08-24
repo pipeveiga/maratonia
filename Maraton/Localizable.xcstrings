@@ -4808,6 +4808,17 @@
         }
       }
     },
+    "Esta sesión no se puede mover ni acortar.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This session can’t be moved or shortened."
+          }
+        }
+      }
+    },
     "Esta sesión no se puede omitir.": {
       "extractionState": "manual",
       "localizations": {
@@ -6810,6 +6821,17 @@
         }
       }
     },
+    "Movela a…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move it to…"
+          }
+        }
+      }
+    },
     "Mover %@ al %@": {
       "extractionState": "manual",
       "localizations": {
@@ -7195,6 +7217,17 @@
         }
       }
     },
+    "No hay otro día libre. Podés…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No other day is free. You can…"
+          }
+        }
+      }
+    },
     "No llegamos con un plan seguro para esa fecha": {
       "extractionState": "manual",
       "localizations": {
@@ -7378,6 +7411,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "I can’t train…"
+          }
+        }
+      }
+    },
+    "No puedo este día": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I can’t do this day"
           }
         }
       }
@@ -7598,6 +7642,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "New date"
+          }
+        }
+      }
+    },
+    "O si preferís…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Or if you prefer…"
           }
         }
       }
@@ -11353,6 +11408,17 @@
         }
       }
     },
+    "Una lectura de tu plan y tu historial": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A read on your plan and your history"
+          }
+        }
+      }
+    },
     "Una lesión reciente": {
       "extractionState": "manual",
       "localizations": {
@@ -12167,6 +12233,17 @@
         }
       }
     },
+    "no habitual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "unusual"
+          }
+        }
+      }
+    },
     "omitido": {
       "extractionState": "manual",
       "localizations": {
@@ -12548,6 +12625,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Skip this workout?"
+          }
+        }
+      }
+    },
+    "¿Por qué me toca esto?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Why this workout?"
           }
         }
       }
