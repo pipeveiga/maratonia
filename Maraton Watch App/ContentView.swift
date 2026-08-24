@@ -559,6 +559,15 @@ struct PantallaReproduccion: View {
     private var paginaSesion: some View {
         ScrollView {
             VStack(spacing: 10) {
+                // GUARDAR y DESCARTAR no pueden ser dos botones iguales,
+                // pegados, en la misma columna. Estaban así —Terminar
+                // arriba de Cancelar— y en un reloj, con el dedo cansado
+                // al final de una carrera, errarle por un centímetro
+                // borra la carrera para siempre.
+                //
+                // Ahora la grilla es para lo que se usa DURANTE la
+                // carrera, terminar es un botón ancho y propio, y
+                // descartar queda abajo de todo, chico y sin color.
                 Grid(horizontalSpacing: 14, verticalSpacing: 10) {
                     GridRow {
                         botonSesion(reproductor.estado == .reproduciendo ? "Pausar" : "Reanudar",
@@ -566,36 +575,48 @@ struct PantallaReproduccion: View {
                                     color: reproductor.estado == .reproduciendo ? .orange : .green) {
                             reproductor.alternarPlayPausa()
                         }
-                        botonSesion("Terminar", icono: "stop.fill", color: .red) {
-                            confirmandoTerminar = true
-                        }
-                    }
-                    GridRow {
                         botonSesion("Aviso", icono: "speaker.wave.2.fill", color: .blue) {
                             avisador.probar()
-                        }
-                        botonSesion("Cancelar", icono: "xmark", color: .gray) {
-                            confirmandoCancelar = true
                         }
                     }
                 }
                 .padding(.top, 2)
 
+                Button {
+                    confirmandoTerminar = true
+                } label: {
+                    Label("Terminar y guardar", systemImage: "checkmark.circle.fill")
+                        .font(.footnote.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.green.opacity(0.22), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .foregroundStyle(.green)
+                }
+                .buttonStyle(.plain)
+
                 if reproductor.estado == .pausado {
                     Text("En pausa — todo congelado")
                         .font(.footnote)
                         .foregroundStyle(.orange)
-                } else {
-                    Text("«Terminar» guarda la carrera en Salud.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
                 }
+
+                Button {
+                    confirmandoCancelar = true
+                } label: {
+                    Text("Descartar sin guardar")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 6)
+                }
+                .buttonStyle(.plain)
             }
             .padding(.horizontal, 4)
         }
         .confirmationDialog("¿Terminar la sesión?", isPresented: $confirmandoTerminar) {
-            Button("Terminar y guardar", role: .destructive) {
+            // SIN role destructivo: guardar no destruye nada. Con rojo,
+            // los dos diálogos —guardar y descartar— se veían idénticos,
+            // y el gesto aprendido ("tocá el rojo") borraba la carrera.
+            Button("Terminar y guardar") {
                 // El cumplimiento del plan se decide ANTES de detener
                 // (detener borra el estado del entrenador).
                 EntrenadorRitmo.compartido.marcarCumplimientoSiCorresponde()
@@ -617,7 +638,7 @@ struct PantallaReproduccion: View {
             }
             Button("Seguir", role: .cancel) {}
         } message: {
-            Text("El entrenamiento NO se guarda en Salud. No se puede deshacer.")
+            Text("Se pierde TODO lo que corriste: distancia, ritmo, pulso y recorrido. No se puede deshacer.")
         }
     }
 

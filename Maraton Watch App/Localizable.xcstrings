@@ -859,6 +859,17 @@
         }
       }
     },
+    "Descartar sin guardar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard without saving"
+          }
+        }
+      }
+    },
     "Descartar todo": {
       "extractionState": "manual",
       "localizations": {
@@ -2131,6 +2142,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Health has workout-saving permission denied: the run will NOT be saved. Enable it on the iPhone: Health → Sharing → Apps → Maratonia."
+          }
+        }
+      }
+    },
+    "Se pierde TODO lo que corriste: distancia, ritmo, pulso y recorrido. No se puede deshacer.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You lose EVERYTHING you ran: distance, pace, heart rate, and route. This can’t be undone."
           }
         }
       }
