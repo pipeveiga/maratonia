@@ -531,9 +531,14 @@ struct PantallaReproduccion: View {
     /// Tres estados y no dos: "no se está grabando" porque vos lo
     /// elegiste (convivencia con Runna) no es lo mismo que "tenía que
     /// grabarse y falló", y la pantalla no puede mostrar los dos igual.
-    enum EstadoRegistro { case registrando, fallo, soloAudio }
+    enum EstadoRegistro { case registrando, noSeGuarda, fallo, soloAudio }
 
     private var estadoDeRegistro: EstadoRegistro {
+        // El orden importa: una sesión que CORRE pero no va a poder
+        // guardarse es lo más engañoso de todos los estados —los números
+        // se mueven en vivo y al terminar no queda nada—, así que gana
+        // sobre "registrando".
+        if entrenamiento.guardadoNegado { return .noSeGuarda }
         if entrenamiento.activo { return .registrando }
         return entrenamiento.registroEsperado ? .fallo : .soloAudio
     }
@@ -820,6 +825,11 @@ struct PantallaReproduccion: View {
             switch estadoDeRegistro {
             case .registrando:
                 EmptyView()
+            case .noSeGuarda:
+                Label("NO se va a guardar en Salud", systemImage: "heart.slash.fill")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
             case .fallo:
                 Label("NO se está registrando", systemImage: "exclamationmark.triangle.fill")
                     .font(.footnote.weight(.semibold))
@@ -832,12 +842,24 @@ struct PantallaReproduccion: View {
                     .multilineTextAlignment(.center)
             }
 
+            // El error del entrenamiento vivía SOLO en la página de
+            // sesión, y la carrera abre en métricas: un permiso negado se
+            // avisaba en una pantalla que nadie mira mientras corre. Por
+            // eso Felipe corrió una hora entera sin enterarse.
+            if let error = entrenamiento.mensajeError {
+                Text(error)
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(4)
+            }
+
             Grid(horizontalSpacing: 6, verticalSpacing: 6) {
                 GridRow {
                     // Sin workout no hay distancia que mostrar: un guion
                     // dice "no se mide", un 0,00 miente.
                     celdaMetrica("DISTANCIA",
-                                 estadoDeRegistro == .registrando
+                                 entrenamiento.activo
                                  ? String(format: "%.2f", entrenamiento.distanciaMetros / 1000)
                                  : "—",
                                  color: .primary)
@@ -848,7 +870,7 @@ struct PantallaReproduccion: View {
                                  formatearTiempo(reproductor.tiempoTranscurrido),
                                  color: .primary)
                     celdaMetrica("PULSO",
-                                 estadoDeRegistro == .registrando
+                                 entrenamiento.activo
                                  ? "\(Int(entrenamiento.frecuenciaCardiaca))"
                                  : "—",
                                  color: .red)
@@ -960,6 +982,12 @@ struct PantallaReproduccion: View {
         switch estadoDeRegistro {
         case .registrando:
             EmptyView()
+        case .noSeGuarda:
+            Label("Salud no deja guardar: vas a correr y NO va a quedar registrada.",
+                  systemImage: "heart.slash.fill")
+                .font(.footnote)
+                .foregroundStyle(.red)
+                .multilineTextAlignment(.center)
         case .fallo:
             Label("NO se está registrando: esta carrera no va a quedar en Salud.",
                   systemImage: "exclamationmark.triangle.fill")

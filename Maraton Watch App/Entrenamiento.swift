@@ -40,6 +40,13 @@ final class Entrenamiento: NSObject, ObservableObject {
     /// cronómetro corriendo y la distancia en cero. Con ella, la pantalla
     /// puede decirlo.
     @Published private(set) var registroEsperado = false
+
+    /// Salud tiene NEGADO el permiso de guardar entrenamientos. La
+    /// sesión corre igual —se ven distancia y pulso en vivo— pero al
+    /// terminar no queda nada. Es un estado propio y no un texto de
+    /// error suelto, porque tiene que sobrevivir a que el corredor
+    /// cambie de página y verse mientras corre, no al final.
+    @Published private(set) var guardadoNegado = false
     @Published var pausado = false
 
     /// Resumen de la última carrera guardada, para mostrar al volver al
@@ -195,7 +202,10 @@ final class Entrenamiento: NSObject, ObservableObject {
                 // Si el permiso de GUARDAR está negado, la sesión corre
                 // pero el workout no se guardaría — avisar ANTES de correr.
                 if self?.healthStore.authorizationStatus(for: .workoutType()) == .sharingDenied {
+                    self?.guardadoNegado = true
                     self?.mensajeError = String(localized: "Salud tiene negado el permiso de guardar entrenamientos: la carrera NO se va a guardar. Activalo en el iPhone: Salud → Compartir → Apps → Maratonia.")
+                } else {
+                    self?.guardadoNegado = false
                 }
                 self?.cargarFCReposo()
                 self?.cargarFCMaxima()
@@ -694,6 +704,7 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
         programadoID = nil
         estructuraCompletaAlGuardar = false
         registroEsperado = false
+        guardadoNegado = false
     }
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
