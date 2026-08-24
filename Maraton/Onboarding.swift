@@ -143,6 +143,12 @@ struct EstadoInicialOnboarding: Equatable {
 
 struct OnboardingDeportivo: View {
     @ObservedObject var almacen: AlmacenStore
+    /// Cómo se sale de acá. En una HOJA (Perfil → Cambiar objetivo)
+    /// alcanza con `dismiss`. Pero cuando el onboarding es la pantalla
+    /// RAÍZ —cuenta recién creada— no hay nada que cerrar y `dismiss` no
+    /// hace absolutamente nada: el botón "Ahora no" quedaba muerto y el
+    /// corredor encerrado. Ahí el dueño de la pantalla pasa su salida.
+    var alSalir: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
 
     @State private var paso = 0
@@ -198,8 +204,10 @@ struct OnboardingDeportivo: View {
     /// Reabrirlo es lo normal —desde Perfil, desde "Explorar planes"—, y
     /// un formulario en blanco encima de un perfil lleno no es un
     /// formulario nuevo: es la ruta más corta a borrar datos buenos.
-    init(almacen: AlmacenStore, desde entrada: PuntoDeEntradaOnboarding = .principio) {
+    init(almacen: AlmacenStore, desde entrada: PuntoDeEntradaOnboarding = .principio,
+         alSalir: (() -> Void)? = nil) {
         _almacen = ObservedObject(wrappedValue: almacen)
+        self.alSalir = alSalir
         let inicial = EstadoInicialOnboarding(
             perfil: almacen.almacen.perfilDeportivo,
             referencia: almacen.almacen.referenciaVigente)
@@ -287,13 +295,13 @@ struct OnboardingDeportivo: View {
                     }
                 }
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Ahora no") { dismiss() }
+                    Button("Ahora no") { salir() }
                 }
             }
             .navigationDestination(isPresented: $mostrandoPropuesta) {
                 if let resultado = resultadoMotor {
                     PropuestaPlanView(almacen: almacen, resultado: resultado) {
-                        dismiss()
+                        salir()
                     }
                 }
             }
@@ -1095,6 +1103,12 @@ struct OnboardingDeportivo: View {
             mesesCorriendoRegular: mesesRegular > 0 ? mesesRegular : nil,
             volviendoDePausa: volviendoDePausa,
             otrosDeportes: nil)
+    }
+
+    /// La única salida de esta pantalla. Con `alSalir` la decide quien
+    /// la presentó; sin él, es una hoja y se cierra sola.
+    private func salir() {
+        if let alSalir { alSalir() } else { dismiss() }
     }
 
     private func guardarPerfil() {

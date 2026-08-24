@@ -16,8 +16,8 @@ son falsas hoy, y ese error solo se descubre cuando Apple rechaza.
 
 ```
 CUENTA DE PRUEBA
-Email: pipeveiga2003+apple@gmail.com
-Contraseña: MaratoniaRevisor2026
+Email: apple@prueba.com
+Contraseña: Apple1976
 
 Se entra desde la primera pantalla con "Continuar con email".
 La cuenta ya tiene un plan adoptado: la app se ve con contenido.
@@ -140,12 +140,9 @@ El orden importa: el primero es el que se ve sin deslizar.
 
 - **Idioma principal**: Español (México)
 - **Disponibilidad**: todos los países
-- **Cuenta demo**: `pipeveiga2003+apple@gmail.com` / `MaratoniaRevisor2026`
+- **Cuenta demo**: `apple@prueba.com` / `Apple1976`
 
-  El `+apple` hace que Gmail la trate como una dirección distinta —así
-  Firebase la acepta como cuenta nueva— pero los mails llegan a la
-  casilla de siempre. Hay que crearla DESDE la app con "Continuar con
-  email", completar el onboarding y adoptar un plan: si el revisor entra
-  y ve la app vacía, no puede evaluar nada.
-
-- [ ] **[VOS]** Crear esa cuenta en la app antes de enviar
+- [ ] **[VOS]** Verificar que esa cuenta tenga un PLAN ADOPTADO antes de
+      enviar. Si el revisor entra y ve la app vacía, no puede evaluar
+      nada — y la cuenta se creó justo cuando "Confirmar plan" estaba
+      roto, así que puede haber quedado sin plan.

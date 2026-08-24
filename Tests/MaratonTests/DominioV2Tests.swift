@@ -2239,3 +2239,67 @@ final class NumeroDeSemanaTests: XCTestCase {
         XCTAssertNil(vacio.numeroDeSemana(hoy: DiaLocal(anio: 2026, mes: 8, dia: 10)))
     }
 }
+
+/// El portero del arranque. Estos casos existen porque "Ahora no" en el
+/// onboarding de una cuenta nueva era un botón MUERTO: la pantalla se
+/// dibujaba como raíz, el botón hacía `dismiss()` y no había nada que
+/// cerrar. El corredor quedaba encerrado.
+final class PorteroDeArranqueTests: XCTestCase {
+
+    func testSinSesionPideCuenta() {
+        XCTAssertEqual(
+            SesionApp.estadoPara(haySesion: false, authDisponible: true,
+                                 tienePerfil: false, onboardingOmitido: false),
+            .necesitaAuth)
+    }
+
+    func testConPerfilEntraDirecto() {
+        XCTAssertEqual(
+            SesionApp.estadoPara(haySesion: true, authDisponible: true,
+                                 tienePerfil: true, onboardingOmitido: false),
+            .lista)
+    }
+
+    func testSinPerfilPideOnboarding() {
+        XCTAssertEqual(
+            SesionApp.estadoPara(haySesion: true, authDisponible: true,
+                                 tienePerfil: false, onboardingOmitido: false),
+            .necesitaOnboarding)
+    }
+
+    /// EL caso del bug: dijo "ahora no" y tiene que entrar igual, sin
+    /// perfil. Si esto vuelve a devolver `.necesitaOnboarding`, el botón
+    /// queda muerto otra vez.
+    func testAhoraNoEntraSinPerfil() {
+        XCTAssertEqual(
+            SesionApp.estadoPara(haySesion: true, authDisponible: true,
+                                 tienePerfil: false, onboardingOmitido: true),
+            .lista)
+    }
+
+    /// Y vale también sin Firebase: el botón está en la MISMA pantalla,
+    /// así que tiene que hacer lo mismo. Este era el agujero de mi primer
+    /// arreglo — el guard de `authDisponible` retornaba antes de mirar la
+    /// omisión, y en una build sin plist el botón seguía muerto.
+    func testAhoraNoTambienSinFirebase() {
+        XCTAssertEqual(
+            SesionApp.estadoPara(haySesion: false, authDisponible: false,
+                                 tienePerfil: false, onboardingOmitido: true),
+            .lista)
+        XCTAssertEqual(
+            SesionApp.estadoPara(haySesion: false, authDisponible: false,
+                                 tienePerfil: false, onboardingOmitido: false),
+            .necesitaOnboarding)
+    }
+
+    /// Sin Firebase la app NO puede quedarse trabada pidiendo cuenta: es
+    /// lo que mantiene usable una build de desarrollo sin plist.
+    func testSinFirebaseNuncaPideCuenta() {
+        for perfil in [true, false] {
+            XCTAssertNotEqual(
+                SesionApp.estadoPara(haySesion: false, authDisponible: false,
+                                     tienePerfil: perfil, onboardingOmitido: false),
+                .necesitaAuth)
+        }
+    }
+}

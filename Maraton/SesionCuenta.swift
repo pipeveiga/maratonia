@@ -72,17 +72,30 @@ final class SesionApp: ObservableObject {
     /// y devuelve dónde hay que estar.
     nonisolated static func estadoPara(haySesion: Bool,
                            authDisponible: Bool,
-                           tienePerfil: Bool) -> EstadoSesion {
+                           tienePerfil: Bool,
+                           onboardingOmitido: Bool = SesionApp.onboardingOmitido) -> EstadoSesion {
         // Sin Firebase configurado la app no puede pedir cuenta y
         // tampoco puede quedarse trabada: sigue siendo local. Es lo que
         // mantiene usable una build de desarrollo sin
         // GoogleService-Info.plist, y lo que evita que un fallo de
         // configuración deje a un corredor afuera de sus propios datos.
+        // Sin perfil hay onboarding, PERO "ahora no" es una respuesta
+        // válida: quien lo dijo entra a la app igual y se le vuelve a
+        // ofrecer desde Perfil. Vale en los dos caminos —con y sin
+        // Firebase—, porque el botón está en la misma pantalla.
+        let sinPerfil: EstadoSesion = onboardingOmitido ? .lista : .necesitaOnboarding
+
         guard authDisponible else {
-            return tienePerfil ? .lista : .necesitaOnboarding
+            return tienePerfil ? .lista : sinPerfil
         }
         guard haySesion else { return .necesitaAuth }
-        return tienePerfil ? .lista : .necesitaOnboarding
+        return tienePerfil ? .lista : sinPerfil
+    }
+
+    /// Cambiar de cuenta borra el "ahora no": es una decisión de ESTA
+    /// persona en este dispositivo, no del aparato.
+    func olvidarOmision() {
+        UserDefaults.standard.removeObject(forKey: Self.claveOnboardingOmitido)
     }
 
     func reevaluar() {
@@ -121,4 +134,30 @@ final class SesionApp: ObservableObject {
 
     /// El onboarding terminó.
     func onboardingCompletado() { reevaluar() }
+
+    /// "Ahora no" en el onboarding de una cuenta nueva. No es lo mismo
+    /// que completarlo: no hay objetivo ni plan, y el corredor entra a
+    /// una app que se lo va a ofrecer desde Perfil cuando quiera.
+    ///
+    /// Se recuerda POR DISPOSITIVO y no en el perfil deportivo: saltear
+    /// no es un dato del corredor, es un "ahora no" acá y ahora. Sin
+    /// esto el portero lo devolvía al onboarding en el acto y el botón
+    /// seguía sin servir para nada.
+    func omitirOnboarding() {
+        // Solo se marca omitido si de verdad NO quedó perfil. La misma
+        // salida la usa "Confirmar plan", y ahí sí hay plan: marcarlo
+        // como omitido sería recordar un "ahora no" que no pasó.
+        if !Self.tienePerfil(almacen.almacen) {
+            UserDefaults.standard.set(true, forKey: Self.claveOnboardingOmitido)
+        }
+        reevaluar()
+    }
+
+    nonisolated static let claveOnboardingOmitido = "onboardingOmitido"
+
+    /// `nonisolated`: la decisión de arranque es pura y se llama desde
+    /// contexto no aislado, igual que el resto de sus entradas.
+    nonisolated static var onboardingOmitido: Bool {
+        UserDefaults.standard.bool(forKey: claveOnboardingOmitido)
+    }
 }

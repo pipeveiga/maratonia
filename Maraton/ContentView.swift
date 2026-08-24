@@ -100,7 +100,11 @@ struct ContentView: View {
         .onChange(of: identidad.haySesion) { _, hay in
             Task {
                 if hay { await sesion.restaurar(con: repositorio) }
-                else { await repositorio.limpiarParaLogout(); sesion.reevaluar() }
+                else {
+                    await repositorio.limpiarParaLogout()
+                    sesion.olvidarOmision()
+                    sesion.reevaluar()
+                }
             }
         }
     }
@@ -119,8 +123,11 @@ struct ContentView: View {
                 if sesion.restauracionLenta { RestaurandoView() }
                 else { DV2.Superficie.fondo.ignoresSafeArea() }
             case .necesitaOnboarding:
-                OnboardingDeportivo(almacen: almacen)
-                    .interactiveDismissDisabled()
+                // La salida se pasa EXPLÍCITA: acá el onboarding es la
+                // raíz, así que `dismiss()` no tiene nada que cerrar y
+                // "Ahora no" —y "Confirmar plan"— quedaban muertos.
+                OnboardingDeportivo(almacen: almacen,
+                                    alSalir: { sesion.omitirOnboarding() })
                     .onDisappear { sesion.onboardingCompletado() }
             case .lista:
                 AppPrincipal(store: store, almacen: almacen, identidad: identidad,
