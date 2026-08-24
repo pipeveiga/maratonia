@@ -882,6 +882,9 @@ struct PorQueEsteEntrenamiento: View {
         }
     }
 
+    /// `@MainActor`: arma el contexto con `ContextoCoach.desde`, que
+    /// está aislado al actor principal, y después escribe `@State`.
+    @MainActor
     private func pedir() async {
         let hoy = DiaLocal(fecha: Date())
         let eventos = DetectorEventos.detectar(EntradaDeteccion(

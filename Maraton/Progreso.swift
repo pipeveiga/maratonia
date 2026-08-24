@@ -382,6 +382,7 @@ struct ProgresoTab: View {
         }
     }
 
+    @MainActor
     private func pedirEstado() async {
         let hoy = DiaLocal(fecha: Date())
         let eventos = DetectorEventos.detectar(EntradaDeteccion(
