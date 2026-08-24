@@ -32,19 +32,45 @@ App Store.
 - `scripts/subir.sh` — compila, firma y sube a TestFlight en un comando:
   `./scripts/subir.sh 85`
 
+## Con qué contás
+
+Corrés en la Mac de Felipe, con todo abierto: Xcode 26.6 con los
+simuladores instalados, el repo, la sesión de App Store Connect en el
+navegador y la API key configurada. O sea que podés compilar, correr los
+tests, sacar screenshots del simulador y subir builds vos mismo.
+
 ## Lo que queda pendiente
 
-1. **El envío en App Store Connect** — esto NO lo podés hacer vos: es
-   una web con Apple ID y doble factor. Lo hace Felipe a mano siguiendo
-   `LANZAMIENTO.md` + `PARA_PEGAR.md`. Si te pide ayuda con esto,
-   explicale los pasos; no intentes automatizarlo.
+1. **Cargar la ficha en App Store Connect.** Con el navegador abierto lo
+   podés hacer: ficha ES/EN, screenshots, productos de suscripción,
+   seleccionar el build. Todo el texto está en `PARA_PEGAR.md`.
+
+   **DOS COSAS NO LAS TOQUES SIN FELIPE:**
+
+   - **El formulario de App Privacy.** Es una declaración legal a su
+     nombre sobre qué datos recolecta la app. Mostrale las tres filas
+     que van (están en `PARA_PEGAR.md`) y que las marque él.
+   - **El botón "Enviar para revisión".** Preparalo todo, mostrale qué
+     quedó cargado, y que lo apriete él. Enviar es irreversible y sale a
+     nombre suyo.
+
+   Si aparece un pedido de doble factor, pedíselo — no lo esquives.
+
 2. **Verificar la cuenta demo** `apple@prueba.com` / `Apple1976`: se creó
    cuando el botón "Confirmar plan" estaba roto, así que puede haber
    quedado sin plan adoptado. Un revisor que entra y ve la app vacía no
-   puede evaluar nada.
+   puede evaluar nada. Se verifica entrando con esa cuenta en el
+   iPhone de Felipe, o creándola de nuevo desde el simulador.
+
 3. **Screenshots de Progreso y Carreras con historial real** — necesitan
    carreras guardadas en HealthKit. En el simulador no se pueden
-   inyectar; salen del teléfono de Felipe.
+   inyectar; salen del teléfono de Felipe. Los tres que ya existen (Hoy,
+   Progreso y Perfil, a 1320×2868) están en
+   `~/Desktop/Maratonia-screenshots/`.
+
+4. **Pushear `main`** — 6 commits locales. Requiere que Felipe tenga
+   credenciales de GitHub cargadas; si `git push` falla con "could not
+   read Username", pedíselo y que lo haga desde GitHub Desktop.
 
 ## Cosas que descubrí a los golpes y te van a ahorrar horas
 
@@ -90,6 +116,13 @@ perfiles de aprovisionamiento).
   bastante código bueno sin usar — dos veces reescribí algo que ya
   estaba.
 
-Empezá leyendo `LANZAMIENTO.md` y decime en qué me podés ayudar.
+## Lo último, y va en serio
+
+Esta app la usa Felipe para correr de verdad, y ya perdió una carrera por
+un bug. No des nada por bueno sin verificarlo: compilado, testeado y —si
+es visual— mirado con una captura. Si algo no lo pudiste comprobar,
+decilo con todas las letras en vez de darlo por hecho.
+
+Empezá leyendo `LANZAMIENTO.md` y decime qué encontrás.
 
 ---
