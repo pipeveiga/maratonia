@@ -509,23 +509,59 @@ struct CoachView: View {
                     Task { await pedirEstado() }
                 }
 
-                TarjetaV2 {
-                    VStack(alignment: .leading, spacing: DV2.Espacio.m) {
-                        EncabezadoSeccionV2(texto: "Reorganizar mi semana")
-                        TextField("Contale qué pasó (ej.: no puedo correr el jueves)",
-                                  text: $motivoCambio, axis: .vertical)
-                            .font(.subheadline)
-                            .lineLimit(1...4)
-                            .focused($campoEnfocado)
-                        Button {
-                            Task { await pedirReorganizacion() }
-                        } label: {
-                            EtiquetaBotonPrimarioV2(titulo: "Proponer cambios",
-                                                    icono: "arrow.triangle.2.circlepath")
+                // Reorganizar la semana NO pasa por el backend ni por
+                // texto libre. `BuscadorDeAlternativas` ya sabe a qué
+                // días se puede mover cada sesión y qué operaciones son
+                // válidas —con el MISMO validador que decide al
+                // confirmar—, así que la respuesta es local, instantánea
+                // y no puede entender otra cosa.
+                //
+                // Antes había que escribir "no puedo el jueves" y
+                // esperar a que un modelo dedujera la intención. Escribir
+                // "Hoy quiero correr" devolvía una propuesta sobre el
+                // rodaje del sábado: la máquina de adivinar erraba, y
+                // encima había que tipear con el teléfono en la mano.
+                if !sesionesReorganizables.isEmpty {
+                    TarjetaV2 {
+                        VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                            EncabezadoSeccionV2(texto: "No puedo entrenar…")
+                            Text("Tocá la sesión que no te sirve y te muestro las salidas.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            ForEach(sesionesReorganizables, id: \.id) { programado in
+                                Button {
+                                    abrirOpciones(de: programado)
+                                } label: {
+                                    filaSesion(programado)
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            // El texto libre baja a segundo plano. Sigue
+                            // existiendo para lo que el buscador local no
+                            // cubre —una molestia, una semana entera—
+                            // pero deja de ser la puerta de entrada, que
+                            // es lo que obligaba a escribir para pedir
+                            // algo que se resuelve de un toque.
+                            Detalle(titulo: String(localized: "Es otra cosa")) {
+                                VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                                    TextField("Contale qué pasó (ej.: me duele el gemelo)",
+                                              text: $motivoCambio, axis: .vertical)
+                                        .font(.subheadline)
+                                        .lineLimit(1...4)
+                                        .focused($campoEnfocado)
+                                    Button {
+                                        Task { await pedirReorganizacion() }
+                                    } label: {
+                                        EtiquetaBotonPrimarioV2(titulo: "Proponer cambios",
+                                                                icono: "arrow.triangle.2.circlepath")
+                                    }
+                                    .buttonStyle(.plain)
+                                    .opacity(puedeReorganizar ? 1 : 0.4)
+                                    .disabled(!puedeReorganizar)
+                                }
+                            }
                         }
-                        .buttonStyle(.plain)
-                        .opacity(puedeReorganizar ? 1 : 0.4)
-                        .disabled(!puedeReorganizar)
                     }
                 }
 
@@ -767,6 +803,72 @@ struct CoachView: View {
     }
 
     // MARK: acciones
+
+    /// Lo que se puede reorganizar: pendientes de acá a una semana. Más
+    /// allá no es "no puedo entrenar", es otro plan.
+    private var sesionesReorganizables: [EntrenamientoProgramado] {
+        let tope = hoy.sumando(dias: 7)
+        return almacen.almacen.todosLosProgramados
+            .filter { programado in
+                guard let dia = programado.dia else { return false }
+                return programado.resolucion == .pendiente && !(dia < hoy) && !(tope < dia)
+            }
+            .sorted { ($0.dia ?? hoy) < ($1.dia ?? hoy) }
+    }
+
+    private func filaSesion(_ programado: EntrenamientoProgramado) -> some View {
+        HStack(spacing: DV2.Espacio.m) {
+            Circle()
+                .fill(DV2.color(de: programado.definicion.tipo))
+                .frame(width: 10, height: 10)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(programado.definicion.nombre)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                if let dia = programado.dia {
+                    Text(BuscadorDeAlternativas.nombreDeDia(dia))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            let km = programado.definicion.volumenKm()
+            if km > 0 {
+                Text(Unidades.distancia(km: km, decimales: 1))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, DV2.Espacio.s)
+        .contentShape(Rectangle())
+    }
+
+    /// Las salidas de esta sesión, calculadas ACÁ. Sin red, sin espera y
+    /// sin interpretación: las mismas opciones que el validador va a
+    /// aceptar al confirmar.
+    private func abrirOpciones(de programado: EntrenamientoProgramado) {
+        let todas = BuscadorDeAlternativas.opciones(para: programado.id,
+                                                    en: almacen.almacen, hoy: hoy)
+        let opciones = BuscadorDeAlternativas.paraPreguntar(todas)
+        guard !opciones.isEmpty else { return }
+        let (titulo, subtitulo) = ResolutorCoach.encabezado(
+            para: opciones, sesion: programado.id, en: almacen.almacen)
+        // Una consulta nueva limpia lo anterior: dos tarjetas de
+        // resultado apiladas es exactamente lo que hacía que esta
+        // pantalla se sintiera un formulario.
+        explicacion = nil
+        estado = nil
+        ajuste = nil
+        fueraDeDominio = nil
+        aclaracion = AclaracionCoach(programadoID: programado.id,
+                                     titulo: titulo,
+                                     subtitulo: subtitulo,
+                                     opciones: opciones,
+                                     huellaDelPlan: ResolutorCoach.huella(de: almacen.almacen))
+    }
 
     private var proximoPendiente: EntrenamientoProgramado? {
         almacen.almacen.todosLosProgramados

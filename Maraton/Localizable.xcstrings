@@ -2828,6 +2828,17 @@
         }
       }
     },
+    "Contale qué pasó (ej.: me duele el gemelo)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tell it what happened (e.g. my calf hurts)"
+          }
+        }
+      }
+    },
     "Contale qué pasó (ej.: no puedo correr el jueves)": {
       "extractionState": "manual",
       "localizations": {
@@ -4540,6 +4551,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "It's the only long run of the week — better to shorten or move it than delete it."
+          }
+        }
+      }
+    },
+    "Es otra cosa": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It’s something else"
           }
         }
       }
@@ -7323,6 +7345,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "I can't run on Saturday"
+          }
+        }
+      }
+    },
+    "No puedo entrenar…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I can’t train…"
           }
         }
       }
@@ -10359,6 +10392,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Long run"
+          }
+        }
+      }
+    },
+    "Tocá la sesión que no te sirve y te muestro las salidas.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap the session that doesn’t work for you and I’ll show you the ways out."
           }
         }
       }
