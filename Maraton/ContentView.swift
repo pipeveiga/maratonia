@@ -6,8 +6,23 @@ import UniformTypeIdentifiers
 // ayuda). Cada parte del plan tiene su propia pantalla — nada de una
 // sola lista infinita.
 
+/// TRES pestañas, una por pregunta:
+///   Hoy      — ¿qué hago ahora? (el plan de hoy Y el botón de correr)
+///   Progreso — ¿cómo vengo? (los números Y mis carreras)
+///   Perfil   — todo lo demás
+///
+/// Antes eran cinco y dos pares hacían lo mismo: Plan y Correr abrían
+/// con la MISMA tarjeta de hoy, y Progreso y Carreras contestaban la
+/// misma pregunta con dos formatos. Cinco lugares para tres preguntas es
+/// lo que hacía que la app se sintiera engorrosa.
 enum Pestana: Hashable {
-    case plan, correr, progreso, carreras, perfil
+    case hoy, progreso, perfil
+
+    /// Los nombres viejos siguen resolviendo para no romper los enlaces
+    /// internos que ya existían (`pestana = .correr` desde media app).
+    static let plan = Pestana.hoy
+    static let correr = Pestana.hoy
+    static let carreras = Pestana.progreso
 
     #if DEBUG
     /// Pestaña inicial por argumento de lanzamiento. SOLO en DEBUG y
@@ -17,10 +32,8 @@ enum Pestana: Hashable {
     /// Uso: `xcrun simctl launch <dev> <bundle> -pestanaInicial progreso`
     static var deArgumentos: Pestana? {
         switch UserDefaults.standard.string(forKey: "pestanaInicial") {
-        case "plan": return .plan
-        case "correr": return .correr
-        case "progreso": return .progreso
-        case "carreras": return .carreras
+        case "plan", "correr", "hoy": return .hoy
+        case "progreso", "carreras": return .progreso
         case "perfil": return .perfil
         default: return nil
         }
@@ -145,22 +158,13 @@ struct AppPrincipal: View {
 
     var body: some View {
         TabView(selection: $pestana) {
-            PlanTab(store: store, almacen: almacen, pestana: $pestana,
-                    identidad: identidad)
-                .tabItem { Label("Plan", systemImage: "slider.horizontal.3") }
-                .tag(Pestana.plan)
-            CorrerTab(store: store, almacen: almacen)
-                .tabItem { Label("Correr", systemImage: "figure.run") }
-                .tag(Pestana.correr)
-            // El Reloj dejó de ser pestaña (decisión D5): vive en
-            // Perfil. Su lugar lo ocupa PROGRESO — correr, ver cómo
-            // venís, correr de nuevo.
-            ProgresoTab(almacen: almacen, irACorrer: { pestana = .correr })
+            HoyTab(store: store, almacen: almacen, pestana: $pestana,
+                   identidad: identidad)
+                .tabItem { Label("Hoy", systemImage: "figure.run") }
+                .tag(Pestana.hoy)
+            ProgresoTab(almacen: almacen, irACorrer: { pestana = .hoy })
                 .tabItem { Label("Progreso", systemImage: "chart.bar.fill") }
                 .tag(Pestana.progreso)
-            CarrerasTab(pestana: $pestana, almacen: almacen)
-                .tabItem { Label("Carreras", systemImage: "map.fill") }
-                .tag(Pestana.carreras)
             PerfilTab(store: store, almacen: almacen, identidad: identidad,
                       repositorio: repositorio,
                       mostrandoTutorial: $mostrandoTutorial)
@@ -209,12 +213,16 @@ private func filaNavegacion(icono: String, color: Color,
 
 // MARK: - Pestaña Plan
 
-struct PlanTab: View {
+struct HoyTab: View {
     @ObservedObject var store: PlanStore
     @ObservedObject var almacen: AlmacenStore
     @Binding var pestana: Pestana
     /// Solo para saber si el Coach se puede ofrecer (necesita sesión).
     @ObservedObject var identidad: IdentidadStore
+    /// La carrera del teléfono vive acá desde que Plan y Correr son una
+    /// sola pestaña: con una carrera en curso, ESTA pantalla es la
+    /// carrera y nada más.
+    @ObservedObject private var carrera = CarreraCelu.compartida
     @State private var confirmandoQuitarPlan = false
 
     #if DEBUG
@@ -234,6 +242,17 @@ struct PlanTab: View {
     // ¿cómo viene MI SEMANA? ¿qué SIGUE? Después el objetivo, el
     // calendario completo y — al final — la configuración de la sesión.
     var body: some View {
+        // Corriendo con el teléfono no hay plan que mirar: la pantalla
+        // entera es la carrera. Antes esto vivía en otra pestaña y había
+        // que acordarse de cuál.
+        if carrera.estado != .detenida {
+            PantallaCarreraCelu(carrera: carrera)
+        } else {
+            lobby
+        }
+    }
+
+    private var lobby: some View {
         NavigationStack {
             List {
                 if let problema = store.mensajeProblema {
@@ -268,6 +287,7 @@ struct PlanTab: View {
                 }
 
                 seccionHoy
+                seccionCarreraLibre
                 seccionSemana
                 seccionCoach
                 seccionProximos
@@ -477,6 +497,20 @@ struct PlanTab: View {
         if UserDefaults.standard.bool(forKey: "forzarCoach") { return true }
         #endif
         return ServicioCoach.disponible && identidad.haySesion
+    }
+
+    /// Carrera libre. Protagonista solo cuando no hay nada programado
+    /// hoy: si hay entrenamiento, ESE manda y esto es la alternativa.
+    @ViewBuilder
+    private var seccionCarreraLibre: some View {
+        let hayDeHoy = almacen.almacen.entrenamientoDeHoy(hoy)?.resolucion == .pendiente
+        Section {
+            TarjetaCarreraLibre(store: store, almacen: almacen,
+                                protagonista: !hayDeHoy)
+                .listRowInsets(EdgeInsets(top: 0, leading: 0,
+                                          bottom: DV2.Espacio.s, trailing: 0))
+                .listRowBackground(Color.clear)
+        }
     }
 
     @ViewBuilder
@@ -1190,18 +1224,6 @@ struct RelojTab: View {
     }
 }
 
-// MARK: - Pestaña Carreras
-
-struct CarrerasTab: View {
-    @Binding var pestana: Pestana
-    @ObservedObject var almacen: AlmacenStore
-
-    var body: some View {
-        NavigationStack {
-            CarrerasView(irACorrer: { pestana = .correr }, almacen: almacen)
-        }
-    }
-}
 
 // MARK: - Pestaña Perfil
 

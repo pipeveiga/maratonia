@@ -874,6 +874,82 @@ extension CarreraCelu: CLLocationManagerDelegate {
 
 // MARK: - Pestaña Correr
 
+/// Carrera libre como tarjeta. Vive a nivel de archivo —y no dentro de
+/// una pestaña— desde que Plan y Correr son una sola: la usa `HoyTab`.
+struct TarjetaCarreraLibre: View {
+    @ObservedObject var store: PlanStore
+    @ObservedObject var almacen: AlmacenStore
+    var protagonista: Bool
+
+    var body: some View {
+        TarjetaV2 {
+            VStack(alignment: .leading, spacing: DV2.Espacio.m) {
+                HStack {
+                    Text(protagonista ? "AHORA" : "TAMBIÉN PODÉS")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(protagonista ? Color.green : Color.secondary)
+                        .tracking(1)
+                    Spacer()
+                }
+                Text("Carrera libre")
+                    .font(protagonista ? DV2.Tipo.titulo : DV2.Tipo.tituloChico)
+                // UNA línea, no tres. Cuando la carrera libre es la
+                // alternativa —hay un entrenamiento de hoy arriba— el
+                // corredor ya sabe qué es.
+                if protagonista {
+                    Text("Sin objetivo obligatorio de distancia ni tiempo.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                if !store.plan.tramosActivos.isEmpty {
+                    Label("Con tu estructura: avisos por tramo y corrección por voz",
+                          systemImage: "list.bullet.rectangle")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(DV2.Marca.primario)
+                }
+                Text(datosDelPlan)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button {
+                    LanzadorSesion.iniciar(definicion: nil, programadoID: nil,
+                                           store: store, almacen: almacen)
+                } label: {
+                    if protagonista {
+                        Label("Empezar", systemImage: "play.fill")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, DV2.Espacio.m)
+                            .background(Color.green,
+                                        in: RoundedRectangle(cornerRadius: DV2.radioBoton))
+                    } else {
+                        Label("Correr libre", systemImage: "play.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(DV2.Marca.primario)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, DV2.Espacio.s)
+                            .background(
+                                RoundedRectangle(cornerRadius: DV2.radioBoton)
+                                    .strokeBorder(DV2.Marca.primario.opacity(0.5), lineWidth: 1.5))
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var datosDelPlan: String {
+        var partes: [String] = []
+        if !store.plan.pistas.isEmpty { partes.append(Plurales.pistas(store.plan.pistas.count)) }
+        let avisos = store.plan.cronograma(duracionMaximaMinutos: 600).count
+            + store.plan.avisosKmActivos.count
+        if avisos > 0 { partes.append("\(avisos) avisos") }
+        if !store.plan.tramosActivos.isEmpty { partes.append(Plurales.tramos(store.plan.tramosActivos.count)) }
+        return partes.isEmpty ? String(localized: "Solo GPS: distancia, ritmo y mapa.")
+                              : partes.joined(separator: " · ")
+    }
+}
+
 struct CorrerTab: View {
     @ObservedObject var store: PlanStore
     @ObservedObject var almacen: AlmacenStore

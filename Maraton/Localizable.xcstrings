@@ -5622,6 +5622,17 @@
         }
       }
     },
+    "Hoy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today"
+          }
+        }
+      }
+    },
     "Hoy no tenés entrenamiento programado.": {
       "extractionState": "manual",
       "localizations": {
@@ -11199,6 +11210,17 @@
         }
       }
     },
+    "Tus carreras": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your runs"
+          }
+        }
+      }
+    },
     "Tus días": {
       "extractionState": "manual",
       "localizations": {
@@ -11470,6 +11492,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "See why"
+          }
+        }
+      }
+    },
+    "Ver todas": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See all"
           }
         }
       }

@@ -173,6 +173,7 @@ final class LectorProgreso: ObservableObject {
 struct ProgresoTab: View {
     @ObservedObject var almacen: AlmacenStore
     @StateObject private var lector = LectorProgreso()
+    @StateObject private var carreras = CarrerasStore()
     /// Salida del estado vacío: sin una carrera no hay progreso, así que
     /// lo único útil que puede ofrecer esta pantalla es ir a correr.
     var irACorrer: (() -> Void)?
@@ -219,12 +220,19 @@ struct ProgresoTab: View {
                         tarjetaConsistencia(semanas)
                         tarjetaDestacados
                     }
+
+                    // Tus carreras, ACÁ. Eran una pestaña propia que
+                    // contestaba la misma pregunta que esta —¿cómo
+                    // vengo?— con otro formato: los números de un lado y
+                    // los mapas del otro, y había que elegir pestaña sin
+                    // saber cuál tenía lo que buscabas.
+                    seccionCarreras
                 }
                 .padding(.vertical)
             }
             .navigationTitle("Progreso")
-            .onAppear { lector.cargar() }
-            .refreshable { lector.cargar() }
+            .onAppear { lector.cargar(); carreras.cargar() }
+            .refreshable { lector.cargar(); carreras.cargar() }
         }
     }
 
@@ -300,6 +308,82 @@ struct ProgresoTab: View {
             }
         }
         .padding(.horizontal)
+    }
+
+    /// Las últimas carreras, con el camino a todas. No se repite la
+    /// lista entera: tres alcanzan para reconocer la más reciente, y
+    /// "Ver todas" lleva al historial con mapas.
+    @ViewBuilder
+    private var seccionCarreras: some View {
+        let visibles = Array(carreras.visibles.prefix(3))
+        if !visibles.isEmpty {
+            VStack(alignment: .leading, spacing: DV2.Espacio.s) {
+                EncabezadoSeccionV2(texto: "Tus carreras")
+                Tarjeta(relleno: 0) {
+                    VStack(spacing: 0) {
+                        ForEach(visibles) { carrera in
+                            NavigationLink {
+                                CarreraDetalleView(store: carreras, almacen: almacen,
+                                                   id: carrera.id)
+                            } label: {
+                                filaCarrera(carrera)
+                            }
+                            .buttonStyle(.plain)
+                            if carrera.id != visibles.last?.id {
+                                Divider().padding(.leading, DV2.Espacio.l)
+                            }
+                        }
+                        Divider().padding(.leading, DV2.Espacio.l)
+                        NavigationLink {
+                            CarrerasView(almacen: almacen)
+                        } label: {
+                            HStack {
+                                Text("Ver todas")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(DV2.Marca.primario)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(DV2.Espacio.l)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(.horizontal)
+        }
+    }
+
+    private func filaCarrera(_ carrera: CarreraResumen) -> some View {
+        HStack(spacing: DV2.Espacio.m) {
+            Image(systemName: "figure.run")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(DV2.Marca.primario)
+                .frame(width: 32, height: 32)
+                .background(DV2.Marca.primario.opacity(0.12), in: Circle())
+            VStack(alignment: .leading, spacing: 1) {
+                Text(Unidades.distancia(km: carrera.distanciaMetros / 1000, decimales: 2))
+                    .font(.subheadline.weight(.semibold))
+                Text(FormatoFecha.completa(carrera.fecha))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            if let ritmo = carrera.ritmoPromedioSegKm {
+                Text(Unidades.ritmo(segundosPorKm: ritmo))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(DV2.Espacio.l)
+        .contentShape(Rectangle())
     }
 
     /// "Semana 3 de 8" cuando hay bloque; si no, el encabezado de
