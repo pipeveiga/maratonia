@@ -4,15 +4,17 @@
 const { z } = require("zod");
 
 // ---- DTO de ENTRADA (lo mínimo; nunca rutas GPS ni HealthKit crudo) --
+// Swift Codable omite los Optional nil. Admitir ausencia y null para
+// esos campos; los valores presentes mantienen sus límites y .strict().
 
 const SesionResumida = z.object({
   fecha: z.string().max(10),              // "2026-08-10" (día local)
   tipo: z.string().max(30),
-  km: z.number().min(0).max(500).nullable(),
-  ritmoSegKm: z.number().int().min(120).max(1200).nullable(),
+  km: z.number().min(0).max(500).nullish(),
+  ritmoSegKm: z.number().int().min(120).max(1200).nullish(),
   cumplida: z.boolean(),
   // Esfuerzo percibido declarado por el corredor, si lo respondió.
-  sensacion: z.enum(["muyBien", "bien", "exigido", "muyExigido"]).nullable(),
+  sensacion: z.enum(["muyBien", "bien", "exigido", "muyExigido"]).nullish(),
 }).strict();
 
 // Resumen AGREGADO de una ventana temporal. Números, jamás muestras:
@@ -34,25 +36,25 @@ const EventoDetectado = z.object({
                 "fondo-comprometido", "carrera-libre",
                 "cambio-disponibilidad", "pedido-usuario", "cerca-de-carrera"]),
   severidad: z.enum(["baja", "media", "alta"]),
-  programadoID: z.string().uuid().nullable(),
-  detalle: z.string().max(40).nullable(),
+  programadoID: z.string().uuid().nullish(),
+  detalle: z.string().max(40).nullish(),
 }).strict();
 
 const ContextoCoach = z.object({
   idioma: z.enum(["es", "en"]),
   objetivo: z.string().max(30),
-  fechaCarrera: z.string().max(10).nullable(),
+  fechaCarrera: z.string().max(10).nullish(),
   diasElegidos: z.array(z.number().int().min(1).max(7)).max(7),
   diasImposibles: z.array(z.number().int().min(1).max(7)).max(7),
   baseline: z.object({
     distanciaMetros: z.number().min(1500).max(42195),
     segundos: z.number().int().min(240).max(14400),
-  }).strict().nullable(),
-  semanaActual: z.number().int().min(1).max(60).nullable(),
-  semanasTotales: z.number().int().min(1).max(60).nullable(),
-  faseSemanaActual: z.string().max(20).nullable(),
-  cumplimientoPorciento: z.number().min(0).max(100).nullable(),
-  kmUltimas4Semanas: z.number().min(0).max(1000).nullable(),
+  }).strict().nullish(),
+  semanaActual: z.number().int().min(1).max(60).nullish(),
+  semanasTotales: z.number().int().min(1).max(60).nullish(),
+  faseSemanaActual: z.string().max(20).nullish(),
+  cumplimientoPorciento: z.number().min(0).max(100).nullish(),
+  kmUltimas4Semanas: z.number().min(0).max(1000).nullish(),
   ventanas: z.array(VentanaResumida).max(5),
   eventos: z.array(EventoDetectado).max(12),
   proximosEntrenamientos: z.array(z.object({
@@ -60,7 +62,7 @@ const ContextoCoach = z.object({
     dia: z.string().max(10),
     nombre: z.string().max(80),
     tipo: z.string().max(30),
-    km: z.number().min(0).max(100).nullable(),
+    km: z.number().min(0).max(100).nullish(),
   }).strict()).max(14),
   ultimasSesiones: z.array(SesionResumida).max(10),
 }).strict();

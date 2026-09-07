@@ -1075,3 +1075,143 @@ final class RangoDeDiasArquetiposTests: XCTestCase {
         }
     }
 }
+
+final class FrescuraGPSAutoPausaTests: XCTestCase {
+    private let base = Date(timeIntervalSince1970: 1000)
+    private func t(_ segundos: Double) -> Date { base.addingTimeInterval(segundos) }
+
+    func testCacheViejoNoMantieneVivoElVigilante() {
+        var filtro = AutoPausa.FiltroSenalGPS()
+        XCTAssertTrue(filtro.aceptar(fecha: t(0), precision: 10, ahora: t(0)))
+        XCTAssertFalse(filtro.aceptar(fecha: t(1), precision: 10, ahora: t(20)))
+        XCTAssertEqual(filtro.ultimaFecha, t(0))
+        XCTAssertTrue(AutoPausa.debeDespertarGPS(
+            edadUltimaSenal: t(20).timeIntervalSince(filtro.ultimaFecha!),
+            edadUltimoEmpujon: nil))
+        XCTAssertFalse(AutoPausa.debePausar(avanceMetros: 0, ventanaSegundos: 10,
+            desplazamientoGPSMetros: 0,
+            edadUltimoGPSSegundos: t(20).timeIntervalSince(filtro.ultimaFecha!)))
+    }
+
+    func testFrescuraUsaFechaMedidaYLímiteDeCincoSegundos() {
+        var filtro = AutoPausa.FiltroSenalGPS()
+        XCTAssertTrue(filtro.aceptar(fecha: t(0), precision: 50, ahora: t(5)))
+        XCTAssertEqual(filtro.ultimaFecha, t(0))
+        XCTAssertFalse(filtro.aceptar(fecha: t(1), precision: 10, ahora: t(6.01)))
+        XCTAssertFalse(filtro.aceptar(fecha: t(10), precision: 10, ahora: t(9)))
+    }
+
+    func testDuplicadosYFueraDeOrdenNoRenuevanSenal() {
+        var filtro = AutoPausa.FiltroSenalGPS()
+        XCTAssertTrue(filtro.aceptar(fecha: t(2), precision: 10, ahora: t(2)))
+        XCTAssertFalse(filtro.aceptar(fecha: t(2), precision: 10, ahora: t(4)))
+        XCTAssertFalse(filtro.aceptar(fecha: t(1), precision: 10, ahora: t(4)))
+        XCTAssertEqual(filtro.ultimaFecha, t(2))
+        XCTAssertTrue(filtro.aceptar(fecha: t(3), precision: 10, ahora: t(4)))
+    }
+
+    func testCambioDeFaseRechazaMedicionesDeAntesDePausar() {
+        var filtro = AutoPausa.FiltroSenalGPS()
+        _ = filtro.aceptar(fecha: t(1), precision: 10, ahora: t(1))
+        filtro.reiniciar(desde: t(3))
+        XCTAssertNil(filtro.ultimaFecha)
+        XCTAssertFalse(filtro.aceptar(fecha: t(2), precision: 10, ahora: t(4)))
+        XCTAssertFalse(filtro.aceptar(fecha: t(3), precision: 10, ahora: t(4)))
+        XCTAssertTrue(filtro.aceptar(fecha: t(4), precision: 10, ahora: t(4)))
+        filtro.reiniciar(desde: t(6))
+        XCTAssertFalse(filtro.aceptar(fecha: t(5), precision: 10, ahora: t(7)))
+    }
+
+    func testPrecisionInvalidaNoConsumeLaMedicion() {
+        var filtro = AutoPausa.FiltroSenalGPS()
+        for precision in [-1.0, 0, 51, .infinity, .nan] {
+            XCTAssertFalse(filtro.aceptar(fecha: t(1), precision: precision, ahora: t(1)))
+        }
+        XCTAssertNil(filtro.ultimaFecha)
+        XCTAssertTrue(filtro.aceptar(fecha: t(1), precision: 10, ahora: t(1)))
+    }
+
+    func testPerdidaDeSenalReiniciaAmbosCaminosDeReanudacion() {
+        for porVelocidad in [true, false] {
+            var supervisor = AutoPausa.SupervisorReanudacion()
+            let distancia: Double? = porVelocidad ? nil : 20
+            let velocidad: Double? = porVelocidad ? 1.2 : nil
+            XCTAssertFalse(supervisor.procesar(desplazamiento: distancia,
+                velocidad: velocidad, umbral: 15, fecha: t(0)))
+            XCTAssertFalse(supervisor.procesar(desplazamiento: distancia,
+                velocidad: velocidad, umbral: 15, fecha: t(20)))
+            XCTAssertTrue(supervisor.procesar(desplazamiento: distancia,
+                velocidad: velocidad, umbral: 15, fecha: t(22)))
+        }
+    }
+
+    func testLecturaRepetidaNoCuentaComoMovimientoSostenido() {
+        var filtro = AutoPausa.FiltroSenalGPS()
+        var supervisor = AutoPausa.SupervisorReanudacion()
+        func procesar(medida: Date, recibida: Date) -> Bool {
+            guard filtro.aceptar(fecha: medida, precision: 10, ahora: recibida) else { return false }
+            return supervisor.procesar(desplazamiento: nil, velocidad: 1.2,
+                                       umbral: 15, fecha: medida)
+        }
+        XCTAssertFalse(procesar(medida: t(0), recibida: t(0)))
+        XCTAssertFalse(procesar(medida: t(0), recibida: t(2)))
+        XCTAssertFalse(procesar(medida: t(1), recibida: t(3)))
+        XCTAssertTrue(procesar(medida: t(2), recibida: t(4)))
+    }
+
+    func testSupervisorIgnoraLecturasFueraDeOrdenSinDesarmarCandidato() {
+        var supervisor = AutoPausa.SupervisorReanudacion()
+        XCTAssertFalse(supervisor.procesar(desplazamiento: nil, velocidad: 1.2,
+                                           umbral: 15, fecha: t(2)))
+        XCTAssertFalse(supervisor.procesar(desplazamiento: nil, velocidad: 0,
+                                           umbral: 15, fecha: t(1)))
+        XCTAssertFalse(supervisor.procesar(desplazamiento: nil, velocidad: 0,
+                                           umbral: 15, fecha: t(2)))
+        XCTAssertTrue(supervisor.procesar(desplazamiento: nil, velocidad: 1.2,
+                                          umbral: 15, fecha: t(4)))
+    }
+}
+
+final class ControlCierreSesionTests: XCTestCase {
+    func testEndedDuplicadoIniciaUnSoloGuardado() {
+        var control = ControlCierreSesion<Int>()
+        control.iniciar(1)
+        XCTAssertTrue(control.comenzarCierre(1))
+        XCTAssertFalse(control.comenzarCierre(1))
+        XCTAssertTrue(control.finalizar(1))
+        XCTAssertFalse(control.comenzarCierre(1))
+    }
+
+    func testCompletionViejoNoLimpiaNuevaSesion() {
+        var control = ControlCierreSesion<Int>()
+        control.iniciar(1)
+        XCTAssertTrue(control.comenzarCierre(1))
+        // Un fallo de sesión permitió arrancar otra mientras el cierre
+        // anterior todavía tiene callbacks pendientes.
+        XCTAssertTrue(control.finalizar(1))
+        control.iniciar(2)
+        XCTAssertFalse(control.finalizar(1))
+        XCTAssertFalse(control.comenzarCierre(1))
+        XCTAssertTrue(control.esActual(2))
+        XCTAssertTrue(control.comenzarCierre(2))
+    }
+
+    func testRecoveryYDelegateEndedCompartenElMismoCierre() {
+        var control = ControlCierreSesion<UUID>()
+        let recuperada = UUID()
+        control.iniciar(recuperada)
+        XCTAssertTrue(control.comenzarCierre(recuperada))
+        XCTAssertFalse(control.comenzarCierre(recuperada))
+        XCTAssertTrue(control.finalizar(recuperada))
+        XCTAssertFalse(control.finalizar(recuperada))
+    }
+
+    func testEventoDesconocidoNoImpideCerrarSesionVigente() {
+        var control = ControlCierreSesion<Int>()
+        XCTAssertFalse(control.comenzarCierre(1))
+        control.iniciar(2)
+        XCTAssertFalse(control.comenzarCierre(1))
+        XCTAssertFalse(control.finalizar(1))
+        XCTAssertTrue(control.comenzarCierre(2))
+    }
+}

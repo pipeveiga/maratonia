@@ -1,37 +1,58 @@
 # Tests de Maratonia
 
-Los archivos de esta carpeta están listos pero **todavía no conectados
-al proyecto** (crear el target de tests requiere Xcode). Mientras tanto,
-la misma lógica se valida con la simulación descripta en NIGHT_AUDIT.md.
+El target `MaratonTests` ya está conectado al proyecto y contiene cuatro
+archivos de XCTest: lógica deportiva, dominio V2, motor adaptativo y
+calibración deportiva.
 
-## Conectarlos (una sola vez, en la Mac — 7 pasos)
+## Ejecutar
 
-1. Abrí `Maraton.xcodeproj` en Xcode.
-2. Menú **File → New → Target…**
-3. Buscá **Unit Testing Bundle** (pestaña iOS) → **Next**.
-4. Product Name: `MaratonTests` · Target to be Tested: **Maraton** → **Finish**.
-5. En el Finder, arrastrá los DOS archivos de `Tests/MaratonTests/`
-   (`LogicaDeportivaTests.swift` y `DominioV2Tests.swift`) adentro del
-   grupo **MaratonTests** que apareció en la barra lateral de Xcode. En
-   el diálogo: destildá "Copy items if needed" y tildá SOLO el target
-   **MaratonTests**.
-6. Borrá el archivo `MaratonTests.swift` de ejemplo que creó Xcode.
-7. Menú **Product → Test** (Cmd+U). Tienen que pasar todos.
+En Xcode, seleccioná el esquema **Maraton**, un simulador iPhone y
+**Product → Test** (Cmd+U). Desde la terminal:
 
-## Qué cubren
+```sh
+xcodebuild test -project Maraton.xcodeproj -scheme Maraton \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+```
 
-- `zonaCardiaca` (Karvonen): caso real 150–160 ppm, límites de zona,
-  datos corruptos (reposo ≥ máxima) sin crash.
-- `Plan.cronograma`: expansión fijos+repetidos, orden fijo-primero,
-  basura filtrada (minutos ≤ 0), `hastaMinuto`, plan vacío.
-- Formatos: `formatearRitmo`, `ritmoParaHablar`, `kmTexto`.
-- Importación de tramos: ritmos válidos/ inválidos, regresión de
-  comillas curvas + fences de ChatGPT, y compatibilidad hacia atrás de
-  `plan.json` sin tramos/avisosKm.
+Usá el nombre o ID de un simulador disponible en tu Mac (`xcrun simctl list
+devices available`). Si hay nombres duplicados, especificá `id=UUID`.
+Conservá la firma normal del simulador: `CODE_SIGNING_ALLOWED=NO` elimina
+los entitlements de iCloud y la app anfitriona puede caer al crear
+`CKContainer`, antes de ejecutar XCTest.
 
-## Pendiente de agregar cuando haya harness
+Para ejecutar únicamente la regresión de frescura GPS:
 
-Lógica con estado que hoy vive en singletons con frameworks
-(auto-pausa, anti-flapping de zonas, splits): para testearla haría
-falta extraerla o inyectar relojes/ubicaciones falsas. Los casos ya
-están diseñados en la simulación Python de NIGHT_AUDIT.md.
+```sh
+xcodebuild test -project Maraton.xcodeproj -scheme Maraton \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -only-testing:MaratonTests/FrescuraGPSAutoPausaTests
+```
+
+## Cobertura y límites
+
+Los tests cubren modelos y compatibilidad JSON, calendario y cumplimiento,
+planes y calibración, adaptación, importación, zonas, ritmos, tramos,
+avisos y decisiones de auto-pausa/reanudación. La regresión GPS verifica
+frescura real, duplicados, orden temporal, cambios de fase y pérdida de señal.
+
+El simulador compila ambos targets, pero los tests de auto-pausa ejercitan
+la lógica compartida. La entrega real de Core Location, música, pausas de
+HealthKit, WatchConnectivity y recuperación de sesiones requieren pruebas
+en iPhone y Apple Watch físicos. Ver `ENGINEERING_AUDIT.md`.
+
+## Nuevas regresiones de estabilidad
+
+`PersistenciaAlmacenTests` usa directorios temporales para probar recuperación,
+protección de archivos y reintentos. `ControlCierreSesionTests` comprueba que
+los callbacks viejos o duplicados no afecten otra sesión.
+
+El backend tiene pruebas de contrato sin llamadas a servicios externos:
+
+```sh
+cd functions
+npm install
+npm test
+```
+
+El fixture de `functions/test/fixtures/` fue generado con JSONEncoder usando
+las declaraciones de ContextoCoach de Swift; cubre la omisión de Optional nil.
