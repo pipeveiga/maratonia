@@ -271,14 +271,19 @@ enum Catalogo {
 final class AlmacenStore: ObservableObject {
 
     @Published var almacen: AlmacenV2 {
-        didSet { guardar() }
+        didSet { if !cargando { guardar() } }
     }
 
     /// Lo recién corrido HOY, esperando el feedback subjetivo. nil =
     /// no hay nada que preguntar. La UI lo consume y lo limpia.
     @Published var sesionParaFeedback: AnalisisPostCarrera?
 
-    private let url: URL
+    @Published private(set) var mensajePersistencia: String?
+    @Published private(set) var cargaBloqueada = false
+    @Published private(set) var cambiosSinGuardar = false
+    private let persistencia: PersistenciaAlmacen
+    private var cargando = false
+    private var resultadosPendientes: [ResultadoSesionWatch] = []
 
     /// false en tests: los stores de prueba no deben tocar WCSession ni
     /// pisarse el registro de resultados entre sí.
@@ -288,19 +293,22 @@ final class AlmacenStore: ObservableObject {
          urlLegacy: URL = PlanStore.urlPlanLegacy,
          fecha: Date = Date(),
          conectadoAlReloj: Bool = true) {
-        self.url = url
+        persistencia = PersistenciaAlmacen(url: url)
+        self.urlLegacy = urlLegacy
         self.conectadoAlReloj = conectadoAlReloj
-        almacen = Self.cargarConCutover(urlV2: url, urlLegacy: urlLegacy, fecha: fecha)
+        almacen = AlmacenV2()
+        cargar(fecha: fecha)
         guard conectadoAlReloj else { return }
         // Fase E: el reloj recibe la proyección de HOY y devuelve
         // resultados; este store es el dueño de las dos puntas.
         Conectividad.compartida.proveedorProyeccion = { [weak self] in
-            self?.proyeccionDeHoy()
+            guard let self, !self.cargaBloqueada, !self.cambiosSinGuardar else { return nil }
+            return self.proyeccionDeHoy()
         }
         Conectividad.compartida.entregarResultados { [weak self] resultado in
             self?.procesar(resultado: resultado)
         }
-        Conectividad.compartida.enviar(proyeccion: proyeccionDeHoy())
+        enviarProyeccionSiGuardada()
     }
 
     // MARK: Proyección del día (Fase E)
@@ -339,6 +347,10 @@ final class AlmacenStore: ObservableObject {
     ///   el vínculo existente no se pisa;
     /// - duplicado exacto → vincular/registrar ya son idempotentes.
     func procesar(resultado: ResultadoSesionWatch) {
+        guard !cargaBloqueada else {
+            resultadosPendientes.append(resultado)
+            return
+        }
         if let programadoID = resultado.programadoID,
            let programado = almacen.todosLosProgramados.first(where: { $0.id == programadoID }) {
             let resueltoPorOtra = programado.resolucion != .pendiente
@@ -354,27 +366,54 @@ final class AlmacenStore: ObservableObject {
         almacen.registrarSesionLibre(sesionID: resultado.sesionID, fecha: resultado.fecha)
     }
 
-    /// Idempotente entre arranques: activado → cargar y listo.
-    static func cargarConCutover(urlV2: URL, urlLegacy: URL, fecha: Date) -> AlmacenV2 {
-        if let datos = try? Data(contentsOf: urlV2),
-           var existente = try? JSONDecoder().decode(AlmacenV2.self, from: datos) {
-            guard !existente.activado else { return existente }
-            // Cutover del ensayo (usuario existente): el snapshot de la
-            // migración pasa a ser el PlanUsuario real.
-            existente.activado = true
-            escribir(existente, en: urlV2)
-            return existente
+    private let urlLegacy: URL
+
+    /// Carga para consumidores sin UI: los errores son explícitos y
+    /// nunca se devuelve vacío sobre datos ilegibles.
+    static func cargarConCutover(urlV2: URL, urlLegacy: URL, fecha: Date) throws -> AlmacenV2 {
+        let persistencia = PersistenciaAlmacen(url: urlV2)
+        let carga = try persistencia.cargar(urlLegacy: urlLegacy, fecha: fecha)
+        if carga.necesitaGuardar { try persistencia.guardar(carga.almacen) }
+        return carga.almacen
+    }
+
+    private func cargar(fecha: Date) {
+        do {
+            let carga = try persistencia.cargar(urlLegacy: urlLegacy, fecha: fecha)
+            cargando = true
+            almacen = carga.almacen
+            cargando = false
+            cargaBloqueada = false
+            cambiosSinGuardar = carga.necesitaGuardar
+            mensajePersistencia = nil
+            if carga.necesitaGuardar { guardar() }
+            if carga.recuperada, !cambiosSinGuardar {
+                mensajePersistencia = String(localized: "Recuperé tus datos desde la copia local anterior. Revisá los últimos cambios de tu calendario.")
+            }
+        } catch {
+            cargaBloqueada = true
+            mensajePersistencia = String(localized: "No pude abrir tus datos: \(error.localizedDescription)")
         }
-        // Sin ensayo: migrar directo del legacy si existe; usuario
-        // nuevo → almacén limpio (sin plan fantasma).
-        let legacy = (try? Data(contentsOf: urlLegacy))
-            .flatMap { try? JSONDecoder().decode(Plan.self, from: $0) }
-        var almacen = legacy.map {
-            MigracionV2.migrar(planV1: $0, huellaCumplida: nil, fecha: fecha)
-        } ?? AlmacenV2()
-        almacen.activado = true
-        escribir(almacen, en: urlV2)
-        return almacen
+    }
+
+    func confirmarRecuperacion() {
+        guard !cargaBloqueada, !cambiosSinGuardar else { return }
+        mensajePersistencia = nil
+    }
+
+    /// Si falló una escritura, conserva los cambios en memoria y vuelve
+    /// a guardarlos. Si falló la lectura, sólo reabre; jamás escribe vacío.
+    func reintentarPersistencia() {
+        if cargaBloqueada {
+            cargar(fecha: Date())
+            guard !cargaBloqueada else { return }
+            let pendientes = resultadosPendientes
+            resultadosPendientes = []
+            pendientes.forEach { procesar(resultado: $0) }
+            enviarProyeccionSiGuardada()
+        } else {
+            guardar()
+        }
     }
 
     func adoptar(_ base: PlanBase, inicio: DiaLocal, fecha: Date = Date()) {
@@ -451,21 +490,23 @@ final class AlmacenStore: ObservableObject {
     }
 
     private func guardar() {
-        Self.escribir(almacen, en: url)
-        // Cada mutación re-proyecta HOY al reloj: adopción, vínculo,
-        // omitir, reprogramar — todo pasa por el didSet, así que el
-        // reloj nunca queda mirando un "hoy" viejo por más de un canal
-        // caído (y applicationContext lo entrega al reconectar).
-        if conectadoAlReloj {
-            Conectividad.compartida.enviar(proyeccion: proyeccionDeHoy())
+        guard !cargaBloqueada else { return }
+        do {
+            try persistencia.guardar(almacen)
+            cambiosSinGuardar = false
+            mensajePersistencia = nil
+            enviarProyeccionSiGuardada()
+        } catch {
+            cambiosSinGuardar = true
+            mensajePersistencia = String(localized: "No pude guardar tus últimos cambios. Mantené la app abierta y reintentá: \(error.localizedDescription)")
         }
     }
 
-    private static func escribir(_ almacen: AlmacenV2, en url: URL) {
-        if let datos = try? JSONEncoder().encode(almacen) {
-            try? datos.write(to: url, options: .atomic)
-        }
+    private func enviarProyeccionSiGuardada() {
+        guard conectadoAlReloj, !cargaBloqueada, !cambiosSinGuardar else { return }
+        Conectividad.compartida.enviar(proyeccion: proyeccionDeHoy())
     }
+
 }
 
 // MARK: - Lanzador de sesiones (un solo camino al motor)

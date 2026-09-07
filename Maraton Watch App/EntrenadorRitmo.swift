@@ -85,9 +85,8 @@ final class EntrenadorRitmo: ObservableObject {
                            indiceAlcanzado: indiceActual)
     }
 
-    func marcarCumplimientoSiCorresponde() {
-        guard estructuraCompleta, let huella = huellaSesion else { return }
-        EstadoPlanWatch.compartido.marcarCumplida(huella: huella)
+    var huellaCompletada: String? {
+        estructuraCompleta ? huellaSesion : nil
     }
 
     func detener() {

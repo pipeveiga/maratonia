@@ -13,6 +13,7 @@ import CoreLocation
 
 /// Los números finales de una carrera guardada, para la tarjetita del lobby.
 struct ResumenCarrera {
+    var guardadaEnSalud = false
     var duracion: TimeInterval
     var distanciaMetros: Double
     var ritmoPromedioSegKm: Int?
@@ -28,6 +29,7 @@ final class Entrenamiento: NSObject, ObservableObject {
     static let compartido = Entrenamiento()
 
     @Published var activo = false
+    @Published private(set) var guardando = false
     @Published var pausado = false
 
     /// Resumen de la última carrera guardada, para mostrar al volver al
@@ -101,6 +103,9 @@ final class Entrenamiento: NSObject, ObservableObject {
     /// ritmo). Tras un crash queda false — criterio conservador: la
     /// sesión recuperada se reporta como parcial.
     var estructuraCompletaAlGuardar = false
+    var huellaCumplidaAlGuardar: String?
+    private var recuperando = false
+    private var controlCierre = ControlCierreSesion<ObjectIdentifier>()
 
     private static let claveProgramadoActivo = "programadoIDSesionActiva"
 
@@ -232,6 +237,8 @@ final class Entrenamiento: NSObject, ObservableObject {
                 recuperada.delegate = self
                 builderRecuperado.delegate = self
                 self.sesion = recuperada
+                self.controlCierre.iniciar(ObjectIdentifier(recuperada))
+                self.recuperando = true
                 self.builder = builderRecuperado
                 self.usaGPS = false
                 self.descartarAlTerminar = false
@@ -269,7 +276,7 @@ final class Entrenamiento: NSObject, ObservableObject {
                 } else {
                     self.finalizar()
                 }
-                self.mensajeError = String(localized: "La app se cerró en plena carrera: recuperé el entrenamiento y lo guardé en Salud.")
+                self.mensajeError = String(localized: "Encontré una carrera interrumpida. Estoy intentando guardarla en Salud.")
             }
         }
     }
@@ -284,6 +291,8 @@ final class Entrenamiento: NSObject, ObservableObject {
         }
         self.programadoID = programadoID
         estructuraCompletaAlGuardar = false
+        huellaCumplidaAlGuardar = nil
+        recuperando = false
         if let programadoID {
             UserDefaults.standard.set(programadoID.uuidString, forKey: Self.claveProgramadoActivo)
         } else {
@@ -315,6 +324,7 @@ final class Entrenamiento: NSObject, ObservableObject {
             nuevaSesion.delegate = self
             nuevoBuilder.delegate = self
             sesion = nuevaSesion
+            controlCierre.iniciar(ObjectIdentifier(nuevaSesion))
             builder = nuevoBuilder
 
             let inicio = Date()
@@ -436,6 +446,7 @@ final class Entrenamiento: NSObject, ObservableObject {
         timerMuestras = nil
         ubicaciones.stopUpdatingLocation()
         if activo, !descartarAlTerminar {
+            guardando = true
             capturarResumen()
         }
         sesion?.end()
@@ -570,24 +581,22 @@ final class Entrenamiento: NSObject, ObservableObject {
         for tipo in tipos {
             guard let tipoCantidad = tipo as? HKQuantityType,
                   let estadisticas = builder.statistics(for: tipoCantidad) else { continue }
-            DispatchQueue.main.async {
-                switch tipoCantidad {
-                case HKQuantityType(.heartRate):
-                    let ppm = HKUnit.count().unitDivided(by: .minute())
-                    if let valor = estadisticas.mostRecentQuantity()?.doubleValue(for: ppm) {
-                        self.frecuenciaCardiaca = valor
-                    }
-                case HKQuantityType(.distanceWalkingRunning):
-                    if let valor = estadisticas.sumQuantity()?.doubleValue(for: .meter()) {
-                        self.distanciaMetros = valor
-                    }
-                case HKQuantityType(.activeEnergyBurned):
-                    if let valor = estadisticas.sumQuantity()?.doubleValue(for: .kilocalorie()) {
-                        self.caloriasActivas = valor
-                    }
-                default:
-                    break
+            switch tipoCantidad {
+            case HKQuantityType(.heartRate):
+                let ppm = HKUnit.count().unitDivided(by: .minute())
+                if let valor = estadisticas.mostRecentQuantity()?.doubleValue(for: ppm) {
+                    self.frecuenciaCardiaca = valor
                 }
+            case HKQuantityType(.distanceWalkingRunning):
+                if let valor = estadisticas.sumQuantity()?.doubleValue(for: .meter()) {
+                    self.distanciaMetros = valor
+                }
+            case HKQuantityType(.activeEnergyBurned):
+                if let valor = estadisticas.sumQuantity()?.doubleValue(for: .kilocalorie()) {
+                    self.caloriasActivas = valor
+                }
+            default:
+                break
             }
         }
     }
@@ -602,6 +611,7 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
         // El delegate llega en la cola interna de HealthKit: el estado
         // compartido (descartarAlTerminar, builders) se lee en main.
         DispatchQueue.main.async {
+            guard self.sesion === workoutSession else { return }
             self.cerrarYGuardar(fechaFin: date)
         }
     }
@@ -612,69 +622,95 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
     /// en .ended (ese delegate no vuelve a dispararse y, sin esto, el
     /// estado quedaba colgado y bloqueaba todos los Play futuros).
     private func cerrarYGuardar(fechaFin: Date) {
+        guard let sesion, let builder else { return }
+        let identidad = ObjectIdentifier(sesion)
+        guard controlCierre.comenzarCierre(identidad) else { return }
+        guardando = true
+        timerMuestras?.invalidate()
+        timerMuestras = nil
+        ubicaciones.stopUpdatingLocation()
+
         if descartarAlTerminar {
-            // Cancelación: se tira todo, nada llega a Salud ni al
-            // iPhone — el programado sigue pendiente.
-            builder?.discardWorkout()
+            builder.discardWorkout()
             routeBuilder?.discard()
-            UserDefaults.standard.removeObject(forKey: Self.claveProgramadoActivo)
-            DispatchQueue.main.async {
-                self.limpiarTrasFinal()
-            }
+            resumen = nil
+            limpiarTrasFinal(identidad: identidad)
             return
         }
-
-        // Capturas locales: el completion puede llegar con otra sesión
-        // ya arrancando y no debe leer el estado de esa otra.
+        if resumen == nil { capturarResumen() }
         let idProgramado = programadoID
         let estructuraCompleta = estructuraCompletaAlGuardar
+        let huella = huellaCumplidaAlGuardar
+        let eraRecuperacion = recuperando
+        let rutas = routeBuilder
+        let puntos = puntosRuta
 
-        // La evidencia de origen también queda en Salud (respaldo si el
-        // mensaje al iPhone jamás llega).
-        if let idProgramado {
-            builder?.addMetadata(MetadatosSesion.metadata(programadoID: idProgramado)) { _, _ in }
-        }
-
-        builder?.endCollection(withEnd: fechaFin) { [weak self] _, errorColeccion in
-            self?.builder?.finishWorkout { workout, errorFinal in
-                // Atar la ruta GPS al workout guardado, para el mapa.
-                // Con 0 puntos no hay nada que atar (y finishRoute daría
-                // error): se salta y el resumen ya avisa "sin recorrido".
-                if let workout, let rutas = self?.routeBuilder, (self?.puntosRuta ?? 0) > 0 {
-                    rutas.finishRoute(with: workout, metadata: nil) { _, _ in }
-                }
-                DispatchQueue.main.async {
-                    // El resultado viaja SOLO con el workout real en
-                    // mano: si Salud falló, no se inventa cumplimiento
-                    // (el programado queda pendiente en el iPhone).
-                    if let workout {
-                        ConectividadWatch.compartida.enviar(resultado: ResultadoSesionWatch(
-                            sesionID: workout.uuid,
-                            fecha: fechaFin,
-                            programadoID: idProgramado,
-                            estructuraCompleta: estructuraCompleta))
-                        if let idProgramado {
-                            ConectividadWatch.compartida.marcarCompletadoLocal(
-                                idProgramado, estructuraCompleta: estructuraCompleta)
+        // Todas las operaciones usan EL MISMO builder capturado. Ningún
+        // callback consulta self.builder, que podría pertenecer a otra carrera.
+        let completar: (HKWorkout?, Error?) -> Void = { [weak self] workout, error in
+            if let workout, let rutas, puntos > 0 {
+                rutas.finishRoute(with: workout, metadata: nil) { _, errorRuta in
+                    if let errorRuta {
+                        DispatchQueue.main.async {
+                            self?.mensajeError = String(localized: "La carrera se guardó, pero falló el recorrido: \(errorRuta.localizedDescription)")
                         }
-                        UserDefaults.standard.removeObject(forKey: Self.claveProgramadoActivo)
                     }
-                    // Si Salud rechazó el guardado, decirlo: antes fallaba
-                    // en silencio y la tarjeta mentía "carrera guardada".
-                    if let error = errorFinal ?? errorColeccion {
-                        self?.mensajeError = String(localized: "La carrera NO se pudo guardar en Salud: \(error.localizedDescription)")
-                    }
-                    self?.limpiarTrasFinal()
                 }
             }
+            DispatchQueue.main.async {
+                if let workout {
+                    ConectividadWatch.compartida.enviar(resultado: ResultadoSesionWatch(
+                        sesionID: workout.uuid, fecha: fechaFin,
+                        programadoID: idProgramado, estructuraCompleta: estructuraCompleta))
+                    if let idProgramado {
+                        ConectividadWatch.compartida.marcarCompletadoLocal(
+                            idProgramado, estructuraCompleta: estructuraCompleta)
+                    }
+                    if estructuraCompleta, let huella {
+                        EstadoPlanWatch.compartido.marcarCumplida(huella: huella)
+                    }
+                } else {
+                    let motivo = error?.localizedDescription
+                        ?? String(localized: "Salud no devolvió un entrenamiento guardado.")
+                    self?.mensajeError = String(localized: "La carrera NO se pudo guardar en Salud: \(motivo)")
+                }
+                guard let self, self.controlCierre.esActual(identidad) else { return }
+                self.resumen?.guardadaEnSalud = workout != nil
+                if workout != nil, eraRecuperacion {
+                    self.mensajeError = String(localized: "Recuperé la carrera interrumpida y la guardé en Salud.")
+                }
+                self.limpiarTrasFinal(identidad: identidad)
+            }
+        }
+        let cerrar = {
+            builder.endCollection(withEnd: fechaFin) { ok, error in
+                guard ok else {
+                    completar(nil, error)
+                    return
+                }
+                builder.finishWorkout(completion: completar)
+            }
+        }
+        if let idProgramado {
+            builder.addMetadata(MetadatosSesion.metadata(programadoID: idProgramado)) { _, error in
+                if let error {
+                    DispatchQueue.main.async {
+                        self.mensajeError = String(localized: "No pude asociar el plan en Salud: \(error.localizedDescription)")
+                    }
+                }
+                cerrar()
+            }
+        } else {
+            cerrar()
         }
     }
 
-    private func limpiarTrasFinal() {
-        // Por si .ended llegó sin pasar por finalizar() (fin externo):
-        // el timer de muestras no debe sobrevivir a la sesión.
+    private func limpiarTrasFinal(identidad: ObjectIdentifier) {
+        guard controlCierre.finalizar(identidad) else { return }
         timerMuestras?.invalidate()
         timerMuestras = nil
+        ubicaciones.stopUpdatingLocation()
+        guardando = false
         activo = false
         pausado = false
         enPausaAutomatica = false
@@ -685,29 +721,21 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
         descartarAlTerminar = false
         programadoID = nil
         estructuraCompletaAlGuardar = false
+        huellaCumplidaAlGuardar = nil
+        recuperando = false
+        UserDefaults.standard.removeObject(forKey: Self.claveProgramadoActivo)
     }
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
         DispatchQueue.main.async {
-            // La sesión murió sin guardar: el ID persistido no debe
-            // contaminar la recuperación de una carrera futura.
-            UserDefaults.standard.removeObject(forKey: Self.claveProgramadoActivo)
-            self.programadoID = nil
+            let identidad = ObjectIdentifier(workoutSession)
+            guard self.controlCierre.esActual(identidad) else { return }
             self.mensajeError = String(localized: "Entrenamiento: \(error.localizedDescription)")
-            self.activo = false
-            self.pausado = false
-            // Sin esto, morir durante una auto-pausa dejaba el cartel
-            // prometiendo una reanudación automática imposible.
-            self.enPausaAutomatica = false
-            self.ubicacionPausa = nil
-            self.sesion = nil
-            self.builder = nil
-            self.routeBuilder = nil
-            self.ubicaciones.stopUpdatingLocation()
-            self.timerMuestras?.invalidate()
-            self.timerMuestras = nil
+            self.resumen?.guardadaEnSalud = false
+            self.limpiarTrasFinal(identidad: identidad)
         }
     }
+
 }
 
 extension Entrenamiento: CLLocationManagerDelegate {
@@ -781,6 +809,7 @@ extension Entrenamiento: HKLiveWorkoutBuilderDelegate {
                         didCollectDataOf collectedTypes: Set<HKSampleType>) {
         // Cola interna de HealthKit → leer el builder siempre en main.
         DispatchQueue.main.async {
+            guard self.builder === workoutBuilder else { return }
             self.actualizarEstadisticas(con: collectedTypes)
         }
     }

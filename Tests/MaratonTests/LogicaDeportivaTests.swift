@@ -1171,3 +1171,47 @@ final class FrescuraGPSAutoPausaTests: XCTestCase {
                                           umbral: 15, fecha: t(4)))
     }
 }
+
+final class ControlCierreSesionTests: XCTestCase {
+    func testEndedDuplicadoIniciaUnSoloGuardado() {
+        var control = ControlCierreSesion<Int>()
+        control.iniciar(1)
+        XCTAssertTrue(control.comenzarCierre(1))
+        XCTAssertFalse(control.comenzarCierre(1))
+        XCTAssertTrue(control.finalizar(1))
+        XCTAssertFalse(control.comenzarCierre(1))
+    }
+
+    func testCompletionViejoNoLimpiaNuevaSesion() {
+        var control = ControlCierreSesion<Int>()
+        control.iniciar(1)
+        XCTAssertTrue(control.comenzarCierre(1))
+        // Un fallo de sesión permitió arrancar otra mientras el cierre
+        // anterior todavía tiene callbacks pendientes.
+        XCTAssertTrue(control.finalizar(1))
+        control.iniciar(2)
+        XCTAssertFalse(control.finalizar(1))
+        XCTAssertFalse(control.comenzarCierre(1))
+        XCTAssertTrue(control.esActual(2))
+        XCTAssertTrue(control.comenzarCierre(2))
+    }
+
+    func testRecoveryYDelegateEndedCompartenElMismoCierre() {
+        var control = ControlCierreSesion<UUID>()
+        let recuperada = UUID()
+        control.iniciar(recuperada)
+        XCTAssertTrue(control.comenzarCierre(recuperada))
+        XCTAssertFalse(control.comenzarCierre(recuperada))
+        XCTAssertTrue(control.finalizar(recuperada))
+        XCTAssertFalse(control.finalizar(recuperada))
+    }
+
+    func testEventoDesconocidoNoImpideCerrarSesionVigente() {
+        var control = ControlCierreSesion<Int>()
+        XCTAssertFalse(control.comenzarCierre(1))
+        control.iniciar(2)
+        XCTAssertFalse(control.comenzarCierre(1))
+        XCTAssertFalse(control.finalizar(1))
+        XCTAssertTrue(control.comenzarCierre(2))
+    }
+}

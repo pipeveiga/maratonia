@@ -59,6 +59,27 @@ struct ContentView: View {
                 .tabItem { Label("Perfil", systemImage: "person.crop.circle") }
                 .tag(Pestana.perfil)
         }
+        .disabled(almacen.cargaBloqueada)
+        .safeAreaInset(edge: .top) {
+            if let mensaje = almacen.mensajePersistencia {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(mensaje, systemImage: "externaldrive.badge.exclamationmark")
+                        .font(.callout)
+                    if almacen.cargaBloqueada || almacen.cambiosSinGuardar {
+                        Button(almacen.cargaBloqueada ? "Reintentar lectura" : "Reintentar guardado") {
+                            almacen.reintentarPersistencia()
+                        }
+                        .buttonStyle(.bordered)
+                    } else {
+                        Button("Entendido") { almacen.confirmarRecuperacion() }
+                            .buttonStyle(.bordered)
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.regularMaterial)
+            }
+        }
         .sheet(isPresented: $mostrandoTutorial) {
             TutorialView()
         }
@@ -72,6 +93,7 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            guard !almacen.cargaBloqueada else { return }
             // Cableado cuenta ↔ dominio: crear cuenta asocia los datos
             // existentes al userID (migración sin duplicados).
             IdentidadStore.conectar(identidad, con: almacen)
@@ -84,6 +106,9 @@ struct ContentView: View {
                 ofrecerOnboardingSiCorresponde()
             }
         }
+        .onChange(of: almacen.cargaBloqueada) { _, bloqueada in
+            if !bloqueada { IdentidadStore.conectar(identidad, con: almacen) }
+        }
         .onChange(of: mostrandoTutorial) { _, abierto in
             if !abierto { ofrecerOnboardingSiCorresponde() }
         }
@@ -92,7 +117,7 @@ struct ContentView: View {
     /// Bienvenida (cuenta opcional): una sola vez, SOLO instalación
     /// limpia — sin plan, sin sesiones, sin referencias y sin cuenta.
     private func ofrecerBienvenidaSiCorresponde() -> Bool {
-        guard !vioBienvenida else { return false }
+        guard !almacen.cargaBloqueada, !vioBienvenida else { return false }
         vioBienvenida = true
         let dominio = almacen.almacen
         guard identidad.cuenta == nil,
@@ -113,7 +138,7 @@ struct ContentView: View {
     /// usuario existente jamás lo ve sin pedirlo (no destructivo);
     /// siempre queda disponible en Perfil.
     private func ofrecerOnboardingSiCorresponde() {
-        guard !ofrecioOnboarding else { return }
+        guard !almacen.cargaBloqueada, !ofrecioOnboarding else { return }
         let dominio = almacen.almacen
         guard dominio.perfilDeportivo.fechaOnboarding == nil,
               dominio.planActivo == nil,

@@ -57,6 +57,7 @@
 		A1000000000000000000005F /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000005E /* InfoPlist.xcstrings */; };
 		A10000000000000000000061 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000060 /* Localizable.xcstrings */; };
 		A10000000000000000000063 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000062 /* InfoPlist.xcstrings */; };
+		B20000000000000000000002 /* PersistenciaAlmacen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* PersistenciaAlmacen.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -142,6 +143,7 @@
 		A1000000000000000000005E /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		A10000000000000000000060 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		A10000000000000000000062 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		B20000000000000000000001 /* PersistenciaAlmacen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenciaAlmacen.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -207,6 +209,7 @@
 				A1000000000000000000004D /* Cuenta.swift */,
 				A1000000000000000000004F /* CarreraTelefono.swift */,
 				A10000000000000000000054 /* PlanV2.swift */,
+				B20000000000000000000001 /* PersistenciaAlmacen.swift */,
 				A10000000000000000000056 /* DisenoV2.swift */,
 				A10000000000000000000058 /* Onboarding.swift */,
 				A1000000000000000000005A /* Progreso.swift */,
@@ -424,6 +427,7 @@
 				A1000000000000000000004E /* Cuenta.swift in Sources */,
 				A10000000000000000000050 /* CarreraTelefono.swift in Sources */,
 				A10000000000000000000055 /* PlanV2.swift in Sources */,
+				B20000000000000000000002 /* PersistenciaAlmacen.swift in Sources */,
 				A10000000000000000000057 /* DisenoV2.swift in Sources */,
 				A10000000000000000000059 /* Onboarding.swift in Sources */,
 				A1000000000000000000005B /* Progreso.swift in Sources */,

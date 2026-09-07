@@ -797,3 +797,31 @@ struct SupervisorCorreccionRitmo {
         return .callar
     }
 }
+
+/// Aísla el cierre asíncrono de una sesión: un evento duplicado no inicia
+/// dos guardados y el completion de una sesión vieja no limpia la nueva.
+struct ControlCierreSesion<Identidad: Equatable> {
+    private var actual: Identidad?
+    private var cerrando = false
+
+    mutating func iniciar(_ identidad: Identidad) {
+        actual = identidad
+        cerrando = false
+    }
+
+    func esActual(_ identidad: Identidad) -> Bool { actual == identidad }
+
+    mutating func comenzarCierre(_ identidad: Identidad) -> Bool {
+        guard esActual(identidad), !cerrando else { return false }
+        cerrando = true
+        return true
+    }
+
+    @discardableResult
+    mutating func finalizar(_ identidad: Identidad) -> Bool {
+        guard esActual(identidad) else { return false }
+        actual = nil
+        cerrando = false
+        return true
+    }
+}

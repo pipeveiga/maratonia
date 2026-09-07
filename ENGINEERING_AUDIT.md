@@ -84,15 +84,103 @@ En ambos dispositivos, con auto-pausa activada:
 4. Terminar y revisar tiempo activo, distancia y mapa en Salud; repetir una
    sesión con auto-pausa desactivada.
 
-## Deuda que queda fuera de este cambio
+## Segunda revisión — 2026-09-07
 
-- Persistencia V2 usa `try?` y puede reconstruir desde legacy ante un archivo
-  ilegible; falta recuperación explícita y reporte de errores.
-- Cierre HealthKit del reloj accede a builders compartidos desde callbacks;
-  conviene aislar cada cierre por identidad y hacerlo idempotente.
-- Motores con singletons y efectos de plataforma dificultan pruebas de
-  integración de callbacks, audio y recuperación. No hay tests watchOS propios.
-- El respaldo CloudKit sigue centrado en el plan legacy; no cubre todo el V2.
+Se amplió esta misma propuesta sobre main sin nuevos cambios remotos. Se
+revisaron persistencia, sincronización, cierre HealthKit, UI de confirmación,
+contrato del Coach y las pruebas. Los cambios nuevos son:
 
-Estos hallazgos requieren cambios y pruebas específicos; no se consideran
-resueltos por la corrección de auto-pausa.
+### Recuperación del dominio y errores visibles
+
+Evidencia: `PlanStore.migrarADominioV2SiHaceFalta` interpretaba un V2 ilegible
+como ausencia y lo reemplazaba desde legacy. `AlmacenStore.cargarConCutover`
+repetía esa decisión y `escribir` silenciaba errores con `try?`.
+
+Ahora `PersistenciaAlmacen` distingue ausencia, corrupción, errores de lectura
+y versiones no compatibles. Guarda una generación anterior del dominio
+completo antes de reemplazar el principal. Recupera esa copia si corresponde,
+preserva el JSON dañado y lo comunica en pantalla. Sin copia válida o con un
+esquema incompatible protege los originales, bloquea las ediciones y ofrece
+reintentar la lectura. Una escritura fallida conserva el estado en memoria,
+muestra el problema y permite reintentar sin volver a cargar datos antiguos.
+Las proyecciones al reloj sólo salen con el estado guardado.
+
+Nueve pruebas nuevas ejercitan corrupción, ambas generaciones, falta del
+principal, errores de lectura/escritura, reintentos, protección de esquemas
+futuros, resultados pendientes y fallos de codificación. La migración
+existente mantiene sus pruebas y conserva IDs y formatos JSON.
+
+### Guardado del reloj ligado al resultado real
+
+Evidencia: el resumen decía «¡Carrera guardada!» antes de `finishWorkout`;
+el botón Terminar marcaba el plan legacy cumplido antes de la confirmación.
+Además, el cierre consultaba `self.builder`/`self.routeBuilder` desde callbacks
+y un segundo evento ended podía iniciar otro cierre.
+
+El cierre captura builder, ruta e identidad de la sesión; un control compartido
+impide dobles cierres y limpiezas de sesiones nuevas por callbacks viejos.
+Los delegates de sesión y estadísticas verifican identidad. El estado visible
+distingue guardando, guardada y sin guardar. El cumplimiento legacy sólo se
+marca con un workout real; los resultados V2 también conservan esa regla.
+Los fallos de colección, resultado nulo y ruta se comunican. La recuperación
+ya no afirma éxito antes de recibirlo y los finales externos apagan el GPS.
+
+Cuatro pruebas nuevas cubren cierre duplicado, recovery más ended, eventos
+ajenos y un completion viejo que llega después de iniciar otra sesión.
+Prueban el control compartido utilizado por watchOS; no simulan HealthKit.
+
+### Consultas válidas al Coach
+
+Evidencia: `ContextoCoach` usa Codable sintetizado, que omite Optional nil.
+`functions/schemas.js` exigía presencia con `.nullable()` en esos campos;
+la petición legítima fallaba antes de llamar al proveedor. El fixture nuevo
+se generó con JSONEncoder a partir de las declaraciones reales del DTO Swift.
+
+El esquema acepta ausencia o null exclusivamente en los opcionales del DTO.
+Mantiene campos obligatorios, límites, UUIDs y rechazo de propiedades extra.
+La prueba del JSON Swift falla contra el esquema anterior y pasa con el nuevo.
+Cinco pruebas de Node validan compatibilidad, límites y exclusión de GPS.
+No se desplegó el backend: el cambio queda revisable en el repositorio.
+
+## Validación y límites de la segunda revisión
+
+- Suite completa de la app en Xcode 26.6 / iOS Simulator 26.5, incluyendo
+  compilación de iPhone y watchOS: 416 tests aprobados, 0 fallos, 0 omitidos.
+- `npm test` del backend: 5 pruebas aprobadas. Se usó Zod 3.23.8 en una
+  instalación temporal; no se llamó a Firebase ni al proveedor de IA.
+- Revisión del diff, sintaxis de los 38 archivos Swift y `git diff --check`.
+- Verificación visual en un simulador nuevo con un archivo sintético truncado:
+  el original se conservó y se mostró el aviso con «Reintentar lectura» y
+  las ediciones bloqueadas. No se usaron datos de un corredor real.
+- Las pruebas de plataforma siguen requiriendo iPhone y Apple Watch físicos.
+
+## Qué probar manualmente ahora
+
+1. En una instalación de prueba, editar calendario, cerrar y reabrir; comprobar
+   plan, sesiones y referencias. Ante recuperación, verificar el aviso y los
+   últimos cambios (la copia contiene la generación anterior).
+2. En el reloj, terminar y esperar «Carrera guardada»; comprobar el workout
+   y mapa en Salud y el cumplimiento en el iPhone. Probar descarte, dos carreras
+   seguidas y guardado con permiso de Salud denegado.
+3. Con el backend corregido desplegado, consultar al Coach sin fecha de carrera,
+   sin baseline y sin feedback subjetivo; las peticiones deben ser válidas.
+4. Repetir los escenarios de auto-pausa de la primera revisión.
+
+## Deuda y riesgos pendientes
+
+- La copia nueva es local y de una generación: no cubre pérdida del teléfono,
+  desinstalación ni corrupción simultánea de las dos copias. El respaldo
+  CloudKit sigue centrado en el plan legacy y no cubre todo V2.
+- Si falla la escritura, los cambios más recientes permanecen sólo en memoria
+  hasta reintentar. El aviso pide mantener la app abierta. Los resultados del
+  reloj recibidos durante una lectura bloqueada se retienen en memoria hasta
+  recuperarla; falta una bandeja persistente con confirmación de recepción.
+- El inicio HealthKit todavía tiene operaciones asíncronas sin tratamiento
+  exhaustivo de errores; recuperación y cadencia de sensores necesitan campo.
+- Los motores siguen siendo singletons con efectos de plataforma; no hay
+  tests de integración propios del target watchOS ni workflow de CI.
+- El backend conserva trabajo pendiente en idempotencia concurrente y manejo
+  de errores de Firestore. La corrección de esquema no cambia esos mecanismos.
+
+Esta revisión resuelve los defectos descritos; no certifica que el repositorio
+entero esté libre de errores.

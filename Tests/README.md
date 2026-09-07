@@ -39,3 +39,20 @@ El simulador compila ambos targets, pero los tests de auto-pausa ejercitan
 la lógica compartida. La entrega real de Core Location, música, pausas de
 HealthKit, WatchConnectivity y recuperación de sesiones requieren pruebas
 en iPhone y Apple Watch físicos. Ver `ENGINEERING_AUDIT.md`.
+
+## Nuevas regresiones de estabilidad
+
+`PersistenciaAlmacenTests` usa directorios temporales para probar recuperación,
+protección de archivos y reintentos. `ControlCierreSesionTests` comprueba que
+los callbacks viejos o duplicados no afecten otra sesión.
+
+El backend tiene pruebas de contrato sin llamadas a servicios externos:
+
+```sh
+cd functions
+npm install
+npm test
+```
+
+El fixture de `functions/test/fixtures/` fue generado con JSONEncoder usando
+las declaraciones de ContextoCoach de Swift; cubre la omisión de Optional nil.
