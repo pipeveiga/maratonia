@@ -113,6 +113,28 @@ func formatearRitmo(_ segundosPorKm: Int) -> String {
 /// una lectura aislada.
 enum AutoPausa {
 
+    /// La recepción de un callback no vuelve fresca una medición cacheada.
+    /// Sólo se usa para decisiones en vivo; no descarta puntos del recorrido.
+    struct FiltroSenalGPS {
+        private var inicio = Date.distantPast
+        private(set) var ultimaFecha: Date?
+
+        mutating func aceptar(fecha: Date, precision: Double, ahora: Date) -> Bool {
+            let edad = ahora.timeIntervalSince(fecha)
+            guard precision.isFinite, precision > 0, precision <= 50,
+                  edad.isFinite, edad >= 0, edad <= 5,
+                  fecha > inicio,
+                  ultimaFecha.map({ fecha > $0 }) ?? true else { return false }
+            ultimaFecha = fecha
+            return true
+        }
+
+        mutating func reiniciar(desde fecha: Date) {
+            inicio = fecha
+            ultimaFecha = nil
+        }
+    }
+
     /// ¿Frenó de verdad? Requiere: ventana completa (~10 s), GPS FRESCO
     /// (una señal vieja no es "parado": es señal vieja), avance del
     /// motor casi nulo, y que el GPS tampoco vea desplazamiento.
@@ -121,7 +143,7 @@ enum AutoPausa {
                            desplazamientoGPSMetros: Double?,
                            edadUltimoGPSSegundos: Double?) -> Bool {
         guard ventanaSegundos >= 9 else { return false }
-        guard let edad = edadUltimoGPSSegundos, edad <= 5 else { return false }
+        guard let edad = edadUltimoGPSSegundos, edad >= 0, edad <= 5 else { return false }
         guard avanceMetros < 6 else { return false }
         if let gps = desplazamientoGPSMetros, gps >= 8 { return false }
         return true
@@ -178,6 +200,7 @@ enum AutoPausa {
     struct SupervisorReanudacion {
         private var detectorDesplazamiento = DetectorReanudacion()
         private var fechaPrimeraVelocidad: Date?
+        private var fechaUltimaLectura: Date?
 
         /// Caminar decidido; el braceo parado no llega a esto.
         static let velocidadReanuda = 0.9
@@ -190,6 +213,13 @@ enum AutoPausa {
         /// - velocidad: m/s del GPS (nil si el fix no trae velocidad).
         mutating func procesar(desplazamiento: Double?, velocidad: Double?,
                                umbral: Double, fecha: Date) -> Bool {
+            if let ultima = fechaUltimaLectura {
+                guard fecha > ultima else { return false }
+                // Dos fixes separados por una pérdida de señal no son
+                // movimiento sostenido. Ambos caminos vuelven a empezar.
+                if fecha.timeIntervalSince(ultima) > 5 { reiniciar() }
+            }
+            fechaUltimaLectura = fecha
             if let desplazamiento,
                detectorDesplazamiento.procesar(desplazamiento: desplazamiento,
                                                umbral: umbral, fecha: fecha) {
@@ -215,6 +245,7 @@ enum AutoPausa {
         mutating func reiniciar() {
             detectorDesplazamiento.reiniciar()
             fechaPrimeraVelocidad = nil
+            fechaUltimaLectura = nil
         }
     }
 

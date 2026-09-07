@@ -62,6 +62,7 @@ final class Entrenamiento: NSObject, ObservableObject {
     /// confirma la detención y detecta señal vieja.
     private var ubicacionesRecientes: [(fecha: Date, ubicacion: CLLocation)] = []
     private var supervisorReanudacion = AutoPausa.SupervisorReanudacion()
+    private var filtroSenalGPS = AutoPausa.FiltroSenalGPS()
 
     /// Vigilancia del GPS durante la auto-pausa (bug 1 de build 38):
     /// Core Location puede dejar de entregar con el usuario quieto y la
@@ -341,6 +342,7 @@ final class Entrenamiento: NSObject, ObservableObject {
             ubicacionPausa = nil
             ubicacionesRecientes = []
             supervisorReanudacion.reiniciar()
+            filtroSenalGPS.reiniciar(desde: Date())
             estimadorRitmo.reiniciar()
             zonaAnunciada = 0
             zonaCandidata = 0
@@ -365,6 +367,7 @@ final class Entrenamiento: NSObject, ObservableObject {
     func pausar() {
         guard activo, !pausado else { return }
         pausado = true
+        filtroSenalGPS.reiniciar(desde: Date())
         sesion?.pause()
         if usaGPS { ubicaciones.stopUpdatingLocation() }
         muestras = []
@@ -380,6 +383,7 @@ final class Entrenamiento: NSObject, ObservableObject {
         enPausaAutomatica = false
         ubicacionPausa = nil
         supervisorReanudacion.reiniciar()
+        filtroSenalGPS.reiniciar(desde: Date())
         ubicacionesRecientes = []  // sin restos: la próxima pausa junta datos frescos
         sesion?.resume()
         if usaGPS { ubicaciones.startUpdatingLocation() }
@@ -397,6 +401,7 @@ final class Entrenamiento: NSObject, ObservableObject {
         enPausaAutomatica = true
         ubicacionPausa = nil
         supervisorReanudacion.reiniciar()
+        filtroSenalGPS.reiniciar(desde: Date())
         ubicacionesRecientes = []
         // Gracia de 10 s antes del primer empujón del vigilante de GPS.
         fechaUltimaSenalPausa = Date()
@@ -707,20 +712,24 @@ extension Entrenamiento: HKWorkoutSessionDelegate {
 
 extension Entrenamiento: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let ahora = Date()
+        let senalesFrescas = locations.sorted { $0.timestamp < $1.timestamp }.filter {
+            filtroSenalGPS.aceptar(fecha: $0.timestamp,
+                                   precision: $0.horizontalAccuracy, ahora: ahora)
+        }
         // Auto-pausa → reanudación automática por desplazamiento
         // sostenido O velocidad GPS sostenida (SupervisorReanudacion en
         // Shared). La pausa MANUAL nunca entra acá (puedeAutoReanudar).
         if AutoPausa.puedeAutoReanudar(pausada: pausado, enPausaAutomatica: enPausaAutomatica) {
-            guard let ubicacion = locations.last,
-                  ubicacion.horizontalAccuracy > 0, ubicacion.horizontalAccuracy <= 50 else { return }
-            fechaUltimaSenalPausa = Date()
+            guard let ubicacion = senalesFrescas.last else { return }
+            fechaUltimaSenalPausa = ubicacion.timestamp
             let desplazamiento = ubicacionPausa.map { ubicacion.distance(from: $0) }
             if ubicacionPausa == nil { ubicacionPausa = ubicacion }
             if supervisorReanudacion.procesar(
                 desplazamiento: desplazamiento,
                 velocidad: ubicacion.speed >= 0 ? ubicacion.speed : nil,
                 umbral: max(15, ubicacion.horizontalAccuracy),
-                fecha: Date()) {
+                fecha: ubicacion.timestamp) {
                 autoReanudar()
             }
             return
@@ -731,12 +740,12 @@ extension Entrenamiento: CLLocationManagerDelegate {
         let buenas = locations.filter { $0.horizontalAccuracy > 0 && $0.horizontalAccuracy <= 50 }
         guard !buenas.isEmpty else { return }
         routeBuilder.insertRouteData(buenas) { _, _ in }
-        DispatchQueue.main.async {
-            for ubicacion in buenas {
-                self.ubicacionesRecientes.append((Date(), ubicacion))
-            }
-            self.puntosRuta += buenas.count
+        // CLLocationManager se creó en main. Conservar el timestamp
+        // medido: un lote demorado no cuenta como GPS recién adquirido.
+        for ubicacion in senalesFrescas {
+            ubicacionesRecientes.append((ubicacion.timestamp, ubicacion))
         }
+        puntosRuta += buenas.count
     }
 
     /// Si el permiso se concede DESPUÉS de arrancar (el cartel apareció
