@@ -1,5 +1,6 @@
 import XCTest
 import UIKit
+import Combine
 @testable import Maraton
 
 /// El inicio debe distinguir correr libre, día sin sesión y resultado.
@@ -2657,5 +2658,218 @@ final class PersistenciaAlmacenTests: XCTestCase {
         XCTAssertThrowsError(try disco.guardar(invalido))
         XCTAssertEqual(try Data(contentsOf: disco.url), principal)
         XCTAssertEqual(try Data(contentsOf: disco.urlCopia), copia)
+    }
+}
+
+@MainActor
+final class SeparacionDeCuentasTests: XCTestCase {
+    private func directorio() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try FileManager.default.removeItem(at: dir) }
+        return dir
+    }
+
+    private func proveedor(_ uid: String, tipo: ProveedorVinculado.Tipo = .email,
+                           subject: String = "corredor@example.com") -> ProveedorVinculado {
+        ProveedorVinculado(tipo: tipo, subjectID: subject, email: nil,
+                          fechaVinculacion: Date(), firebaseUID: uid)
+    }
+
+    private func almacen(_ dir: URL) -> AlmacenStore {
+        AlmacenStore(url: dir.appendingPathComponent("dominio.json"),
+                     urlLegacy: dir.appendingPathComponent("legacy.json"),
+                     conectadoAlReloj: false)
+    }
+
+    func testMismoUIDConOtroProveedorConservaLaCuenta() throws {
+        let dir = try directorio()
+        let identidad = IdentidadStore(url: dir.appendingPathComponent("cuenta.json"))
+        identidad.iniciarSesion(con: proveedor("A"), nombre: "Ana")
+        let id = identidad.cuenta?.userID
+        identidad.cerrarSesion()
+        XCTAssertTrue(identidad.iniciarSesion(con: proveedor("A", tipo: .google, subject: "google-A")))
+        XCTAssertEqual(identidad.cuenta?.userID, id)
+        XCTAssertEqual(identidad.cuenta?.proveedores.count, 2)
+        XCTAssertEqual(identidad.cuenta?.nombre, "Ana")
+    }
+
+    func testOtroUIDNoHeredaIdentidadNiNombreAunqueElEmailCoincida() throws {
+        let dir = try directorio()
+        let identidad = IdentidadStore(url: dir.appendingPathComponent("cuenta.json"))
+        identidad.iniciarSesion(con: proveedor("A"), nombre: "Ana")
+        let id = identidad.cuenta?.userID
+        identidad.cerrarSesion()
+        XCTAssertTrue(identidad.iniciarSesion(con: proveedor("B"), nombre: "Bruno"))
+        XCTAssertNotEqual(identidad.cuenta?.userID, id)
+        XCTAssertEqual(identidad.cuenta?.nombre, "Bruno")
+        XCTAssertEqual(identidad.cuenta?.proveedores.compactMap(\.firebaseUID), ["B"])
+    }
+
+    func testDatosDeANoSeAsocianNiSeMigranAB() throws {
+        let dir = try directorio()
+        let store = almacen(dir)
+        let identidad = IdentidadStore(url: dir.appendingPathComponent("cuenta.json"))
+        IdentidadStore.conectar(identidad, con: store)
+        identidad.iniciarSesion(con: proveedor("A"))
+        store.almacen.registrarSesionLibre(sesionID: UUID(), fecha: Date())
+        let antes = store.almacen
+        identidad.cerrarSesion()
+        XCTAssertFalse(identidad.iniciarSesion(con: proveedor("B")))
+        XCTAssertFalse(identidad.haySesion)
+        XCTAssertNotNil(identidad.mensajeError)
+        XCTAssertEqual(store.almacen, antes)
+        XCTAssertEqual(identidad.cuenta?.userID, antes.usuarioID)
+        XCTAssertTrue(identidad.iniciarSesion(con: proveedor("A")))
+        XCTAssertEqual(store.almacen, antes)
+    }
+
+    func testLogoutConPendientesConservaCacheYCuenta() async throws {
+        let dir = try directorio()
+        let store = almacen(dir)
+        store.almacen.usuarioID = UUID()
+        store.almacen.registrarSesionLibre(sesionID: UUID(), fecha: Date())
+        let antes = store.almacen
+        let repo = RepositorioCuenta(almacen: store, urlPendientes: dir.appendingPathComponent("cola.json"))
+        repo.anotarCambio(.sesion(antes.sesiones[0].id))
+        let cerro = await repo.limpiarParaLogout()
+        XCTAssertFalse(cerro)
+        XCTAssertEqual(store.almacen, antes)
+        XCTAssertEqual(try PersistenciaAlmacen.decodificar(Data(contentsOf: dir.appendingPathComponent("dominio.json"))), antes)
+    }
+
+    func testLogoutConFallaEnDiscoConservaDatosEnMemoriaYPrincipal() async throws {
+        let dir = try directorio()
+        let store = almacen(dir)
+        store.almacen.usuarioID = UUID()
+        store.almacen.registrarSesionLibre(sesionID: UUID(), fecha: Date())
+        let antes = store.almacen
+        let url = dir.appendingPathComponent("dominio.json")
+        let copia = PersistenciaAlmacen.urlCopia(de: url)
+        try FileManager.default.removeItem(at: copia)
+        try FileManager.default.createDirectory(at: copia, withIntermediateDirectories: false)
+        let repo = RepositorioCuenta(almacen: store, urlPendientes: dir.appendingPathComponent("cola.json"))
+        let cerro = await repo.limpiarParaLogout()
+        XCTAssertFalse(cerro)
+        XCTAssertEqual(store.almacen, antes)
+        XCTAssertEqual(try PersistenciaAlmacen.decodificar(Data(contentsOf: url)), antes)
+    }
+
+    func testLogoutConfirmadoPermiteOtraCuentaConCacheVacia() async throws {
+        let dir = try directorio()
+        let store = almacen(dir)
+        let identidad = IdentidadStore(url: dir.appendingPathComponent("cuenta.json"))
+        IdentidadStore.conectar(identidad, con: store)
+        identidad.iniciarSesion(con: proveedor("A"), nombre: "Ana")
+        store.almacen.registrarSesionLibre(sesionID: UUID(), fecha: Date())
+        let idA = identidad.cuenta?.userID
+        let repo = RepositorioCuenta(almacen: store, urlPendientes: dir.appendingPathComponent("cola.json"))
+        let cerro = await repo.limpiarParaLogout()
+        XCTAssertTrue(cerro)
+        XCTAssertTrue(store.almacen.sesiones.isEmpty)
+        XCTAssertNil(store.almacen.usuarioID)
+        identidad.cerrarSesion()
+        XCTAssertTrue(identidad.iniciarSesion(con: proveedor("B"), nombre: "Bruno"))
+        XCTAssertNotEqual(identidad.cuenta?.userID, idA)
+        XCTAssertEqual(store.almacen.usuarioID, identidad.cuenta?.userID)
+        XCTAssertTrue(store.almacen.sesiones.isEmpty)
+    }
+}
+
+@MainActor
+final class ConfirmacionSyncTests: XCTestCase {
+    private func entorno() throws -> (AlmacenStore, URL) {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try FileManager.default.removeItem(at: dir) }
+        return (AlmacenStore(url: dir.appendingPathComponent("dominio.json"),
+                             urlLegacy: dir.appendingPathComponent("legacy.json"),
+                             conectadoAlReloj: false), dir.appendingPathComponent("cola.json"))
+    }
+
+    func testNoBorraColaNiPermiteLogoutAntesDeConfirmacion() async throws {
+        let (store, url) = try entorno()
+        let empezo = expectation(description: "comenzó escritura")
+        let termino = expectation(description: "cola confirmada")
+        var confirmacion: CheckedContinuation<Void, Error>?
+        let repo = RepositorioCuenta(almacen: store, urlPendientes: url,
+                                    proveedorUID: { "A" }, escritura: { _, _, _ in
+            empezo.fulfill()
+            try await withCheckedThrowingContinuation { confirmacion = $0 }
+        })
+        let observador = repo.$estado.dropFirst().sink { estado in
+            if estado == .inactivo { termino.fulfill() }
+        }
+        repo.anotarCambio(.perfil())
+        await fulfillment(of: [empezo], timeout: 3)
+        XCTAssertEqual(repo.estado, .pendiente(1))
+        let cola = try JSONDecoder().decode([OperacionPendiente].self, from: Data(contentsOf: url))
+        XCTAssertEqual(cola.count, 1)
+        XCTAssertEqual(cola.first?.usuarioFirebaseUID, "A")
+        let cerro = await repo.limpiarParaLogout()
+        XCTAssertFalse(cerro)
+        confirmacion?.resume()
+        await fulfillment(of: [termino], timeout: 3)
+        XCTAssertEqual(try JSONDecoder().decode([OperacionPendiente].self, from: Data(contentsOf: url)).count, 0)
+        withExtendedLifetime(observador) {}
+    }
+
+    func testEscrituraFallidaConservaColaAlReabrir() async throws {
+        let (store, url) = try entorno()
+        let repo = RepositorioCuenta(almacen: store, urlPendientes: url,
+                                    proveedorUID: { "A" }, escritura: { _, _, _ in
+            throw URLError(.notConnectedToInternet)
+        })
+        repo.anotarCambio(.perfil())
+        await repo.vaciarPendientes()
+        let reabierto = RepositorioCuenta(almacen: store, urlPendientes: url)
+        XCTAssertEqual(reabierto.estado, .pendiente(1))
+    }
+
+    func testEdicionDuranteEscrituraNoSePierde() async throws {
+        let (store, url) = try entorno()
+        var repo: RepositorioCuenta!
+        var recibidas: [OperacionPendiente.Tipo] = []
+        repo = RepositorioCuenta(almacen: store, urlPendientes: url,
+                                proveedorUID: { "A" }, escritura: { operacion, _, _ in
+            recibidas.append(operacion.tipo)
+            if recibidas.count == 1 { repo.anotarCambio(.sesion(UUID())) }
+        })
+        repo.anotarCambio(.perfil())
+        await repo.vaciarPendientes()
+        XCTAssertEqual(recibidas, [.perfil, .sesion])
+        XCTAssertEqual(repo.estado, .inactivo)
+    }
+
+    func testCambioDeUIDNoRedirigePendientesDeAOtraCuenta() async throws {
+        let (store, url) = try entorno()
+        var uid = "A"
+        var recibidos: [String] = []
+        let repo = RepositorioCuenta(almacen: store, urlPendientes: url,
+                                    proveedorUID: { uid }, escritura: { _, destino, _ in
+            recibidos.append(destino)
+            uid = "B"
+        })
+        repo.anotarCambio(.perfil())
+        await repo.vaciarPendientes()
+        await repo.vaciarPendientes()
+        XCTAssertEqual(recibidos, ["A"])
+        let cola = try JSONDecoder().decode([OperacionPendiente].self, from: Data(contentsOf: url))
+        XCTAssertEqual(cola.first?.usuarioFirebaseUID, "A")
+        XCTAssertEqual(cola.count, 1)
+    }
+}
+
+final class DocumentoCuentaSyncTests: XCTestCase {
+    func testArchivarPlanEnviaNullEnVezDeOmitirElCampo() throws {
+        let datos = try RepositorioCuenta.codificarCuenta(DocumentoCuenta(perfil: nil, planActivoID: nil))
+        XCTAssertTrue(datos["planActivoID"] is NSNull)
+        XCTAssertTrue(datos["perfil"] is NSNull)
+    }
+
+    func testPlanActivoMantieneSuIDEnLaCodificacion() throws {
+        let id = UUID().uuidString
+        let datos = try RepositorioCuenta.codificarCuenta(DocumentoCuenta(perfil: nil, planActivoID: id))
+        XCTAssertEqual(datos["planActivoID"] as? String, id)
     }
 }

@@ -55,9 +55,22 @@ Se aplica la claridad de destinos; no se copian sus recursos ni su marca.
 - Apple Watch comunica una sesión cumplida sólo si Salud devuelve un
   workout guardado. El cierre tiene identidad para evitar dobles callbacks;
   errores de guardado y de ruta se muestran con su resultado real.
+- Las cuentas Firebase con UIDs distintos ya no comparten la identidad
+  local, aun con el mismo email. Los datos conservados de A bloquean su
+  asociación con B; volver a A permite recuperarlos sin migrarlos a B.
+- Cerrar sesión prepara la caché antes de desconectar Firebase. Una cola
+  pendiente o un error de disco conserva la sesión y permite reintentar.
+  La limpieza local no genera una escritura de perfil vacío en la nube.
+- La cola de sincronización conserva el UID dueño de cada operación, procesa
+  escrituras en serie y sólo las quita después del ACK del servidor. Las
+  ediciones que llegan durante un envío se conservan. El botón de cierre no
+  espera una conexión ausente indefinidamente.
 
 Referencia de segundo plano:
 https://developer.apple.com/documentation/corelocation/cllocationmanager/allowsbackgroundlocationupdates.
+
+Confirmación de escrituras Firestore:
+https://firebase.google.com/docs/reference/swift/firebasefirestore/api/reference/Classes/DocumentReference.
 
 ## Evidencia automatizada
 
@@ -84,6 +97,9 @@ del commit final por una compilación de una versión anterior.
    viejas no disparen reanudación y que se mantenga el control de la sesión.
 6. Reabrir después de terminar o interrumpir una carrera; comprobar identidad,
    recuperación y conservación de calendario, preferencias y sesiones.
+7. Dos cuentas Firebase en el mismo teléfono: cerrar A con y sin cambios
+   pendientes, entrar con B y volver a A; comprobar aislamiento del perfil,
+   planes y cola remota. Validar el caso de una cuenta revocada.
 
 Los cambios son reviewables en el PR. No se ha publicado una nueva build en
 TestFlight ni se ha validado hardware desde este entorno.

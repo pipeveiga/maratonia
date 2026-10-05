@@ -139,8 +139,8 @@ final class ServicioAuth: ObservableObject {
                   let tokenDatos = credencial.identityToken,
                   let token = String(data: tokenDatos, encoding: .utf8) else {
                 // Respaldo sin Firebase: Apple nativo solo (build ≤43).
-                identidad.iniciarSesion(con: vinculo,
-                                        nombre: nombre.isEmpty ? nil : nombre)
+                _ = registrarIngreso(vinculo, nombre: nombre.isEmpty ? nil : nombre,
+                                     identidad: identidad)
                 return
             }
             let credencialFirebase = OAuthProvider.appleCredential(
@@ -245,13 +245,13 @@ final class ServicioAuth: ObservableObject {
             return
         }
         guard let usuario = resultado?.user else { return }
-        identidad.iniciarSesion(con: ProveedorVinculado(
+        guard registrarIngreso(ProveedorVinculado(
             tipo: .email,
             subjectID: email.lowercased()
                 .trimmingCharacters(in: .whitespaces),
             email: email,
             fechaVinculacion: Date(),
-            firebaseUID: usuario.uid))
+            firebaseUID: usuario.uid), identidad: identidad) else { return }
         mensaje = nil
     }
 
@@ -270,13 +270,26 @@ final class ServicioAuth: ObservableObject {
                 }
                 var vinculoConUID = vinculo
                 vinculoConUID.firebaseUID = resultado?.user.uid
-                identidad.iniciarSesion(con: vinculoConUID, nombre: nombre)
+                guard self.registrarIngreso(vinculoConUID, nombre: nombre,
+                                            identidad: identidad) else { return }
                 self.mensaje = nil
             }
         }
     }
 
     // MARK: Cerrar sesión / eliminar cuenta
+
+    private func registrarIngreso(_ proveedor: ProveedorVinculado, nombre: String? = nil,
+                                  identidad: IdentidadStore) -> Bool {
+        guard identidad.iniciarSesion(con: proveedor, nombre: nombre) else {
+            mensaje = identidad.mensajeError
+            if Self.disponible { try? Auth.auth().signOut() }
+            GIDSignIn.sharedInstance.signOut()
+            identidad.cerrarSesion()
+            return false
+        }
+        return true
+    }
 
     func cerrarSesion(identidad: IdentidadStore) {
         if Self.disponible {

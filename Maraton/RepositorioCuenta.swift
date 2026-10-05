@@ -77,13 +77,20 @@ final class RepositorioCuenta: ObservableObject {
     /// Cola de escrituras que no salieron. Vive en disco: cerrar la app
     /// sin conexión no puede perder que terminaste una carrera.
     private var pendientes: [OperacionPendiente] = []
+    private var vaciandoPendientes = false
     private let urlPendientes: URL
+    private let proveedorUID: (() -> String?)?
+    private let escrituraInyectada: ((OperacionPendiente, String, AlmacenV2) async throws -> Void)?
 
     init(almacen: AlmacenStore,
          urlPendientes: URL = PlanStore.urlDocumentos
-            .appendingPathComponent("sync-pendiente.json")) {
+            .appendingPathComponent("sync-pendiente.json"),
+         proveedorUID: (() -> String?)? = nil,
+         escritura: ((OperacionPendiente, String, AlmacenV2) async throws -> Void)? = nil) {
         self.almacen = almacen
         self.urlPendientes = urlPendientes
+        self.proveedorUID = proveedorUID
+        self.escrituraInyectada = escritura
         self.pendientes = Self.leerPendientes(urlPendientes)
         actualizarEstadoPendientes()
     }
@@ -91,6 +98,7 @@ final class RepositorioCuenta: ObservableObject {
     /// `Auth.auth()` NO es seguro de llamar sin Firebase configurado:
     /// aborta el proceso. Se consulta siempre detrás de `disponible`.
     private var uid: String? {
+        if let proveedorUID { return proveedorUID() }
         guard ServicioAuth.disponible else { return nil }
         return Auth.auth().currentUser?.uid
     }
@@ -113,6 +121,7 @@ final class RepositorioCuenta: ObservableObject {
         do {
             let raiz = db.collection("users").document(uid)
             let doc = try await raiz.getDocument()
+            guard self.uid == uid else { return }
             let remoto = doc.exists ? try doc.data(as: DocumentoCuenta.self) : nil
 
             if remoto == nil || remoto?.perfil == nil {
@@ -170,11 +179,14 @@ final class RepositorioCuenta: ObservableObject {
 
         let planes = try await raiz.collection("planes").getDocuments()
         let decodificados = planes.documents.compactMap { try? $0.data(as: PlanUsuario.self) }
-        if let activoID = remoto.planActivoID,
-           let activo = decodificados.first(where: { $0.id.uuidString == activoID }) {
+        if let activoID = remoto.planActivoID {
+            guard let activo = decodificados.first(where: { $0.id.uuidString == activoID }) else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
             local.planActivo = activo
             local.planesAnteriores = decodificados.filter { $0.id != activo.id }
-        } else if !decodificados.isEmpty {
+        } else {
+            local.planActivo = nil
             local.planesAnteriores = decodificados
         }
 
@@ -195,6 +207,7 @@ final class RepositorioCuenta: ObservableObject {
         }
 
         local.activado = true
+        guard self.uid == uid else { return }
         almacen.almacen = local
     }
 
@@ -221,7 +234,7 @@ final class RepositorioCuenta: ObservableObject {
         var doc = DocumentoCuenta(perfil: local.perfil,
                                   planActivoID: local.planActivo?.id.uuidString)
         doc.migradoDesdeLocal = marcandoMigracion
-        try lote.setData(from: doc, forDocument: raiz, merge: true)
+        lote.setData(try Self.codificarCuenta(doc), forDocument: raiz, merge: true)
 
         for plan in ([local.planActivo].compactMap { $0 } + local.historialDePlanes) {
             try lote.setData(from: plan,
@@ -316,7 +329,9 @@ final class RepositorioCuenta: ObservableObject {
 
     /// El dominio cambió: se anota y se intenta subir. Si no hay red,
     /// queda en la cola y la UI no se entera.
-    func anotarCambio(_ operacion: OperacionPendiente) {
+    func anotarCambio(_ entrada: OperacionPendiente) {
+        var operacion = entrada
+        operacion.usuarioFirebaseUID = uid ?? pendientes.first?.usuarioFirebaseUID
         pendientes.removeAll { $0.id == operacion.id }   // idempotente
         pendientes.append(operacion)
         guardarPendientes()
@@ -325,19 +340,43 @@ final class RepositorioCuenta: ObservableObject {
     }
 
     func vaciarPendientes() async {
-        guard let uid, db != nil, !pendientes.isEmpty else { return }
-        var quedan: [OperacionPendiente] = []
-        for operacion in pendientes {
+        guard !almacen.cargaBloqueada, !almacen.cambiosSinGuardar,
+              !vaciandoPendientes, let uid, db != nil || escrituraInyectada != nil,
+              !pendientes.isEmpty else { return }
+        vaciandoPendientes = true
+        defer { vaciandoPendientes = false }
+        while var operacion = pendientes.first {
+            guard self.uid == uid, !almacen.cargaBloqueada,
+                  !almacen.cambiosSinGuardar else { return }
+            guard operacion.usuarioFirebaseUID == nil || operacion.usuarioFirebaseUID == uid else { return }
+            // Migración de la cola antigua: fijar su dueño antes de enviar.
+            if operacion.usuarioFirebaseUID == nil {
+                operacion.usuarioFirebaseUID = uid
+                pendientes[0] = operacion
+                guardarPendientes()
+            }
             do { try await aplicar(operacion, uid: uid) }
-            catch { quedan.append(operacion) }
+            catch { break }
+            guard self.uid == uid else { return }
+            // Quitar sólo la edición confirmada: otra edición puede
+            // haberse encolado durante el await, incluso del mismo ID.
+            pendientes.removeAll { $0 == operacion }
+            guardarPendientes()
         }
-        pendientes = quedan
-        guardarPendientes()
-        actualizarEstadoPendientes()
-        if quedan.isEmpty { ultimaSync = Date() }
+        if pendientes.isEmpty {
+            estado = .inactivo
+            ultimaSync = Date()
+        } else {
+            actualizarEstadoPendientes()
+        }
     }
 
     private func aplicar(_ operacion: OperacionPendiente, uid: String) async throws {
+        guard self.uid == uid else { return }
+        if let escrituraInyectada {
+            try await escrituraInyectada(operacion, uid, almacen.almacen)
+            return
+        }
         guard let db else { return }
         let raiz = db.collection("users").document(uid)
         let local = almacen.almacen
@@ -345,31 +384,47 @@ final class RepositorioCuenta: ObservableObject {
         case .perfil:
             let doc = DocumentoCuenta(perfil: local.perfil,
                                       planActivoID: local.planActivo?.id.uuidString)
-            try raiz.setData(from: doc, merge: true)
+            try await escribir(doc, en: raiz)
         case .plan:
             guard let plan = ([local.planActivo].compactMap { $0 } + local.historialDePlanes)
                 .first(where: { $0.id.uuidString == operacion.entidadID }) else { return }
-            try raiz.collection("planes").document(plan.id.uuidString)
-                .setData(from: plan, merge: true)
+            try await escribir(plan, en: raiz.collection("planes").document(plan.id.uuidString))
             let doc = DocumentoCuenta(perfil: local.perfil,
                                       planActivoID: local.planActivo?.id.uuidString)
-            try raiz.setData(from: doc, merge: true)
+            try await escribir(doc, en: raiz)
         case .sesion:
             guard let sesion = local.sesiones
                 .first(where: { $0.id.uuidString == operacion.entidadID }) else { return }
-            try raiz.collection("sesiones").document(sesion.id.uuidString)
-                .setData(from: sesion, merge: true)
+            try await escribir(sesion, en: raiz.collection("sesiones").document(sesion.id.uuidString))
         case .referencia:
             guard let referencia = local.referencias
                 .first(where: { $0.id.uuidString == operacion.entidadID }) else { return }
-            try raiz.collection("referencias").document(referencia.id.uuidString)
-                .setData(from: referencia, merge: true)
+            try await escribir(referencia, en: raiz.collection("referencias").document(referencia.id.uuidString))
         case .adaptacion:
             guard let adaptacion = local.historialAdaptaciones
                 .first(where: { $0.id.uuidString == operacion.entidadID }) else { return }
-            try raiz.collection("adaptaciones").document(adaptacion.id.uuidString)
-                .setData(from: adaptacion, merge: true)
+            try await escribir(adaptacion, en: raiz.collection("adaptaciones").document(adaptacion.id.uuidString))
         }
+    }
+
+    private func escribir<T: Encodable>(_ valor: T, en referencia: DocumentReference) async throws {
+        let datos: [String: Any]
+        if let cuenta = valor as? DocumentoCuenta {
+            datos = try Self.codificarCuenta(cuenta)
+        } else {
+            datos = try Firestore.Encoder().encode(valor)
+        }
+        // El overload Codable sin completion sólo confirma la cola local
+        // de Firestore. El async espera la confirmación del servidor.
+        try await referencia.setData(datos, merge: true)
+    }
+
+    nonisolated static func codificarCuenta(_ cuenta: DocumentoCuenta) throws -> [String: Any] {
+        var datos = try Firestore.Encoder().encode(cuenta)
+        // Codable omite nil y merge conservaría el plan archivado remoto.
+        if cuenta.planActivoID == nil { datos["planActivoID"] = NSNull() }
+        if cuenta.perfil == nil { datos["perfil"] = NSNull() }
+        return datos
     }
 
     // MARK: Logout
@@ -384,23 +439,34 @@ final class RepositorioCuenta: ObservableObject {
     ///
     /// Antes de limpiar se intenta vaciar la cola: si A terminó una
     /// carrera sin señal y cierra sesión, esa carrera tiene que llegar.
-    func limpiarParaLogout() async {
-        await vaciarPendientes()
+    @discardableResult
+    func limpiarParaLogout() async -> Bool {
+        guard !almacen.cargaBloqueada, !almacen.cambiosSinGuardar else { return false }
         if !pendientes.isEmpty {
-            // No se pudo subir. Conservador: se deja el disco como está
-            // y se avisa. Perder una carrera es peor que ver un plan
-            // ajeno un rato — y el próximo login del dueño lo resuelve.
+            // Reintentar en segundo plano; el botón no espera una red
+            // ausente indefinidamente. La sesión sigue abierta hasta ACK.
+            Task { await vaciarPendientes() }
             estado = .error(String(localized: "Quedaron cambios sin sincronizar. Conectate y volvé a entrar con tu cuenta para no perderlos."))
-            return
+            return false
         }
-        pendientes = []
-        guardarPendientes()
+        // La limpieza de la caché NO es una edición del perfil remoto.
+        observador?.cancel()
+        observador = nil
+        let anterior = almacen.almacen
         var limpio = AlmacenV2()
         limpio.activado = true
         almacen.almacen = limpio
+        guard !almacen.cambiosSinGuardar else {
+            almacen.almacen = anterior
+            Self.conectar(self, con: almacen)
+            return false
+        }
+        pendientes = []
+        guardarPendientes()
         ultimaFoto = nil
         estado = .inactivo
         ultimaSync = nil
+        return true
     }
 
     // MARK: Borrado de cuenta
@@ -464,6 +530,9 @@ struct OperacionPendiente: Codable, Equatable, Identifiable {
     var tipo: Tipo
     var entidadID: String
     var creadaEl: Date = Date()
+    /// Opcional para decodificar la cola de builds anteriores. Una vez
+    /// asociado, cambiar la sesión Firebase no cambia el dueño del envío.
+    var usuarioFirebaseUID: String? = nil
 
     var id: String { "\(tipo.rawValue):\(entidadID)" }
 

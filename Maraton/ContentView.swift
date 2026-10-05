@@ -104,7 +104,8 @@ struct ContentView: View {
             Task {
                 if hay { await sesion.restaurar(con: repositorio) }
                 else {
-                    await repositorio.limpiarParaLogout()
+                    // El cierre explícito ya limpió antes de desconectar
+                    // Firebase. Una revocación conserva la caché de su dueño.
                     sesion.olvidarOmision()
                     sesion.reevaluar()
                 }

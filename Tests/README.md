@@ -29,6 +29,10 @@ el `.xcresult` y las capturas como artefactos de GitHub Actions.
   reintento e idempotencia de resultados pendientes del reloj.
 - Auto-pausa: timestamps GPS medidos, señales viejas o duplicadas, precisión,
   saltos temporales y pausa manual; cierre de sesión por identidad.
+- Cuentas: separación entre UIDs, regreso a la cuenta original, bloqueo de
+  asociación con datos ajenos y cierre seguro ante fallas de sincronización.
+- Cola remota: confirmación pendiente, falla y reapertura, edición concurrente
+  y cambio de UID durante el envío, con un escritor inyectado sin red.
 - UI: Hoy → Plan → creación → Progreso → carreras; calendario de plan activo;
   validación del onboarding sin saltos por swipe; recorrido en inglés.
 

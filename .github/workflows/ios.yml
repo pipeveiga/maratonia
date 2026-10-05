@@ -1,8 +1,6 @@
 name: iOS y navegación
 
 on:
-  push:
-    branches: ['codex/maratonia-*']
   pull_request:
     paths: ['Maraton/**', 'Maraton Watch App/**', 'Shared/**', 'Tests/**', 'Maraton.xcodeproj/**', '.github/workflows/ios.yml']
   workflow_dispatch:

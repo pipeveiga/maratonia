@@ -5776,6 +5776,22 @@
         }
       }
     },
+    "Hay datos pendientes de otra cuenta en este teléfono. Volvé a entrar con esa cuenta y sincronizá antes de cambiar de usuario.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is pending data from another account on this phone. Sign back in to that account and sync before switching users."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hay datos pendientes de otra cuenta en este teléfono. Volvé a entrar con esa cuenta y sincronizá antes de cambiar de usuario."
+          }
+        }
+      }
+    },
     "Hay un respaldo pero no lo puedo leer con esta versión de la app. Actualizá Maratonia e intentá de nuevo.": {
       "extractionState": "manual",
       "localizations": {
@@ -7466,6 +7482,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't delete the iCloud backup: %@"
+          }
+        }
+      }
+    },
+    "No pude cerrar sesión sin dejar cambios pendientes. Reintentá cuando tus datos estén guardados y sincronizados.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I could not sign out without leaving pending changes. Try again when your data is saved and synced."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No pude cerrar sesión sin dejar cambios pendientes. Reintentá cuando tus datos estén guardados y sincronizados."
           }
         }
       }
