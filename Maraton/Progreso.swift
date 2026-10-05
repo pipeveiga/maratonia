@@ -188,9 +188,9 @@ struct ProgresoTab: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            VStack(spacing: 0) {
                 if seccion == .carreras {
-                    CarrerasView(irACorrer: irACorrer, almacen: almacen)
+                    CarrerasView(irACorrer: irACorrer, almacen: almacen, muestraTitulo: false)
                 } else {
                     resumen
                 }

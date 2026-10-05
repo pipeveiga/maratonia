@@ -42,6 +42,7 @@ final class NavegacionUITests: XCTestCase {
         app.tabBars.buttons["Progreso"].tap()
         XCTAssertTrue(app.segmentedControls.firstMatch.waitForExistence(timeout: 5))
         app.segmentedControls.buttons["Carreras"].tap()
+        XCTAssertTrue(app.navigationBars["Progreso"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Tu mapa está esperando"].waitForExistence(timeout: 5))
         captura("04-historial-vacio")
         app.buttons["Salir a correr"].tap()
@@ -78,6 +79,7 @@ final class NavegacionUITests: XCTestCase {
         captura("07-plan-en")
         app.tabBars.buttons["Progress"].tap()
         app.segmentedControls.buttons["Runs"].tap()
+        XCTAssertTrue(app.navigationBars["Progress"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Your map is waiting"].waitForExistence(timeout: 5))
         captura("08-historial-en")
     }
