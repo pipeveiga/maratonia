@@ -3939,22 +3939,14 @@ final class ArranqueSinCrashTests: XCTestCase {
         let original = Data(#"{"sesiones": [], "perfil": {}}"#.utf8)
         try original.write(to: urlV2)
 
-        let almacen = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
-                                                    fecha: Date())
-
-        // La app abre igual: vacía, no rota.
-        XCTAssertNil(almacen.planActivo)
-        XCTAssertTrue(almacen.activado)
-
-        // Y los bytes siguen existiendo, bajo otro nombre.
-        let quedaron = try FileManager.default
-            .contentsOfDirectory(atPath: carpeta.path)
-            .filter { $0.contains("ilegible") }
-        XCTAssertEqual(quedaron.count, 1, "el archivo original tiene que sobrevivir")
-        XCTAssertEqual(try Data(contentsOf: carpeta.appendingPathComponent(quedaron[0])),
-                       original, "y sobrevivir INTACTO")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: urlV2.path),
-                       "el nombre original queda libre, sin un vacío escrito encima")
+        XCTAssertThrowsError(try AlmacenStore.cargarConCutover(
+            urlV2: urlV2, urlLegacy: urlLegacy, fecha: Date()))
+        // Un archivo ilegible sin copia válida bloquea el arranque;
+        // nunca se presenta como una instalación vacía sincronizable.
+        let store = AlmacenStore(url: urlV2, urlLegacy: urlLegacy, conectadoAlReloj: false)
+        XCTAssertTrue(store.cargaBloqueada)
+        XCTAssertNotNil(store.mensajePersistencia)
+        XCTAssertEqual(try Data(contentsOf: urlV2), original)
     }
 
     /// Y el caso normal sigue igual: sin archivo, usuario nuevo.
@@ -3963,7 +3955,7 @@ final class ArranqueSinCrashTests: XCTestCase {
             .appendingPathComponent("maratonia-limpio-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: carpeta, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: carpeta) }
-        let almacen = AlmacenStore.cargarConCutover(
+        let almacen = try AlmacenStore.cargarConCutover(
             urlV2: carpeta.appendingPathComponent("dominio-v2.json"),
             urlLegacy: carpeta.appendingPathComponent("plan.json"), fecha: Date())
         XCTAssertNil(almacen.planActivo)

@@ -125,6 +125,7 @@ final class LectorProgreso: ObservableObject {
     private let healthStore = HKHealthStore()
 
     func cargar(semanas: Int = 12) {
+        guard !EscenarioNavegacionQA.activo else { return }
         guard HKHealthStore.isHealthDataAvailable() else { return }
         cargando = true
         let tipos: Set<HKObjectType> = [.workoutType()]
@@ -183,62 +184,83 @@ struct ProgresoTab: View {
     /// lo único útil que puede ofrecer esta pantalla es ir a correr.
     var irACorrer: (() -> Void)?
 
+    @State private var seccion: SeccionProgreso = .resumen
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: DV2.Espacio.xl) {
-                    let semanas = CalculoProgreso.semanas(sesiones: lector.sesiones,
-                                                          cuantas: 8, hoy: Date())
-                    // SIN carreras todavía no hay progreso que graficar:
-                    // ocho barras en cero y una racha vacía no se leen
-                    // como "recién empezás", se leen como una pantalla
-                    // rota. El plan de la semana SÍ se muestra —eso ya
-                    // existe— y el resto se reemplaza por el estado
-                    // vacío, que dice qué falta para que aparezca.
-                    heroSemana(semanas)
-                    if lector.sesiones.isEmpty {
-                        // El plan de la semana SÍ existe sin carreras.
-                        // El resto (volumen, racha, marcas) se calcula
-                        // sobre carreras: mientras Salud responde no se
-                        // dibujan en cero para después saltar al estado
-                        // vacío — ese parpadeo se lee como un error.
-                        tarjetaPlan
-                        if !lector.cargando {
-                            EstadoVacio(
-                                icono: "chart.line.uptrend.xyaxis",
-                                titulo: String(localized: "Tu progreso arranca con la primera"),
-                                detalle: String(localized: "Volumen, marcas y racha se completan solos con cada carrera que guardes en Salud."),
-                                // Sin repetir la salida: si el héroe de
-                                // arriba ya ofrece "Empezar la de hoy",
-                                // dos botones primarios apilados que van
-                                // al mismo lado son ruido, no opciones.
-                                accion: hayEntrenamientoPendienteHoy
-                                    ? nil
-                                    : irACorrer.map { hacer in
-                                        (texto: String(localized: "Salir a correr"), hacer: hacer)
-                                      })
-                                .padding(.horizontal)
-                        }
-                    } else {
-                        tarjetaVolumen(semanas)
-                        tarjetaPlan
-                        tarjetaConsistencia(semanas)
-                        tarjetaDestacados
-                    }
-
-                    // Tus carreras, ACÁ. Eran una pestaña propia que
-                    // contestaba la misma pregunta que esta —¿cómo
-                    // vengo?— con otro formato: los números de un lado y
-                    // los mapas del otro, y había que elegir pestaña sin
-                    // saber cuál tenía lo que buscabas.
-                    seccionCarreras
-                    seccionComoVengo
+            VStack(spacing: 0) {
+                Picker("Ver progreso", selection: $seccion) {
+                    Text("Resumen").tag(SeccionProgreso.resumen)
+                    Text("Carreras").tag(SeccionProgreso.carreras)
                 }
-                .padding(.vertical)
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("seccionesProgreso")
+                .padding()
+                .background(.regularMaterial)
+                if seccion == .carreras {
+                    CarrerasView(irACorrer: irACorrer, almacen: almacen, muestraTitulo: false)
+                } else {
+                    resumen
+                }
             }
             .navigationTitle("Progreso")
+            .navigationBarTitleDisplayMode(.inline)
             .onAppear { lector.cargar(); carreras.cargar() }
             .refreshable { lector.cargar(); carreras.cargar() }
+        }
+    }
+
+    private var resumen: some View {
+        ScrollView {
+            VStack(spacing: DV2.Espacio.xl) {
+                let semanas = CalculoProgreso.semanas(sesiones: lector.sesiones,
+                                                      cuantas: 8, hoy: Date())
+                // SIN carreras todavía no hay progreso que graficar:
+                // ocho barras en cero y una racha vacía no se leen
+                // como "recién empezás", se leen como una pantalla
+                // rota. El plan de la semana SÍ se muestra —eso ya
+                // existe— y el resto se reemplaza por el estado
+                // vacío, que dice qué falta para que aparezca.
+                heroSemana(semanas)
+                if lector.sesiones.isEmpty {
+                    // El plan de la semana SÍ existe sin carreras.
+                    // El resto (volumen, racha, marcas) se calcula
+                    // sobre carreras: mientras Salud responde no se
+                    // dibujan en cero para después saltar al estado
+                    // vacío — ese parpadeo se lee como un error.
+                    tarjetaPlan
+                    if !lector.cargando {
+                        EstadoVacio(
+                            icono: "chart.line.uptrend.xyaxis",
+                            titulo: String(localized: "Tu progreso arranca con la primera"),
+                            detalle: String(localized: "Volumen, marcas y racha se completan solos con cada carrera que guardes en Salud."),
+                            // Sin repetir la salida: si el héroe de
+                            // arriba ya ofrece "Empezar la de hoy",
+                            // dos botones primarios apilados que van
+                            // al mismo lado son ruido, no opciones.
+                            accion: hayEntrenamientoPendienteHoy
+                                ? nil
+                                : irACorrer.map { hacer in
+                                    (texto: String(localized: "Salir a correr"), hacer: hacer)
+                                  })
+                            .padding(.horizontal)
+                    }
+                } else {
+                    tarjetaVolumen(semanas)
+                    tarjetaPlan
+                    tarjetaConsistencia(semanas)
+                    tarjetaDestacados
+                }
+
+                // Tus carreras, ACÁ. Eran una pestaña propia que
+                // contestaba la misma pregunta que esta —¿cómo
+                // vengo?— con otro formato: los números de un lado y
+                // los mapas del otro, y había que elegir pestaña sin
+                // saber cuál tenía lo que buscabas.
+                seccionCarreras
+                seccionComoVengo
+            }
+            .padding(.vertical)
         }
     }
 

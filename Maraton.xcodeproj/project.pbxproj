@@ -72,6 +72,9 @@
 		A1000000000000000000FA02 /* SalidasCoach.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000FA01 /* SalidasCoach.swift */; };
 		A10000000000000000000144 /* AlternativasCoach.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000143 /* AlternativasCoach.swift */; };
 		A10000000000000000000146 /* CoachUX.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000145 /* CoachUX.swift */; };
+		F10000000000000000000002 /* Navegacion.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000001 /* Navegacion.swift */; };
+		F10000000000000000000012 /* NavegacionUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000011; };
+		F10000000000000000000032 /* PersistenciaAlmacen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000031; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -89,6 +92,7 @@
 			remoteGlobalIDString = A10000000000000000000002;
 			remoteInfo = Maraton;
 		};
+		F10000000000000000000014 = {isa = PBXContainerItemProxy; containerPortal = A10000000000000000000001; proxyType = 1; remoteGlobalIDString = A10000000000000000000002; remoteInfo = Maraton; };
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -169,6 +173,10 @@
 		A1000000000000000000FA01 /* SalidasCoach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalidasCoach.swift; sourceTree = "<group>"; };
 		A10000000000000000000143 /* AlternativasCoach.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlternativasCoach.swift; sourceTree = "<group>"; };
 		A10000000000000000000145 /* CoachUX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachUX.swift; sourceTree = "<group>"; };
+		F10000000000000000000001 /* Navegacion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Navegacion.swift; sourceTree = "<group>"; };
+		F10000000000000000000011 /* NavegacionUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavegacionUITests.swift; sourceTree = "<group>"; };
+		F10000000000000000000013 /* MaratonUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MaratonUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F10000000000000000000031 /* PersistenciaAlmacen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenciaAlmacen.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -196,6 +204,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F10000000000000000000017 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -211,6 +220,7 @@
 				A10000000000000000000009 /* Maraton Watch App */,
 				A1000000000000000000000A /* Shared */,
 				A10000000000000000000085 /* Tests/MaratonTests */,
+				F10000000000000000000015 /* Tests/MaratonUITests */,
 				A10000000000000000000007 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -221,6 +231,7 @@
 				A10000000000000000000004 /* Maraton.app */,
 				A10000000000000000000005 /* Maraton Watch App.app */,
 				A10000000000000000000080 /* MaratonTests.xctest */,
+				F10000000000000000000013 /* MaratonUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -231,6 +242,8 @@
 				3D716CDD302A14D100245555 /* Maraton.xcodeproj */,
 				A10000000000000000000020 /* MaratonApp.swift */,
 				A10000000000000000000021 /* ContentView.swift */,
+				F10000000000000000000001 /* Navegacion.swift */,
+				F10000000000000000000031 /* PersistenciaAlmacen.swift */,
 				A10000000000000000000027 /* PlanStore.swift */,
 				A10000000000000000000028 /* AvisoEditores.swift */,
 				A10000000000000000000029 /* Conectividad.swift */,
@@ -313,6 +326,7 @@
 			path = Tests/MaratonTests;
 			sourceTree = "<group>";
 		};
+		F10000000000000000000015 /* Tests/MaratonUITests */ = {isa = PBXGroup; children = (F10000000000000000000011,); path = Tests/MaratonUITests; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -375,6 +389,17 @@
 			productReference = A10000000000000000000080 /* MaratonTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		F10000000000000000000020 /* MaratonUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F10000000000000000000021;
+			buildPhases = (F10000000000000000000016, F10000000000000000000017, F10000000000000000000018,);
+			buildRules = ();
+			dependencies = (F10000000000000000000019,);
+			name = MaratonUITests;
+			productName = MaratonUITests;
+			productReference = F10000000000000000000013;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -421,6 +446,7 @@
 			);
 			projectRoot = "";
 			targets = (
+				F10000000000000000000020 /* MaratonUITests */,
 				A10000000000000000000002 /* Maraton */,
 				A10000000000000000000003 /* Maraton Watch App */,
 				A10000000000000000000089 /* MaratonTests */,
@@ -457,6 +483,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F10000000000000000000018 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -466,6 +493,8 @@
 			files = (
 				A10000000000000000000030 /* MaratonApp.swift in Sources */,
 				A10000000000000000000031 /* ContentView.swift in Sources */,
+				F10000000000000000000002 /* Navegacion.swift in Sources */,
+				F10000000000000000000032 /* PersistenciaAlmacen.swift in Sources */,
 				A10000000000000000000036 /* Plan.swift in Sources */,
 				A10000000000000000000038 /* PlanStore.swift in Sources */,
 				A10000000000000000000039 /* AvisoEditores.swift in Sources */,
@@ -535,6 +564,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F10000000000000000000016 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F10000000000000000000012,); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -548,6 +578,7 @@
 			target = A10000000000000000000002 /* Maraton */;
 			targetProxy = A1000000000000000000008A /* PBXContainerItemProxy */;
 		};
+		F10000000000000000000019 = {isa = PBXTargetDependency; target = A10000000000000000000002; targetProxy = F10000000000000000000014; };
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -851,6 +882,40 @@
 			};
 			name = Release;
 		};
+		F10000000000000000000022 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 2M7NJ8V37F;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pipeveiga.maraton.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Maraton;
+			};
+			name = Debug;
+		};
+		F10000000000000000000023 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 2M7NJ8V37F;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.pipeveiga.maraton.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = Maraton;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -890,6 +955,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		F10000000000000000000021 = {isa = XCConfigurationList; buildConfigurations = (F10000000000000000000022, F10000000000000000000023,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */

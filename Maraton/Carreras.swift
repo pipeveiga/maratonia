@@ -101,6 +101,12 @@ final class CarrerasStore: ObservableObject {
     private var consultaEnCurso = false
 
     func cargar() {
+        if EscenarioNavegacionQA.activo {
+            carreras = []
+            mensaje = nil
+            sinCarreras = true
+            return
+        }
         // Después de la primera vez, cada entrada a la pestaña vuelve a
         // consultar: los workouts del reloj tardan minutos en sincronizar
         // y con una sola consulta la lista quedaba vieja hasta reabrir.
@@ -251,8 +257,20 @@ struct CarrerasView: View {
     /// Para que el detalle pueda decir QUÉ sesión del plan fue esta
     /// carrera. Opcional: una carrera libre no tiene plan detrás.
     var almacen: AlmacenStore?
+    /// Al integrarse en Progreso, el contenedor es dueño del título.
+    var muestraTitulo = true
 
     var body: some View {
+        Group {
+            if muestraTitulo {
+                lista.navigationTitle("Mis carreras")
+            } else {
+                lista
+            }
+        }
+    }
+
+    private var lista: some View {
         List {
             if !store.carreras.isEmpty {
                 seccionProgreso
@@ -337,7 +355,6 @@ struct CarrerasView: View {
                 }
             }
         }
-        .navigationTitle("Mis carreras")
         .onAppear { store.cargar() }
         .refreshable { await store.recargar() }
         .confirmationDialog("¿Ocultar esta carrera de Maratonia?",

@@ -117,6 +117,7 @@ final class SesionApp: ObservableObject {
     /// Arranca la restauración desde la cuenta. La UI no espera a que
     /// termine para dejar usar la app si ya hay datos en disco.
     func restaurar(con repositorio: RepositorioCuenta) async {
+        guard !almacen.cargaBloqueada else { return }
         guard identidad.haySesion else { return reevaluar() }
         let teniaDatos = Self.tienePerfil(almacen.almacen)
         if !teniaDatos {

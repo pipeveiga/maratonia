@@ -1552,6 +1552,17 @@
         }
       }
     },
+    "Acá están tu cuenta, objetivo, unidades, audio, Apple Watch y respaldos. También podés recuperar carreras ocultas y volver a consultar esta ayuda.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find your account, goal, units, audio, Apple Watch and backups here. You can also restore hidden runs and read this guide again."
+          }
+        }
+      }
+    },
     "Adoptar este plan": {
       "extractionState": "manual",
       "localizations": {
@@ -1783,6 +1794,17 @@
         }
       }
     },
+    "Antes de salir": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Before you go"
+          }
+        }
+      }
+    },
     "Anual": {
       "extractionState": "manual",
       "localizations": {
@@ -1944,6 +1966,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Session audio"
+          }
+        }
+      }
+    },
+    "Audio y avisos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio and cues"
           }
         }
       }
@@ -2355,6 +2388,17 @@
         }
       }
     },
+    "Cambiar objetivo o disponibilidad": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change goal or availability"
+          }
+        }
+      }
+    },
     "Cambio de ritmo %lld": {
       "extractionState": "manual",
       "localizations": {
@@ -2483,6 +2527,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Run"
+          }
+        }
+      }
+    },
+    "Carrera en curso": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run in progress"
+          }
+        }
+      }
+    },
+    "Carrera en pausa": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run paused"
           }
         }
       }
@@ -2751,6 +2817,17 @@
         }
       }
     },
+    "Configurá la voz, tu música y las sesiones manuales": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set up voice cues, music and manual workouts"
+          }
+        }
+      }
+    },
     "Confirmar": {
       "extractionState": "manual",
       "localizations": {
@@ -2971,6 +3048,17 @@
         }
       }
     },
+    "Correr con Apple Watch": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Run with Apple Watch"
+          }
+        }
+      }
+    },
     "Correr libre": {
       "extractionState": "manual",
       "localizations": {
@@ -3055,6 +3143,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Create account or sign in"
+          }
+        }
+      }
+    },
+    "Crear mi plan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create my plan"
+          }
+        }
+      }
+    },
+    "Creá un plan con tu objetivo y tus días disponibles. Si ya tenés uno, el calendario se abre directamente: elegí una semana y tocá cualquier entrenamiento para ver sus detalles o cambiarlo de día.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create a plan for your goal and available days. If you already have one, the calendar opens directly: choose a week and tap any workout to view its details or move it to another day."
           }
         }
       }
@@ -4192,6 +4302,17 @@
         }
       }
     },
+    "Elegí tu objetivo, contanos cuánto corrés y qué días tenés disponibles. Vas a revisar el plan antes de confirmarlo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose your goal, tell us how much you run and which days work for you. You will review your plan before confirming it."
+          }
+        }
+      }
+    },
     "Elegí un día para tu %@": {
       "extractionState": "manual",
       "localizations": {
@@ -4335,6 +4456,17 @@
         }
       }
     },
+    "Empezá tu entrenamiento de hoy o una carrera libre con el iPhone. En Audio y avisos configurás la voz y tu música. Si usás Apple Watch, entrá en Correr con Apple Watch para enviarle tu sesión.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start today's workout or a free run on your iPhone. Set up voice cues and music in Audio and cues. If you use Apple Watch, open Run with Apple Watch to send your workout."
+          }
+        }
+      }
+    },
     "Empezás con **%@**: te acerca al objetivo, pero no apunta a esa fecha. Podés cambiar la fecha cuando quieras.": {
       "extractionState": "manual",
       "localizations": {
@@ -4375,6 +4507,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "At %@"
+          }
+        }
+      }
+    },
+    "En Plan encontrás tu calendario y los entrenamientos que vienen.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Find your calendar and upcoming workouts in Plan."
+          }
+        }
+      }
+    },
+    "En Resumen ves tus estadísticas. En Carreras encontrás el historial, los mapas y los parciales. Los datos se leen de Apple Health; si no aparecen, el historial te explica cómo revisar los permisos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summary shows your statistics. Runs contains your history, maps and splits. Data comes from Apple Health; if it is missing, your history explains how to check permissions."
           }
         }
       }
@@ -4551,6 +4705,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "It's the only long run of the week — better to shorten or move it than delete it."
+          }
+        }
+      }
+    },
+    "Es opcional. También podés completar los datos abajo.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This is optional. You can also enter your details below."
           }
         }
       }
@@ -4947,6 +5112,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "This is your PRIVATE iCloud (audio plan backup), separate from the Maratonia Account above. When reinstalling or switching phones: “Restore plan”."
+          }
+        }
+      }
+    },
+    "Estos datos requieren otra versión de Maratonia. Actualizá la app. Los archivos originales están protegidos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This data requires another version of Maratonia. Update the app. The original files are protected."
           }
         }
       }
@@ -5600,6 +5776,22 @@
         }
       }
     },
+    "Hay datos pendientes de otra cuenta en este teléfono. Volvé a entrar con esa cuenta y sincronizá antes de cambiar de usuario.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is pending data from another account on this phone. Sign back in to that account and sync before switching users."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hay datos pendientes de otra cuenta en este teléfono. Volvé a entrar con esa cuenta y sincronizá antes de cambiar de usuario."
+          }
+        }
+      }
+    },
     "Hay un respaldo pero no lo puedo leer con esta versión de la app. Actualizá Maratonia e intentá de nuevo.": {
       "extractionState": "manual",
       "localizations": {
@@ -5644,6 +5836,17 @@
         }
       }
     },
+    "Hoy no hay entrenamiento programado": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No workout scheduled today"
+          }
+        }
+      }
+    },
     "Hoy no tenés entrenamiento programado.": {
       "extractionState": "manual",
       "localizations": {
@@ -5651,6 +5854,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "No workout scheduled for today."
+          }
+        }
+      }
+    },
+    "Hoy · Salí a correr": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today · Go for a run"
           }
         }
       }
@@ -7239,6 +7453,17 @@
         }
       }
     },
+    "No pude abrir tus datos: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not open your data: %@"
+          }
+        }
+      }
+    },
     "No pude activar el audio: %@": {
       "extractionState": "manual",
       "localizations": {
@@ -7261,6 +7486,22 @@
         }
       }
     },
+    "No pude cerrar sesión sin dejar cambios pendientes. Reintentá cuando tus datos estén guardados y sincronizados.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I could not sign out without leaving pending changes. Try again when your data is saved and synced."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No pude cerrar sesión sin dejar cambios pendientes. Reintentá cuando tus datos estén guardados y sincronizados."
+          }
+        }
+      }
+    },
     "No pude guardar el plan en el teléfono: %@": {
       "extractionState": "manual",
       "localizations": {
@@ -7268,6 +7509,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't save the plan on this phone: %@"
+          }
+        }
+      }
+    },
+    "No pude guardar tus últimos cambios. Mantené la app abierta y reintentá: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not save your latest changes. Keep the app open and try again: %@"
           }
         }
       }
@@ -7301,6 +7553,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't read the Apple credential."
+          }
+        }
+      }
+    },
+    "No pude leer tus datos ni una copia local válida. Conservé los archivos originales; no reinstales la app. Podés reintentar la lectura.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I could not read your data or a valid local backup. The original files have been preserved; do not reinstall the app. You can try reading again."
           }
         }
       }
@@ -8097,6 +8360,17 @@
         }
       }
     },
+    "Perfil · Ajustá Maratonia": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profile · Set up Maratonia"
+          }
+        }
+      }
+    },
     "Personalizado": {
       "extractionState": "manual",
       "localizations": {
@@ -8262,6 +8536,17 @@
         }
       }
     },
+    "Plan · Organizá tu semana": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plan · Organize your week"
+          }
+        }
+      }
+    },
     "Planes iniciales para validar la experiencia — el contenido es provisional y con ritmos libres. Los planes con ritmos personalizados llegan con la evaluación inicial.": {
       "extractionState": "manual",
       "localizations": {
@@ -8269,6 +8554,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Initial plans to validate the experience — content is provisional with open paces. Personalized paces arrive with the initial assessment."
+          }
+        }
+      }
+    },
+    "Podés consultar tu próxima sesión en Plan o registrar una carrera libre.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View your next workout in Plan or record a free run."
           }
         }
       }
@@ -8368,6 +8664,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Card with background"
+          }
+        }
+      }
+    },
+    "Preferencias para correr": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running preferences"
           }
         }
       }
@@ -8555,6 +8862,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Solid progress"
+          }
+        }
+      }
+    },
+    "Progreso · Mirá lo que corriste": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Progress · Review your runs"
           }
         }
       }
@@ -8779,6 +9097,17 @@
         }
       }
     },
+    "Recuperé tus datos desde la copia local anterior. Revisá los últimos cambios de tu calendario.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your data was recovered from the previous local backup. Check the latest changes to your calendar."
+          }
+        }
+      }
+    },
     "Reemplazar (el actual queda archivado)": {
       "extractionState": "manual",
       "localizations": {
@@ -8830,6 +9159,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Try again"
+          }
+        }
+      }
+    },
+    "Reintentar guardado": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try saving again"
+          }
+        }
+      }
+    },
+    "Reintentar lectura": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try reading again"
           }
         }
       }
@@ -9006,6 +9357,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Restore plan from iCloud"
+          }
+        }
+      }
+    },
+    "Resumen": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summary"
           }
         }
       }
@@ -10055,6 +10417,17 @@
         }
       }
     },
+    "Solo GPS: distancia, ritmo y mapa. Se registra también con la pantalla bloqueada.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GPS only: distance, pace and map. Recording continues with the screen locked."
+          }
+        }
+      }
+    },
     "Solo puedo ayudarte con tu entrenamiento": {
       "extractionState": "manual",
       "localizations": {
@@ -10264,6 +10637,17 @@
         }
       }
     },
+    "También podés correr sin plan desde Hoy.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can also run without a plan from Today."
+          }
+        }
+      }
+    },
     "Tampoco puedo cambiar mis instrucciones": {
       "extractionState": "manual",
       "localizations": {
@@ -10370,6 +10754,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Finish and save"
+          }
+        }
+      }
+    },
+    "Terminá la carrera antes de cerrar sesión o eliminar la cuenta.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish your run before signing out or deleting your account."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminá la carrera antes de cerrar sesión o eliminar la cuenta."
           }
         }
       }
@@ -10968,6 +11368,17 @@
         }
       }
     },
+    "Tu entrenamiento de hoy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's workout"
+          }
+        }
+      }
+    },
     "Tu entrenamiento, en todos tus dispositivos.": {
       "extractionState": "manual",
       "localizations": {
@@ -11067,6 +11478,17 @@
         }
       }
     },
+    "Tu objetivo: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your goal: %@"
+          }
+        }
+      }
+    },
     "Tu perfil": {
       "extractionState": "manual",
       "localizations": {
@@ -11107,6 +11529,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your plan changed while you were deciding, so I recalculated the options."
+          }
+        }
+      }
+    },
+    "Tu plan empieza acá": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your plan starts here"
           }
         }
       }
@@ -11287,6 +11720,17 @@
         }
       }
     },
+    "Tus datos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your data"
+          }
+        }
+      }
+    },
     "Tus días": {
       "extractionState": "manual",
       "localizations": {
@@ -11463,6 +11907,17 @@
         }
       }
     },
+    "Usar mis carreras de Apple Health": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use my Apple Health runs"
+          }
+        }
+      }
+    },
     "Usar un plan sugerido": {
       "extractionState": "manual",
       "localizations": {
@@ -11529,6 +11984,17 @@
         }
       }
     },
+    "Ver detalles del entrenamiento": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View workout details"
+          }
+        }
+      }
+    },
     "Ver hasta el min %lld": {
       "extractionState": "manual",
       "localizations": {
@@ -11551,6 +12017,17 @@
         }
       }
     },
+    "Ver mi plan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View my plan"
+          }
+        }
+      }
+    },
     "Ver plan completo": {
       "extractionState": "manual",
       "localizations": {
@@ -11569,6 +12046,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "See why"
+          }
+        }
+      }
+    },
+    "Ver progreso": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View progress"
           }
         }
       }
@@ -11657,6 +12145,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Volume, personal bests, and streak fill in on their own with every run you save to Health."
+          }
+        }
+      }
+    },
+    "Volver": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return"
           }
         }
       }

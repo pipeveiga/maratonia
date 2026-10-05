@@ -25,15 +25,25 @@ final class CuentaStore: ObservableObject {
     @Published var ultimoRespaldo: Date?
     @Published var mensaje: String?
 
-    private let contenedor = CKContainer(identifier: "iCloud.com.pipeveiga.maraton")
+    private let contenedor: CKContainer?
     private static let idRegistro = CKRecord.ID(recordName: "planActual")
     private var trabajoPendiente: DispatchWorkItem?
 
     private init() {
+        // Los recorridos UI son locales y el runner no firma entitlements
+        // de iCloud. CloudKit aborta incluso al crear el contenedor allí.
+        // El fixture sólo existe en Debug del simulador.
+        if EscenarioNavegacionQA.activo {
+            contenedor = nil
+            estado = .sinSesion
+            return
+        }
+        contenedor = CKContainer(identifier: "iCloud.com.pipeveiga.maraton")
         verificar()
     }
 
     func verificar() {
+        guard let contenedor else { return }
         contenedor.accountStatus { [weak self] estadoCuenta, _ in
             DispatchQueue.main.async {
                 switch estadoCuenta {
@@ -51,6 +61,7 @@ final class CuentaStore: ObservableObject {
     /// Respaldo con espera de 3 s: PlanStore lo llama en cada cambio y
     /// así no bombardeamos iCloud mientras el usuario tipea.
     func respaldarConDemora(_ plan: Plan) {
+        guard contenedor != nil else { return }
         // Re-verificar la cuenta en cada intento: antes se chequeaba UNA
         // vez por vida del proceso, y si iCloud llegó tarde (o volvió),
         // los respaldos se descartaban en silencio para siempre.
@@ -65,6 +76,7 @@ final class CuentaStore: ObservableObject {
 
     /// Sube el plan a la base privada del iCloud del usuario.
     private func respaldar(_ plan: Plan) {
+        guard let contenedor else { return }
         // Un plan sin contenido NUNCA pisa el respaldo: tras reinstalar,
         // la app arranca con el plan vacío y el primer cambio dispararía
         // un respaldo que destruiría justo lo que se quiere restaurar.
@@ -113,6 +125,7 @@ final class CuentaStore: ObservableObject {
     /// Borra el respaldo propio de Maratonia en el iCloud del usuario
     /// (parte de "Eliminar cuenta"). No toca nada más del iCloud.
     func borrarRespaldo() {
+        guard let contenedor else { return }
         contenedor.privateCloudDatabase.delete(withRecordID: Self.idRegistro) { [weak self] _, error in
             DispatchQueue.main.async {
                 // "No existe" también es éxito: no había nada que borrar.
@@ -125,6 +138,7 @@ final class CuentaStore: ObservableObject {
 
     /// Baja el último plan respaldado (reinstalación / teléfono nuevo).
     func restaurar(alTerminar: @escaping (Plan?) -> Void) {
+        guard let contenedor else { alTerminar(nil); return }
         contenedor.privateCloudDatabase.fetch(withRecordID: Self.idRegistro) { [weak self] registro, error in
             DispatchQueue.main.async {
                 guard let json = registro?["json"] as? String else {

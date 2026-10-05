@@ -1,6 +1,64 @@
 import XCTest
 import UIKit
+import Combine
 @testable import Maraton
+
+/// El inicio debe distinguir correr libre, día sin sesión y resultado.
+final class NavegacionInicioTests: XCTestCase {
+    private let hoy = DiaLocal(anio: 2026, mes: 8, dia: 11)
+
+    func testSinPlanPuedeCorrerLibre() {
+        XCTAssertEqual(EstadoDeHoy.desde(AlmacenV2(), hoy: hoy), .libre)
+    }
+
+    func testHoyYPlanSonDestinosDistintos() {
+        XCTAssertNotEqual(Pestana.hoy, Pestana.plan)
+        XCTAssertEqual(Pestana.correr, .hoy)
+        XCTAssertEqual(Pestana.carreras, .progreso)
+    }
+
+    func testPendienteConservaSuIdentidadParaAbrirDetalle() {
+        let (almacen, id) = almacenConProgramado()
+        XCTAssertEqual(EstadoDeHoy.desde(almacen, hoy: hoy), .pendiente(id))
+    }
+
+    func testDescansoNoSeConfundeConAusenciaDePlan() {
+        let (almacen, _) = almacenConProgramado()
+        XCTAssertEqual(EstadoDeHoy.desde(almacen, hoy: hoy.sumando(dias: 1)), .sinEntrenamiento)
+    }
+
+    func testPlanQueEmpiezaMananaNoOfreceLaSesionHoy() {
+        let (almacen, _) = almacenConProgramado()
+        XCTAssertEqual(EstadoDeHoy.desde(almacen, hoy: hoy.sumando(dias: -1)), .sinEntrenamiento)
+    }
+
+    func testCumplidoSigueDisponibleComoResultado() {
+        var (almacen, id) = almacenConProgramado()
+        almacen.vincular(sesionID: UUID(), fechaSesion: Date(), aProgramado: id, completo: true)
+        XCTAssertEqual(EstadoDeHoy.desde(almacen, hoy: hoy), .resuelto(id))
+    }
+
+    func testOmitidoNoDesapareceDelInicio() {
+        var (almacen, id) = almacenConProgramado()
+        almacen.omitir(programadoID: id)
+        XCTAssertEqual(EstadoDeHoy.desde(almacen, hoy: hoy), .resuelto(id))
+    }
+
+    func testArchivarPlanVuelveAModoLibreSinBorrarCarreras() {
+        var (almacen, id) = almacenConProgramado()
+        almacen.vincular(sesionID: UUID(), fechaSesion: Date(), aProgramado: id, completo: true)
+        let antes = almacen.sesiones
+        almacen.abandonarPlan()
+        XCTAssertEqual(EstadoDeHoy.desde(almacen, hoy: hoy), .libre)
+        XCTAssertEqual(almacen.sesiones, antes)
+    }
+
+    func testLaAppDeclaraGPSYAudioEnFondo() {
+        let modos = Bundle(for: PlanStore.self).object(forInfoDictionaryKey: "UIBackgroundModes") as? [String]
+        XCTAssertTrue(modos?.contains("location") == true)
+        XCTAssertTrue(modos?.contains("audio") == true)
+    }
+}
 
 // Tests del dominio V2 (Fase A). Protegen las invariantes de
 // ARCHITECTURE_V2 §Fase A: identidad estable, snapshot, estados,
@@ -526,7 +584,7 @@ final class CutoverTests: XCTestCase {
         PlanStore.migrarADominioV2SiHaceFalta(planV1: planLegacy(), en: urlV2,
                                               fecha: Date(timeIntervalSince1970: 0))
 
-        let almacen = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
+        let almacen = try AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
                                                     fecha: Date(timeIntervalSince1970: 1))
         XCTAssertTrue(almacen.activado)
         XCTAssertEqual(almacen.planActivo?.nombre, "Legacy")
@@ -536,7 +594,7 @@ final class CutoverTests: XCTestCase {
         PlanStore.migrarADominioV2SiHaceFalta(planV1: Plan.vacio, en: urlV2,
                                               fecha: Date(timeIntervalSince1970: 2))
         // …y el segundo arranque carga lo mismo, sin re-migrar.
-        let segundo = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
+        let segundo = try AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
                                                     fecha: Date(timeIntervalSince1970: 3))
         XCTAssertEqual(segundo, almacen)
     }
@@ -548,14 +606,14 @@ final class CutoverTests: XCTestCase {
         let urlV2 = dir.appendingPathComponent("dominio-v2.json")
         let urlLegacy = dir.appendingPathComponent("plan.json")
 
-        var almacen = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
+        var almacen = try AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
                                                     fecha: Date(timeIntervalSince1970: 0))
         almacen.adoptarPlan(Catalogo.planesDisponibles()[0]
             .adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 10),
                      fechaAdopcion: Date(timeIntervalSince1970: 1)))
         try JSONEncoder().encode(almacen).write(to: urlV2)
 
-        let releido = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
+        let releido = try AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
                                                     fecha: Date(timeIntervalSince1970: 9))
         XCTAssertEqual(releido.planActivo?.nombreCrudo, "Primeros 5K")
     }
@@ -564,7 +622,7 @@ final class CutoverTests: XCTestCase {
     func testUsuarioNuevoSinLegacy() throws {
         let dir = try directorioTemporal()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let almacen = AlmacenStore.cargarConCutover(
+        let almacen = try AlmacenStore.cargarConCutover(
             urlV2: dir.appendingPathComponent("dominio-v2.json"),
             urlLegacy: dir.appendingPathComponent("plan.json"),
             fecha: Date(timeIntervalSince1970: 0))
@@ -581,7 +639,7 @@ final class CutoverTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         let urlLegacy = dir.appendingPathComponent("plan.json")
         try JSONEncoder().encode(planLegacy()).write(to: urlLegacy)
-        let almacen = AlmacenStore.cargarConCutover(
+        let almacen = try AlmacenStore.cargarConCutover(
             urlV2: dir.appendingPathComponent("dominio-v2.json"),
             urlLegacy: urlLegacy, fecha: Date(timeIntervalSince1970: 0))
         XCTAssertTrue(almacen.activado)
@@ -2431,5 +2489,387 @@ final class AplicarLoOfrecidoTests: XCTestCase {
             [.reprogramar(programadoID: programado.id, a: martes)],
             a: &almacen, hoy: hoy, origen: .motor, motivo: "prueba")
         XCTAssertEqual(aplicados, 0, "el motor no puede repartir fuera de los días elegidos")
+    }
+}
+
+final class PersistenciaAlmacenTests: XCTestCase {
+    private func directorio() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try FileManager.default.removeItem(at: dir) }
+        return dir
+    }
+
+    private func dominio() -> AlmacenV2 {
+        var valor = AlmacenV2()
+        valor.activado = true
+        valor.usuarioID = UUID()
+        valor.registrarSesionLibre(sesionID: UUID(), fecha: Date(timeIntervalSince1970: 10))
+        return valor
+    }
+
+    func testGuardaDosGeneracionesDelDominioCompleto() throws {
+        let dir = try directorio()
+        let disco = PersistenciaAlmacen(url: dir.appendingPathComponent("v2.json"))
+        let anterior = dominio()
+        var nuevo = anterior
+        nuevo.registrarSesionLibre(sesionID: UUID(), fecha: Date(timeIntervalSince1970: 20))
+        try disco.guardar(anterior)
+        try disco.guardar(nuevo)
+        XCTAssertEqual(try PersistenciaAlmacen.decodificar(Data(contentsOf: disco.url)), nuevo)
+        XCTAssertEqual(try PersistenciaAlmacen.decodificar(Data(contentsOf: disco.urlCopia)), anterior)
+    }
+
+    func testRecuperaCopiaYPreservaArchivoCorrupto() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        let disco = PersistenciaAlmacen(url: url)
+        let anterior = dominio()
+        try disco.guardar(anterior)
+        let roto = Data("{truncado".utf8)
+        try roto.write(to: url)
+        // El orden real de arranque comienza por la migración legacy.
+        PlanStore.migrarADominioV2SiHaceFalta(planV1: .vacio, en: url)
+        XCTAssertEqual(try Data(contentsOf: url), roto)
+        let store = AlmacenStore(url: url, urlLegacy: dir.appendingPathComponent("legacy.json"),
+                                 conectadoAlReloj: false)
+        XCTAssertEqual(store.almacen, anterior)
+        XCTAssertFalse(store.cargaBloqueada)
+        XCTAssertFalse(store.cambiosSinGuardar)
+        XCTAssertNotNil(store.mensajePersistencia)
+        XCTAssertEqual(try PersistenciaAlmacen.decodificar(Data(contentsOf: url)), anterior)
+        let copias = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.contains("corrupto-") }
+        XCTAssertEqual(copias.count, 1)
+        XCTAssertEqual(try Data(contentsOf: XCTUnwrap(copias.first)), roto)
+    }
+
+    func testSinCopiaNoPisaCorrupcionConLegacyNiConMutaciones() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        let legacy = dir.appendingPathComponent("legacy.json")
+        let roto = Data("no es JSON".utf8)
+        try roto.write(to: url)
+        try JSONEncoder().encode(Plan.vacio).write(to: legacy)
+        PlanStore.migrarADominioV2SiHaceFalta(planV1: .vacio, en: url)
+        let store = AlmacenStore(url: url, urlLegacy: legacy, conectadoAlReloj: false)
+        XCTAssertTrue(store.cargaBloqueada)
+        store.almacen = dominio()
+        store.reintentarPersistencia()
+        XCTAssertTrue(store.cargaBloqueada)
+        XCTAssertEqual(try Data(contentsOf: url), roto)
+    }
+
+    func testVersionFuturaNoSeReemplazaAunqueExistaBackup() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        let disco = PersistenciaAlmacen(url: url)
+        try disco.guardar(dominio())
+        var futuro = dominio()
+        futuro.versionEsquema = 99
+        let datos = try JSONEncoder().encode(futuro)
+        try datos.write(to: url)
+        PlanStore.migrarADominioV2SiHaceFalta(planV1: .vacio, en: url)
+        let store = AlmacenStore(url: url, urlLegacy: dir.appendingPathComponent("legacy.json"),
+                                 conectadoAlReloj: false)
+        XCTAssertTrue(store.cargaBloqueada)
+        store.almacen = dominio()
+        store.reintentarPersistencia()
+        XCTAssertEqual(try Data(contentsOf: url), datos)
+    }
+
+    func testPrincipalAusenteRecuperaBackupEnVezDeMigrar() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        let disco = PersistenciaAlmacen(url: url)
+        let valor = dominio()
+        try disco.guardar(valor)
+        try FileManager.default.removeItem(at: url)
+        PlanStore.migrarADominioV2SiHaceFalta(planV1: .vacio, en: url)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+        let store = AlmacenStore(url: url, urlLegacy: dir.appendingPathComponent("legacy.json"),
+                                 conectadoAlReloj: false)
+        XCTAssertEqual(store.almacen, valor)
+        XCTAssertFalse(store.cargaBloqueada)
+    }
+
+    func testErrorDeLecturaNoSeConfundeConInstalacionNueva() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
+        let disco = PersistenciaAlmacen(url: url)
+        try JSONEncoder().encode(dominio()).write(to: disco.urlCopia)
+        XCTAssertThrowsError(try disco.cargar(urlLegacy: dir.appendingPathComponent("legacy.json"), fecha: Date()))
+        var esDirectorio: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path, isDirectory: &esDirectorio))
+        XCTAssertTrue(esDirectorio.boolValue)
+    }
+
+    func testErrorDeEscrituraSeVeYReintentoConservaCambios() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        let copia = PersistenciaAlmacen.urlCopia(de: url)
+        let store = AlmacenStore(url: url, urlLegacy: dir.appendingPathComponent("legacy.json"),
+                                 conectadoAlReloj: false)
+        let anterior = try Data(contentsOf: url)
+        try FileManager.default.removeItem(at: copia)
+        try FileManager.default.createDirectory(at: copia, withIntermediateDirectories: false)
+        let nuevo = dominio()
+        store.almacen = nuevo
+        XCTAssertTrue(store.cambiosSinGuardar)
+        XCTAssertNotNil(store.mensajePersistencia)
+        XCTAssertEqual(try Data(contentsOf: url), anterior)
+        XCTAssertEqual(store.almacen, nuevo)
+        try FileManager.default.removeItem(at: copia)
+        store.reintentarPersistencia()
+        XCTAssertFalse(store.cambiosSinGuardar)
+        XCTAssertNil(store.mensajePersistencia)
+        XCTAssertEqual(try PersistenciaAlmacen.decodificar(Data(contentsOf: url)), nuevo)
+    }
+
+    func testReintentarLecturaEntregaResultadosPendientesUnaSolaVez() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        try Data("corrupto".utf8).write(to: url)
+        let store = AlmacenStore(url: url, urlLegacy: dir.appendingPathComponent("legacy.json"),
+                                 conectadoAlReloj: false)
+        let resultado = ResultadoSesionWatch(sesionID: UUID(), fecha: Date(),
+                                             programadoID: nil, estructuraCompleta: false)
+        store.procesar(resultado: resultado)
+        let reparado = dominio()
+        try JSONEncoder().encode(reparado).write(to: url)
+        store.reintentarPersistencia()
+        store.procesar(resultado: resultado)
+        XCTAssertFalse(store.cargaBloqueada)
+        XCTAssertEqual(store.almacen.sesiones.count, reparado.sesiones.count + 1)
+        XCTAssertEqual(store.almacen.sesiones.filter { $0.id == resultado.sesionID }.count, 1)
+    }
+
+    func testCodificacionFallidaNoPisaNingunaCopia() throws {
+        let dir = try directorio()
+        let disco = PersistenciaAlmacen(url: dir.appendingPathComponent("v2.json"))
+        let valor = dominio()
+        try disco.guardar(valor)
+        let principal = try Data(contentsOf: disco.url)
+        let copia = try Data(contentsOf: disco.urlCopia)
+        var invalido = valor
+        invalido.referencias = [ReferenciaRendimiento(fecha: Date(), fuente: .test5K,
+            distanciaMetros: .nan, segundos: 1500)]
+        XCTAssertThrowsError(try disco.guardar(invalido))
+        XCTAssertEqual(try Data(contentsOf: disco.url), principal)
+        XCTAssertEqual(try Data(contentsOf: disco.urlCopia), copia)
+    }
+}
+
+@MainActor
+final class SeparacionDeCuentasTests: XCTestCase {
+    private func directorio() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try FileManager.default.removeItem(at: dir) }
+        return dir
+    }
+
+    private func proveedor(_ uid: String, tipo: ProveedorVinculado.Tipo = .email,
+                           subject: String = "corredor@example.com") -> ProveedorVinculado {
+        ProveedorVinculado(tipo: tipo, subjectID: subject, email: nil,
+                          fechaVinculacion: Date(), firebaseUID: uid)
+    }
+
+    private func almacen(_ dir: URL) -> AlmacenStore {
+        AlmacenStore(url: dir.appendingPathComponent("dominio.json"),
+                     urlLegacy: dir.appendingPathComponent("legacy.json"),
+                     conectadoAlReloj: false)
+    }
+
+    func testMismoUIDConOtroProveedorConservaLaCuenta() throws {
+        let dir = try directorio()
+        let identidad = IdentidadStore(url: dir.appendingPathComponent("cuenta.json"))
+        identidad.iniciarSesion(con: proveedor("A"), nombre: "Ana")
+        let id = identidad.cuenta?.userID
+        identidad.cerrarSesion()
+        XCTAssertTrue(identidad.iniciarSesion(con: proveedor("A", tipo: .google, subject: "google-A")))
+        XCTAssertEqual(identidad.cuenta?.userID, id)
+        XCTAssertEqual(identidad.cuenta?.proveedores.count, 2)
+        XCTAssertEqual(identidad.cuenta?.nombre, "Ana")
+    }
+
+    func testOtroUIDNoHeredaIdentidadNiNombreAunqueElEmailCoincida() throws {
+        let dir = try directorio()
+        let identidad = IdentidadStore(url: dir.appendingPathComponent("cuenta.json"))
+        identidad.iniciarSesion(con: proveedor("A"), nombre: "Ana")
+        let id = identidad.cuenta?.userID
+        identidad.cerrarSesion()
+        XCTAssertTrue(identidad.iniciarSesion(con: proveedor("B"), nombre: "Bruno"))
+        XCTAssertNotEqual(identidad.cuenta?.userID, id)
+        XCTAssertEqual(identidad.cuenta?.nombre, "Bruno")
+        XCTAssertEqual(identidad.cuenta?.proveedores.compactMap(\.firebaseUID), ["B"])
+    }
+
+    func testDatosDeANoSeAsocianNiSeMigranAB() throws {
+        let dir = try directorio()
+        let store = almacen(dir)
+        let identidad = IdentidadStore(url: dir.appendingPathComponent("cuenta.json"))
+        IdentidadStore.conectar(identidad, con: store)
+        identidad.iniciarSesion(con: proveedor("A"))
+        store.almacen.registrarSesionLibre(sesionID: UUID(), fecha: Date())
+        let antes = store.almacen
+        identidad.cerrarSesion()
+        XCTAssertFalse(identidad.iniciarSesion(con: proveedor("B")))
+        XCTAssertFalse(identidad.haySesion)
+        XCTAssertNotNil(identidad.mensajeError)
+        XCTAssertEqual(store.almacen, antes)
+        XCTAssertEqual(identidad.cuenta?.userID, antes.usuarioID)
+        XCTAssertTrue(identidad.iniciarSesion(con: proveedor("A")))
+        XCTAssertEqual(store.almacen, antes)
+    }
+
+    func testLogoutConPendientesConservaCacheYCuenta() async throws {
+        let dir = try directorio()
+        let store = almacen(dir)
+        store.almacen.usuarioID = UUID()
+        store.almacen.registrarSesionLibre(sesionID: UUID(), fecha: Date())
+        let antes = store.almacen
+        let repo = RepositorioCuenta(almacen: store, urlPendientes: dir.appendingPathComponent("cola.json"))
+        repo.anotarCambio(.sesion(antes.sesiones[0].id))
+        let cerro = await repo.limpiarParaLogout()
+        XCTAssertFalse(cerro)
+        XCTAssertEqual(store.almacen, antes)
+        XCTAssertEqual(try PersistenciaAlmacen.decodificar(Data(contentsOf: dir.appendingPathComponent("dominio.json"))), antes)
+    }
+
+    func testLogoutConFallaEnDiscoConservaDatosEnMemoriaYPrincipal() async throws {
+        let dir = try directorio()
+        let store = almacen(dir)
+        store.almacen.usuarioID = UUID()
+        store.almacen.registrarSesionLibre(sesionID: UUID(), fecha: Date())
+        let antes = store.almacen
+        let url = dir.appendingPathComponent("dominio.json")
+        let copia = PersistenciaAlmacen.urlCopia(de: url)
+        try FileManager.default.removeItem(at: copia)
+        try FileManager.default.createDirectory(at: copia, withIntermediateDirectories: false)
+        let repo = RepositorioCuenta(almacen: store, urlPendientes: dir.appendingPathComponent("cola.json"))
+        let cerro = await repo.limpiarParaLogout()
+        XCTAssertFalse(cerro)
+        XCTAssertEqual(store.almacen, antes)
+        XCTAssertEqual(try PersistenciaAlmacen.decodificar(Data(contentsOf: url)), antes)
+    }
+
+    func testLogoutConfirmadoPermiteOtraCuentaConCacheVacia() async throws {
+        let dir = try directorio()
+        let store = almacen(dir)
+        let identidad = IdentidadStore(url: dir.appendingPathComponent("cuenta.json"))
+        IdentidadStore.conectar(identidad, con: store)
+        identidad.iniciarSesion(con: proveedor("A"), nombre: "Ana")
+        store.almacen.registrarSesionLibre(sesionID: UUID(), fecha: Date())
+        let idA = identidad.cuenta?.userID
+        let repo = RepositorioCuenta(almacen: store, urlPendientes: dir.appendingPathComponent("cola.json"))
+        let cerro = await repo.limpiarParaLogout()
+        XCTAssertTrue(cerro)
+        XCTAssertTrue(store.almacen.sesiones.isEmpty)
+        XCTAssertNil(store.almacen.usuarioID)
+        identidad.cerrarSesion()
+        XCTAssertTrue(identidad.iniciarSesion(con: proveedor("B"), nombre: "Bruno"))
+        XCTAssertNotEqual(identidad.cuenta?.userID, idA)
+        XCTAssertEqual(store.almacen.usuarioID, identidad.cuenta?.userID)
+        XCTAssertTrue(store.almacen.sesiones.isEmpty)
+    }
+}
+
+@MainActor
+final class ConfirmacionSyncTests: XCTestCase {
+    private func entorno() throws -> (AlmacenStore, URL) {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try FileManager.default.removeItem(at: dir) }
+        return (AlmacenStore(url: dir.appendingPathComponent("dominio.json"),
+                             urlLegacy: dir.appendingPathComponent("legacy.json"),
+                             conectadoAlReloj: false), dir.appendingPathComponent("cola.json"))
+    }
+
+    func testNoBorraColaNiPermiteLogoutAntesDeConfirmacion() async throws {
+        let (store, url) = try entorno()
+        let empezo = expectation(description: "comenzó escritura")
+        let termino = expectation(description: "cola confirmada")
+        var confirmacion: CheckedContinuation<Void, Error>?
+        let repo = RepositorioCuenta(almacen: store, urlPendientes: url,
+                                    proveedorUID: { "A" }, escritura: { _, _, _ in
+            empezo.fulfill()
+            try await withCheckedThrowingContinuation { confirmacion = $0 }
+        })
+        let observador = repo.$estado.dropFirst().sink { estado in
+            if estado == .inactivo { termino.fulfill() }
+        }
+        repo.anotarCambio(.perfil())
+        await fulfillment(of: [empezo], timeout: 3)
+        XCTAssertEqual(repo.estado, .pendiente(1))
+        let cola = try JSONDecoder().decode([OperacionPendiente].self, from: Data(contentsOf: url))
+        XCTAssertEqual(cola.count, 1)
+        XCTAssertEqual(cola.first?.usuarioFirebaseUID, "A")
+        let cerro = await repo.limpiarParaLogout()
+        XCTAssertFalse(cerro)
+        confirmacion?.resume()
+        await fulfillment(of: [termino], timeout: 3)
+        XCTAssertEqual(try JSONDecoder().decode([OperacionPendiente].self, from: Data(contentsOf: url)).count, 0)
+        withExtendedLifetime(observador) {}
+    }
+
+    func testEscrituraFallidaConservaColaAlReabrir() async throws {
+        let (store, url) = try entorno()
+        let repo = RepositorioCuenta(almacen: store, urlPendientes: url,
+                                    proveedorUID: { "A" }, escritura: { _, _, _ in
+            throw URLError(.notConnectedToInternet)
+        })
+        repo.anotarCambio(.perfil())
+        await repo.vaciarPendientes()
+        let reabierto = RepositorioCuenta(almacen: store, urlPendientes: url)
+        XCTAssertEqual(reabierto.estado, .pendiente(1))
+    }
+
+    func testEdicionDuranteEscrituraNoSePierde() async throws {
+        let (store, url) = try entorno()
+        var repo: RepositorioCuenta!
+        var recibidas: [OperacionPendiente.Tipo] = []
+        repo = RepositorioCuenta(almacen: store, urlPendientes: url,
+                                proveedorUID: { "A" }, escritura: { operacion, _, _ in
+            recibidas.append(operacion.tipo)
+            if recibidas.count == 1 { repo.anotarCambio(.sesion(UUID())) }
+        })
+        repo.anotarCambio(.perfil())
+        await repo.vaciarPendientes()
+        XCTAssertEqual(recibidas, [.perfil, .sesion])
+        XCTAssertEqual(repo.estado, .inactivo)
+    }
+
+    func testCambioDeUIDNoRedirigePendientesDeAOtraCuenta() async throws {
+        let (store, url) = try entorno()
+        var uid = "A"
+        var recibidos: [String] = []
+        let repo = RepositorioCuenta(almacen: store, urlPendientes: url,
+                                    proveedorUID: { uid }, escritura: { _, destino, _ in
+            recibidos.append(destino)
+            uid = "B"
+        })
+        repo.anotarCambio(.perfil())
+        await repo.vaciarPendientes()
+        await repo.vaciarPendientes()
+        XCTAssertEqual(recibidos, ["A"])
+        let cola = try JSONDecoder().decode([OperacionPendiente].self, from: Data(contentsOf: url))
+        XCTAssertEqual(cola.first?.usuarioFirebaseUID, "A")
+        XCTAssertEqual(cola.count, 1)
+    }
+}
+
+final class DocumentoCuentaSyncTests: XCTestCase {
+    func testArchivarPlanEnviaNullEnVezDeOmitirElCampo() throws {
+        let datos = try RepositorioCuenta.codificarCuenta(DocumentoCuenta(perfil: nil, planActivoID: nil))
+        XCTAssertTrue(datos["planActivoID"] is NSNull)
+        XCTAssertTrue(datos["perfil"] is NSNull)
+    }
+
+    func testPlanActivoMantieneSuIDEnLaCodificacion() throws {
+        let id = UUID().uuidString
+        let datos = try RepositorioCuenta.codificarCuenta(DocumentoCuenta(perfil: nil, planActivoID: id))
+        XCTAssertEqual(datos["planActivoID"] as? String, id)
     }
 }

@@ -13,6 +13,11 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>audio</string>
+	</array>
 	<key>MaratoniaBackendURL</key>
 	<string>https://us-central1-maratonia.cloudfunctions.net</string>
 </dict>

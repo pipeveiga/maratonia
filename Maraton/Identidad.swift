@@ -62,6 +62,18 @@ struct CuentaUsuario: Codable, Equatable {
     func vinculo(de tipo: ProveedorVinculado.Tipo) -> ProveedorVinculado? {
         proveedores.first { $0.tipo == tipo }
     }
+
+    /// Firebase identifica la cuenta, incluso si cambió el proveedor.
+    /// Un email igual con otro UID puede ser una cuenta recreada.
+    func corresponde(al proveedor: ProveedorVinculado) -> Bool {
+        let uids = proveedores.compactMap(\.firebaseUID)
+        if let uid = proveedor.firebaseUID, !uids.isEmpty {
+            return uids.contains(uid)
+        }
+        return proveedores.contains {
+            $0.tipo == proveedor.tipo && $0.subjectID == proveedor.subjectID
+        }
+    }
 }
 
 // MARK: - Disponibilidad de proveedores
@@ -95,6 +107,7 @@ final class IdentidadStore: ObservableObject {
     /// (tests) o después vía conectar(_:con:) — los @StateObject de la
     /// app se crean por separado.
     var asociarDominio: ((UUID?) -> Void)?
+    var puedeAsociarDominio: ((UUID) -> Bool)?
 
     var haySesion: Bool { cuenta?.sesionActiva == true }
 
@@ -109,11 +122,21 @@ final class IdentidadStore: ObservableObject {
     /// Cablea cuenta ↔ dominio cuando ambos stores ya existen, y
     /// reasegura la asociación si la cuenta ya estaba creada.
     static func conectar(_ identidad: IdentidadStore, con almacen: AlmacenStore) {
+        identidad.puedeAsociarDominio = { [weak almacen] usuarioID in
+            guard let almacen, !almacen.cargaBloqueada else { return false }
+            if almacen.almacen.usuarioID == usuarioID { return true }
+            return almacen.almacen.usuarioID == nil && !almacen.cambiosSinGuardar
+        }
         identidad.asociarDominio = { [weak almacen] usuarioID in
             almacen?.asociarUsuario(usuarioID)
         }
         if identidad.haySesion, let usuarioID = identidad.cuenta?.userID {
-            almacen.asociarUsuario(usuarioID)
+            if identidad.puedeAsociarDominio?(usuarioID) == true {
+                almacen.asociarUsuario(usuarioID)
+            } else {
+                identidad.mensajeError = String(localized: "Hay datos pendientes de otra cuenta en este teléfono. Volvé a entrar con esa cuenta y sincronizá antes de cambiar de usuario.")
+                identidad.cerrarSesion()
+            }
         }
     }
 
@@ -128,8 +151,19 @@ final class IdentidadStore: ObservableObject {
     /// existente (usuario que ya tenía datos o cuenta). SIEMPRE asocia
     /// el dominio local al userID — esa es la migración: los datos que
     /// ya estaban pasan a pertenecer a la cuenta, sin duplicar nada.
-    func iniciarSesion(con proveedor: ProveedorVinculado, nombre: String? = nil) {
-        var actual = cuenta ?? CuentaUsuario(nombre: nil, fechaCreacion: Date())
+    @discardableResult
+    func iniciarSesion(con proveedor: ProveedorVinculado, nombre: String? = nil) -> Bool {
+        // Vincular un proveedor nativo mientras la cuenta está activa
+        // conserva el contrato legacy. Un UID Firebase distinto SIEMPRE
+        // es otra cuenta; cerrar sesión tampoco autoriza vincular a B con A.
+        let vinculoLegacy = cuenta?.sesionActiva == true && proveedor.firebaseUID == nil
+            && cuenta?.proveedores.allSatisfy({ $0.firebaseUID == nil }) == true
+        let reutilizar = cuenta?.corresponde(al: proveedor) == true || vinculoLegacy
+        var actual = reutilizar ? cuenta! : CuentaUsuario(nombre: nil, fechaCreacion: Date())
+        guard puedeAsociarDominio?(actual.userID) != false else {
+            mensajeError = String(localized: "Hay datos pendientes de otra cuenta en este teléfono. Volvé a entrar con esa cuenta y sincronizá antes de cambiar de usuario.")
+            return false
+        }
         if actual.nombre == nil { actual.nombre = nombre }
         actual.vincular(proveedor)
         actual.sesionActiva = true
@@ -137,6 +171,7 @@ final class IdentidadStore: ObservableObject {
         guardar()
         asociarDominio?(actual.userID)
         mensajeError = nil
+        return true
     }
 
     /// Cerrar sesión NO borra nada: la cuenta y los datos quedan; solo
@@ -456,6 +491,8 @@ struct SeccionCuentaMaratonia: View {
     @State private var mostrandoLogin = false
     @State private var confirmandoEliminar = false
     @State private var mensajeEliminacion: String?
+    @State private var cerrandoSesion = false
+    @ObservedObject private var carrera = CarreraCelu.compartida
 
     var body: some View {
         Section {
@@ -478,12 +515,22 @@ struct SeccionCuentaMaratonia: View {
                     LoginView(identidad: identidad)
                 }
                 Button("Cerrar sesión") {
-                    servicio.cerrarSesion(identidad: identidad)
+                    guard carrera.estado == .detenida else { return }
+                    cerrandoSesion = true
+                    Task {
+                        defer { cerrandoSesion = false }
+                        if let repositorio, !(await repositorio.limpiarParaLogout()) {
+                            mensajeEliminacion = String(localized: "No pude cerrar sesión sin dejar cambios pendientes. Reintentá cuando tus datos estén guardados y sincronizados.")
+                            return
+                        }
+                        servicio.cerrarSesion(identidad: identidad)
+                    }
                 }
+                .disabled(cerrandoSesion || servicio.ocupado || carrera.estado != .detenida)
                 Button("Eliminar cuenta", role: .destructive) {
                     confirmandoEliminar = true
                 }
-                .disabled(servicio.ocupado)
+                .disabled(servicio.ocupado || carrera.estado != .detenida)
                 .confirmationDialog("¿Eliminar tu cuenta de Maratonia?",
                                     isPresented: $confirmandoEliminar,
                                     titleVisibility: .visible) {
@@ -493,6 +540,11 @@ struct SeccionCuentaMaratonia: View {
                     Button("Cancelar", role: .cancel) {}
                 } message: {
                     Text("Se borran tu identidad (incluida la de Firebase) y el respaldo de Maratonia en iCloud. Tus entrenamientos guardados en Apple Health NO se tocan: siguen siendo tuyos y se administran desde la app Salud.")
+                }
+                if carrera.estado != .detenida {
+                    Text("Terminá la carrera antes de cerrar sesión o eliminar la cuenta.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 if let mensaje = mensajeEliminacion {
                     Text(mensaje)
