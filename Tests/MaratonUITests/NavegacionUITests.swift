@@ -26,6 +26,13 @@ final class NavegacionUITests: XCTestCase {
         add(adjunto)
     }
 
+    private func comprobarTituloVisible(_ titulo: String) {
+        let elemento = app.navigationBars.staticTexts[titulo].firstMatch
+        let visible = NSPredicate { _, _ in elemento.exists && elemento.isHittable }
+        let espera = XCTNSPredicateExpectation(predicate: visible, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [espera], timeout: 5), .completed)
+    }
+
     func testUsuarioNuevoEncuentraCarreraPlanYHistorial() {
         abrir()
         XCTAssertTrue(app.staticTexts["Carrera libre"].exists)
@@ -42,7 +49,7 @@ final class NavegacionUITests: XCTestCase {
         app.tabBars.buttons["Progreso"].tap()
         XCTAssertTrue(app.segmentedControls.firstMatch.waitForExistence(timeout: 5))
         app.segmentedControls.buttons["Carreras"].tap()
-        XCTAssertTrue(app.navigationBars["Progreso"].waitForExistence(timeout: 5))
+        comprobarTituloVisible("Progreso")
         XCTAssertTrue(app.staticTexts["Tu mapa está esperando"].waitForExistence(timeout: 5))
         captura("04-historial-vacio")
         app.buttons["Salir a correr"].tap()
@@ -79,7 +86,7 @@ final class NavegacionUITests: XCTestCase {
         captura("07-plan-en")
         app.tabBars.buttons["Progress"].tap()
         app.segmentedControls.buttons["Runs"].tap()
-        XCTAssertTrue(app.navigationBars["Progress"].waitForExistence(timeout: 5))
+        comprobarTituloVisible("Progress")
         XCTAssertTrue(app.staticTexts["Your map is waiting"].waitForExistence(timeout: 5))
         captura("08-historial-en")
     }

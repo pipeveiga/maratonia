@@ -189,13 +189,6 @@ struct ProgresoTab: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if seccion == .carreras {
-                    CarrerasView(irACorrer: irACorrer, almacen: almacen, muestraTitulo: false)
-                } else {
-                    resumen
-                }
-            }
-            .safeAreaInset(edge: .top, spacing: 0) {
                 Picker("Ver progreso", selection: $seccion) {
                     Text("Resumen").tag(SeccionProgreso.resumen)
                     Text("Carreras").tag(SeccionProgreso.carreras)
@@ -204,8 +197,14 @@ struct ProgresoTab: View {
                 .accessibilityIdentifier("seccionesProgreso")
                 .padding()
                 .background(.regularMaterial)
+                if seccion == .carreras {
+                    CarrerasView(irACorrer: irACorrer, almacen: almacen, muestraTitulo: false)
+                } else {
+                    resumen
+                }
             }
             .navigationTitle("Progreso")
+            .navigationBarTitleDisplayMode(.inline)
             .onAppear { lector.cargar(); carreras.cargar() }
             .refreshable { lector.cargar(); carreras.cargar() }
         }
