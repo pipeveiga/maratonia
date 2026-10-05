@@ -2,6 +2,63 @@ import XCTest
 import UIKit
 @testable import Maraton
 
+/// El inicio debe distinguir correr libre, día sin sesión y resultado.
+final class NavegacionInicioTests: XCTestCase {
+    private let hoy = DiaLocal(anio: 2026, mes: 8, dia: 11)
+
+    func testSinPlanPuedeCorrerLibre() {
+        XCTAssertEqual(EstadoDeHoy.desde(AlmacenV2(), hoy: hoy), .libre)
+    }
+
+    func testHoyYPlanSonDestinosDistintos() {
+        XCTAssertNotEqual(Pestana.hoy, Pestana.plan)
+        XCTAssertEqual(Pestana.correr, .hoy)
+        XCTAssertEqual(Pestana.carreras, .progreso)
+    }
+
+    func testPendienteConservaSuIdentidadParaAbrirDetalle() {
+        let (almacen, id) = almacenConProgramado()
+        XCTAssertEqual(EstadoDeHoy.desde(almacen, hoy: hoy), .pendiente(id))
+    }
+
+    func testDescansoNoSeConfundeConAusenciaDePlan() {
+        let (almacen, _) = almacenConProgramado()
+        XCTAssertEqual(EstadoDeHoy.desde(almacen, hoy: hoy.sumando(dias: 1)), .sinEntrenamiento)
+    }
+
+    func testPlanQueEmpiezaMananaNoOfreceLaSesionHoy() {
+        let (almacen, _) = almacenConProgramado()
+        XCTAssertEqual(EstadoDeHoy.desde(almacen, hoy: hoy.sumando(dias: -1)), .sinEntrenamiento)
+    }
+
+    func testCumplidoSigueDisponibleComoResultado() {
+        var (almacen, id) = almacenConProgramado()
+        almacen.vincular(sesionID: UUID(), fechaSesion: Date(), aProgramado: id, completo: true)
+        XCTAssertEqual(EstadoDeHoy.desde(almacen, hoy: hoy), .resuelto(id))
+    }
+
+    func testOmitidoNoDesapareceDelInicio() {
+        var (almacen, id) = almacenConProgramado()
+        almacen.omitir(programadoID: id)
+        XCTAssertEqual(EstadoDeHoy.desde(almacen, hoy: hoy), .resuelto(id))
+    }
+
+    func testArchivarPlanVuelveAModoLibreSinBorrarCarreras() {
+        var (almacen, id) = almacenConProgramado()
+        almacen.vincular(sesionID: UUID(), fechaSesion: Date(), aProgramado: id, completo: true)
+        let antes = almacen.sesiones
+        almacen.abandonarPlan()
+        XCTAssertEqual(EstadoDeHoy.desde(almacen, hoy: hoy), .libre)
+        XCTAssertEqual(almacen.sesiones, antes)
+    }
+
+    func testLaAppDeclaraGPSYAudioEnFondo() {
+        let modos = Bundle(for: PlanStore.self).object(forInfoDictionaryKey: "UIBackgroundModes") as? [String]
+        XCTAssertTrue(modos?.contains("location") == true)
+        XCTAssertTrue(modos?.contains("audio") == true)
+    }
+}
+
 // Tests del dominio V2 (Fase A). Protegen las invariantes de
 // ARCHITECTURE_V2 §Fase A: identidad estable, snapshot, estados,
 // vínculos sesión↔programado, serialización y migración V1→V2.

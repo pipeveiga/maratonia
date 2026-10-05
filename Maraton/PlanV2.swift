@@ -1665,10 +1665,12 @@ struct CalendarioView: View {
     @ObservedObject var almacen: AlmacenStore
     @ObservedObject var store: PlanStore
     @Binding var pestana: Pestana
+    var esRaiz = false
 
     /// Qué semana se está mirando. Arranca en la actual.
     @State private var semanaElegida: Int?
     @State private var confirmandoEliminar = false
+    @State private var mostrandoObjetivo = false
 
     private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
 
@@ -1684,8 +1686,8 @@ struct CalendarioView: View {
                     .padding()
             }
         }
-        .navigationTitle("Plan completo")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(esRaiz ? String(localized: "Plan") : String(localized: "Plan completo"))
+        .navigationBarTitleDisplayMode(esRaiz ? .large : .inline)
         .toolbar {
             // Administrar el plan, DONDE se mira el plan. En la lista de
             // Plan la acción quedaba tan abajo que no se encontraba —
@@ -1693,6 +1695,15 @@ struct CalendarioView: View {
             if almacen.almacen.planActivo != nil {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
+                        Button { mostrandoObjetivo = true } label: {
+                            Label("Cambiar objetivo o disponibilidad", systemImage: "slider.horizontal.3")
+                        }
+                        NavigationLink {
+                            CatalogoView(almacen: almacen)
+                        } label: {
+                            Label("Explorar planes", systemImage: "sparkles")
+                        }
+                        Divider()
                         Button(role: .destructive) {
                             confirmandoEliminar = true
                         } label: {
@@ -1704,6 +1715,9 @@ struct CalendarioView: View {
                     .accessibilityLabel(Text("Opciones del plan"))
                 }
             }
+        }
+        .sheet(isPresented: $mostrandoObjetivo) {
+            OnboardingDeportivo(almacen: almacen)
         }
         .confirmationDialog("¿Eliminar el plan actual?",
                             isPresented: $confirmandoEliminar,

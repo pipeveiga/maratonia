@@ -262,16 +262,18 @@ struct OnboardingDeportivo: View {
                 .padding(.horizontal)
                 .padding(.top, DV2.Espacio.s)
 
-                TabView(selection: $paso) {
-                    pasoObjetivo.tag(0)
-                    pasoActividad.tag(1)
-                    pasoExperiencia.tag(2)
-                    pasoDisponibilidad.tag(3)
-                    pasoFechaYResumen.tag(4)
+                // El avance pasa por los botones y su validación. Un
+                // PageTabView permitía saltarse respuestas deslizando.
+                Group {
+                    switch paso {
+                    case 0: pasoObjetivo
+                    case 1: pasoActividad
+                    case 2: pasoExperiencia
+                    case 3: pasoDisponibilidad
+                    default: pasoFechaYResumen
+                    }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut, value: paso)
-                .onAppear { lectorActividad.cargar(semanas: 8) }
                 .onChange(of: lectorActividad.sesiones) { _, sesiones in
                     // La detección se recalcula sola cuando Salud
                     // responde; si el corredor ya tocó algo, no se pisa.
@@ -374,6 +376,17 @@ struct OnboardingDeportivo: View {
             // después dejaría al corredor tipeando en una unidad y
             // leyendo el plan en otra.
             tarjetaUnidades
+
+            Button {
+                lectorActividad.cargar(semanas: 8)
+            } label: {
+                Label("Usar mis carreras de Apple Health", systemImage: "heart.text.square")
+            }
+            .buttonStyle(.bordered)
+            .disabled(lectorActividad.cargando)
+            Text("Es opcional. También podés completar los datos abajo.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
 
             if let detectada = actividadDetectada, !corrigiendoActividad {
                 tarjetaDetectada(detectada)

@@ -101,6 +101,7 @@ final class CarrerasStore: ObservableObject {
     private var consultaEnCurso = false
 
     func cargar() {
+        guard !EscenarioNavegacionQA.activo else { return }
         // Después de la primera vez, cada entrada a la pestaña vuelve a
         // consultar: los workouts del reloj tardan minutos en sincronizar
         // y con una sola consulta la lista quedaba vieja hasta reabrir.

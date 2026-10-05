@@ -1,26 +1,13 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-// La app iPhone en 4 pestañas: Plan (armar el entrenamiento), Reloj
-// (enviar y estado), Carreras (historial con mapas) y Perfil (cuenta y
-// ayuda). Cada parte del plan tiene su propia pantalla — nada de una
-// sola lista infinita.
-
-/// TRES pestañas, una por pregunta:
-///   Hoy      — ¿qué hago ahora? (el plan de hoy Y el botón de correr)
-///   Progreso — ¿cómo vengo? (los números Y mis carreras)
-///   Perfil   — todo lo demás
-///
-/// Antes eran cinco y dos pares hacían lo mismo: Plan y Correr abrían
-/// con la MISMA tarjeta de hoy, y Progreso y Carreras contestaban la
-/// misma pregunta con dos formatos. Cinco lugares para tres preguntas es
-/// lo que hacía que la app se sintiera engorrosa.
+/// Destinos estables: correr hoy y organizar el plan son tareas distintas.
+/// El historial sigue dentro de Progreso, con un selector visible.
 enum Pestana: Hashable {
-    case hoy, progreso, perfil
+    case hoy, plan, progreso, perfil
 
     /// Los nombres viejos siguen resolviendo para no romper los enlaces
     /// internos que ya existían (`pestana = .correr` desde media app).
-    static let plan = Pestana.hoy
     static let correr = Pestana.hoy
     static let carreras = Pestana.progreso
 
@@ -32,7 +19,8 @@ enum Pestana: Hashable {
     /// Uso: `xcrun simctl launch <dev> <bundle> -pestanaInicial progreso`
     static var deArgumentos: Pestana? {
         switch UserDefaults.standard.string(forKey: "pestanaInicial") {
-        case "plan", "correr", "hoy": return .hoy
+        case "correr", "hoy": return .hoy
+        case "plan": return .plan
         case "progreso", "carreras": return .progreso
         case "perfil": return .perfil
         default: return nil
@@ -60,7 +48,12 @@ struct ContentView: View {
 
     init() {
         let store = PlanStore()
-        let almacen = AlmacenStore()
+        let almacen: AlmacenStore
+        if EscenarioNavegacionQA.activo {
+            almacen = EscenarioNavegacionQA.almacen()
+        } else {
+            almacen = AlmacenStore()
+        }
         let identidad = IdentidadStore()
         _store = StateObject(wrappedValue: store)
         _almacen = StateObject(wrappedValue: almacen)
@@ -88,6 +81,7 @@ struct ContentView: View {
             #endif
         }
         .task {
+            guard !EscenarioNavegacionQA.activo else { return }
             IdentidadStore.conectar(identidad, con: almacen)
             identidad.verificarRevocacionApple()
             // StoreKit escucha desde el arranque: una compra hecha en
@@ -112,26 +106,31 @@ struct ContentView: View {
     @ViewBuilder
     private var raiz: some View {
         Group {
-            switch sesion.estado {
-            case .resolviendo:
-                DV2.Superficie.fondo.ignoresSafeArea()
-            case .necesitaAuth:
-                PuertaDeEntrada(identidad: identidad)
-            case .restaurando:
-                // El aviso solo si de verdad tarda: en el caso normal
-                // la app aparece y listo.
-                if sesion.restauracionLenta { RestaurandoView() }
-                else { DV2.Superficie.fondo.ignoresSafeArea() }
-            case .necesitaOnboarding:
-                // La salida se pasa EXPLÍCITA: acá el onboarding es la
-                // raíz, así que `dismiss()` no tiene nada que cerrar y
-                // "Ahora no" —y "Confirmar plan"— quedaban muertos.
-                OnboardingDeportivo(almacen: almacen,
-                                    alSalir: { sesion.omitirOnboarding() })
-                    .onDisappear { sesion.onboardingCompletado() }
-            case .lista:
+            if EscenarioNavegacionQA.activo {
                 AppPrincipal(store: store, almacen: almacen, identidad: identidad,
                              repositorio: repositorio)
+            } else {
+                switch sesion.estado {
+                case .resolviendo:
+                    DV2.Superficie.fondo.ignoresSafeArea()
+                case .necesitaAuth:
+                    PuertaDeEntrada(identidad: identidad)
+                case .restaurando:
+                    // El aviso solo si de verdad tarda: en el caso normal
+                    // la app aparece y listo.
+                    if sesion.restauracionLenta { RestaurandoView() }
+                    else { DV2.Superficie.fondo.ignoresSafeArea() }
+                case .necesitaOnboarding:
+                    // La salida se pasa EXPLÍCITA: acá el onboarding es la
+                    // raíz, así que `dismiss()` no tiene nada que cerrar y
+                    // "Ahora no" —y "Confirmar plan"— quedaban muertos.
+                    OnboardingDeportivo(almacen: almacen,
+                                        alSalir: { sesion.omitirOnboarding() })
+                        .onDisappear { sesion.onboardingCompletado() }
+                case .lista:
+                    AppPrincipal(store: store, almacen: almacen, identidad: identidad,
+                                 repositorio: repositorio)
+                }
             }
         }
     }
@@ -148,9 +147,9 @@ struct AppPrincipal: View {
     /// Selección programática: EMPEZAR desde Plan te lleva a Correr,
     /// donde ya está el motor andando.
     #if DEBUG
-    @State private var pestana: Pestana = Pestana.deArgumentos ?? .plan
+    @State private var pestana: Pestana = Pestana.deArgumentos ?? .hoy
     #else
-    @State private var pestana: Pestana = .plan
+    @State private var pestana: Pestana = .hoy
     #endif
 
     /// El tutorial de audio queda disponible en Perfil → Ayuda. Ya no
@@ -162,6 +161,7 @@ struct AppPrincipal: View {
     /// de Perfil dejaría medias pantallas en la unidad vieja hasta el
     /// próximo refresco.
     @ObservedObject private var unidades = PreferenciaUnidades.compartida
+    @ObservedObject private var carrera = CarreraCelu.compartida
 
     var body: some View {
         TabView(selection: $pestana) {
@@ -169,6 +169,9 @@ struct AppPrincipal: View {
                    identidad: identidad)
                 .tabItem { Label("Hoy", systemImage: "figure.run") }
                 .tag(Pestana.hoy)
+            PlanTab(store: store, almacen: almacen, pestana: $pestana)
+                .tabItem { Label("Plan", systemImage: "calendar") }
+                .tag(Pestana.plan)
             ProgresoTab(almacen: almacen, irACorrer: { pestana = .hoy })
                 .tabItem { Label("Progreso", systemImage: "chart.bar.fill") }
                 .tag(Pestana.progreso)
@@ -177,6 +180,25 @@ struct AppPrincipal: View {
                       mostrandoTutorial: $mostrandoTutorial)
                 .tabItem { Label("Perfil", systemImage: "person.crop.circle") }
                 .tag(Pestana.perfil)
+        }
+        .safeAreaInset(edge: .bottom) {
+            if carrera.estado != .detenida && pestana != .hoy {
+                Button {
+                    pestana = .hoy
+                } label: {
+                    HStack {
+                        Label(carrera.estado == .corriendo
+                              ? String(localized: "Carrera en curso") : String(localized: "Carrera en pausa"),
+                              systemImage: "figure.run")
+                        Spacer()
+                        Text("Volver")
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .padding()
+                    .background(.regularMaterial)
+                }
+                .accessibilityIdentifier("volverACarrera")
+            }
         }
         .sheet(isPresented: $mostrandoTutorial) {
             TutorialView()
@@ -187,6 +209,7 @@ struct AppPrincipal: View {
         .task {
             // El portero ya resolvió identidad y restauración: acá solo
             // queda cablear cuenta ↔ dominio y subir lo que cambie.
+            guard !EscenarioNavegacionQA.activo else { return }
             RepositorioCuenta.conectar(repositorio, con: almacen)
         }
     }
@@ -216,425 +239,6 @@ private func filaNavegacion(icono: String, color: Color,
         }
     }
     .padding(.vertical, 2)
-}
-
-// MARK: - Pestaña Plan
-
-struct HoyTab: View {
-    @ObservedObject var store: PlanStore
-    @ObservedObject var almacen: AlmacenStore
-    @Binding var pestana: Pestana
-    /// Solo para saber si el Coach se puede ofrecer (necesita sesión).
-    @ObservedObject var identidad: IdentidadStore
-    /// La carrera del teléfono vive acá desde que Plan y Correr son una
-    /// sola pestaña: con una carrera en curso, ESTA pantalla es la
-    /// carrera y nada más.
-    @ObservedObject private var carrera = CarreraCelu.compartida
-    @State private var confirmandoQuitarPlan = false
-
-    #if DEBUG
-    /// Abre el plan completo al arrancar. Igual que `pestanaInicial`:
-    /// solo en DEBUG y solo para poder capturar la pantalla, porque el
-    /// simulador no tiene forma de tocar un NavigationLink.
-    /// Uso: `-abrirPlanCompleto 1`
-    @State private var abrirPlanCompletoQA =
-        UserDefaults.standard.bool(forKey: "abrirPlanCompleto")
-    @State private var abrirRelojQA = UserDefaults.standard.bool(forKey: "abrirReloj")
-    #endif
-
-    private var hoy: DiaLocal { DiaLocal(fecha: Date()) }
-
-    // El Plan responde tres preguntas, en este orden: ¿qué me toca HOY?
-    // ¿cómo viene MI SEMANA? ¿qué SIGUE? Después el objetivo, el
-    // calendario completo y — al final — la configuración de la sesión.
-    var body: some View {
-        // Corriendo con el teléfono no hay plan que mirar: la pantalla
-        // entera es la carrera. Antes esto vivía en otra pestaña y había
-        // que acordarse de cuál.
-        if carrera.estado != .detenida {
-            PantallaCarreraCelu(carrera: carrera)
-        } else {
-            lobby
-        }
-    }
-
-    private var lobby: some View {
-        NavigationStack {
-            List {
-                if let problema = store.mensajeProblema {
-                    Section {
-                        Label(problema, systemImage: "exclamationmark.triangle.fill")
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-                }
-
-                if almacen.almacen.planActivo == nil {
-                    Section {
-                        ContentUnavailableView {
-                            Label("Sin plan activo", systemImage: "figure.run.square.stack")
-                        } description: {
-                            // Con objetivo ya elegido, el texto genérico
-                            // ("elegí un objetivo") mandaba a hacer algo
-                            // que ya estaba hecho.
-                            if let objetivo = almacen.almacen.perfilDeportivo.objetivo {
-                                Text("\(TextosObjetivo.nombre(de: objetivo)) — te falta el plan.")
-                            } else {
-                                Text("Elegí tu objetivo y armamos el plan.")
-                            }
-                        } actions: {
-                            NavigationLink("Explorar planes") {
-                                CatalogoView(almacen: almacen)
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                        .listRowBackground(Color.clear)
-                    }
-                }
-
-                seccionHoy
-                seccionCarreraLibre
-                seccionSemana
-                seccionProximos
-                seccionObjetivo
-
-                Section("Plan de entrenamiento") {
-                    if almacen.almacen.planActivo != nil {
-                        NavigationLink {
-                            CalendarioView(almacen: almacen, store: store, pestana: $pestana)
-                        } label: {
-                            filaNavegacion(icono: "calendar", color: .green,
-                                           titulo: "Ver plan completo",
-                                           subtitulo: subtituloCalendario)
-                        }
-                    }
-                    NavigationLink {
-                        CatalogoView(almacen: almacen)
-                    } label: {
-                        filaNavegacion(icono: "sparkles", color: .purple,
-                                       titulo: "Explorar planes", subtitulo: subtituloCatalogo)
-                    }
-                }
-
-                // Eliminar el plan es una acción propia, no una fila
-                // perdida entre las de navegar: quien la busca la busca
-                // por sí misma. El pie dice qué pasa de verdad — se
-                // archiva, con su historial— sin esconderlo en el
-                // diálogo de confirmación.
-                if almacen.almacen.planActivo != nil {
-                    Section {
-                        Button(role: .destructive) {
-                            confirmandoQuitarPlan = true
-                        } label: {
-                            Label("Eliminar plan", systemImage: "trash")
-                        }
-                        .confirmationDialog("¿Eliminar el plan actual?",
-                                            isPresented: $confirmandoQuitarPlan,
-                                            titleVisibility: .visible) {
-                            Button("Eliminar plan", role: .destructive) {
-                                almacen.almacen.abandonarPlan()
-                            }
-                            Button("Cancelar", role: .cancel) {}
-                        } message: {
-                            Text("Queda archivado con su historial. Tus carreras y tus marcas no se tocan.")
-                        }
-                    } footer: {
-                        Text("Quedás sin plan: HOY queda libre y el reloj vuelve a Carrera Libre. Podés adoptar otro cuando quieras.")
-                    }
-                }
-
-                // La configuración de la SESIÓN (música, avisos, tramos
-                // manuales) es lo último: acompaña, no protagoniza.
-                Section("Configuración del entrenamiento") {
-                    NavigationLink {
-                        ConfiguracionEntrenamientoScreen(store: store)
-                    } label: {
-                        filaNavegacion(icono: "slider.horizontal.3", color: .blue,
-                                       titulo: "Audio, avisos y tramos",
-                                       subtitulo: subtituloConfiguracion)
-                    }
-                }
-            }
-            .navigationTitle("Maratonia")
-            #if DEBUG
-            // Igual que el plan completo: destino programático solo para
-            // capturar la pantalla del reloj desde el simulador.
-            .navigationDestination(isPresented: $abrirRelojQA) {
-                RelojTab(store: store)
-            }
-            #endif
-            #if DEBUG
-            // Destino programático SOLO para poder capturar el plan
-            // completo desde el simulador (no hay forma de tocar un
-            // NavigationLink por línea de comandos). No existe en Release.
-            .navigationDestination(isPresented: $abrirPlanCompletoQA) {
-                CalendarioView(almacen: almacen, store: store, pestana: $pestana)
-            }
-            #endif
-            .scrollDismissesKeyboard(.immediately)
-        }
-    }
-
-    /// HOY con UNA SOLA interpretación del dominio: pendiente se ofrece
-    /// (EMPEZAR), resuelto se muestra como resultado (cumplido/parcial/
-    /// omitido), y "descanso" SOLO cuando de verdad no hubo nada.
-    @ViewBuilder
-    private var seccionHoy: some View {
-        if let pendiente = almacen.almacen.entrenamientoDeHoy(hoy) {
-            Section {
-                TarjetaEntrenamientoV2(programado: pendiente) {
-                    LanzadorSesion.iniciar(definicion: pendiente.definicion,
-                                           programadoID: pendiente.id,
-                                           store: store, almacen: almacen)
-                    pestana = .correr
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-            }
-        } else if let resuelto = almacen.almacen.programadoDelDia(hoy) {
-            Section {
-                NavigationLink {
-                    DetalleEntrenamientoView(almacen: almacen, store: store,
-                                             pestana: $pestana,
-                                             programadoID: resuelto.id)
-                } label: {
-                    TarjetaEntrenamientoV2(programado: resuelto)
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var seccionSemana: some View {
-        if almacen.almacen.planActivo != nil,
-           almacen.almacen.semanaActual(hoy: hoy).contains(where: { $0.programado != nil }) {
-            Section {
-                SemanaActualV2(almacen: almacen, store: store, pestana: $pestana)
-            } header: {
-                HStack {
-                    Text("Tu semana")
-                    Spacer()
-                    Text(progresoDeSemana)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .textCase(nil)
-                }
-            }
-        }
-    }
-
-    private var progresoDeSemana: String {
-        let programados = almacen.almacen.semanaActual(hoy: hoy).compactMap(\.programado)
-        let hechos = programados.filter {
-            $0.resolucion == .cumplido || $0.resolucion == .parcial
-        }.count
-        return String(localized: "\(hechos) de \(programados.count)")
-    }
-
-    @ViewBuilder
-    private var seccionProximos: some View {
-        let proximos = almacen.almacen.proximosEntrenamientos(despuesDe: hoy, maximo: 3)
-        if !proximos.isEmpty {
-            Section("Próximos") {
-                ForEach(proximos) { programado in
-                    NavigationLink {
-                        DetalleEntrenamientoView(almacen: almacen, store: store,
-                                                 pestana: $pestana,
-                                                 programadoID: programado.id)
-                    } label: {
-                        HStack(spacing: 12) {
-                            // Fila deportiva: el tipo como bloque de
-                            // color con su inicial de día, no un punto.
-                            VStack(spacing: 0) {
-                                if let fecha = programado.dia?.fecha() {
-                                    Text(FormatoFecha.diaYMes(fecha).prefix(6))
-                                        .font(.caption2.weight(.bold))
-                                }
-                            }
-                            .frame(width: 52, height: 40)
-                            .background(DV2.color(de: programado.definicion.tipo).opacity(0.15),
-                                        in: RoundedRectangle(cornerRadius: 10))
-                            .foregroundStyle(DV2.color(de: programado.definicion.tipo))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(programado.definicion.nombre)
-                                    .font(.subheadline.weight(.semibold))
-                                // Los km ya tienen jerarquía propia a
-                                // la derecha: acá va lo complementario.
-                                Text(programado.definicion.descripcion.isEmpty
-                                     ? Plurales.segmentos(programado.definicion.segmentos.count)
-                                     : programado.definicion.descripcion)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                            Spacer()
-                            if let km = programado.definicion.distanciaPrescritaKm {
-                                Text(Unidades.distancia(km: km))
-                                    .font(.subheadline.weight(.bold))
-                                    .monospacedDigit()
-                                    .foregroundStyle(DV2.Marca.profundo)
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                }
-            }
-        }
-    }
-
-    /// El Coach, en el inicio y no escondido en Perfil. Una tarjeta
-    /// compacta con UNA pregunta concreta —la de hoy—, no un menú: el
-    /// resto de lo que sabe hacer está adentro.
-    ///
-    /// Solo aparece con backend configurado y sesión iniciada: sin eso
-    /// no existe, cero botones muertos.
-    /// La sesión también se puede forzar en DEBUG: sin cuenta iniciada
-    /// el Coach no aparece ni con el backend encendido, y para capturar
-    /// la pantalla hacen falta las dos cosas.
-    private var coachOfrecible: Bool {
-        #if DEBUG
-        if UserDefaults.standard.bool(forKey: "forzarCoach") { return true }
-        #endif
-        return ServicioCoach.disponible && identidad.haySesion
-    }
-
-    /// Carrera libre. Protagonista solo cuando no hay nada programado
-    /// hoy: si hay entrenamiento, ESE manda y esto es la alternativa.
-    @ViewBuilder
-    private var seccionCarreraLibre: some View {
-        let hayDeHoy = almacen.almacen.entrenamientoDeHoy(hoy)?.resolucion == .pendiente
-        Section {
-            TarjetaCarreraLibre(store: store, almacen: almacen,
-                                protagonista: !hayDeHoy)
-                .listRowInsets(EdgeInsets(top: 0, leading: 0,
-                                          bottom: DV2.Espacio.s, trailing: 0))
-                .listRowBackground(Color.clear)
-        }
-    }
-
-    /// El objetivo con countdown en semanas — motivación, nunca presión.
-    ///
-    /// Lleva encabezado propio y es tocable a propósito: sin eso la fila
-    /// se leía como "un plan" (misma forma que las filas de abajo) y
-    /// aparecía justo debajo de "Sin plan activo", que es la
-    /// contradicción exacta que reportó el uso real. El objetivo es del
-    /// PERFIL y sobrevive a quitar el plan — eso es correcto, pero hay
-    /// que decirlo.
-    @ViewBuilder
-    private var seccionObjetivo: some View {
-        let perfil = almacen.almacen.perfilDeportivo
-        if let objetivo = perfil.objetivo {
-            // El objetivo que NO pudo convertirse en plan no se muestra
-            // como si lo fuera. Antes salía con cuenta regresiva —
-            // "Faltan 5 semanas para tu carrera"— sin nada detrás.
-            if let motivo = perfil.objetivoSinPlan, almacen.almacen.planActivo == nil {
-                let fase = FaseBase.disponible(almacen.almacen)
-                Section {
-                    AvisoSinPlan(
-                        motivo: motivo, objetivo: objetivo,
-                        puente: EvaluadorElegibilidad.objetivoPuente(para: objetivo),
-                        alElegir: { accion in
-                            // Empezar la fase base ADOPTA un plan real y
-                            // conserva el objetivo deseado pendiente: no
-                            // reemplaza el sueño, lo acerca.
-                            if accion == .empezarFaseBase, let fase {
-                                almacen.almacen.adoptarPlan(fase.planUsuario,
-                                                            esFaseBase: true)
-                            } else {
-                                pestana = .perfil
-                            }
-                        },
-                        faseBase: fase?.nombre)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                }
-            } else {
-                Section {
-                    Button {
-                        pestana = .perfil
-                    } label: {
-                        HStack(spacing: 12) {
-                            IconoAjuste(sistema: "flag.checkered", color: .red)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(TextosObjetivo.nombre(de: objetivo))
-                                // La cuenta regresiva SOLO con plan: es
-                                // la promesa de que hay algo detrás.
-                                if FaseBase.esFaseBase(almacen.almacen) {
-                                    // Hay plan, pero NO es el de este
-                                    // objetivo: la cuenta regresiva
-                                    // sería una promesa falsa. Se dice
-                                    // qué se está corriendo y qué no.
-                                    Label("Estás en fase base — este plan no apunta a esa fecha",
-                                          systemImage: "arrow.turn.up.right")
-                                        .font(.caption)
-                                        .foregroundStyle(DV2.Marca.primario)
-                                } else if almacen.almacen.planActivo != nil,
-                                   let cuenta = TextosObjetivo.cuentaRegresiva(
-                                    hasta: perfil.fechaObjetivo, hoy: hoy) {
-                                    Text(cuenta)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                } else if almacen.almacen.planActivo == nil {
-                                    Text("Sin plan todavía")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(.vertical, 2)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                } header: {
-                    Text("Tu objetivo")
-                }
-            }
-        }
-    }
-
-    /// Una sola interpretación de HOY (bug de build 39: Correr decía
-    /// "parcial" y Plan decía "no hay entrenamiento").
-    /// La fila del calendario habla del PLAN, no del día: lo de hoy ya
-    /// está arriba, en la tarjeta protagonista. Acá lo útil es cuánto
-    /// dura el bloque y en qué parte va.
-    private var subtituloCalendario: String {
-        guard let plan = almacen.almacen.planActivo, !plan.semanas.isEmpty else {
-            return String(localized: "Todas las semanas del plan")
-        }
-        let total = plan.semanas.count
-        guard let actual = plan.numeroDeSemana(hoy: hoy) else {
-            return String(localized: "\(Plurales.semanas(total)) en total")
-        }
-        return String(localized: "Semana \(actual) de \(total)")
-    }
-
-    private var subtituloCatalogo: String {
-        almacen.almacen.planActivo == nil
-            ? String(localized: "De 5K a maratón, con tus días")
-            : String(localized: "Cambiar de plan (el actual se archiva)")
-    }
-
-    private var subtituloConfiguracion: String {
-        var partes: [String] = []
-        if !store.plan.pistas.isEmpty { partes.append(Plurales.pistas(store.plan.pistas.count)) }
-        let avisos = store.plan.avisosFijos.count + store.plan.avisosRepetidos.count
-            + store.plan.avisosKmActivos.count
-        if avisos > 0 { partes.append(String(localized: "\(avisos) avisos")) }
-        if !store.plan.tramosActivos.isEmpty {
-            partes.append(Plurales.tramos(store.plan.tramosActivos.count))
-        }
-        return partes.isEmpty
-            ? String(localized: "Música, avisos por voz y tramos manuales")
-            : partes.joined(separator: " · ")
-    }
-
 }
 
 // MARK: - Configuración del entrenamiento (legacy, un nivel abajo)
@@ -1225,6 +829,16 @@ struct PerfilTab: View {
 
                 SeccionCuentaMaratonia(identidad: identidad, cuentaCloud: cuenta,
                                        repositorio: repositorio)
+
+                Section("Preferencias para correr") {
+                    NavigationLink {
+                        ConfiguracionEntrenamientoScreen(store: store)
+                    } label: {
+                        filaNavegacion(icono: "speaker.wave.2", color: .blue,
+                                       titulo: "Audio, avisos y tramos",
+                                       subtitulo: String(localized: "Configurá la voz, tu música y las sesiones manuales"))
+                    }
+                }
 
                 Section("Dispositivos") {
                     NavigationLink {

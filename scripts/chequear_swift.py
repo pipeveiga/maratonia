@@ -76,7 +76,7 @@ def main() -> int:
         glob.glob("Maraton/*.swift")
         + glob.glob("Maraton Watch App/*.swift")
         + glob.glob("Shared/*.swift")
-        + glob.glob("Tests/MaratonTests/*.swift")
+        + glob.glob("Tests/**/*.swift", recursive=True)
     )
     fallas = []
     for ruta in archivos:

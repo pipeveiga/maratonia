@@ -299,6 +299,9 @@ final class CarreraCelu: NSObject, ObservableObject {
             break
         }
         ubicaciones.allowsBackgroundLocationUpdates = Self.permiteUbicacionEnFondo
+        // El indicador del sistema hace visible que el GPS sigue activo
+        // durante ESTA carrera. No pedimos seguimiento permanente.
+        ubicaciones.showsBackgroundLocationIndicator = Self.permiteUbicacionEnFondo
         ubicaciones.pausesLocationUpdatesAutomatically = false
         ubicaciones.startUpdatingLocation()
     }
@@ -945,7 +948,7 @@ struct TarjetaCarreraLibre: View {
             + store.plan.avisosKmActivos.count
         if avisos > 0 { partes.append("\(avisos) avisos") }
         if !store.plan.tramosActivos.isEmpty { partes.append(Plurales.tramos(store.plan.tramosActivos.count)) }
-        return partes.isEmpty ? String(localized: "Solo GPS: distancia, ritmo y mapa.")
+        return partes.isEmpty ? String(localized: "Solo GPS: distancia, ritmo y mapa. Se registra también con la pantalla bloqueada.")
                               : partes.joined(separator: " · ")
     }
 }
