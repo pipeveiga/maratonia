@@ -5116,6 +5116,17 @@
         }
       }
     },
+    "Estos datos requieren otra versión de Maratonia. Actualizá la app. Los archivos originales están protegidos.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This data requires another version of Maratonia. Update the app. The original files are protected."
+          }
+        }
+      }
+    },
     "Estoy empezando": {
       "extractionState": "manual",
       "localizations": {
@@ -7426,6 +7437,17 @@
         }
       }
     },
+    "No pude abrir tus datos: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not open your data: %@"
+          }
+        }
+      }
+    },
     "No pude activar el audio: %@": {
       "extractionState": "manual",
       "localizations": {
@@ -7459,6 +7481,17 @@
         }
       }
     },
+    "No pude guardar tus últimos cambios. Mantené la app abierta y reintentá: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not save your latest changes. Keep the app open and try again: %@"
+          }
+        }
+      }
+    },
     "No pude leer Salud: %@": {
       "extractionState": "manual",
       "localizations": {
@@ -7488,6 +7521,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Couldn't read the Apple credential."
+          }
+        }
+      }
+    },
+    "No pude leer tus datos ni una copia local válida. Conservé los archivos originales; no reinstales la app. Podés reintentar la lectura.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I could not read your data or a valid local backup. The original files have been preserved; do not reinstall the app. You can try reading again."
           }
         }
       }
@@ -9021,6 +9065,17 @@
         }
       }
     },
+    "Recuperé tus datos desde la copia local anterior. Revisá los últimos cambios de tu calendario.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your data was recovered from the previous local backup. Check the latest changes to your calendar."
+          }
+        }
+      }
+    },
     "Reemplazar (el actual queda archivado)": {
       "extractionState": "manual",
       "localizations": {
@@ -9072,6 +9127,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "Try again"
+          }
+        }
+      }
+    },
+    "Reintentar guardado": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try saving again"
+          }
+        }
+      }
+    },
+    "Reintentar lectura": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try reading again"
           }
         }
       }
@@ -11591,6 +11668,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Your runs"
+          }
+        }
+      }
+    },
+    "Tus datos": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your data"
           }
         }
       }

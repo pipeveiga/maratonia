@@ -583,7 +583,7 @@ final class CutoverTests: XCTestCase {
         PlanStore.migrarADominioV2SiHaceFalta(planV1: planLegacy(), en: urlV2,
                                               fecha: Date(timeIntervalSince1970: 0))
 
-        let almacen = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
+        let almacen = try AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
                                                     fecha: Date(timeIntervalSince1970: 1))
         XCTAssertTrue(almacen.activado)
         XCTAssertEqual(almacen.planActivo?.nombre, "Legacy")
@@ -593,7 +593,7 @@ final class CutoverTests: XCTestCase {
         PlanStore.migrarADominioV2SiHaceFalta(planV1: Plan.vacio, en: urlV2,
                                               fecha: Date(timeIntervalSince1970: 2))
         // …y el segundo arranque carga lo mismo, sin re-migrar.
-        let segundo = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
+        let segundo = try AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
                                                     fecha: Date(timeIntervalSince1970: 3))
         XCTAssertEqual(segundo, almacen)
     }
@@ -605,14 +605,14 @@ final class CutoverTests: XCTestCase {
         let urlV2 = dir.appendingPathComponent("dominio-v2.json")
         let urlLegacy = dir.appendingPathComponent("plan.json")
 
-        var almacen = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
+        var almacen = try AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
                                                     fecha: Date(timeIntervalSince1970: 0))
         almacen.adoptarPlan(Catalogo.planesDisponibles()[0]
             .adoptar(inicio: DiaLocal(anio: 2026, mes: 8, dia: 10),
                      fechaAdopcion: Date(timeIntervalSince1970: 1)))
         try JSONEncoder().encode(almacen).write(to: urlV2)
 
-        let releido = AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
+        let releido = try AlmacenStore.cargarConCutover(urlV2: urlV2, urlLegacy: urlLegacy,
                                                     fecha: Date(timeIntervalSince1970: 9))
         XCTAssertEqual(releido.planActivo?.nombreCrudo, "Primeros 5K")
     }
@@ -621,7 +621,7 @@ final class CutoverTests: XCTestCase {
     func testUsuarioNuevoSinLegacy() throws {
         let dir = try directorioTemporal()
         defer { try? FileManager.default.removeItem(at: dir) }
-        let almacen = AlmacenStore.cargarConCutover(
+        let almacen = try AlmacenStore.cargarConCutover(
             urlV2: dir.appendingPathComponent("dominio-v2.json"),
             urlLegacy: dir.appendingPathComponent("plan.json"),
             fecha: Date(timeIntervalSince1970: 0))
@@ -638,7 +638,7 @@ final class CutoverTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: dir) }
         let urlLegacy = dir.appendingPathComponent("plan.json")
         try JSONEncoder().encode(planLegacy()).write(to: urlLegacy)
-        let almacen = AlmacenStore.cargarConCutover(
+        let almacen = try AlmacenStore.cargarConCutover(
             urlV2: dir.appendingPathComponent("dominio-v2.json"),
             urlLegacy: urlLegacy, fecha: Date(timeIntervalSince1970: 0))
         XCTAssertTrue(almacen.activado)
@@ -2488,5 +2488,174 @@ final class AplicarLoOfrecidoTests: XCTestCase {
             [.reprogramar(programadoID: programado.id, a: martes)],
             a: &almacen, hoy: hoy, origen: .motor, motivo: "prueba")
         XCTAssertEqual(aplicados, 0, "el motor no puede repartir fuera de los días elegidos")
+    }
+}
+
+final class PersistenciaAlmacenTests: XCTestCase {
+    private func directorio() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try FileManager.default.removeItem(at: dir) }
+        return dir
+    }
+
+    private func dominio() -> AlmacenV2 {
+        var valor = AlmacenV2()
+        valor.activado = true
+        valor.usuarioID = UUID()
+        valor.registrarSesionLibre(sesionID: UUID(), fecha: Date(timeIntervalSince1970: 10))
+        return valor
+    }
+
+    func testGuardaDosGeneracionesDelDominioCompleto() throws {
+        let dir = try directorio()
+        let disco = PersistenciaAlmacen(url: dir.appendingPathComponent("v2.json"))
+        let anterior = dominio()
+        var nuevo = anterior
+        nuevo.registrarSesionLibre(sesionID: UUID(), fecha: Date(timeIntervalSince1970: 20))
+        try disco.guardar(anterior)
+        try disco.guardar(nuevo)
+        XCTAssertEqual(try PersistenciaAlmacen.decodificar(Data(contentsOf: disco.url)), nuevo)
+        XCTAssertEqual(try PersistenciaAlmacen.decodificar(Data(contentsOf: disco.urlCopia)), anterior)
+    }
+
+    func testRecuperaCopiaYPreservaArchivoCorrupto() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        let disco = PersistenciaAlmacen(url: url)
+        let anterior = dominio()
+        try disco.guardar(anterior)
+        let roto = Data("{truncado".utf8)
+        try roto.write(to: url)
+        // El orden real de arranque comienza por la migración legacy.
+        PlanStore.migrarADominioV2SiHaceFalta(planV1: .vacio, en: url)
+        XCTAssertEqual(try Data(contentsOf: url), roto)
+        let store = AlmacenStore(url: url, urlLegacy: dir.appendingPathComponent("legacy.json"),
+                                 conectadoAlReloj: false)
+        XCTAssertEqual(store.almacen, anterior)
+        XCTAssertFalse(store.cargaBloqueada)
+        XCTAssertFalse(store.cambiosSinGuardar)
+        XCTAssertNotNil(store.mensajePersistencia)
+        XCTAssertEqual(try PersistenciaAlmacen.decodificar(Data(contentsOf: url)), anterior)
+        let copias = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
+            .filter { $0.lastPathComponent.contains("corrupto-") }
+        XCTAssertEqual(copias.count, 1)
+        XCTAssertEqual(try Data(contentsOf: XCTUnwrap(copias.first)), roto)
+    }
+
+    func testSinCopiaNoPisaCorrupcionConLegacyNiConMutaciones() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        let legacy = dir.appendingPathComponent("legacy.json")
+        let roto = Data("no es JSON".utf8)
+        try roto.write(to: url)
+        try JSONEncoder().encode(Plan.vacio).write(to: legacy)
+        PlanStore.migrarADominioV2SiHaceFalta(planV1: .vacio, en: url)
+        let store = AlmacenStore(url: url, urlLegacy: legacy, conectadoAlReloj: false)
+        XCTAssertTrue(store.cargaBloqueada)
+        store.almacen = dominio()
+        store.reintentarPersistencia()
+        XCTAssertTrue(store.cargaBloqueada)
+        XCTAssertEqual(try Data(contentsOf: url), roto)
+    }
+
+    func testVersionFuturaNoSeReemplazaAunqueExistaBackup() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        let disco = PersistenciaAlmacen(url: url)
+        try disco.guardar(dominio())
+        var futuro = dominio()
+        futuro.versionEsquema = 99
+        let datos = try JSONEncoder().encode(futuro)
+        try datos.write(to: url)
+        PlanStore.migrarADominioV2SiHaceFalta(planV1: .vacio, en: url)
+        let store = AlmacenStore(url: url, urlLegacy: dir.appendingPathComponent("legacy.json"),
+                                 conectadoAlReloj: false)
+        XCTAssertTrue(store.cargaBloqueada)
+        store.almacen = dominio()
+        store.reintentarPersistencia()
+        XCTAssertEqual(try Data(contentsOf: url), datos)
+    }
+
+    func testPrincipalAusenteRecuperaBackupEnVezDeMigrar() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        let disco = PersistenciaAlmacen(url: url)
+        let valor = dominio()
+        try disco.guardar(valor)
+        try FileManager.default.removeItem(at: url)
+        PlanStore.migrarADominioV2SiHaceFalta(planV1: .vacio, en: url)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+        let store = AlmacenStore(url: url, urlLegacy: dir.appendingPathComponent("legacy.json"),
+                                 conectadoAlReloj: false)
+        XCTAssertEqual(store.almacen, valor)
+        XCTAssertFalse(store.cargaBloqueada)
+    }
+
+    func testErrorDeLecturaNoSeConfundeConInstalacionNueva() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
+        let disco = PersistenciaAlmacen(url: url)
+        try JSONEncoder().encode(dominio()).write(to: disco.urlCopia)
+        XCTAssertThrowsError(try disco.cargar(urlLegacy: dir.appendingPathComponent("legacy.json"), fecha: Date()))
+        var esDirectorio: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path, isDirectory: &esDirectorio))
+        XCTAssertTrue(esDirectorio.boolValue)
+    }
+
+    func testErrorDeEscrituraSeVeYReintentoConservaCambios() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        let copia = PersistenciaAlmacen.urlCopia(de: url)
+        let store = AlmacenStore(url: url, urlLegacy: dir.appendingPathComponent("legacy.json"),
+                                 conectadoAlReloj: false)
+        let anterior = try Data(contentsOf: url)
+        try FileManager.default.removeItem(at: copia)
+        try FileManager.default.createDirectory(at: copia, withIntermediateDirectories: false)
+        let nuevo = dominio()
+        store.almacen = nuevo
+        XCTAssertTrue(store.cambiosSinGuardar)
+        XCTAssertNotNil(store.mensajePersistencia)
+        XCTAssertEqual(try Data(contentsOf: url), anterior)
+        XCTAssertEqual(store.almacen, nuevo)
+        try FileManager.default.removeItem(at: copia)
+        store.reintentarPersistencia()
+        XCTAssertFalse(store.cambiosSinGuardar)
+        XCTAssertNil(store.mensajePersistencia)
+        XCTAssertEqual(try PersistenciaAlmacen.decodificar(Data(contentsOf: url)), nuevo)
+    }
+
+    func testReintentarLecturaEntregaResultadosPendientesUnaSolaVez() throws {
+        let dir = try directorio()
+        let url = dir.appendingPathComponent("v2.json")
+        try Data("corrupto".utf8).write(to: url)
+        let store = AlmacenStore(url: url, urlLegacy: dir.appendingPathComponent("legacy.json"),
+                                 conectadoAlReloj: false)
+        let resultado = ResultadoSesionWatch(sesionID: UUID(), fecha: Date(),
+                                             programadoID: nil, estructuraCompleta: false)
+        store.procesar(resultado: resultado)
+        let reparado = dominio()
+        try JSONEncoder().encode(reparado).write(to: url)
+        store.reintentarPersistencia()
+        store.procesar(resultado: resultado)
+        XCTAssertFalse(store.cargaBloqueada)
+        XCTAssertEqual(store.almacen.sesiones.count, reparado.sesiones.count + 1)
+        XCTAssertEqual(store.almacen.sesiones.filter { $0.id == resultado.sesionID }.count, 1)
+    }
+
+    func testCodificacionFallidaNoPisaNingunaCopia() throws {
+        let dir = try directorio()
+        let disco = PersistenciaAlmacen(url: dir.appendingPathComponent("v2.json"))
+        let valor = dominio()
+        try disco.guardar(valor)
+        let principal = try Data(contentsOf: disco.url)
+        let copia = try Data(contentsOf: disco.urlCopia)
+        var invalido = valor
+        invalido.referencias = [ReferenciaRendimiento(fecha: Date(), fuente: .test5K,
+            distanciaMetros: .nan, segundos: 1500)]
+        XCTAssertThrowsError(try disco.guardar(invalido))
+        XCTAssertEqual(try Data(contentsOf: disco.url), principal)
+        XCTAssertEqual(try Data(contentsOf: disco.urlCopia), copia)
     }
 }

@@ -79,10 +79,15 @@ final class PlanStore: ObservableObject {
     /// migrado nace pendiente; el puente de huella se resuelve en
     /// Fase E del lado del watch.
     static func migrarADominioV2SiHaceFalta(planV1: Plan, en url: URL, fecha: Date = Date()) {
-        if let datos = try? Data(contentsOf: url),
-           let existente = try? JSONDecoder().decode(AlmacenV2.self, from: datos),
-           existente.activado {
+        // Un archivo ilegible NO es ausencia: AlmacenStore debe intentar
+        // recuperarlo. Tampoco recrear el ensayo si queda una copia V2.
+        if FileManager.default.fileExists(atPath: PersistenciaAlmacen.urlCopia(de: url).path) {
             return
+        }
+        if FileManager.default.fileExists(atPath: url.path) {
+            guard let datos = try? Data(contentsOf: url),
+                  let existente = try? PersistenciaAlmacen.decodificar(datos),
+                  !existente.activado else { return }
         }
         let almacen = MigracionV2.migrar(planV1: planV1, huellaCumplida: nil, fecha: fecha)
         if let datos = try? JSONEncoder().encode(almacen) {

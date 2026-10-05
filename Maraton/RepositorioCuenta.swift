@@ -107,7 +107,8 @@ final class RepositorioCuenta: ObservableObject {
     /// Nunca borra el disco. Si algo falla, el corredor se queda con lo
     /// que tenía y la app sigue andando.
     func sincronizarAlEntrar() async {
-        guard let uid, let db else { return }
+        guard !almacen.cargaBloqueada, !almacen.cambiosSinGuardar,
+              let uid, let db else { return }
         estado = .sincronizando
         do {
             let raiz = db.collection("users").document(uid)
@@ -265,9 +266,19 @@ final class RepositorioCuenta: ObservableObject {
     /// traduce a operaciones pendientes. Es el ÚNICO lugar donde el
     /// dominio produce escrituras a la nube — las vistas no participan.
     static func conectar(_ repositorio: RepositorioCuenta, con almacen: AlmacenStore) {
+        // Una edición que falló en disco no se sube como si estuviera
+        // confirmada. Al reintentar, el cambio de bandera vuelve a emitir
+        // la foto y permite sincronizar sin otra edición del usuario.
         repositorio.observador = almacen.$almacen
+            .combineLatest(almacen.$cambiosSinGuardar, almacen.$cargaBloqueada)
             .receive(on: RunLoop.main)
-            .sink { [weak repositorio] nuevo in
+            .sink { [weak repositorio, weak almacen] estado in
+                let (nuevo, sinGuardar, bloqueada) = estado
+                // @Published emite antes del didSet. La bandera de ESTA
+                // emisión puede ser la anterior al intento de escritura;
+                // también miramos el resultado actual, ya en main.
+                guard let almacen, !sinGuardar, !bloqueada,
+                      !almacen.cambiosSinGuardar, !almacen.cargaBloqueada else { return }
                 repositorio?.registrarCambios(nuevo)
             }
     }

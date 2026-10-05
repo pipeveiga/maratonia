@@ -119,7 +119,8 @@ struct ContentView: View {
     /// Tarjeta con los números de la carrera recién guardada.
     private func vistaResumen(_ resumen: ResumenCarrera) -> some View {
         VStack(spacing: 3) {
-            Text("¡Carrera guardada!")
+            Text(entrenamiento.guardando ? "Guardando carrera…"
+                 : resumen.guardadaEnSalud ? "¡Carrera guardada!" : "Carrera sin guardar")
                 .font(.headline)
             Text(formatearTiempo(resumen.duracion))
                 .font(.title3)
@@ -148,7 +149,9 @@ struct ContentView: View {
                     .foregroundStyle(resumen.puntosRuta > 0 ? Color.secondary : Color.orange)
                     .multilineTextAlignment(.center)
             }
-            Text("Mapa y detalles: «Mis carreras» en el iPhone.")
+            Text(entrenamiento.guardando ? "Esperá la confirmación de Salud antes de cerrar la app."
+                 : resumen.guardadaEnSalud ? "Mapa y detalles: «Mis carreras» en el iPhone."
+                 : "El entrenamiento no está confirmado en Salud.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -159,7 +162,8 @@ struct ContentView: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity)
-        .background(Color.green.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+        .background((resumen.guardadaEnSalud ? Color.green : Color.orange).opacity(0.15),
+                    in: RoundedRectangle(cornerRadius: 12))
     }
 
     // El lobby va partido en bloques chicos a propósito: SwiftUI admite
@@ -619,7 +623,8 @@ struct PantallaReproduccion: View {
             Button("Terminar y guardar") {
                 // El cumplimiento del plan se decide ANTES de detener
                 // (detener borra el estado del entrenador).
-                EntrenadorRitmo.compartido.marcarCumplimientoSiCorresponde()
+                Entrenamiento.compartido.huellaCumplidaAlGuardar =
+                    EntrenadorRitmo.compartido.huellaCompletada
                 Entrenamiento.compartido.estructuraCompletaAlGuardar =
                     EntrenadorRitmo.compartido.estructuraCompleta
                 reproductor.detener()

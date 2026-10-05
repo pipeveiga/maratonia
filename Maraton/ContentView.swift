@@ -81,7 +81,7 @@ struct ContentView: View {
             #endif
         }
         .task {
-            guard !EscenarioNavegacionQA.activo else { return }
+            guard !EscenarioNavegacionQA.activo, !almacen.cargaBloqueada else { return }
             IdentidadStore.conectar(identidad, con: almacen)
             identidad.verificarRevocacionApple()
             // StoreKit escucha desde el arranque: una compra hecha en
@@ -91,7 +91,16 @@ struct ContentView: View {
             sesion.reevaluar()
             await sesion.restaurar(con: repositorio)
         }
+        .onChange(of: almacen.cargaBloqueada) { _, bloqueada in
+            guard !bloqueada, !EscenarioNavegacionQA.activo else { return }
+            Task {
+                IdentidadStore.conectar(identidad, con: almacen)
+                sesion.reevaluar()
+                await sesion.restaurar(con: repositorio)
+            }
+        }
         .onChange(of: identidad.haySesion) { _, hay in
+            guard !almacen.cargaBloqueada else { return }
             Task {
                 if hay { await sesion.restaurar(con: repositorio) }
                 else {
@@ -106,7 +115,13 @@ struct ContentView: View {
     @ViewBuilder
     private var raiz: some View {
         Group {
-            if EscenarioNavegacionQA.activo {
+            if almacen.cargaBloqueada {
+                NavigationStack {
+                    AvisoPersistencia(almacen: almacen)
+                        .padding()
+                        .navigationTitle("Tus datos")
+                }
+            } else if EscenarioNavegacionQA.activo {
                 AppPrincipal(store: store, almacen: almacen, identidad: identidad,
                              repositorio: repositorio)
             } else {
@@ -180,6 +195,11 @@ struct AppPrincipal: View {
                       mostrandoTutorial: $mostrandoTutorial)
                 .tabItem { Label("Perfil", systemImage: "person.crop.circle") }
                 .tag(Pestana.perfil)
+        }
+        .safeAreaInset(edge: .top) {
+            if almacen.mensajePersistencia != nil {
+                AvisoPersistencia(almacen: almacen)
+            }
         }
         .safeAreaInset(edge: .bottom) {
             if carrera.estado != .detenida && pestana != .hoy {

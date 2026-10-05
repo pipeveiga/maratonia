@@ -1002,6 +1002,17 @@
         }
       }
     },
+    "Encontré una carrera interrumpida. Estoy intentando guardarla en Salud.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An interrupted run was found. Trying to save it to Health."
+          }
+        }
+      }
+    },
     "Ensayo casi 5K": {
       "extractionState": "manual",
       "localizations": {
@@ -1119,6 +1130,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Saves heart rate, distance and route to Health. Don't use Runna at the same time. Auto-pause (needs GPS): when you stop at a traffic light it pauses everything and resumes on its own. Zones are calculated automatically from your age and your resting heart rate in Health."
+          }
+        }
+      }
+    },
+    "Guardando en Salud…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saving to Health…"
           }
         }
       }
@@ -1251,6 +1273,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "The run is saved to Health."
+          }
+        }
+      }
+    },
+    "La carrera se guardó, pero falló el recorrido: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The run was saved, but the route could not be saved: %@"
           }
         }
       }
@@ -1618,6 +1651,17 @@
         }
       }
     },
+    "No pude asociar el plan en Salud: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not attach the plan in Health: %@"
+          }
+        }
+      }
+    },
     "No pude configurar el audio: %@": {
       "extractionState": "manual",
       "localizations": {
@@ -1856,6 +1900,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Recovery"
+          }
+        }
+      }
+    },
+    "Recuperé la carrera interrumpida y la guardé en Salud.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The interrupted run was recovered and saved to Health."
           }
         }
       }
@@ -2120,6 +2175,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Long outing"
+          }
+        }
+      }
+    },
+    "Salud no devolvió un entrenamiento guardado.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health did not return a saved workout."
           }
         }
       }

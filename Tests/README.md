@@ -1,37 +1,51 @@
 # Tests de Maratonia
 
-Los archivos de esta carpeta están listos pero **todavía no conectados
-al proyecto** (crear el target de tests requiere Xcode). Mientras tanto,
-la misma lógica se valida con la simulación descripta en NIGHT_AUDIT.md.
+`MaratonTests` y `MaratonUITests` están conectados al proyecto y al esquema
+compartido `Maraton`. En Xcode: seleccionar el esquema, un simulador iPhone y
+**Product → Test** (Cmd+U). No hay que crear targets manualmente.
 
-## Conectarlos (una sola vez, en la Mac — 7 pasos)
+## Ejecutarlos
 
-1. Abrí `Maraton.xcodeproj` en Xcode.
-2. Menú **File → New → Target…**
-3. Buscá **Unit Testing Bundle** (pestaña iOS) → **Next**.
-4. Product Name: `MaratonTests` · Target to be Tested: **Maraton** → **Finish**.
-5. En el Finder, arrastrá los DOS archivos de `Tests/MaratonTests/`
-   (`LogicaDeportivaTests.swift` y `DominioV2Tests.swift`) adentro del
-   grupo **MaratonTests** que apareció en la barra lateral de Xcode. En
-   el diálogo: destildá "Copy items if needed" y tildá SOLO el target
-   **MaratonTests**.
-6. Borrá el archivo `MaratonTests.swift` de ejemplo que creó Xcode.
-7. Menú **Product → Test** (Cmd+U). Tienen que pasar todos.
+En una Mac con Xcode y el simulador correspondiente instalado:
+
+```sh
+xcodebuild test -project Maraton.xcodeproj -scheme Maraton \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' \
+  -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO
+```
+
+La configuración del runner vive en `.github/workflows/ios.yml`. Compila
+Release para iPhone y Apple Watch, ejecuta ambos targets de tests y conserva
+el `.xcresult` y las capturas como artefactos de GitHub Actions.
 
 ## Qué cubren
 
-- `zonaCardiaca` (Karvonen): caso real 150–160 ppm, límites de zona,
-  datos corruptos (reposo ≥ máxima) sin crash.
-- `Plan.cronograma`: expansión fijos+repetidos, orden fijo-primero,
-  basura filtrada (minutos ≤ 0), `hastaMinuto`, plan vacío.
-- Formatos: `formatearRitmo`, `ritmoParaHablar`, `kmTexto`.
-- Importación de tramos: ritmos válidos/ inválidos, regresión de
-  comillas curvas + fences de ChatGPT, y compatibilidad hacia atrás de
-  `plan.json` sin tramos/avisosKm.
+- Dominio deportivo: volumen, calendarios, perfiles, planes, adaptaciones,
+  migraciones, internacionalización y vínculo con sesiones guardadas.
+- Inicio: instalación nueva, plan futuro, sesión pendiente o resuelta,
+  archivo de un plan y conservación del historial.
+- Persistencia: dos generaciones válidas, recuperación con evidencia del
+  archivo corrupto, errores de lectura/escritura, versiones futuras,
+  reintento e idempotencia de resultados pendientes del reloj.
+- Auto-pausa: timestamps GPS medidos, señales viejas o duplicadas, precisión,
+  saltos temporales y pausa manual; cierre de sesión por identidad.
+- UI: Hoy → Plan → creación → Progreso → carreras; calendario de plan activo;
+  validación del onboarding sin saltos por swipe; recorrido en inglés.
 
-## Pendiente de agregar cuando haya harness
+Los recorridos de UI usan un almacén temporal y argumentos de lanzamiento
+que sólo funcionan en builds Debug del simulador. No necesitan una cuenta
+personal, ni autorizaciones de Salud, Firebase o una compra.
 
-Lógica con estado que hoy vive en singletons con frameworks
-(auto-pausa, anti-flapping de zonas, splits): para testearla haría
-falta extraerla o inyectar relojes/ubicaciones falsas. Los casos ya
-están diseñados en la simulación Python de NIGHT_AUDIT.md.
+Backend (Node 20):
+
+```sh
+cd functions
+npm ci --ignore-scripts
+node --test test/*.test.js
+```
+
+## Verificación en dispositivos
+
+El simulador no verifica GPS con pantalla bloqueada, autorizaciones reales de
+Salud, audio bajo interrupciones ni guardado de workouts en Apple Watch.
+Los casos concretos para la siguiente prueba física están en `UX_AUDIT.md`.

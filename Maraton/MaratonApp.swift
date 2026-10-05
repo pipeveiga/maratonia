@@ -8,6 +8,7 @@ import SwiftUI
 @main
 struct MaratonApp: App {
     init() {
+        guard !EscenarioNavegacionQA.activo else { return }
         ServicioAuth.configurar()
     }
 

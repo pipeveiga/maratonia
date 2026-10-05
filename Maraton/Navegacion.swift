@@ -1,5 +1,30 @@
 import SwiftUI
 
+struct AvisoPersistencia: View {
+    @ObservedObject var almacen: AlmacenStore
+
+    var body: some View {
+        if let mensaje = almacen.mensajePersistencia {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(mensaje, systemImage: "externaldrive.badge.exclamationmark")
+                    .font(.callout)
+                if almacen.cargaBloqueada || almacen.cambiosSinGuardar {
+                    Button(almacen.cargaBloqueada
+                           ? String(localized: "Reintentar lectura") : String(localized: "Reintentar guardado")) {
+                        almacen.reintentarPersistencia()
+                    }
+                    .buttonStyle(.borderedProminent)
+                } else {
+                    Button("Entendido") { almacen.confirmarRecuperacion() }
+                }
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.regularMaterial)
+        }
+    }
+}
+
 /// La misma interpretación del calendario para el inicio y las pruebas.
 /// Un día sin sesión no significa que el usuario no tenga un plan.
 enum EstadoDeHoy: Equatable {

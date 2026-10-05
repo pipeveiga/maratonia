@@ -79,6 +79,7 @@ final class CarreraCelu: NSObject, ObservableObject {
     /// parado — sin esto, un túnel o un mal fix disparaba pausas falsas.
     private var fechaUltimoGPS: Date?
     private var supervisorReanudacion = AutoPausa.SupervisorReanudacion()
+    private var filtroSenalGPS = AutoPausa.FiltroSenalGPS()
 
     /// Vigilancia del GPS durante la auto-pausa (bug 1 de build 38):
     /// Core Location puede dejar de entregar con el usuario quieto y la
@@ -253,6 +254,7 @@ final class CarreraCelu: NSObject, ObservableObject {
         ultimaUbicacion = nil
         fechaUltimoGPS = nil
         supervisorReanudacion.reiniciar()
+        filtroSenalGPS.reiniciar(desde: Date())
         musicaSilenciada = false
         acumuladoPrevio = 0
         fechaReanudacion = Date()
@@ -600,6 +602,7 @@ final class CarreraCelu: NSObject, ObservableObject {
         enPausaAutomatica = automatica
         ubicacionPausa = nil
         supervisorReanudacion.reiniciar()
+        filtroSenalGPS.reiniciar(desde: Date())
         // Gracia de 10 s antes del primer empujón al GPS.
         fechaUltimaSenalPausa = Date()
         fechaUltimoEmpujonGPS = nil
@@ -615,6 +618,8 @@ final class CarreraCelu: NSObject, ObservableObject {
     private func reanudar() {
         guard estado == .pausada else { return }
         fechaReanudacion = Date()
+        filtroSenalGPS.reiniciar(desde: fechaReanudacion!)
+        fechaUltimoGPS = nil
         estado = .corriendo
         enPausaAutomatica = false
         ubicacionPausa = nil
@@ -819,21 +824,25 @@ extension CarreraCelu: AVSpeechSynthesizerDelegate {
 
 extension CarreraCelu: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let ahora = Date()
+        let senalesFrescas = locations.sorted { $0.timestamp < $1.timestamp }.filter {
+            filtroSenalGPS.aceptar(fecha: $0.timestamp,
+                                   precision: $0.horizontalAccuracy, ahora: ahora)
+        }
         // Auto-pausa → reanudación automática por desplazamiento
         // sostenido O velocidad GPS sostenida (SupervisorReanudacion en
         // Shared). La pausa MANUAL nunca entra acá (puedeAutoReanudar).
         if estado == .pausada,
            AutoPausa.puedeAutoReanudar(pausada: true, enPausaAutomatica: enPausaAutomatica) {
-            guard let ubicacion = locations.last,
-                  ubicacion.horizontalAccuracy > 0, ubicacion.horizontalAccuracy <= 50 else { return }
-            fechaUltimaSenalPausa = Date()
+            guard let ubicacion = senalesFrescas.last else { return }
+            fechaUltimaSenalPausa = ubicacion.timestamp
             let desplazamiento = ubicacionPausa.map { ubicacion.distance(from: $0) }
             if ubicacionPausa == nil { ubicacionPausa = ubicacion }
             if supervisorReanudacion.procesar(
                 desplazamiento: desplazamiento,
                 velocidad: ubicacion.speed >= 0 ? ubicacion.speed : nil,
                 umbral: max(15, ubicacion.horizontalAccuracy),
-                fecha: Date()) {
+                fecha: ubicacion.timestamp) {
                 reanudar()
                 anunciar(String(localized: "Seguimos."))
             }
@@ -851,7 +860,7 @@ extension CarreraCelu: CLLocationManagerDelegate {
             buenas.append(ubicacion)
         }
         guard !buenas.isEmpty else { return }
-        fechaUltimoGPS = Date()
+        fechaUltimoGPS = filtroSenalGPS.ultimaFecha
         puntosRuta += buenas.count
         routeBuilder?.insertRouteData(buenas) { _, _ in }
     }
