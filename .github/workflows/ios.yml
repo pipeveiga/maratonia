@@ -2,7 +2,7 @@ name: iOS y navegación
 
 on:
   pull_request:
-    paths: ['Maraton/**', 'Maraton Watch App/**', 'Shared/**', 'Tests/**', 'Maraton.xcodeproj/**', '.github/workflows/ios.yml']
+    paths: ['Maraton/**', 'Maraton Watch App/**', 'Shared/**', 'Tests/**', 'functions/**', 'scripts/**', 'Maraton.xcodeproj/**', '.github/workflows/ios.yml']
   workflow_dispatch:
 
 permissions:

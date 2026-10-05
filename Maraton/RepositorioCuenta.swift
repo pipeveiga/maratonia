@@ -442,6 +442,13 @@ final class RepositorioCuenta: ObservableObject {
     @discardableResult
     func limpiarParaLogout() async -> Bool {
         guard !almacen.cargaBloqueada, !almacen.cambiosSinGuardar else { return false }
+        // La primera migración usa un batch completo, no la cola incremental.
+        // Una cola vacía tampoco confirma una restauración o subida fallida.
+        if case .sincronizando = estado { return false }
+        if case .error = estado {
+            Task { await sincronizarAlEntrar() }
+            return false
+        }
         if !pendientes.isEmpty {
             // Reintentar en segundo plano; el botón no espera una red
             // ausente indefinidamente. La sesión sigue abierta hasta ACK.
