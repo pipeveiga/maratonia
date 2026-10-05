@@ -492,6 +492,7 @@ struct SeccionCuentaMaratonia: View {
     @State private var confirmandoEliminar = false
     @State private var mensajeEliminacion: String?
     @State private var cerrandoSesion = false
+    @ObservedObject private var carrera = CarreraCelu.compartida
 
     var body: some View {
         Section {
@@ -514,6 +515,7 @@ struct SeccionCuentaMaratonia: View {
                     LoginView(identidad: identidad)
                 }
                 Button("Cerrar sesión") {
+                    guard carrera.estado == .detenida else { return }
                     cerrandoSesion = true
                     Task {
                         defer { cerrandoSesion = false }
@@ -524,11 +526,11 @@ struct SeccionCuentaMaratonia: View {
                         servicio.cerrarSesion(identidad: identidad)
                     }
                 }
-                .disabled(cerrandoSesion || servicio.ocupado)
+                .disabled(cerrandoSesion || servicio.ocupado || carrera.estado != .detenida)
                 Button("Eliminar cuenta", role: .destructive) {
                     confirmandoEliminar = true
                 }
-                .disabled(servicio.ocupado)
+                .disabled(servicio.ocupado || carrera.estado != .detenida)
                 .confirmationDialog("¿Eliminar tu cuenta de Maratonia?",
                                     isPresented: $confirmandoEliminar,
                                     titleVisibility: .visible) {
@@ -538,6 +540,11 @@ struct SeccionCuentaMaratonia: View {
                     Button("Cancelar", role: .cancel) {}
                 } message: {
                     Text("Se borran tu identidad (incluida la de Firebase) y el respaldo de Maratonia en iCloud. Tus entrenamientos guardados en Apple Health NO se tocan: siguen siendo tuyos y se administran desde la app Salud.")
+                }
+                if carrera.estado != .detenida {
+                    Text("Terminá la carrera antes de cerrar sesión o eliminar la cuenta.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 if let mensaje = mensajeEliminacion {
                     Text(mensaje)

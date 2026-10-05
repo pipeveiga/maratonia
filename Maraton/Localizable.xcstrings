@@ -10758,6 +10758,22 @@
         }
       }
     },
+    "Terminá la carrera antes de cerrar sesión o eliminar la cuenta.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish your run before signing out or deleting your account."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminá la carrera antes de cerrar sesión o eliminar la cuenta."
+          }
+        }
+      }
+    },
     "Test 5K": {
       "extractionState": "manual",
       "localizations": {

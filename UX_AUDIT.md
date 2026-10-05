@@ -61,6 +61,7 @@ Se aplica la claridad de destinos; no se copian sus recursos ni su marca.
 - Cerrar sesión prepara la caché antes de desconectar Firebase. Una cola
   pendiente o un error de disco conserva la sesión y permite reintentar.
   La limpieza local no genera una escritura de perfil vacío en la nube.
+  No se permite cerrar o eliminar la cuenta durante una carrera del iPhone.
 - La cola de sincronización conserva el UID dueño de cada operación, procesa
   escrituras en serie y sólo las quita después del ACK del servidor. Las
   ediciones que llegan durante un envío se conservan. El botón de cierre no
